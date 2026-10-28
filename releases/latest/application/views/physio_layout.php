@@ -439,6 +439,9 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
                        || $CI->permissions('accounts_view') || $CI->permissions('suppliers_view')
                        || $CI->permissions('purchase_view');
       $workspaceItems = '';
+      foreach (messaging_workspace_menu_items() as $messagingLink) {
+        $workspaceItems .= $nav($messagingLink['title'], $messagingLink['url_desktop'], $messagingLink['icon'], true);
+      }
       $workspaceItems .= $nav('Leads','leads','fa-bullhorn',$canLeads);
       $workspaceItems .= $nav('Purchases','purchase','fa-cart-arrow-down',$CI->permissions('purchase_view'));
       $workspaceItems .= $nav('Suppliers','suppliers','fa-truck',$CI->permissions('suppliers_view'));

@@ -21,16 +21,16 @@
   <div class="mp-card-body">
     <div style="margin-bottom:12px!important">
       <?php if($email_ready): ?>
-        <span class="mp-provider-flag mp-prov-ok"><i class="fa fa-check-circle"></i> Email provider configured</span>
+        <span class="mp-provider-flag mp-prov-ok"><i class="fa fa-check-circle"></i> MartPoint email ready</span>
       <?php else: ?>
-        <span class="mp-provider-flag mp-prov-off"><i class="fa fa-exclamation-circle"></i> Email not configured — email sends will fail until SMTP/provider settings are saved in Site Settings</span>
+        <span class="mp-provider-flag mp-prov-off"><i class="fa fa-exclamation-circle"></i> MartPoint email is paused or awaiting configuration on Central</span>
       <?php endif; ?>
       <?php if($sms_ready): ?>
-        <span class="mp-provider-flag mp-prov-ok" style="margin-left:8px!important"><i class="fa fa-check-circle"></i> SMS enabled</span>
+        <span class="mp-provider-flag mp-prov-ok" style="margin-left:8px!important"><i class="fa fa-check-circle"></i> MartPoint SMS ready</span>
       <?php else: ?>
-        <span class="mp-provider-flag mp-prov-off" style="margin-left:8px!important"><i class="fa fa-exclamation-circle"></i> SMS not enabled — SMS sends will fail until an SMS provider is configured</span>
+        <span class="mp-provider-flag mp-prov-off" style="margin-left:8px!important"><i class="fa fa-exclamation-circle"></i> MartPoint SMS is paused or awaiting configuration on Central</span>
       <?php endif; ?>
-      <div class="mp-form-hint" style="margin-top:8px!important">SMS campaigns incur provider charges per message sent. Email may incur provider charges depending on your mail plan. Always use <b>Test send</b> (sends to your store email/phone only) before a full send.</div>
+      <div class="mp-form-hint" style="margin-top:8px!important">Campaigns use your MartPoint messaging balance. Both test sends and audience sends show a cost estimate before confirmation. <a href="<?= base_url('messaging'); ?>">Add credit, view usage &amp; packages</a>.</div>
     </div>
     <div class="mp-form-grid">
       <div class="mp-form-group">
@@ -118,6 +118,7 @@
   </div>
 </div>
 
+<?php $this->load->view('messaging/campaign_billing'); ?>
 <script>
 var CSRF = {name: '<?= $this->security->get_csrf_token_name(); ?>', hash: '<?= $this->security->get_csrf_hash(); ?>'};
 function mpPost(url, data, cb){
@@ -145,18 +146,11 @@ $('#camp-save').on('click', function(){
     if(r.status === 'success') location.reload();
   });
 });
-$('.mp-camp-test').on('click', function(){
-  mpPost('<?= base_url('marketing/send_campaign'); ?>', {id: $(this).data('id'), test: 1}, function(r){
-    alert(r.message || 'Done');
-  });
-});
-$('.mp-camp-send').on('click', function(){
-  var id = $(this).data('id');
-  if(!confirm('Send this campaign to the whole audience? This action cannot be undone.')) return;
-  mpPost('<?= base_url('marketing/send_campaign'); ?>', {id: id}, function(r){
-    alert(r.message || 'Done');
-    if(r.status === 'success') location.reload();
-  });
+$('.mp-camp-test,.mp-camp-send').on('click', function(){
+  var btn=this; btn.disabled=true;
+  mpCampaignConfirm($(btn).data('id'),$(btn).hasClass('mp-camp-test'),function(r){
+    alert(r.message || 'Done'); if(r.status==='success') location.reload();
+  }).finally(function(){btn.disabled=false;});
 });
 $(".marketing-campaigns-active-li").addClass("active").closest(".mp-nav-group").addClass("open");
 </script>

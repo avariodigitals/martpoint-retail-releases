@@ -8,7 +8,7 @@ class Subscription_license extends MY_Controller {
 		$this->load_global();
 	}
 
-	/* ================= SUPER ADMIN ONLY ================= */
+	/* ================= LICENSE-MANAGEMENT PERMISSION ================= */
 
 	public function index(){
 		$this->permission_check('license_management');
@@ -704,6 +704,7 @@ class Subscription_license extends MY_Controller {
 
 		$result = $this->email_service->sendRaw($to_email, $subject, $html, $text, [
 			'template_key' => 'license_otp',
+            'platform_data'=>array('otp_code'=>$otp),
 			'from_name' => 'MartPoint Retail',
 			'email_scope' => 'platform',
                 'send_copy_to_owner' => false

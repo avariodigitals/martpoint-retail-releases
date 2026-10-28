@@ -1,3 +1,5 @@
+<div class="mp-document-scope">
+<?php $this->load->view('sales/commercial_assets'); ?>
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <?php
@@ -147,19 +149,31 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 </style>
 
 <?php if($is_building_commercial): $this->load->view('building_materials/commercial_style',['building_editor_style'=>false]); ?><div class="bm-commercial bm-commercial-document"><?php endif; ?>
+<?php
+$workflowRow=$CI->db->where('id',(int)$sales_id)->get('db_sales')->row();
+$invoiceDocumentState=$CI->invoice_workflow->status($workflowRow);
+$invoiceIsDraft=$invoiceDocumentState==='draft';
+?>
 <div class="mp-page-head">
   <div>
     <?php if($is_building_commercial): ?><div class="bm-commercial-eyebrow">CLIENT BILLING · INVOICE RECORD</div><?php endif; ?>
     <h2><?= $is_building_commercial?'Invoice':$this->lang->line('sales_invoice'); ?> <span style="color:var(--mp-muted);font-weight:500;">#<?= htmlspecialchars($sales_code); ?></span></h2>
-    <div class="mp-page-sub"><?= show_date($sales_date); ?> <?= $created_time; ?> &middot; <?= $this->lang->line('payment_status'); ?>: <?= ucfirst($payment_status); ?></div>
+    <div class="mp-page-sub"><?= show_date($sales_date); ?> <?= $created_time; ?> &middot; <?= $this->lang->line('payment_status'); ?>: <?= ucfirst($payment_status); ?> &middot; Document: <?= ucfirst($invoiceDocumentState); ?></div>
   </div>
   <div class="mp-quick-actions">
+    <?php if(!$invoiceIsDraft && $CI->permissions('sales_payment_add') && (float)$grand_total>(float)$paid_amount): ?>
+      <button type="button" class="mp-qa-btn" onclick="pay_now(<?= (int)$sales_id; ?>)">Record payment</button>
+    <?php endif; ?>
+    <?php if(!$invoiceIsDraft && empty($workflowRow->pos) && $invoiceDocumentState!=='sent' && $CI->permissions('sales_edit')): ?>
+      <?= form_open('sales/mark_sent', ['style'=>'display:inline']); ?><input type="hidden" name="sales_id" value="<?= (int)$sales_id; ?>"><button class="mp-qa-btn" type="submit">Mark as sent / shared</button><?= form_close(); ?>
+    <?php endif; ?>
+
     <?php if($CI->permissions('sales_edit')) { ?>
       <a href="<?= base_url($str2.$sales_id); ?>" class="mp-qa-btn"><i class="fa fa-edit"></i> Edit</a>
     <?php } ?>
     <a href="<?= base_url('pos/print_invoice_pos/'.$sales_id); ?>" target="_blank" class="mp-qa-btn"><i class="fa fa-file-text"></i> POS Invoice</a>
     <a href="<?php $wa_share = get_whatsapp_share_url('sales',$sales_id); echo $wa_share['url']; ?>" target="_blank" class="mp-qa-btn" style="background:#25D366;color:#fff;"><i class="fa fa-whatsapp"></i> Share</a>
-    <?php if($CI->permissions('sales_return_add')) { ?>
+    <?php if(!$invoiceIsDraft && $CI->permissions('sales_return_add')) { ?>
       <a href="<?= base_url('sales_return/add/'.$sales_id); ?>" class="mp-qa-btn" style="background:var(--mp-danger);color:#fff;"><i class="fa fa-undo"></i> Return</a>
     <?php } ?>
     <a href="<?= base_url('pdf/sales/'.$sales_id); ?>" target="_blank" class="mp-qa-btn"><i class="fa fa-file-pdf-o"></i> PDF</a>
@@ -275,6 +289,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
             $q2=$this->db->get();
 
             foreach ($q2->result() as $res2) {
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
                 $str = ($res2->tax_type=='Inclusive')? 'Inc.' : 'Exc.';
                 $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0': store_number_format($res2->discount_input)."%";
                 $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
@@ -296,7 +311,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
                     echo ' <span class="text-muted">['.htmlspecialchars($sold_label).']</span>';
                   }
                 ?>
-                <?php if(!empty($res2->description)) { ?><span class="item-desc">[<?= nl2br(htmlspecialchars($res2->description)); ?>]</span><?php } ?>
+                <?= mp_document_description($res2->description); ?>
               </td>
               <td class="num"><?= store_number_format($price_per_unit); ?></td>
               <td class="num"><?= format_qty($res2->sales_qty); ?></td>
@@ -462,7 +477,8 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
     </div>
   </div>
 
-  <div class="mp-form-actions" style="justify-content:space-between;margin-top:24px;">
+  <?php if(!empty($hasLegacyLineAmount)): ?><p class="msg-alert" role="status">An older line-amount formatting error was detected. Line amounts shown here use the saved quantity and unit cost. Payments and the invoice balance have not been changed; an administrator should review the stored line totals.</p><?php endif; ?>
+<div class="mp-form-actions" style="justify-content:space-between;margin-top:24px;">
     <div>
       <a href="<?= base_url('sales'); ?>" class="mp-btn-secondary"><i class="fa fa-arrow-left"></i> <?= $is_building_commercial?'Invoice register':'Back to Sales'; ?></a>
     </div>
@@ -472,7 +488,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
       <?php } ?>
       <a href="<?= base_url('pos/print_invoice_pos/'.$sales_id); ?>" target="_blank" class="mp-btn-secondary"><i class="fa fa-file-text"></i> POS Invoice</a>
       <a href="<?php $wa_share = get_whatsapp_share_url('sales',$sales_id); echo $wa_share['url']; ?>" target="_blank" class="mp-btn-secondary" style="background:#25D366;color:#fff;border-color:#25D366;"><i class="fa fa-whatsapp"></i> Share</a>
-      <?php if($CI->permissions('sales_return_add')) { ?>
+      <?php if(!$invoiceIsDraft && $CI->permissions('sales_return_add')) { ?>
         <a href="<?= base_url('sales_return/add/'.$sales_id); ?>" class="mp-btn-primary" style="background:var(--mp-danger);border-color:var(--mp-danger);"><i class="fa fa-undo"></i> Sales Return</a>
       <?php } ?>
       <a href="<?= base_url('pdf/sales/'.$sales_id); ?>" target="_blank" class="mp-btn-secondary"><i class="fa fa-file-pdf-o"></i> PDF</a>
@@ -482,3 +498,10 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 
 <?php if($is_building_commercial): ?></div><?php endif; ?>
 <script>$(".sales-list-active-li").addClass("active");</script>
+
+<?php if($invoiceIsDraft): ?><p class="msg-alert" role="status">Draft — not a payable invoice. Issue it from Edit before collecting payments. No stock has been consumed.</p><?php endif; ?>
+<input type="hidden" id="base_url" value="<?= htmlspecialchars(base_url(),ENT_QUOTES,'UTF-8'); ?>">
+<div class="pay_now_modal"></div><div class="view_payments_modal"></div>
+<script src="<?= htmlspecialchars(base_url('theme/js/sales.js?v=16'),ENT_QUOTES,'UTF-8'); ?>"></script>
+
+</div>

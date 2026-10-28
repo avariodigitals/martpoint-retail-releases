@@ -428,7 +428,8 @@ class MY_Controller extends CI_Controller{
           }
 
           $tot=$this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$this->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
-          return ($tot == 1);
+          // Duplicate legacy grants still represent one allowed permission.
+          return ($tot > 0);
         }
         
         public function permission_check($value=''){

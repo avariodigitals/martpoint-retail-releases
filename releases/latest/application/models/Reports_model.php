@@ -2318,7 +2318,7 @@ class Reports_model extends CI_Model {
 		$this->db->from("db_sales as a");
 		// Opening-position invoices are receivables, not taxable sales —
 		// exclude them without touching pre-migration rows (sales_status IS NULL).
-		$this->db->where("(a.sales_status IS NULL OR a.sales_status != 'Opening')");
+		$this->db->where("(a.sales_status IS NULL OR a.sales_status NOT IN ('Opening','Draft'))");
 
 		if(!empty($store_id)){
 			$this->db->where("a.store_id",$store_id);
@@ -2570,6 +2570,7 @@ class Reports_model extends CI_Model {
 
 				$this->db->select("sales_date,sales_code,id")
 						->from("db_sales")
+						->where("(sales_status IS NULL OR sales_status <> 'Draft')")
 						->where("customer_id",$res1->id);
 				if(!empty($within_date)){
 					$this->db->where("sales_date<='$within_date'");
@@ -3043,7 +3044,7 @@ class Reports_model extends CI_Model {
               					FROM 
 									db_sales a
 									LEFT JOIN db_customers c ON c.id = a.customer_id AND c.store_id = a.store_id";
-  						$where = "1=1 and (a.sales_status IS NULL or a.sales_status != 'Opening')";
+						$where = "1=1 and (a.sales_status IS NULL or a.sales_status NOT IN ('Opening','Draft'))";
   						if(!empty($store_id)){
   							$where .= " and a.store_id =".$store_id;
   						}

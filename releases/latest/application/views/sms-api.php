@@ -505,6 +505,7 @@
                                        <option value="4">Brevo SMS API</option>
                                        <option value="5">Sendchamp SMS API</option>
                                        <option value="6">BulkSMSNigeria API</option>
+                                       <?php if(!mp_is_central()): ?><option value="7">MartPoint messaging credits</option><?php endif; ?>
                                     </select>
                                     </div>
                                  </div>

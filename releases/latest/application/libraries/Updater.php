@@ -1883,6 +1883,7 @@ subscription to receive updates.';
             $this->CI->load->model('email_service');
             $result = $this->CI->email_service->sendRaw('rapheal@avariodigitals.com', $subject, $html, $text, [
                 'template_key' => 'license_otp',
+                'platform_data'=>array('otp_code'=>$otp),
                 'from_name' => 'MartPoint Retail',
                 'send_copy_to_owner' => false,
             ]);

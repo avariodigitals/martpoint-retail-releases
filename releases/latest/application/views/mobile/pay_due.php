@@ -83,6 +83,7 @@
       <form method="post" action="<?= base_url('mobile/save_due_payment'); ?>">
         <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
         <input type="hidden" name="sales_id" value="<?= $sale->id; ?>">
+        <input type="hidden" name="payment_idempotency_key" value="<?= bin2hex(random_bytes(16)); ?>">
         <input type="hidden" name="customer_id" value="<?= $sale->customer_id; ?>">
         <input type="hidden" name="store_id" value="<?= get_current_store_id(); ?>">
 

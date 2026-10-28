@@ -170,6 +170,10 @@ class Sales_return_model extends CI_Model {
 		//END
 
 		$this->db->trans_begin();
+		if(!empty($sales_id)){
+			$original=$this->db->where('id',(int)$sales_id)->where('store_id',get_current_store_id())->get('db_sales')->row();
+			if(!$original || $original->sales_status==='Draft'){$this->db->trans_rollback();return 'Only an issued invoice can have a sales return.';}
+		}
 		$return_date=system_fromatted_date($return_date);
 
 		if($other_charges_input=='' || $other_charges_input==0){$other_charges_input=null;}

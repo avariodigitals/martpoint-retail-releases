@@ -41,6 +41,14 @@ class Email_settings_model extends CI_Model {
 		}
 
 		$cfg = $this->db->where('store_id', $storeId)->get('db_email_settings')->row();
+		// saveSettings writes SMTP credentials to the modular table. Read the
+		// same source so Central does not keep using stale db_store credentials.
+		if($this->db->table_exists('db_store_notification_settings')){
+			$notification=$this->db->where('store_id',$storeId)->get('db_store_notification_settings')->row();
+			if($notification) foreach(array('smtp_status','smtp_host','smtp_port','smtp_user','smtp_pass') as $field){
+				if(isset($notification->$field)) $row->$field=$notification->$field;
+			}
+		}
 
 		return [
 			'provider'        => !empty($cfg->email_provider) ? $cfg->email_provider : 'smtp',
@@ -171,6 +179,10 @@ class Email_settings_model extends CI_Model {
 	 * Check if email provider is configured and ready
 	 */
 	public function isReady($storeId = NULL){
+		$this->load->library('messaging_client');
+		// Registered fleets dispatch through Central. Missing merchant SMTP
+		// credentials must not suppress their receipts before dispatch is tried.
+		if(!mp_is_central() && $this->messaging_client->managed()) return TRUE;
 		$settings = $this->getSettings($storeId);
 		if($settings['provider'] === 'smtp'){
 			return !empty($settings['smtp_host']) && !empty($settings['smtp_user']) && !empty($settings['smtp_pass']);

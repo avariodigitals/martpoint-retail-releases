@@ -179,6 +179,7 @@ if (!empty($customer->photo)) {
 <?php endif; ?><?php endif; ?>
       </div>
 
+      <?php $this->load->view('customer_history/profile_links', array('history_mobile'=>true)); ?>
       <div id="overview" class="tab-panel active">
         <div class="stats-grid">
           <div class="stat-card">
@@ -278,11 +279,11 @@ if (!empty($customer->photo)) {
             <?php foreach(array_slice($statement, -5) as $row): ?>
               <div class="list-item">
                 <div class="left">
-                  <div class="name"><?= $row['description']; ?> · <?= $row['reference']; ?></div>
-                  <div class="desc"><?= !empty($row['date']) ? show_date($row['date']) : '-'; ?> · <?= $row['type']; ?></div>
+                  <div class="name"><?= htmlspecialchars($row['description'],ENT_QUOTES,'UTF-8'); ?> · <?= htmlspecialchars($row['reference'],ENT_QUOTES,'UTF-8'); ?></div>
+                  <div class="desc"><?= !empty($row['date']) ? show_date($row['date']) : 'Date needs review'; ?> · <?= htmlspecialchars($row['type'],ENT_QUOTES,'UTF-8'); ?></div><?php $this->load->view('customer_history/row_details', array('row'=>$row,'history_mobile'=>true)); ?>
                 </div>
                 <div class="right">
-                  <div class="amount" style="font-weight:700;"><?= mp_format_money($row['balance']); ?></div>
+                  <div class="amount" style="font-weight:700;"><?= !empty($row['historical']) || !empty($row['informational']) ? '—' : mp_format_money($row['balance']); ?></div>
                 </div>
               </div>
             <?php endforeach; ?>

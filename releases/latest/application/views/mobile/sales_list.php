@@ -116,6 +116,7 @@
               <div class="row-between">
                 <div>
                   <div class="sale-title"><?= $r->sales_code; ?></div>
+                  <div class="sale-meta">Document: <?= ($r->sales_status ?? '')==='Draft'?'Draft':(($r->invoice_status ?? '')==='sent'?'Sent':'Issued'); ?></div>
                   <div class="sale-meta"><i class="fa fa-user"></i> <?= $r->customer_name ?: 'Walk-in'; ?></div>
                   <div class="sale-meta"><i class="fa fa-calendar"></i> <?= show_date($r->sales_date); ?></div>
                   <?php if(!empty($r->reference_no)): ?>
@@ -124,7 +125,7 @@
                 </div>
                 <div style="text-align:right;">
                   <div class="badge <?= $payment_class; ?>" style="margin-bottom:4px;"><?= $r->payment_status; ?></div>
-                  <?php if($due > 0): ?>
+                  <?php if($due > 0 && ($r->sales_status ?? '')!=='Draft'): ?>
                     <div class="sale-meta" style="color:var(--mp-danger); font-weight:600;">Due: <?= store_number_format($due); ?></div>
                   <?php endif; ?>
                 </div>

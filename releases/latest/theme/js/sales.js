@@ -69,6 +69,19 @@ $('#save,#update').on("click",function (e) {
     //end
 
 
+    var standardInvoice = $('#standard_invoice_editor').length > 0;
+    if(standardInvoice && window.MPInvoiceWorkflow){
+      var invoiceError = window.MPInvoiceWorkflow.validate({
+        state: $('[name="invoice_status"]:checked').val() || 'issued',
+        timing: $('[name="payment_timing"]:checked').val() || 'later',
+        amount: Number(String($('#amount').val() || '0').replace(/,/g,'')),
+        total: Number(String($('#total_amt').text() || '0').replace(/,/g,'')),
+        paidPreviously: Number($('#invoice_previous_paid').val() || 0),
+        customerIsWalkIn: isWalkInCustomer()
+      });
+      if(invoiceError){toastr['error'](invoiceError);return;}
+    }
+    if(!standardInvoice){
     // WALK-IN CUSTOMER CANNOT HAVE CREDIT — must pay in full or create a customer profile
     if(this_id=='save' && isWalkInCustomer()){
       var total_amt = parseFloat($("#total_amt").text()) || 0;
@@ -97,6 +110,7 @@ $('#save,#update').on("click",function (e) {
       }
   }
 
+    } // Keep the legacy walk-in/full-payment validation on POS-style callers only.
     var tot_subtotal_amt=$("#subtotal_amt").text();
     var other_charges_amt=$("#other_charges_amt").text();//other_charges include tax calcualated amount
     var tot_discount_to_all_amt=$("#discount_to_all_amt").text();
@@ -464,7 +478,7 @@ function delete_sales(q_id)
          if(result=="success")
          {
            toastr["success"]("Record Deleted Successfully!");
-           $('#example2').DataTable().ajax.reload();
+           if($('#example2').length){$('#example2').DataTable().ajax.reload();}else{window.location.reload();}
          }
          else if(result=="failed"){
            toastr["error"]("Failed to Delete .Try again!");
@@ -508,7 +522,7 @@ function multi_delete(){
              toastr["success"]("Record Deleted Successfully!");
              success.currentTime = 0;
              success.play();
-             $('#example2').DataTable().ajax.reload();
+             if($('#example2').length){$('#example2').DataTable().ajax.reload();}else{window.location.reload();}
              $(".delete_btn").hide();
              $(".group_check").prop("checked",false).iCheck('update');
            }
@@ -620,7 +634,7 @@ function save_payment(sales_id){
           toastr["success"]("Payment Recorded Successfully!");
           success.currentTime = 0; 
           success.play();
-          $('#example2').DataTable().ajax.reload();
+          if($('#example2').length){$('#example2').DataTable().ajax.reload();}else{window.location.reload();}
         }
         else if(result=="failed")
         {
@@ -657,7 +671,7 @@ function delete_sales_payment(payment_id){
            toastr["success"]("Record Deleted Successfully!");
            success.currentTime = 0;
            success.play();
-           $('#example2').DataTable().ajax.reload();
+           if($('#example2').length){$('#example2').DataTable().ajax.reload();}else{window.location.reload();}
          }
          else if(result=="failed"){
            toastr["error"]("Failed to Delete .Try again!");

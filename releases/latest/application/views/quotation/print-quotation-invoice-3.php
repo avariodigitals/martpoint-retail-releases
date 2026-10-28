@@ -242,6 +242,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $activeSection = null;
     $sectionTotal = 0;
     foreach($q2->result() as $res2){
+                $res2->total_cost=mp_document_line_amount($res2,'quotation_qty',$hasLegacyLineAmount);
       $section = trim((string)($res2->section_name ?? ''));
       if($oilPlantQuote && $section !== $activeSection){
         if($activeSection !== null && $activeSection !== ''){ ?><tr><td colspan="6" style="text-align:right;font-weight:bold;color:#475569">Section subtotal</td><td class="num" style="font-weight:bold"><?= $CI->currency($sectionTotal); ?></td></tr><?php }
@@ -256,7 +257,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
       <?php if($oilPlantQuote): ?><td><?= htmlspecialchars((string)($res2->item_code ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
       <td>
         <?= htmlspecialchars((string)$res2->item_name, ENT_QUOTES, 'UTF-8'); ?>
-        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;"><?= nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8')); ?></small><?php endif; ?>
+        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;"><?= nl2br(htmlspecialchars(mp_catalogue_name($res2->description), ENT_QUOTES, 'UTF-8')); ?></small><?php endif; ?>
       </td>
       <td class="qty"><?= format_qty($res2->quotation_qty); ?></td>
       <?php if($oilPlantQuote): ?><td class="qty"><?= htmlspecialchars((string)($res2->unit_name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>

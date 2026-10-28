@@ -72,7 +72,7 @@ class Bulksmsng_model extends CI_Model {
 	 * The raw body is always returned so a failure is diagnosable in logs
 	 * instead of collapsing to a bare 'failed'.
 	 */
-	private function _call($method, $path, array $payload = null, $store_id = null, array $query = []){
+	private function _call($method, $path, array $payload = null, $store_id = null, array $query = [], $timeout = null){
 		$creds = $this->get_credentials($store_id);
 		if(!$creds || empty($creds->api_token)){
 			return ['ok'=>false,'http'=>0,'json'=>null,'raw'=>'','error'=>'Invalid BulkSMSNigeria API token!'];
@@ -84,7 +84,8 @@ class Bulksmsng_model extends CI_Model {
 		$ch = curl_init($url);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, TRUE);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($ch, CURLOPT_TIMEOUT, self::TIMEOUT);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, $timeout ? max(5,min(self::TIMEOUT,(int)$timeout)) : self::TIMEOUT);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
 			'Authorization: Bearer ' . $creds->api_token,
 			'Accept: application/json',
@@ -142,7 +143,7 @@ class Bulksmsng_model extends CI_Model {
 	 * Same as index() but returns the diagnostic envelope, so callers (OTP,
 	 * campaigns) can surface WHY a send failed.
 	 */
-	public function send($to, $message, $storeId = null, $scheduleTime = null){
+	public function send($to, $message, $storeId = null, $scheduleTime = null, $timeout = null){
 		$creds = $this->get_credentials($storeId);
 		if(!$creds || empty($creds->api_token)){
 			return ['ok'=>false,'http'=>0,'json'=>null,'raw'=>'','error'=>'Invalid BulkSMSNigeria API token!'];
@@ -164,7 +165,7 @@ class Bulksmsng_model extends CI_Model {
 		if(!empty($creds->gateway)){ $payload['gateway'] = $creds->gateway; }
 		if(!empty($scheduleTime)){ $payload['schedule_time'] = $scheduleTime; }
 
-		return $this->_call('POST', '/v2/sms', $payload, $storeId);
+		return $this->_call('POST', '/v2/sms', $payload, $storeId, array(), $timeout);
 	}
 
 	/** Native bulk — one API call for every recipient. */

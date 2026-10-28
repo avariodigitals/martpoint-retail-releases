@@ -1,0 +1,37 @@
+/* Keep commercial descriptions useful without letting them set the page width. */
+.mp-document-scope { min-width:0; max-width:100%; }
+.mp-document-scope .item-desc,.mp-document-scope .quotation-item-description,
+.mp-document-scope .si-name,.mp-document-scope .mp-line-description {
+  white-space:normal; overflow-wrap:anywhere; word-break:normal; min-width:0; max-width:100%;
+}
+.mp-line-description { margin:5px 0; font-size:12px; line-height:1.5; color:var(--mp-muted,#64748b); }
+.mp-line-description summary { cursor:pointer; color:var(--mp-primary,#0057ff); font-weight:600; }
+.mp-line-description .mp-description-body { max-height:14rem; overflow:auto; padding:6px 0; }
+.mp-document-scope .table-responsive,.mp-document-scope .items-table-wrap,.mp-document-scope .mp-dt-scroll,.mp-document-scope .mp-table-scroll { max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.mp-document-scope td.num,.mp-document-scope .item-row>span:last-child { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.mp-document-scope #sales_table td[id$="_1"],.mp-document-scope #quotation_table td[id$="_1"] { min-width:160px; max-width:320px; }
+@media (max-width:1279px) and (min-width:1025px) {
+  .mp-document-scope .invoice-grid { grid-template-columns:minmax(0,1fr) !important; }
+}
+@media (max-width:1024px) {
+  .mp-document-scope #sales_table td[id$="_1"],.mp-document-scope #quotation_table td[id$="_1"] { max-width:100%; }
+  .mp-document-scope .item-card,.mp-document-scope .item-top { min-width:0; }
+  .mp-document-scope .item-name { overflow-wrap:anywhere; min-width:0; }
+  .mp-document-scope #sales-form #sales_table input.cell-input.num,
+  .mp-document-scope #sales-form #sales_table input.num.total { width:100%; min-width:0; }
+}
+@media print {
+  .mp-line-description .mp-description-body { max-height:none; overflow:visible; }
+}
+
+@media (max-width:1024px) {
+  body.mp-document-scope #sales-form #sales_table tbody tr { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; }
+  body.mp-document-scope #sales-form #sales_table tbody td[id$="_1"] { grid-column:1/-1; min-width:0; }
+  body.mp-document-scope #sales_table td[id$="_3"]:before { content:"Quantity"; }
+  body.mp-document-scope #sales_table td[id$="_10"]:before { content:"Unit price"; }
+  body.mp-document-scope #sales_table td[id$="_9"]:before { content:"Line total"; }
+  body.mp-document-scope #sales_table td[id$="_8"]:before { content:"Discount amount"; }
+  body.mp-document-scope #sales_table td[id$="_11"]:before { content:"Tax amount"; }
+  body.mp-document-scope #sales_table td:before { display:block; text-align:left; color:var(--mp-muted,#64748b); font-size:11px; margin-bottom:4px; }
+}
+@media print { .mp-line-description>.mp-description-body { display:block !important; } .mp-line-description>summary { display:none; } }

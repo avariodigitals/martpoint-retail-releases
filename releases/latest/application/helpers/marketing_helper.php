@@ -153,6 +153,12 @@ if (!function_exists('marketing_menu_items')) {
                 'url_desktop' => 'marketing/segments',
             ],
             [
+                'title' => 'Messaging Balance & Packages',
+                'desc' => 'Add MartPoint credit, manage spending and view usage',
+                'icon' => 'fa-envelope', 'perm_any' => ['send_email','send_sms'], 'color' => 'primary',
+                'url_mobile' => 'messaging?screen=mobile', 'url_desktop' => 'messaging',
+            ],
+            [
                 'title' => 'Campaigns',
                 'desc'  => 'Email & SMS campaigns',
                 'icon'  => 'fa-bullhorn',
@@ -194,4 +200,11 @@ if (!function_exists('marketing_menu_items')) {
         }
         return $result;
     }
+}
+
+/** Industry-independent messaging entries. Only explicit sending grants decide visibility. */
+function messaging_workspace_menu_items() {
+    return array_values(array_filter(marketing_menu_items(), function($item) {
+        return in_array($item['url_desktop'] ?? '', array('messaging','marketing/campaigns'), true);
+    }));
 }

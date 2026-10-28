@@ -3,6 +3,8 @@
 <html>
 
 <head>
+<?php $this->load->view('sales/commercial_assets'); ?>
+
 <!-- FORM CSS CODE -->
 <?php include"comman/code_css.php"; ?>
 <!-- </copy> -->
@@ -288,7 +290,7 @@ padding-right: 2px;
 </head>
 
 
-<body class="hold-transition skin-blue sidebar-mini">
+<body class="mp-document-scope hold-transition skin-blue sidebar-mini">
 <div class="wrapper">
  
  
@@ -424,7 +426,7 @@ padding-right: 2px;
                            <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-                           <input type="hidden" value='Final' id="sales_status" name="sales_status">
+                           <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
 
                           <?php if(isset($quotation_id)) {?>
                            <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
@@ -491,7 +493,7 @@ padding-right: 2px;
                                        <span class="input-group-addon pointer" data-toggle="modal" data-target="#customer-modal" title="New <?= mp_label('customer'); ?>?"><i class="fa fa-user-plus text-primary fa-lg"></i></span>
                                     </div>
                                     <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
-                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
+                                      <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> For Pay later, select or create a named customer. Walk-in invoices must be paid in full when issued; a draft can be saved without payment.
                                     </div>
                                     <span id="customer_id_msg" style="display:none" class="text-danger"></span>
                                     <lable><?= $this->lang->line('previous_due'); ?> :<label class="customer_previous_due text-red" style="font-size: 18px;">0.00</label></lable>
@@ -1040,7 +1042,7 @@ padding-right: 2px;
 <!-- Bootstrap WYSIHTML5 -->
 <script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
 
-<script src="<?php echo $theme_link; ?>js/sales.js?v=15"></script>
+<script src="<?php echo $theme_link; ?>js/sales.js?v=16"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
       <script>
 
@@ -1178,16 +1180,16 @@ padding-right: 2px;
            var tax_amount = $("#td_data_"+i+"_11").val();
 
            var qty=$("#td_data_"+i+"_3").val();
-           var sales_price=parseFloat($("#td_data_"+i+"_10").val());
+           var sales_price=mpDocumentNumber($("#td_data_"+i+"_10").val());
            $("#td_data_"+i+"_4").val(sales_price);
            /*Discounr*/
            var discount_amt=$("#td_data_"+i+"_8").val();
-               discount_amt   =(isNaN(parseFloat(discount_amt)))    ? 0 : parseFloat(discount_amt);
+               discount_amt   =(isNaN(mpDocumentNumber(discount_amt)))    ? 0 : mpDocumentNumber(discount_amt);
 
-           var amt=parseFloat(qty) * sales_price;//Taxable
+           var amt=mpDocumentNumber(qty) * sales_price;//Taxable
 
            var total_amt=amt-discount_amt;
-           total_amt = (tax_type=='Inclusive') ? total_amt : parseFloat(total_amt) + parseFloat(tax_amount);
+           total_amt = (tax_type=='Inclusive') ? total_amt : mpDocumentNumber(total_amt) + mpDocumentNumber(tax_amount);
            
            //Set Unit cost
            $("#td_data_"+i+"_9").val('').val(to_Fixed(total_amt));
@@ -1200,7 +1202,7 @@ padding-right: 2px;
 
          /*Calculate Coupon Discount Amount*/
          const discount_coupon_tot = function(subtotal) {
-             var coupon_value=parseFloat($(".coupon_value").text());
+             var coupon_value=mpDocumentNumber($(".coupon_value").text());
                  coupon_value = isNaN(coupon_value) ? 0 : coupon_value;
 
              var coupon_type=$(".coupon_type").text();
@@ -1222,9 +1224,9 @@ padding-right: 2px;
            
 
            var rowcount=$("#hidden_rowcount").val();
-           var subtotal=parseFloat(0);
+           var subtotal=mpDocumentNumber(0);
            
-           var other_charges_per_amt=parseFloat(0);
+           var other_charges_per_amt=mpDocumentNumber(0);
            var other_charges_total_amt=0;
            var taxable=0;
           if($("#other_charges_input").val()!=null && $("#other_charges_input").val()!=''){
@@ -1236,8 +1238,8 @@ padding-right: 2px;
                other_charges_per_amt=(other_charges_tax_id * other_charges_input)/100;
              }
              
-             taxable=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);//Other charges input
-             other_charges_total_amt=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);
+             taxable=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);//Other charges input
+             other_charges_total_amt=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);
            }
            else{
              //$("#other_charges_amt").html('0.00');
@@ -1253,12 +1255,12 @@ padding-right: 2px;
              if(document.getElementById("td_data_"+i+"_3")){
                //customer_id must exist
                if($("#td_data_"+i+"_3").val()!=null && $("#td_data_"+i+"_3").val()!=''){
-                    actual_taxable=actual_taxable+ + +(parseFloat($("#td_data_"+i+"_13").val()) * parseFloat($("#td_data_"+i+"_3").val()));
-                    subtotal=subtotal+ + +parseFloat($("#td_data_"+i+"_9").val());
+                    actual_taxable=actual_taxable+ + +(mpDocumentNumber($("#td_data_"+i+"_13").val()) * mpDocumentNumber($("#td_data_"+i+"_3").val()));
+                    subtotal=subtotal+ + +mpDocumentNumber($("#td_data_"+i+"_9").val());
                     if($("#td_data_"+i+"_7").val()>=0){
                       tax_amt=tax_amt+ + +$("#td_data_"+i+"_7").val();
                     }   
-                    total_quantity +=parseFloat($("#td_data_"+i+"_3").val());
+                    total_quantity +=mpDocumentNumber($("#td_data_"+i+"_3").val());
                 }
                    
              }//if end
@@ -1289,7 +1291,7 @@ padding-right: 2px;
 
              //discount_to_all_amt
             // if($("#discount_to_all_input").val()!=null && $("#discount_to_all_input").val()!=''){
-                 var discount_input=parseFloat($("#discount_to_all_input").val());
+                 var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
                  discount_input = isNaN(discount_input) ? 0 : discount_input;
                  var discount=0;
                  if(discount_input>0){
@@ -1308,7 +1310,7 @@ padding-right: 2px;
                  else{
                     //discount += $("#")
                  }
-                   discount=parseFloat(discount);
+                   discount=mpDocumentNumber(discount);
                    
                     $("#coupon_discount_amt").html(to_Fixed(coupon_amt));  
                     $("#discount_to_all_amt").html(to_Fixed(discount));  
@@ -1354,7 +1356,7 @@ padding-right: 2px;
      
 
     function enable_or_disable_item_discount(){
-      /*var discount_input=parseFloat($("#discount_to_all_input").val());
+      /*var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
       discount_input = isNaN(discount_input) ? 0 : discount_input;
       if(discount_input>0){
         $(".item_discount").attr({
@@ -1413,7 +1415,7 @@ padding-right: 2px;
       var tax_id = $("#popup_tax_id").val();
       var description = $("#popup_description").val();
       var tax_name = ($('option:selected', "#popup_tax_id").attr('data-tax-value'));
-      var tax = parseFloat($('option:selected', "#popup_tax_id").attr('data-tax'));
+      var tax = mpDocumentNumber($('option:selected', "#popup_tax_id").attr('data-tax'));
 
       /*Discounr*/
       var item_discount_input = $("#item_discount_input").val();
@@ -1438,18 +1440,18 @@ padding-right: 2px;
       var tax = $("#tr_tax_value_"+row_id).val(); //%
       var qty=$("#td_data_"+row_id+"_3").val();
           qty = (isNaN(qty)) ? 0 :qty;
-      var sales_price = parseFloat($("#td_data_"+row_id+"_10").val());
+      var sales_price = mpDocumentNumber($("#td_data_"+row_id+"_10").val());
           sales_price = (isNaN(sales_price)) ? 0 :sales_price;
           sales_price = sales_price * qty;
 
       /*Discount*/
       var item_discount_type = $("#item_discount_type_"+row_id).val();
-      var item_discount_input = parseFloat($("#item_discount_input_"+row_id).val());
+      var item_discount_input = mpDocumentNumber($("#item_discount_input_"+row_id).val());
           item_discount_input = (isNaN(item_discount_input)) ? 0 :item_discount_input;
 
       //Calculate discount      
       var discount_amt=(item_discount_type=='Percentage') ? ((sales_price) * item_discount_input)/100 : (item_discount_input*qty);
-      sales_price-=parseFloat(discount_amt);
+      sales_price-=mpDocumentNumber(discount_amt);
 
       var tax_amount = (tax_type=='Inclusive') ? calculate_inclusive(sales_price,tax) : calculate_exclusive(sales_price,tax);
       
@@ -1524,6 +1526,6 @@ padding-right: 2px;
         });
       </script>
       <?php $this->load->view('mobile/bottom_nav', ['active' => 'sale']); ?>
-      <?php if($bm_mobile_invoice): $this->load->view('mobile/chat'); endif; ?>
+      <?php $this->load->view('mobile/chat'); ?>
 </body>
 </html>

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php $this->load->view('sales/commercial_assets'); ?>
+
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -38,7 +40,7 @@
       background: #fff; font-size: 15px; cursor: pointer;
     }
     .mp-select-options {
-      display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+      display: none; position: static; z-index: 200;
       background: #fff; border: 1px solid var(--mp-border); border-radius: 12px;
       max-height: 220px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
@@ -62,7 +64,7 @@
   </style>
 <?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
-<body>
+<body class="mp-document-scope">
   <div id="app">
     <section class="screen">
       <div class="topbar">
@@ -128,6 +130,7 @@
           </div>
         </div>
 
+        <div class="card"><strong>Catalogue shortcuts</strong><?php $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'brand')); $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'category')); ?></div>
         <div class="section-title">Item</div>
         <div class="card">
           <div class="form-group">
@@ -183,7 +186,7 @@
           </div>
           <div class="form-group">
             <label>Description</label>
-            <textarea name="description_1" id="description"><?= ($description ?? ''); ?></textarea>
+            <textarea name="description_1" id="description"><?= htmlspecialchars(mp_catalogue_name($description ?? ''),ENT_QUOTES,'UTF-8'); ?></textarea>
           </div>
 
           <!-- computed item fields -->
@@ -299,11 +302,11 @@
     function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
 
     function compute(){
-      var qty = parseFloat(document.getElementById('qty').value) || 0;
-      var price = parseFloat(document.getElementById('price').value) || 0;
-      var tax = parseFloat(document.getElementById('taxValue').value) || 0;
+      var qty = mpDocumentNumber(document.getElementById('qty').value) || 0;
+      var price = mpDocumentNumber(document.getElementById('price').value) || 0;
+      var tax = mpDocumentNumber(document.getElementById('taxValue').value) || 0;
       var taxType = document.getElementById('taxType').value;
-      var discount = parseFloat(document.getElementById('discount').value) || 0;
+      var discount = mpDocumentNumber(document.getElementById('discount').value) || 0;
 
       var lineTotal = qty * price;
       var taxAmt = 0;
@@ -320,9 +323,9 @@
       document.getElementById('subtotal').value = totalCost;
       document.getElementById('lineTotal').textContent = mpFormatNumber(totalCost);
 
-      var shipping = parseFloat(document.getElementById('shipping').value) || 0;
-      var packaging = parseFloat(document.getElementById('packaging').value) || 0;
-      var other = parseFloat(document.getElementById('other_charge').value) || 0;
+      var shipping = mpDocumentNumber(document.getElementById('shipping').value) || 0;
+      var packaging = mpDocumentNumber(document.getElementById('packaging').value) || 0;
+      var other = mpDocumentNumber(document.getElementById('other_charge').value) || 0;
       var otherChargesInput = round2(shipping + packaging + other);
       var chargesTaxId = document.getElementById('other_charges_tax_id').value;
       var chargesTaxPct = taxMap[chargesTaxId] || 0;
@@ -338,8 +341,8 @@
 
     document.getElementById('itemSelect').addEventListener('change', function(){
       var opt = this.options[this.selectedIndex];
-      var price = parseFloat(opt.getAttribute('data-price')) || 0;
-      var tax = parseFloat(opt.getAttribute('data-tax')) || 0;
+      var price = mpDocumentNumber(opt.getAttribute('data-price')) || 0;
+      var tax = mpDocumentNumber(opt.getAttribute('data-tax')) || 0;
       var taxId = opt.getAttribute('data-taxid') || '';
       var taxType = opt.getAttribute('data-taxtype') || 'Exclusive';
       document.getElementById('price').value = price;

@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="<?= htmlspecialchars(base_url('theme/css/dashboard_links.css?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>">
 <?php
 /* Dashboard view — content fragment for mp_layout */
 $this->load->view('admin/desktop/_styles');
@@ -156,30 +157,35 @@ $this->load->view('admin/desktop/_styles');
         </div>
         <div class="mp-kpi-grid">
           <div class="mp-kpi-card sales">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'sales','card_dates'=>$range_info ?? array(),'card_link_label'=>'View sales details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
             <div class="mp-kpi-label"><?= $range_label; ?> Sales</div>
             <div class="mp-kpi-value"><?= $CI->currency($today_sales['today']); ?></div>
             <div class="mp-kpi-sub <?= $today_sales['change'] >= 0 ? 'up' : 'down' ?>"><?= $today_sales['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($today_sales['change']) ?>% vs Previous</div>
           </div>
           <div class="mp-kpi-card profit">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'profit','card_dates'=>$range_info ?? array(),'card_link_label'=>'View profit details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
             <div class="mp-kpi-label"><?= $range_label; ?> Profit</div>
             <div class="mp-kpi-value"><?= $CI->currency($today_profit['profit']); ?></div>
             <div class="mp-kpi-sub up">Margin <?= $today_profit['margin'] ?>%</div>
           </div>
           <div class="mp-kpi-card expense">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'expense','card_dates'=>$range_info ?? array(),'card_link_label'=>'View expense details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
             <div class="mp-kpi-label"><?= $range_label; ?> Expenses</div>
             <div class="mp-kpi-value"><?= $CI->currency($today_expenses); ?></div>
             <div class="mp-kpi-sub neutral">Total spent</div>
           </div>
           <div class="mp-kpi-card cash">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'cash','card_dates'=>$range_info ?? array(),'card_link_label'=>'View cash details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
             <div class="mp-kpi-label">Cash in Hand</div>
             <div class="mp-kpi-value"><?= $CI->currency($cash_in_hand); ?></div>
             <div class="mp-kpi-sub up"><a href="<?= base_url('accounts/cash_ledger'); ?>" style="color:inherit;text-decoration:none;">View Ledger &rarr;</a></div>
           </div>
           <div class="mp-kpi-card debt">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'debt','card_dates'=>$range_info ?? array(),'card_link_label'=>'View debt details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
             <div class="mp-kpi-label">Outstanding Debts</div>
             <div class="mp-kpi-value"><?= $CI->currency($outstanding['total']); ?></div>
@@ -187,6 +193,7 @@ $this->load->view('admin/desktop/_styles');
           </div>
           <?php if($is_product_business): ?>
           <div class="mp-kpi-card stock">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'stock','card_dates'=>$range_info ?? array(),'card_link_label'=>'View stock details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
             <div class="mp-kpi-label">Low Stock Items</div>
             <div class="mp-kpi-value"><?= $low_stock_count ?></div>
@@ -194,12 +201,14 @@ $this->load->view('admin/desktop/_styles');
           </div>
           <?php endif; ?>
           <div class="mp-kpi-card sales">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'invoices','card_dates'=>$range_info ?? array(),'card_link_label'=>'View invoices details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg></div>
             <div class="mp-kpi-label"><?= $range_label; ?> Invoices</div>
             <div class="mp-kpi-value"><?= number_format($invoices_range['count']); ?></div>
             <div class="mp-kpi-sub <?= $invoices_range['change'] >= 0 ? 'up' : 'down' ?>"><?= $invoices_range['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($invoices_range['change']) ?>% vs Previous</div>
           </div>
           <div class="mp-kpi-card profit">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'customers','card_dates'=>$range_info ?? array(),'card_link_label'=>'View customers details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>
             <div class="mp-kpi-label"><?= $range_label; ?> New <?= $customer_label ?>s</div>
             <div class="mp-kpi-value"><?= number_format($new_customers_range['count']); ?></div>

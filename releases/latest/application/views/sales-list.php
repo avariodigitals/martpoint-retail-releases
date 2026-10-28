@@ -127,7 +127,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     <label for="sales_from_date"><?= $this->lang->line('from_date'); ?></label>
     <div class="input-group date">
       <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
-      <input type="text" class="form-control datepicker" id="sales_from_date" name="sales_from_date">
+      <input type="text" class="form-control datepicker" id="sales_from_date" name="sales_from_date" value="<?= $this->input->get('from_date') ? htmlspecialchars(show_date(mp_dashboard_report_date('from_date')),ENT_QUOTES,'UTF-8') : ''; ?>">
     </div>
   </div>
 
@@ -135,7 +135,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     <label for="sales_to_date"><?= $this->lang->line('to_date'); ?></label>
     <div class="input-group date">
       <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
-      <input type="text" class="form-control datepicker" id="sales_to_date" name="sales_to_date">
+      <input type="text" class="form-control datepicker" id="sales_to_date" name="sales_to_date" value="<?= $this->input->get('to_date') ? htmlspecialchars(show_date(mp_dashboard_report_date('to_date')),ENT_QUOTES,'UTF-8') : ''; ?>">
     </div>
   </div>
 </div>
@@ -276,5 +276,5 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     window.open("<?= base_url('sales/print_show_receipt/'); ?>"+id, "_blank", "scrollbars=1,resizable=1,height=500,width=500");
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=16"></script>
 <script>$(".sales-list-active-li").addClass("active");</script>

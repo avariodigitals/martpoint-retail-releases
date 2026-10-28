@@ -295,8 +295,8 @@
         'Last Year': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')],
         'All Time': [moment('2000-01-01'), moment()]
       },
-      startDate: moment().subtract(29, 'days'),
-      endDate: moment()
+      startDate: moment(<?= json_encode(mp_dashboard_report_date('from_date',date('Y-m-d',strtotime('-29 days')))); ?>, 'YYYY-MM-DD'),
+      endDate: moment(<?= json_encode(mp_dashboard_report_date('to_date')); ?>, 'YYYY-MM-DD')
     }, function(start, end) {
       $('#pl-daterange-btn span').html(start.format('<?= isset($VIEW_DATE) ? strtoupper($VIEW_DATE) : 'DD-MM-YYYY'; ?>') + ' - ' + end.format('<?= isset($VIEW_DATE) ? strtoupper($VIEW_DATE) : 'DD-MM-YYYY'; ?>'));
     });

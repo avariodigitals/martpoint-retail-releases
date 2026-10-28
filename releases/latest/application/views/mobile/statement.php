@@ -74,6 +74,7 @@
         <?php endif; ?>
       </form>
 
+      <?php if(!empty($has_history)): ?><p style="padding:12px;background:#f0f6ff;color:#294368;font-size:13px">Rose amounts are read-only history. These totals and balances apply to current MartPoint entries only. Undated records remain visible for review.</p><?php endif; ?>
       <div class="summary-grid">
         <div class="stat-card">
           <div class="label">Opening Balance</div>
@@ -110,17 +111,17 @@
                 <tr>
                   <td>
                     <?= !empty($row['date']) ? show_date($row['date']) : '-'; ?>
-                    <div class="type"><?= $row['type']; ?></div>
+                    <div class="type"><?= htmlspecialchars($row['type'],ENT_QUOTES,'UTF-8'); ?></div>
                   </td>
                   <td>
-                    <?= $row['description']; ?>
+                    <?= htmlspecialchars($row['description'],ENT_QUOTES,'UTF-8'); ?><?php $this->load->view('customer_history/row_details', array('row'=>$row,'history_mobile'=>true)); ?>
                     <?php if(!empty($row['reference']) && $row['reference'] != '-'): ?>
-                      <div class="type"><?= $row['reference']; ?></div>
+                      <div class="type"><?= htmlspecialchars($row['reference'],ENT_QUOTES,'UTF-8'); ?></div>
                     <?php endif; ?>
                   </td>
                   <td class="right debit"><?= $row['debit'] > 0 ? mp_format_money($row['debit']) : '-'; ?></td>
                   <td class="right credit"><?= $row['credit'] > 0 ? mp_format_money($row['credit']) : '-'; ?></td>
-                  <td class="right" style="font-weight:700;"><?= mp_format_money($row['balance']); ?></td>
+                  <td class="right" style="font-weight:700;"><?= !empty($row['historical']) || !empty($row['informational']) ? '—' : mp_format_money($row['balance']); ?></td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php $this->load->view('sales/commercial_assets'); ?>
+
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -51,7 +53,7 @@
   </style>
 <?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
-<body>
+<body class="mp-document-scope">
   <div id="app">
     <section class="screen">
       <div class="topbar">
@@ -106,8 +108,9 @@
               <?php if(!empty($it->section_name)): ?><div class="item-detail" style="display:inline-block;padding:4px 8px;border-radius:7px;background:#eef7f1;color:#14532d;font-weight:700;margin-bottom:6px;"><?= htmlspecialchars($it->section_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
               <?php if(!empty($it->item_code)): ?><div class="item-detail" style="font-weight:700;color:var(--mp-muted);"><?= htmlspecialchars($it->item_code, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
               <div class="item-name"><?= htmlspecialchars((string)$it->item_name, ENT_QUOTES, 'UTF-8'); ?></div>
+              <?= mp_document_description($it->description ?? ''); ?>
               <div class="item-detail"><?= store_number_format($it->quotation_qty); ?> <?= htmlspecialchars($it->unit_name ?? '', ENT_QUOTES, 'UTF-8'); ?> × <?= store_number_format($it->price_per_unit); ?> <?= !empty($it->tax_amt) ? '+ tax ' . store_number_format($it->tax_amt) : ''; ?></div>
-              <div class="item-detail" style="font-weight:600; color:var(--mp-text);">Total: <?= store_number_format($it->total_cost); ?></div>
+              <div class="item-detail" style="font-weight:600; color:var(--mp-text);">Total: <?= store_number_format(mp_document_line_amount($it,'quotation_qty')); ?></div>
             </div>
           <?php endforeach; ?>
         <?php else: ?>

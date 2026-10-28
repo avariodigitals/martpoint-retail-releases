@@ -767,7 +767,7 @@ class Mobile extends MY_Controller {
 
 	public function pay_due($sales_id)
 	{
-		$this->permission_check('sales_view');
+		$this->permission_check('sales_payment_add');
 		$data = $this->data;
 		$data['page_title'] = 'Receive Payment';
 		$store_id = get_current_store_id();
@@ -799,7 +799,8 @@ class Mobile extends MY_Controller {
 
 	public function save_due_payment()
 	{
-		$this->permission_check('sales_add');
+		$this->permission_check('sales_payment_add');
+		if(strtolower($this->input->method())!=='post'){show_error('POST is required.',405);return;}
 		$this->load->model('sales_model', 'sales');
 		$result = $this->sales->save_payment();
 		if($result == 'success'){
@@ -822,7 +823,9 @@ class Mobile extends MY_Controller {
 		$this->db->from('db_sales a');
 		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
 		$this->db->where('a.store_id', $store_id);
-		$this->db->where('a.sales_status', 'Final');
+		$this->db->where_in('a.sales_status', array('Final','Draft'));
+		foreach(array('from_date'=>'>=','to_date'=>'<=') as $key=>$op){if($this->input->get($key))$this->db->where('a.sales_date '.$op,mp_dashboard_report_date($key));}
+		if($this->db->field_exists('invoice_status','db_sales'))$this->db->select('a.invoice_status');
 		// Cashiers without cross-user visibility permission may only view their own sales.
 		if(is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
 			$this->db->where("upper(a.created_by)", strtoupper($this->session->userdata('inv_username')));
@@ -4871,6 +4874,12 @@ class Mobile extends MY_Controller {
 			];
 		}
 
+		// Add after specialist workspace pruning: messaging is not a storefront
+		// or retail-only feature, and clinics must not lose it with Marketing.
+		$menu_groups['Messaging & credits'] = array_map(function($item) {
+			return ['title'=>$item['title'], 'desc'=>$item['desc'], 'icon'=>$item['icon'],
+				'url'=>$item['url_mobile'], 'perm_any'=>$item['perm_any'], 'color'=>$item['color']];
+		}, messaging_workspace_menu_items());
 		if(!mp_feature_enabled('online_store')){
 			unset($menu_groups['Online Store']);
 		} elseif(!mp_feature_enabled('qr_ordering') && isset($menu_groups['Online Store'])){

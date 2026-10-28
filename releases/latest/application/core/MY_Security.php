@@ -49,7 +49,7 @@ class MY_Security extends CI_Security {
                 $mp_path = ltrim((string)$mp_path, '/');
                 // Strip a sub-directory install prefix (e.g. /app/index.php/...).
                 $mp_path = preg_replace('#^.*?index\.php/#i', '', $mp_path);
-                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$)#i', $mp_path))
+                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign)$)#i', $mp_path))
                 {
                         return $this;
                 }

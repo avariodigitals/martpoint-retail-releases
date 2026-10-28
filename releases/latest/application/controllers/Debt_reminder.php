@@ -141,6 +141,7 @@ class Debt_reminder extends MY_Controller {
 		];
 
 		$storeId = get_current_store_id();
+        $this->email_service->setStoreId($storeId);
 		$storeDefaults = $this->debt_reminder_model->getStoreSettings($storeId);
 
 		$customers = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
@@ -206,7 +207,7 @@ class Debt_reminder extends MY_Controller {
 
 			if($customer->send_sms && !empty($mobile)){
 				$msg = "Hi {$customerName}, this is a reminder that you have an outstanding balance of " . store_number_format($amountDue) . ". Please settle at your earliest convenience. Thank you, " . get_store_name($storeId);
-				$res = $this->sms_model->send_sms($mobile, $msg);
+				$res = $this->sms_model->send_sms($mobile, $msg,array('store_id'=>$storeId,'message_category'=>'transactional'));
 				if($res === 'success'){
 					$smsOk = true;
 					$results['sms_sent']++;

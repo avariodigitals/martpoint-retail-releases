@@ -1,0 +1,7 @@
+.mp-kpi-card,.kpi-card { position:relative; min-width:0; }
+.mp-kpi-detail-link { position:absolute; inset:0; z-index:1; border-radius:inherit; color:inherit; }
+.mp-kpi-detail-link:hover { box-shadow:inset 0 0 0 2px var(--mp-primary,#0057ff); }
+.mp-kpi-detail-link:focus-visible { outline:3px solid var(--mp-primary,#0057ff); outline-offset:3px; }
+.mp-kpi-card a:not(.mp-kpi-detail-link) { position:relative; z-index:2; }
+.kpi-card .value { font-variant-numeric:tabular-nums; white-space:normal; overflow-wrap:anywhere; }
+.mp-kpi-detail-link .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }

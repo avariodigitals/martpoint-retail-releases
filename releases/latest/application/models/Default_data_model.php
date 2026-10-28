@@ -146,7 +146,7 @@ class Default_data_model extends CI_Model {
         if (empty($permissions)) return 0;
 
         $batch = array();
-        foreach ($permissions as $perm) {
+        foreach (array_unique($permissions) as $perm) {
             $batch[] = array(
                 'store_id'    => $store_id,
                 'role_id'     => $role_id,
@@ -816,7 +816,7 @@ class Default_data_model extends CI_Model {
             'show_all_users_purchase_invoices','show_all_users_purchase_return_invoices',
             'show_purchase_price',
             // Settings
-            'subscription','sms_settings','sms_api_edit',
+            'subscription','license_management','sms_settings','sms_api_edit',
             // Online Store (Business Owner can manage online store)
             'online_store_view','online_store_edit',
             // Custom Orders & Nylon Production (full)

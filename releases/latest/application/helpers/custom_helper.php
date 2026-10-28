@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.206';
+    return '4.0.9.212';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -129,6 +129,71 @@
     if($value==='' || $value===null) return 0;
     $value = preg_replace('/[^0-9.\-]/', '', $value);
     return floatval($value);
+  }
+
+  /** Canonical plain text for labels; output escaping remains a view concern. */
+  function mp_catalogue_name($value){
+    $text=trim((string)$value);
+    for($i=0;$i<3;$i++){
+      $decoded=html_entity_decode($text,ENT_QUOTES|ENT_HTML5,'UTF-8');
+      if($decoded===$text)break;
+      $text=$decoded;
+    }
+    return trim($text);
+  }
+
+  function mp_document_description($value){
+    $text=mp_catalogue_name($value);
+    if($text==='')return '';
+    return '<details class="mp-line-description"><summary>Product description</summary><div class="mp-description-body">'.nl2br(htmlspecialchars($text,ENT_QUOTES,'UTF-8')).'</div></details>';
+  }
+
+  /**
+   * Recognise the specific historical comma-to-number truncation. Display only:
+   * this never edits payments, balances or the persisted accounting ledger.
+   */
+  function mp_document_line_amount($line,$quantityField='sales_qty',&$legacyMismatch=null){
+    $stored=(float)($line->total_cost ?? 0);
+    $qty=(float)($line->$quantityField ?? 0);
+    $unit=(float)($line->unit_total_cost ?? 0);
+    $expected=round($qty*$unit,4);
+    if($qty>0 && $unit>=0 && is_finite($expected) && $expected>=1000){
+      $prefix=(float)strtok(number_format($expected,2,'.',','),',');
+      if(abs($stored-$prefix)<0.00005 && abs($stored-$expected)>0.005){
+        $legacyMismatch=true;return $expected;
+      }
+    }
+    return $stored;
+  }
+
+  function mp_dashboard_detail_link($metric,$mobile=false,$dates=array()){
+    $ci =& get_instance();
+    $routes=array(
+      'sales'=>array(array('sales_report',$mobile?'mobile/report/sales':'reports/sales'),array('sales_view',$mobile?'mobile/sales_list':'sales')),
+      'profit'=>array(array('profit_report',$mobile?'mobile/report/profit_loss':'reports/profit_loss')),
+      'expense'=>array(array('expense_report',$mobile?'mobile/report/expense':'reports/expense'),array('expense_view',$mobile?'mobile/finance/expenses':'expense')),
+      'cash'=>array(array('accounts_view',$mobile?'mobile/finance/accounts':'accounts/cash_ledger')),
+      'debt'=>array(array('receivables_aging_report',$mobile?'mobile/report/receivables_aging':'reports/receivables_aging'),array('customers_view',$mobile?'mobile/due':'customers')),
+      'stock'=>array(array('reorder_suggestion_report',$mobile?'mobile/report/reorder_suggestion':'reports/reorder_suggestion'),array('stock_report',$mobile?'mobile/report/stock':'reports/stock')),
+      'invoices'=>array(array('sales_view',$mobile?'mobile/sales_list':'sales')),
+      'customers'=>array(array('customers_view',$mobile?'mobile/customers':'customers')),
+    );
+    foreach($routes[$metric] ?? array() as $route){
+      if(!$ci->permissions($route[0]))continue;
+      $query=array();
+      if(in_array($metric,array('sales','profit','expense','invoices'),true))foreach(array('from','to') as $key){
+        $value=$dates[$key] ?? '';
+        if(preg_match('/^\d{4}-\d{2}-\d{2}$/D',$value))$query[$key.'_date']=$value;
+      }
+      return base_url($route[1]).($query?'?'.http_build_query($query):'');
+    }
+    return '';
+  }
+
+  function mp_dashboard_report_date($key,$fallback=null){
+    $ci =& get_instance();$value=$ci->input->get($key);
+    if(is_string($value) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D',$value,$m) && checkdate((int)$m[2],(int)$m[3],(int)$m[1]))return $value;
+    return $fallback ?: date('Y-m-d');
   }
 
   function qty_decimal(){
@@ -771,9 +836,9 @@
     return array('BUSINESS OWNER', 'STORE OWNER', 'OWNER');
   }
 
-  /** IDs of Store Admin roles. Kept separate from merchant-owner role IDs. */
+  /** Resolve Store Admin by its actual role record, never by number alone. */
   function store_admin_role_ids($store_id = null){
-    $ids = array((int)store_admin_id());
+    $ids = array();
     $CI =& get_instance();
     if($store_id === null || $store_id === ''){
       $store_id = $CI->session->userdata('store_id');
@@ -783,8 +848,9 @@
       return $ids;
     }
     $query = $CI->db->query(
-      "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = 'STORE ADMIN'",
-      array($store_id)
+      "SELECT id FROM db_roles
+       WHERE (store_id = ? OR id = ?) AND UPPER(TRIM(role_name)) = 'STORE ADMIN'",
+      array($store_id, (int)store_admin_id())
     );
     if($query){
       foreach($query->result() as $row){ $ids[] = (int)$row->id; }
@@ -1654,7 +1720,8 @@
       return false;
     }
     $tot=$CI->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$CI->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
-    if($tot==1){
+    // Duplicate legacy grants must not turn an allowed permission into a denial.
+    if($tot>0){
       return true;
     }
      return false;
@@ -3109,7 +3176,7 @@
         "UPDATE db_item_barcodes b
          JOIN db_salesitems si ON si.barcode_id = b.id
          SET b.status = 1
-         WHERE si.sales_id = ? AND si.barcode_id > 0 AND b.status = 0",
+         WHERE si.sales_id = ? AND si.sales_status = 'Final' AND si.barcode_id > 0 AND b.status = 0",
         array((int)$sales_id)
       );
     }

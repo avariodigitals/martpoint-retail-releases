@@ -55,6 +55,7 @@
 </style>
 </head>
 <body onload="window.print();"><!--  -->
+<?php $this->load->view('sales/document_state_banner',array('sales_id'=>$sales_id)); ?>
 	<?php
 	$CI =& get_instance();
 

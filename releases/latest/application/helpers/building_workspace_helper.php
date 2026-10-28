@@ -4,7 +4,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /** A permission-filtered directory of tools relevant to this workspace. */
 function bm_workspace_tools() {
     $ci =& get_instance();
+    $messagePermission=$ci->permissions('send_email')?'send_email':'send_sms';
     $catalog = [
+        'Messaging & customer engagement' => [
+            [$messagePermission,'messaging?screen=mobile','Messaging balance & packages','Add MartPoint credit, view usage and control spending'],
+            [$messagePermission,'marketing/campaigns?screen=mobile','SMS & email campaigns','Review costs and send customer campaigns through MartPoint'],
+        ],
         'Commercial & customers' => [
             ['customers_view','customers','Customers & sites','Customer contacts, organisations and delivery addresses'],
             ['leads_view','leads','CRM & opportunities','Website enquiries and commercial follow-up','leads'],

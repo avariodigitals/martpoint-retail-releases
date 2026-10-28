@@ -180,6 +180,7 @@
 
   <!-- Right Main -->
   <div class="customer-profile-main">
+    <?php $this->load->view('customer_history/profile_links', array('history_mobile'=>false)); ?>
     <?php
       // Printing changes tab labels/order; feature checks apply to every industry.
       $cust_ind = function_exists('mp_get_store_profile')
@@ -614,12 +615,12 @@
             <tbody>
               <?php if (!empty($statement)): $i = 1; foreach ($statement as $row): ?>
               <tr>
-                <td><?= show_date($row['date']); ?></td>
-                <td><?= htmlspecialchars($row['description']); ?></td>
+                <td><?= !empty($row['date']) ? show_date($row['date']) : 'Date needs review'; ?></td>
+                <td><?= htmlspecialchars($row['description']); ?><?php $this->load->view('customer_history/row_details', array('row'=>$row,'history_mobile'=>false)); ?></td>
                 <td><?= htmlspecialchars($row['reference']); ?></td>
                 <td class="text-right" style="color:var(--mp-danger);"><?= $row['debit'] > 0 ? store_number_format($row['debit']) : '-'; ?></td>
                 <td class="text-right" style="color:var(--mp-success);"><?= $row['credit'] > 0 ? store_number_format($row['credit']) : '-'; ?></td>
-                <td class="text-right amt"><?= store_number_format($row['balance']); ?></td>
+                <td class="text-right amt"><?= !empty($row['historical']) || !empty($row['informational']) ? '—' : store_number_format($row['balance']); ?></td>
               </tr>
               <?php endforeach; else: ?>
               <tr><td colspan="6" class="text-center text-muted">No statement records found</td></tr>

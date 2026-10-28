@@ -992,27 +992,10 @@ class Import extends MY_Controller {
         }
 
         public function get_category_id($category_name,$store_id){
-            $category_name = trim((string)$category_name);
-            if($category_name === ''){ return null; }
-            $q2=$this->db->select('id')->from('db_category')
-                ->where('UPPER(category_name) = UPPER('.$this->db->escape($category_name).')', null, false)
-                ->where('store_id', (int)$store_id)->get();
-            if($q2->num_rows()>0){
-                return $q2->row()->id;
-            }
-            else{
-                    //If category name not found in destination, then create category
-                    $info = array(
-                        'count_id'                  => get_count_id('db_category',$store_id), 
-                        'category_code'             => get_init_code('category',$store_id), 
-                        'store_id'                  => $store_id, 
-                        'category_name'             => $category_name, 
-                        'description'               => '',
-                        'status'                    => 1,
-                    );
-                    $q1 = $this->db->insert('db_category', $info);
-                    return $this->db->insert_id();                    
-            }
+            if(trim((string)$category_name)==='')return null;
+            $this->load->model('catalogue_lookup_model','catalogue_lookups');
+            $row=$this->catalogue_lookups->create('category',$category_name,(int)$store_id);
+            return $row['id'];
         }
         public function get_unit_id($unit_name,$store_id){
             $unit_name = trim((string)$unit_name);
@@ -1036,25 +1019,10 @@ class Import extends MY_Controller {
             }
         }
         public function get_brand_id($brand_name,$store_id){
-            $brand_name = trim((string)$brand_name);
-            if($brand_name === ''){ return null; }
-            $q2=$this->db->select('id')->from('db_brands')
-                ->where('UPPER(brand_name) = UPPER('.$this->db->escape($brand_name).')', null, false)
-                ->where('store_id', (int)$store_id)->get();
-            if($q2->num_rows()>0){
-                return $q2->row()->id;
-            }
-            else{
-                    //If category name not found in destination, then create category
-                    $info = array(
-                            'store_id'                  => $store_id, 
-                            'brand_name'                 => $brand_name, 
-                            'description'               => '',
-                            'status'                    => 1,
-                        );
-                    $q1 = $this->db->insert('db_brands', $info);
-                    return $this->db->insert_id();                   
-            }
+            if(trim((string)$brand_name)==='')return null;
+            $this->load->model('catalogue_lookup_model','catalogue_lookups');
+            $row=$this->catalogue_lookups->create('brand',$brand_name,(int)$store_id);
+            return $row['id'];
         }
         public function get_tax_id($tax_name,$tax_per,$store_id){
             $tax_name = trim((string)$tax_name);
@@ -1532,25 +1500,10 @@ public function services(){
                 //Category name should not be empty
                 if(empty($importdata[0])){ continue; }
 
-                $category_name = trim($this->xss_html_filter($importdata[0]));
-
-                //Skip if category already exists for this store
-                $this->db->where("upper(category_name)", strtoupper($category_name));
-                $this->db->where('store_id', $store_id);
-                if($this->db->get('db_category')->num_rows()>0){ continue; }
-
-                $row = array(
-                    'store_id'          =>  $store_id,
-                    'count_id'          =>  get_count_id('db_category'),
-                    'category_code'     =>  get_init_code('category'),
-                    'category_name'     =>  $category_name,
-                    'description'       =>  !empty($importdata[1])?$this->xss_html_filter($importdata[1]):'',
-                    'status'            =>  1,
-                );
-
-                if(!$this->db->insert('db_category',$row)){
-                    $flag=false;
-                }
+                try {
+                    $this->load->model('catalogue_lookup_model','catalogue_lookups');
+                    $this->catalogue_lookups->create('category',$importdata[0],$store_id,!empty($importdata[1])?$this->xss_html_filter($importdata[1]):'');
+                } catch(Throwable $e){$flag=false;break;}
             }
 
             if(!$flag){
@@ -1603,23 +1556,10 @@ public function services(){
                 //Brand name should not be empty
                 if(empty($importdata[0])){ continue; }
 
-                $brand_name = trim($this->xss_html_filter($importdata[0]));
-
-                //Skip if brand already exists for this store
-                $this->db->where("upper(brand_name)", strtoupper($brand_name));
-                $this->db->where('store_id', $store_id);
-                if($this->db->get('db_brands')->num_rows()>0){ continue; }
-
-                $row = array(
-                    'store_id'          =>  $store_id,
-                    'brand_name'        =>  $brand_name,
-                    'description'       =>  !empty($importdata[1])?$this->xss_html_filter($importdata[1]):'',
-                    'status'            =>  1,
-                );
-
-                if(!$this->db->insert('db_brands',$row)){
-                    $flag=false;
-                }
+                try {
+                    $this->load->model('catalogue_lookup_model','catalogue_lookups');
+                    $this->catalogue_lookups->create('brand',$importdata[0],$store_id,!empty($importdata[1])?$this->xss_html_filter($importdata[1]):'');
+                } catch(Throwable $e){$flag=false;break;}
             }
 
             if(!$flag){

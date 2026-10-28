@@ -75,15 +75,13 @@
     </div>
   </div>
 </div>
+<?php $this->load->view('messaging/campaign_billing'); ?>
 <script>
 var CSRF = {name: '<?= $this->security->get_csrf_token_name(); ?>', hash: '<?= $this->security->get_csrf_hash(); ?>'};
 function mpPost(url, data, cb){ data[CSRF.name] = CSRF.hash; $.post(url, data, function(r){ if(r && r.csrf_hash) CSRF.hash = r.csrf_hash; cb(r); }, 'json'); }
 $('#mp-camp-resume').on('click', function(){
-  if(!confirm('Dispatch this campaign?')) return;
-  mpPost('<?= base_url('marketing/send_campaign'); ?>', {id: <?= (int)$campaign->id; ?>}, function(r){
-    $('#mp-detail-msg').text(r.message || 'Done');
-    if(r.status === 'success') setTimeout(function(){ location.reload(); }, 1200);
-  });
+  var btn=this;btn.disabled=true;
+  mpCampaignConfirm(<?= (int)$campaign->id; ?>,false,function(r){alert(r.message||'Done');if(r.status==='success')location.reload();}).finally(function(){btn.disabled=false;});
 });
 $('#mp-camp-retry').on('click', function(){
   mpPost('<?= base_url('marketing/retry_campaign'); ?>', {id: <?= (int)$campaign->id; ?>}, function(r){

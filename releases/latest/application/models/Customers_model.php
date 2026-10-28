@@ -628,7 +628,7 @@ class Customers_model extends CI_Model {
 	    $sum_of_ob_paid = $this->db->query("select coalesce(sum(payment),0) sum_of_ob_paid from db_salespayments where customer_id=$customer_id and short_code='OPENING BALANCE PAID'")->row()->sum_of_ob_paid; 
 	    $customer_opening_balance_due = $customer_opening_balance - $sum_of_ob_paid;
 
-	    $q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_sales where customer_id=$customer_id and (sales_status != 'Opening' or sales_status is null)"); 
+			$q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_sales where customer_id=$customer_id and (sales_status NOT IN ('Opening','Draft') or sales_status is null)");
 	    $total_sales_amount = $q6->row()->total_sales_amount;
 	    $total_paid_amount = $q6->row()->total_paid_amount;
 	    //$total_sales_due_amount =$total_sales_amount - $total_paid_amount;
@@ -920,6 +920,7 @@ class Customers_model extends CI_Model {
 	    		if($amount<=$customer_sales_due && $amount>0){
 	    			$this->db->select("id,grand_total,grand_total,paid_amount");
 	    			$this->db->where("grand_total!=paid_amount");
+			$this->db->where("(sales_status IS NULL OR sales_status <> 'Draft')");
 	    			$this->db->where("customer_id",$customer_id);
 	    			$this->db->from("db_sales");
 	    			$qs4 = $this->db->get();
@@ -1571,7 +1572,7 @@ class Customers_model extends CI_Model {
 
 	public function get_statement($customer_id, $store_id = null, $from = null, $to = null){
 		$store_id = $store_id ?: get_current_store_id();
-		$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+		$customer = $this->db->where('id', $customer_id)->where('store_id', $store_id)->get('db_customers')->row();
 		if(!$customer) return array('opening' => 0, 'rows' => array(), 'summary' => array());
 
 		$opening = ($customer->opening_balance ?? 0) - get_paid_cob($customer_id);
@@ -1589,6 +1590,7 @@ class Customers_model extends CI_Model {
 		);
 
 		$sales = $this->db->where('customer_id', $customer_id)
+						  ->where("(sales_status IS NULL OR sales_status <> 'Draft')")
 						  ->where('store_id', $store_id)
 						  ->order_by('sales_date', 'ASC')
 						  ->get('db_sales')
@@ -1641,9 +1643,23 @@ class Customers_model extends CI_Model {
 			);
 		}
 
+		// Archive rows are informational: monetary values remain in their source
+		// fields and never enter the live balance/debit/credit calculation.
+		$this->load->model('legacy_history_model', 'legacy_history');
+		$history_rows = $this->legacy_history->statement_rows($customer_id, $store_id);
+		$rows = array_merge($rows, $history_rows);
+		$quotes = $this->db->where('customer_id', $customer_id)->where('store_id', $store_id)
+			->order_by('id', 'ASC')->get('db_quotation')->result();
+		foreach($quotes as $quote){
+			$rows[] = array('date'=>$quote->quotation_date,'sort'=>'q:'.str_pad($quote->id,20,'0',STR_PAD_LEFT),
+				'type'=>'quotation','description'=>'Quotation · '.$quote->quotation_status,'reference'=>$quote->quotation_code,
+				'debit'=>0,'credit'=>0,'balance'=>0,'informational'=>true,
+				'document_url'=>base_url('quotation/invoice/'.(int)$quote->id));
+		}
+
 		usort($rows, function($a, $b){
-			$ad = $a['date'] ?: '1970-01-01';
-			$bd = $b['date'] ?: '1970-01-01';
+			$ad = $a['date'] ?: (!empty($a['historical']) ? '9999-12-31' : '1970-01-01');
+			$bd = $b['date'] ?: (!empty($b['historical']) ? '9999-12-31' : '1970-01-01');
 			if($ad == $bd) return strcmp($a['sort'], $b['sort']);
 			return strcmp($ad, $bd);
 		});
@@ -1657,6 +1673,9 @@ class Customers_model extends CI_Model {
 			$kept = array();
 			foreach($rows as $r){
 				if($r['type'] === 'opening') continue;
+				// Unknown source dates stay visible and flagged, never fabricated
+				// or folded into a dated opening balance.
+				if(!$r['date'] && !empty($r['historical'])){ $kept[] = $r; continue; }
 				$d = $r['date'] ?: '1970-01-01';
 				if($from && $d < $from){ $period_opening += $r['debit'] - $r['credit']; continue; }
 				if($to && $d > $to){ continue; }
@@ -1688,6 +1707,7 @@ class Customers_model extends CI_Model {
 		return array(
 			'opening' => $opening,
 			'rows' => $rows,
+			'has_history' => !empty($history_rows),
 			'summary' => array(
 				'total_sales' => $total_debit - $opening,
 				'total_payments' => $total_credit,

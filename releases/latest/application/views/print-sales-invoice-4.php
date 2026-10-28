@@ -58,6 +58,7 @@ body { margin: 5px; }
 </style>
 </head>
 <body onload="window.print();"><!--  -->
+<?php $this->load->view('sales/document_state_banner', array('sales_id'=>$sales_id)); ?>
 <?php
    
     //Current Store Records
@@ -293,6 +294,7 @@ body { margin: 5px; }
               $q2=$this->db->get();
 
               foreach ($q2->result() as $res2) {
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
                   $discount = (empty($res2->discount_input)||$res2->discount_input==0)? store_number_format(0):store_number_format($res2->discount_input)."%";
                   $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
                   $before_tax=$res2->price_per_unit;// * $res2->sales_qty;
@@ -301,7 +303,7 @@ body { margin: 5px; }
                   echo "<td colspan='1' class='text-center'>".++$i."</td>";
                   echo "<td colspan='7'>";
                   echo $res2->item_name;
-                  echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8'))."]</i>" : '';
+                  echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars(mp_catalogue_name($res2->description), ENT_QUOTES, 'UTF-8'))."]</i>" : '';
                   echo "</td>";
 
                   

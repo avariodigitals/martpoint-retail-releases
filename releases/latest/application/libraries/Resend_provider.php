@@ -61,7 +61,10 @@ class Resend_provider implements Email_provider_interface {
 		}
 
 		$fromAddr = $this->buildFromAddress($params);
-		$domainVerify = $this->checkDomainVerified($fromAddr);
+		// Central validates ownership at setup; the send API still enforces it.
+		// Avoid a second domains-list API request for every campaign recipient.
+		$domainVerify = !empty($this->config['skip_domain_check'])
+			? ['verified'=>TRUE,'message'=>'Domain enforced by the send API'] : $this->checkDomainVerified($fromAddr);
 		if(!$domainVerify['verified']){
 			log_message('warning', 'ResendProvider: Domain not verified - ' . $domainVerify['message']);
 		}
@@ -92,6 +95,7 @@ class Resend_provider implements Email_provider_interface {
 			'Content-Type: application/json',
 			'Authorization: Bearer ' . $this->config['resend_api_key']
 		];
+		if(!empty($params['idempotency_key'])) $headers[]='Idempotency-Key: '.$params['idempotency_key'];
 
 		$maskedPayload = json_encode($this->_maskPayloadEmails($payload));
 		log_message('debug', 'ResendProvider payload: ' . $maskedPayload);
@@ -113,13 +117,14 @@ class Resend_provider implements Email_provider_interface {
 		curl_close($ch);
 
 		if($curlError){
-			return ['success' => FALSE, 'error' => 'cURL Error: ' . $curlError, 'provider_response' => NULL];
+			return ['success' => FALSE, 'error' => 'cURL Error: ' . $curlError, 'provider_response' => NULL, 'acceptance_unknown'=>TRUE];
 		}
 
 		log_message('debug', 'ResendProvider response code: ' . $httpCode . ', body: ' . $response);
 
 		if($httpCode >= 200 && $httpCode < 300){
 			$decoded = json_decode($response, TRUE);
+			if(!is_array($decoded) || empty($decoded['id'])) return ['success'=>FALSE,'acceptance_unknown'=>TRUE,'error'=>'Provider acceptance could not be confirmed.','provider_response'=>NULL];
 			$ret = [
 				'success'           => TRUE,
 				'error'             => NULL,
@@ -136,6 +141,7 @@ class Resend_provider implements Email_provider_interface {
 		log_message('error', 'ResendProvider error: ' . $errorMsg);
 		return [
 			'success'           => FALSE,
+			'acceptance_unknown'=> $httpCode===0 || $httpCode>=500,
 			'error'             => $errorMsg,
 			'provider_response' => $decoded
 		];

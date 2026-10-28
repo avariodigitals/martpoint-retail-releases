@@ -1,3 +1,5 @@
+<div class="mp-document-scope">
+<?php $this->load->view('sales/commercial_assets'); ?>
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance();$is_building_commercial=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials'; ?>
 <?php
@@ -219,6 +221,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
             $activeSection = null;
             $sectionTotal = 0;
             foreach ($q2->result() as $res2) {
+                $res2->total_cost=mp_document_line_amount($res2,'quotation_qty',$hasLegacyLineAmount);
                 $str = ($res2->tax_type=='Inclusive')? 'Inc.' : 'Exc.';
                 $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0':$res2->discount_input."%";
                 $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
@@ -234,11 +237,11 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
             <tr>
               <?php if($oilPlantQuote): ?>
                 <td><?= ++$i; ?></td><td><?= htmlspecialchars((string)($res2->item_code ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                <td><?= htmlspecialchars((string)$res2->item_name, ENT_QUOTES, 'UTF-8'); ?><?php if(!empty($res2->description)): ?><span class="item-desc"><?= nl2br(htmlspecialchars($res2->description, ENT_QUOTES, 'UTF-8')); ?></span><?php endif; ?></td>
+                <td><?= htmlspecialchars((string)$res2->item_name, ENT_QUOTES, 'UTF-8'); ?><?= mp_document_description($res2->description); ?></td>
                 <td class="num"><?= format_qty($res2->quotation_qty); ?></td><td><?= htmlspecialchars((string)($res2->unit_name ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                 <td class="num"><?= $CI->currency($res2->price_per_unit); ?></td><td class="num"><?= $CI->currency($res2->total_cost); ?></td>
               <?php else: ?>
-                <td><?= ++$i; ?></td><td><?= htmlspecialchars($res2->item_name); ?><?php if(!empty($res2->description)) { ?><span class="item-desc">[<?= nl2br(htmlspecialchars($res2->description)); ?>]</span><?php } ?></td>
+                <td><?= ++$i; ?></td><td><?= htmlspecialchars($res2->item_name); ?><?= mp_document_description($res2->description); ?></td>
                 <td class="num"><?= $CI->currency($res2->price_per_unit); ?></td><td class="num"><?= format_qty($res2->quotation_qty); ?></td><td class="num"><?= $CI->currency($res2->price_per_unit * $res2->quotation_qty); ?></td>
                 <td class="num"><?= store_number_format($res2->tax); ?>%<br><?= htmlspecialchars($res2->tax_name ?? ''); ?> [<?= $str; ?>]</td><td class="num"><?= $CI->currency($res2->tax_amt); ?></td><td class="num"><?= $discount; ?></td><td class="num"><?= $CI->currency($discount_amt); ?></td><td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td><td class="num"><?= $CI->currency($res2->total_cost); ?></td>
               <?php endif; ?>
@@ -338,3 +341,5 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
 
 <?php if($is_building_commercial): ?></div><?php endif; ?>
 <script>$(".quotation_list-active-li").addClass("active");</script>
+
+</div>

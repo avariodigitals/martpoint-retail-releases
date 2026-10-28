@@ -57,7 +57,7 @@ class Sms_model extends CI_Model {
 		// Stored in the structured notification settings table; db_store.sms_status
 		// is kept in sync as a fallback for installs that predate that table.
 		$sms_status = (int)$this->input->post('sms_status', TRUE);
-		if($sms_status < 0 || $sms_status > 6){ $sms_status = 0; }
+		if($sms_status < 0 || $sms_status > 7){ $sms_status = 0; }
 		if($this->db->table_exists('db_store_notification_settings')){
 			if(!mp_set_store_notification_setting($store_id, 'sms_status', $sms_status)){
 				$this->db->trans_rollback();
@@ -120,9 +120,17 @@ class Sms_model extends CI_Model {
 		return "success";
 	}
 	//Send Messagr
-	public function send_sms($mobile,$message){
+	public function send_sms($mobile,$message,array $options=array()){
 
-		$store_id = get_current_store_id();
+        $store_id = (int)($options['store_id'] ?? get_current_store_id());
+        $this->load->library('messaging_client');
+        $activeProvider=(int)mp_get_store_notification_setting($store_id,'sms_status',0);
+        if(($options['channel']??'')==='whatsapp' && $activeProvider!==3) return 'failed: WhatsApp is not connected for this store.';
+        if(!mp_is_central() && $activeProvider!==3 && ($this->messaging_client->managed() || ($options['message_category'] ?? '')==='promotional')){
+            $r=$this->messaging_client->sendSms($store_id,$mobile,$message,$options);
+            if(empty($r['success'])) log_message('error','MartPoint SMS paused: '.($r['code']??'unavailable'));
+            return !empty($r['success']) ? 'success' : 'failed: Messaging is paused; check Messaging balance.';
+        }
 
 		// Use modular notification settings first; fallback to db_store for legacy installs
 		$sms_status = mp_get_store_notification_setting($store_id, 'sms_status', 0);
@@ -220,10 +228,21 @@ class Sms_model extends CI_Model {
 	 *
 	 * @return array{total:int,successful:int,failed:int,results:array}
 	 */
-	public function send_bulk(array $recipients, $message, $store_id = null){
+	public function send_bulk(array $recipients, $message, $store_id = null, array $options=array()){
 		$store_id = $store_id ?: get_current_store_id();
 		$out = ['total' => count($recipients), 'successful' => 0, 'failed' => 0, 'results' => []];
 		if(empty($recipients)){ return $out; }
+        $this->load->library('messaging_client');
+        if(!mp_is_central()){
+            $options['message_category']='promotional'; $options['store_id']=$store_id;
+            foreach(array_unique($recipients) as $r){
+                $result=$this->messaging_client->sendSms($store_id,$r,$message,$options);
+                $ok=!empty($result['success']); $out[$ok?'successful':'failed']++;
+                $out['results'][]=array('recipient'=>$r,'status'=>$ok?'success':'failed','error'=>$result['message']??'');
+            }
+            return $out;
+        }
+
 
 		$sms_status = mp_get_store_notification_setting($store_id, 'sms_status', 0);
 		if(empty($sms_status) && $this->db->field_exists('sms_status','db_store')){

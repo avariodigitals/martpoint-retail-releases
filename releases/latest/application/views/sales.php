@@ -1,3 +1,5 @@
+<div class="mp-document-scope">
+<?php $this->load->view('sales/commercial_assets'); ?>
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance();$industry=(mp_get_store_profile()['industry_type'] ?? '');$is_garden_document=$industry==='garden_centre_landscaping';$is_building_document=$industry==='building_materials';$is_clean_document=$is_garden_document || $is_building_document; ?>
 <?php
@@ -315,7 +317,7 @@
 <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-                           <input type="hidden" value='Final' id="sales_status" name="sales_status">
+                           <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
 
                            <input type="hidden" value="" id="hidden_total_amt" name="hidden_total_amt">
                            <input type="hidden" value="" id="hidden_discount_to_all_amt" name="hidden_discount_to_all_amt">
@@ -767,7 +769,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=15"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=16"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>
@@ -913,19 +915,19 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
 
            //Find the Tax type and Tax amount
            var tax_type = $("#tr_tax_type_"+i).val();
-           var tax_amount = parseFloat(($("#td_data_"+i+"_11").val() || '').replace(/,/g,''));
+           var tax_amount = mpDocumentNumber(($("#td_data_"+i+"_11").val() || '').replace(/,/g,''));
 
            var qty=$("#td_data_"+i+"_3").val();
-           var sales_price=parseFloat(($("#td_data_"+i+"_10").val() || '').replace(/,/g,''));
+           var sales_price=mpDocumentNumber(($("#td_data_"+i+"_10").val() || '').replace(/,/g,''));
            $("#td_data_"+i+"_4").val(sales_price);
            /*Discounr*/
            var discount_amt=$("#td_data_"+i+"_8").val().replace(/,/g,'');
-               discount_amt   =(isNaN(parseFloat(discount_amt)))    ? 0 : parseFloat(discount_amt);
+               discount_amt   =(isNaN(mpDocumentNumber(discount_amt)))    ? 0 : mpDocumentNumber(discount_amt);
 
-           var amt=parseFloat(qty) * sales_price;//Taxable
+           var amt=mpDocumentNumber(qty) * sales_price;//Taxable
 
            var total_amt=amt-discount_amt;
-           total_amt = (tax_type=='Inclusive') ? total_amt : parseFloat(total_amt) + tax_amount;
+           total_amt = (tax_type=='Inclusive') ? total_amt : mpDocumentNumber(total_amt) + tax_amount;
            
            //Set Unit cost
            $("#td_data_"+i+"_9").val('').val(format_money(total_amt));
@@ -938,7 +940,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
 
          /*Calculate Coupon Discount Amount*/
          const discount_coupon_tot = function(subtotal) {
-             var coupon_value=parseFloat($(".coupon_value").text());
+             var coupon_value=mpDocumentNumber($(".coupon_value").text());
                  coupon_value = isNaN(coupon_value) ? 0 : coupon_value;
 
              var coupon_type=$(".coupon_type").text();
@@ -960,9 +962,9 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
            
 
            var rowcount=$("#hidden_rowcount").val();
-           var subtotal=parseFloat(0);
+           var subtotal=mpDocumentNumber(0);
            
-           var other_charges_per_amt=parseFloat(0);
+           var other_charges_per_amt=mpDocumentNumber(0);
            var other_charges_total_amt=0;
            var taxable=0;
           if($("#other_charges_input").val()!=null && $("#other_charges_input").val()!=''){
@@ -974,8 +976,8 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
                other_charges_per_amt=(other_charges_tax_id * other_charges_input)/100;
              }
              
-             taxable=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);//Other charges input
-             other_charges_total_amt=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);
+             taxable=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);//Other charges input
+             other_charges_total_amt=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);
            }
            else{
              //$("#other_charges_amt").html('0.00');
@@ -991,12 +993,12 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
              if(document.getElementById("td_data_"+i+"_3")){
                //customer_id must exist
                if($("#td_data_"+i+"_3").val()!=null && $("#td_data_"+i+"_3").val()!=''){
-                    actual_taxable=actual_taxable+ + +(parseFloat($("#td_data_"+i+"_13").val()) * parseFloat($("#td_data_"+i+"_3").val()));
-                    subtotal=subtotal+ + +parseFloat(($("#td_data_"+i+"_9").val() || '').replace(/,/g,''));
+                    actual_taxable=actual_taxable+ + +(mpDocumentNumber($("#td_data_"+i+"_13").val()) * mpDocumentNumber($("#td_data_"+i+"_3").val()));
+                    subtotal=subtotal+ + +mpDocumentNumber(($("#td_data_"+i+"_9").val() || '').replace(/,/g,''));
                     if($("#td_data_"+i+"_7").val()>=0){
                       tax_amt=tax_amt+ + +$("#td_data_"+i+"_7").val();
                     }   
-                    total_quantity +=parseFloat($("#td_data_"+i+"_3").val());
+                    total_quantity +=mpDocumentNumber($("#td_data_"+i+"_3").val());
                 }
                    
              }//if end
@@ -1027,7 +1029,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
 
              //discount_to_all_amt
             // if($("#discount_to_all_input").val()!=null && $("#discount_to_all_input").val()!=''){
-                 var discount_input=parseFloat($("#discount_to_all_input").val());
+                 var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
                  discount_input = isNaN(discount_input) ? 0 : discount_input;
                  var discount=0;
                  if(discount_input>0){
@@ -1046,7 +1048,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
                  else{
                     //discount += $("#")
                  }
-                   discount=parseFloat(discount);
+                   discount=mpDocumentNumber(discount);
                    
                     $("#coupon_discount_amt").html(money(coupon_amt));  
                     $("#discount_to_all_amt").html(money(discount));  
@@ -1094,7 +1096,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
      
 
     function enable_or_disable_item_discount(){
-      /*var discount_input=parseFloat($("#discount_to_all_input").val());
+      /*var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
       discount_input = isNaN(discount_input) ? 0 : discount_input;
       if(discount_input>0){
         $(".item_discount").attr({
@@ -1153,7 +1155,7 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
       var tax_id = $("#popup_tax_id").val();
       var description = $("#popup_description").val();
       var tax_name = ($('option:selected', "#popup_tax_id").attr('data-tax-value'));
-      var tax = parseFloat($('option:selected', "#popup_tax_id").attr('data-tax'));
+      var tax = mpDocumentNumber($('option:selected', "#popup_tax_id").attr('data-tax'));
 
       /*Discounr*/
       var item_discount_input = $("#item_discount_input").val();
@@ -1178,18 +1180,18 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
       var tax = $("#tr_tax_value_"+row_id).val(); //%
       var qty=$("#td_data_"+row_id+"_3").val();
           qty = (isNaN(qty)) ? 0 :qty;
-      var sales_price = parseFloat(($("#td_data_"+row_id+"_10").val() || '').replace(/,/g,''));
+      var sales_price = mpDocumentNumber(($("#td_data_"+row_id+"_10").val() || '').replace(/,/g,''));
           sales_price = (isNaN(sales_price)) ? 0 :sales_price;
           sales_price = sales_price * qty;
 
       /*Discount*/
       var item_discount_type = $("#item_discount_type_"+row_id).val();
-      var item_discount_input = parseFloat($("#item_discount_input_"+row_id).val());
+      var item_discount_input = mpDocumentNumber($("#item_discount_input_"+row_id).val());
           item_discount_input = (isNaN(item_discount_input)) ? 0 :item_discount_input;
 
       //Calculate discount      
       var discount_amt=(item_discount_type=='Percentage') ? ((sales_price) * item_discount_input)/100 : (item_discount_input*qty);
-      sales_price-=parseFloat(discount_amt);
+      sales_price-=mpDocumentNumber(discount_amt);
 
       var tax_amount = (tax_type=='Inclusive') ? calculate_inclusive(sales_price,tax) : calculate_exclusive(sales_price,tax);
       
@@ -1243,3 +1245,5 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
 
       <!-- Make sidebar menu hughlighter/selector -->
       <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+
+</div>

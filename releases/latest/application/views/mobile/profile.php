@@ -1,3 +1,7 @@
+<?php
+$profileIndustry=mp_get_store_profile()['industry_type'] ?? 'general_retail';
+$profileClinic=$profileIndustry==='physiotherapy_rehabilitation';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,6 +40,10 @@
       --mp-warning: #a96e24;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
+    <?php if(!$profileClinic): ?>
+    :root { --mp-primary:#0057FF; --mp-primary-dark:#0044CC; --mp-bg:#F1F5F9; --mp-text:#0F172A; --mp-ink:#1E293B; --mp-muted:#64748B; --mp-border:#E2E8F0; --mp-success:#10B981; --mp-danger:#EF4444; --mp-warning:#F59E0B; }
+    body .topbar h1,body .profile-card .name { font-family:inherit; font-weight:700; }
+    <?php endif; ?>
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
     #app { max-width: 430px; margin: 0 auto; background: var(--mp-bg); min-height: 100vh; position: relative; }
@@ -95,8 +103,8 @@
             <?= strtoupper(substr($display_name,0,1)); ?>
           <?php endif; ?>
         </div>
-        <div class="name"><?= $display_name; ?></div>
-        <div class="sub"><?= $email; ?> · <?= $branch_name; ?></div>
+        <div class="name"><?= htmlspecialchars($display_name,ENT_QUOTES,'UTF-8'); ?></div>
+        <div class="sub"><?= htmlspecialchars($email,ENT_QUOTES,'UTF-8'); ?> · <?= htmlspecialchars($branch_name,ENT_QUOTES,'UTF-8'); ?></div>
         <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none;">
         <button type="button" class="btn" id="changeAvatarBtn" style="margin-top:16px; background:rgba(255,255,255,0.2); color:#fff; padding:10px 18px; border-radius:12px; font-size:13px; font-weight:600; border:none; display:inline-flex; align-items:center; gap:6px; width:auto; cursor:pointer;">
           <i class="fa fa-camera"></i> Change Photo

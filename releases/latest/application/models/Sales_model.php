@@ -51,6 +51,8 @@ class Sales_model extends CI_Model {
 		$privileged_warehouses = get_privileged_warehouses_ids();
 
 		$this->db->select($this->column_order);
+		$this->db->select('a.sales_status');
+		if($this->db->field_exists('invoice_status','db_sales'))$this->db->select('a.invoice_status');
 		$this->db->select("(SELECT sp.payment_type FROM db_salespayments sp WHERE sp.sales_id = a.id AND sp.status = 1 LIMIT 1) as payment_type", FALSE);
 		$this->db->from($this->table);
 		$this->db->join('db_customers as b','b.id=a.customer_id','left');
@@ -270,7 +272,7 @@ class Sales_model extends CI_Model {
 	}
 
 	//Save Sales
-	public function verify_save_and_update(){
+	public function verify_save_and_update($standard_invoice = false){
 		$CUR_DATE = date('Y-m-d');
 		$CUR_TIME = date('h:i:s a');
 		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
@@ -355,7 +357,22 @@ class Sales_model extends CI_Model {
 		validate_package_offers('max_invoices','db_sales');
 		//END
 
+		// Trusted controller flag: POS callers cannot opt into invoice drafts or pay-later rules.
+		$store_id = (store_module() && is_admin() && (int)$store_id > 0) ? (int)$store_id : (int)get_current_store_id();
 		$this->db->trans_begin();
+		$invoiceTransactionOpen=true;
+		try {
+		$this->load->library('invoice_workflow');
+		try {
+			$invoiceFlow = $this->invoice_workflow->prepare($standard_invoice, $command, $sales_id, $store_id,
+				$this->input->post('invoice_status', TRUE), $standard_invoice ? $this->input->post('payment_timing', TRUE) : '', $amount, $payment_type, $customer_id);
+		} catch (Throwable $e) { $this->db->trans_rollback(); return $e->getMessage(); }
+		$sales_status = $invoiceFlow['sales_status'];
+		$isInvoiceDraft = $standard_invoice && $sales_status === 'Draft';
+		if($standard_invoice && $invoiceFlow['previous']){$count_id=$invoiceFlow['previous']->count_id;$init_code=$invoiceFlow['previous']->init_code;}
+
+		if($standard_invoice && ((float)$invoiceFlow['paid'] + (float)$amount) > (float)$tot_total_amt + 0.005){$this->db->trans_rollback();return 'Invoice total cannot be less than payments already recorded plus this payment.';}
+
 
 		// Serialize invoice-number generation per store so concurrent POS users
 		// cannot be assigned the same sales_code.
@@ -436,11 +453,13 @@ class Sales_model extends CI_Model {
 		    				$tot_subtotal_amt = (float)$this->input->post_get('tot_subtotal_amt', TRUE);
 		    				// Atomic claim — serializes concurrent redemptions so
 		    				// usage limits cannot be exceeded by racing checkouts.
+				if(!$isInvoiceDraft){
 		    				$this->load->model('Promotions_model','promotions_m');
 		    				$claim = $this->promotions_m->claim_redemption($promo->id, $customer_id, $tot_subtotal_amt, $store_id);
 		    				if(!$claim['ok']){
 		    					$this->db->trans_rollback();
 		    					return "Promotion code rejected: " . $claim['message'];
+		    				}
 		    				}
 		    				// Recalculate coupon_discount_amt from the promotion if not provided
 		    				if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
@@ -493,6 +512,8 @@ class Sales_model extends CI_Model {
 		    				'invoice_terms' 				=> trim($invoice_terms),
 	    					);
 
+		if($standard_invoice && $invoiceFlow['previous'])$sales_entry_init['sales_code']=$invoiceFlow['previous']->sales_code;
+		if($standard_invoice && $this->db->field_exists('invoice_status','db_sales')) $sales_entry_init['invoice_status']=$invoiceFlow['state'];
 	    if($command=='save'){//Create sales code unique if first time entry
 
 			
@@ -644,8 +665,10 @@ class Sales_model extends CI_Model {
 					return 'Could not restore the invoice batch allocations. No changes were saved.';
 				}
 			}
+			if(!$invoiceFlow['previous'] || $invoiceFlow['previous']->sales_status !== 'Draft'){
 			mp_release_sale_barcodes($sales_id);
 			mp_unregister_equipment_for_sale($sales_id);
+			}
 
 			$q11=$this->db->query("delete from db_salesitems where sales_id='$sales_id'");
 			if(!$q11){
@@ -673,21 +696,21 @@ class Sales_model extends CI_Model {
 					$this->load->model('expiry_settings_model');
 					$expiry_settings = $this->expiry_settings_model->get_settings();
 					$item_check = $this->db->select('item_name,expire_date')->where('id',$item_id)->get('db_items')->row();
-					if(is_valid_date($item_check->expire_date) && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
+					if(!$isInvoiceDraft && is_valid_date($item_check->expire_date) && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
 						$this->db->trans_rollback();
 						return "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
 					}
 				} catch (Exception $e) { /* Expiry settings not ready yet */ }
-				$sales_qty			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3']));
-				$price_per_unit 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4']));
+				$sales_qty			=parse_amount($_REQUEST['td_data_'.$i.'_3'] ?? '');
+				$price_per_unit 	=parse_amount($_REQUEST['td_data_'.$i.'_4'] ?? '');
 				$tax_id 			=$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
-				$tax_amt 			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
-				$unit_total_cost	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10']));
-				//$discount_input	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));
-				$total_cost			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
+				$tax_amt 			=parse_amount($_REQUEST['td_data_'.$i.'_11'] ?? '');
+				$unit_total_cost	=parse_amount($_REQUEST['td_data_'.$i.'_10'] ?? '');
+				//$discount_input	=parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');
+				$total_cost			=parse_amount($_REQUEST['td_data_'.$i.'_9'] ?? '');
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
-				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
-				$description		=mp_clean_text($_REQUEST['description_'.$i] ?? '');
+				$unit_tax			=parse_amount($_REQUEST['tr_tax_value_'.$i] ?? '');
+				$description		=mp_clean_text(mp_catalogue_name($_REQUEST['description_'.$i] ?? ''));
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
 				$sold_serial_number =$this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
 				$sold_imei_number   =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
@@ -703,9 +726,10 @@ class Sales_model extends CI_Model {
 
 
 				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
-				$discount_input 	=$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
-				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
+				$discount_input 	=parse_amount($_REQUEST['item_discount_input_'.$i] ?? '');
+				$discount_amt	    =parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');//Amount
 
+				if(!is_numeric($sales_qty) || !is_finite((float)$sales_qty) || (float)$sales_qty<=0){$this->db->trans_rollback();return 'Invoice quantities must be greater than zero.';}
 				$discount_amt_per_unit = $discount_amt/$sales_qty;
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($unit_tax * $price_per_unit / 100);
@@ -714,6 +738,8 @@ class Sales_model extends CI_Model {
 					$single_unit_total_cost =$price_per_unit;
 				}
 				$single_unit_total_cost -=$discount_amt_per_unit;
+				// Never persist a formatted browser string as a numeric line total.
+				$total_cost = round($single_unit_total_cost * $sales_qty, 4);
 
 
 				if($tax_id=='' || $tax_id==0){$tax_id=null;}
@@ -731,10 +757,11 @@ class Sales_model extends CI_Model {
 				//end
 				
 				$item_details = get_item_details($item_id);
+				if(!$item_details || (int)$item_details->store_id!==(int)$store_id){$this->db->trans_rollback();return 'Invoice item not found for this store.';}
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
-				$track_serial = $item_details->track_serial ?? 0;
-				$track_imei   = $item_details->track_imei ?? 0;
+				$track_serial = $isInvoiceDraft ? 0 : ($item_details->track_serial ?? 0);
+				$track_imei   = $isInvoiceDraft ? 0 : ($item_details->track_imei ?? 0);
 
 				// Resolve the serial/IMEI strings from the selected unit row
 				if($barcode_id > 0){
@@ -762,7 +789,7 @@ class Sales_model extends CI_Model {
 					return "{$item_name} is serial-tracked: add each unit on its own line (qty 1) so each serial can be assigned.";
 				}
 				// Unit must still be available (status 1 = in stock)
-				if($barcode_id > 0){
+				if(!$isInvoiceDraft && $barcode_id > 0){
 					$bc_row = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
 					if(!$bc_row || (int)$bc_row->status !== 1){
 						$this->db->trans_rollback();
@@ -787,13 +814,13 @@ class Sales_model extends CI_Model {
 					$this->db->trans_rollback();
 					return $qtyError;
 				}
-				if(!empty($item_details->is_bundle)){
+				if(!$isInvoiceDraft && !empty($item_details->is_bundle)){
 					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
 					if($availableBundles === null || $availableBundles < $sales_qty){
 						$this->db->trans_rollback();
 						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
 					}
-				} else if($current_stock_of_item<$base_unit_qty && $service_bit==0){
+				} else if(!$isInvoiceDraft && $current_stock_of_item<$base_unit_qty && $service_bit==0){
 					// This runs inside the invoice transaction. Roll back the header,
 					// any earlier line rows and any related writes before returning;
 					// otherwise a rejected zero/short-stock invoice can leave the
@@ -821,7 +848,7 @@ class Sales_model extends CI_Model {
 	    				'batch_lot' 		=> $batch_lot,
 	    			'price_type' 		=> $price_type,
 		    				'status'	 		=> 1,
-		    				'seller_points'		=> get_seller_points($item_id) * $sales_qty,
+				'seller_points'		=> $isInvoiceDraft ? 0 : get_seller_points($item_id) * $sales_qty,
 		    				'sold_serial_number'=> $sold_serial_number,
 		    				'sold_imei_number'  => $sold_imei_number,
 		    				'barcode_id'        => $barcode_id,
@@ -850,6 +877,7 @@ class Sales_model extends CI_Model {
 				}
 				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
 
+				if(!$isInvoiceDraft){
 				// FEFO/FIFO is a store policy and only allocates from actual batch
 				// records. MANUAL (the migration-safe default) leaves existing stock
 				// behavior unchanged. Services never consume batch stock.
@@ -903,12 +931,13 @@ class Sales_model extends CI_Model {
 				}
 				
 			}
+				}// Issued invoice fulfilment only; drafts never consume stock or packages.
 		
 		}//for end
 
 		// WALK-IN CUSTOMER CANNOT OWE MONEY
 		$walkin_paid = ($amount=='' || $amount==0) ? 0 : floatval($amount);
-		if(is_walk_in_customer($customer_id) && $walkin_paid < $tot_total_amt){
+		if(!$isInvoiceDraft && is_walk_in_customer($customer_id) && ($walkin_paid + (float)$invoiceFlow['paid']) < $tot_total_amt){
 			$this->db->trans_rollback();
 			return "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";
 		}
@@ -926,7 +955,7 @@ class Sales_model extends CI_Model {
 			 * Verifieng previous and current payment total with invoice amount
 			*/
 			if($command=='update'){
-				$tot_payment = $this->db->select('coalesce(sum(payment),0) as payment')->where('sales_id',$sales_id)->get('db_salespayments')->row()->payment;
+				$tot_payment = $this->db->select('coalesce(sum(payment),0) as payment')->where('sales_id',$sales_id)->where('status',1)->get('db_salespayments')->row()->payment;
 				if(($tot_payment+$amount)>$tot_total_amt){
 					$this->db->trans_rollback();
 					return "Payble amount should not be exceeds Invoice Amount!!\nPlease check previous payments as well.";
@@ -1035,14 +1064,14 @@ class Sales_model extends CI_Model {
 		}*/
 		
 		//Dont save if invoice credit limit exceeds
-		$credit_check = check_credit_limit_with_invoice($customer_id,$sales_id);
+		$credit_check = $isInvoiceDraft ? true : check_credit_limit_with_invoice($customer_id,$sales_id);
 		if($credit_check !== true){
-			return $credit_check;
+			$this->db->trans_rollback();return $credit_check;
 		}
 
 
 		$sms_info='';
-		if(isset($send_sms) && $customer_id!=1){
+		if(!$isInvoiceDraft && isset($send_sms) && $customer_id!=1){
 			if(send_sms_using_template($sales_id,1)==true){
 				$sms_info = 'SMS Has been Sent!';
 			}else{
@@ -1072,7 +1101,7 @@ class Sales_model extends CI_Model {
 		// Ensure invalid legacy due dates are stored as NULL
 
 		//Record Loyalty Points
-		if($customer_id != 1 && $tot_total_amt > 0){
+		if(!$isInvoiceDraft && $customer_id != 1 && $tot_total_amt > 0){
 			$this->load->model('loyalty_model');
 			$settings = $this->loyalty_model->get_settings();
 			if($settings && $settings->loyalty_enabled){
@@ -1096,8 +1125,8 @@ class Sales_model extends CI_Model {
 		}
 		//end
 
-		// Record promotion usage if a promotion code was used
-		if(!empty($coupon_code)){
+		// Drafts do not redeem promotions.
+		if(!$isInvoiceDraft && !empty($coupon_code)){
 			$promo = $this->db->where('store_id', $store_id)->where('UPPER(promotion_code)', strtoupper($coupon_code))->get('db_promotions')->row();
 			if($promo){
 				$this->load->model('Promotions_model','promotions_m');
@@ -1108,7 +1137,8 @@ class Sales_model extends CI_Model {
         $this->load->helper('garden');
         $gardenLinkError=$command==='save' ? mp_garden_link_created_document('invoice',$sales_id) : null;
         if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
-		$this->db->trans_commit();
+		if(!$this->db->trans_status())return 'Invoice could not be saved. No changes were committed.';
+		$this->db->trans_commit(); $invoiceTransactionOpen=false;
 
 		// Append sales_note to customer profile notes for tracking (works for all business types)
 		// Skip walk-in customers (they don't have persistent profiles)
@@ -1129,14 +1159,15 @@ class Sales_model extends CI_Model {
 			log_message('error', 'sales_note not saved: sales_note=' . $sales_note . ', customer_id=' . $customer_id . ', is_walkin=' . (is_walk_in_customer($customer_id) ? 'yes' : 'no'));
 		}
 
-		// Send invoice email to customer (non-critical — must not block save)
-		if($customer_id != 1){ // Skip walk-in customer
+		// Send only issued invoices; draft saves never send or spend messaging credits.
+		$firstIssue = !$standard_invoice || !$invoiceFlow['previous'] || $invoiceFlow['previous']->sales_status==='Draft';
+		if(!$isInvoiceDraft && $firstIssue && $customer_id != 1){ // Edits do not re-send or re-charge for an issued invoice.
 			try {
 				$this->load->model('email_service');
 				$customer = get_customer_details($customer_id);
 				$sales_rec = get_sales_details($sales_id);
 				if(!empty($customer->email)){
-					$this->email_service->sendTemplate(
+					$emailResult=$this->email_service->sendTemplate(
 						'invoice_sent',
 						$customer->email,
 						[
@@ -1150,6 +1181,7 @@ class Sales_model extends CI_Model {
 						],
 						['related_module' => 'sales', 'related_record_id' => $sales_id]
 					);
+					if($standard_invoice && !empty($emailResult['success']))$this->invoice_workflow->markSent($sales_id,$store_id);
 				}
 			} catch (Exception $e) {
 				log_message('error', 'Invoice email failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
@@ -1158,11 +1190,12 @@ class Sales_model extends CI_Model {
 
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
 		return "success<<<###>>>$sales_id";
-		
-	}//verify_save_and_update() function end
+		} finally {if($invoiceTransactionOpen)$this->db->trans_rollback();}
+	}
+	//verify_save_and_update() function end
 
 	function update_sales_payment_status_by_sales_id($sales_id,$customer_id){
-		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id'");
+		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id' AND status=1");
 		$sum_of_payments=$q8->row()->payment;
 		
 
@@ -1747,6 +1780,7 @@ class Sales_model extends CI_Model {
                <td id="td_<?=$rowcount;?>_1">
                   <div class="si-name">
                      <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_sales_item_modal(<?=$rowcount;?>)" class="si-name-link" title="Edit item details"><?=$item_name;?></a>
+                     <?= mp_document_description($description); ?>
                      <?php if(!empty($promo_name)): ?>
                         <span class="si-promo"><?= htmlspecialchars($promo_name); ?></span>
                      <?php endif; ?>
@@ -1818,7 +1852,7 @@ class Sales_model extends CI_Model {
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
-               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
+               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars(mp_catalogue_name($description),ENT_QUOTES,'UTF-8');?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
                <input type="hidden" id="barcode_<?=$rowcount;?>" name="barcode_<?=$rowcount;?>" value="<?=isset($info['barcode']) ? $info['barcode'] : '';?>">
                <input type="hidden" id="price_type_<?=$rowcount;?>" name="price_type_<?=$rowcount;?>" value="<?=isset($info['price_type']) ? $info['price_type'] : 'wholesale';?>">
@@ -2081,7 +2115,12 @@ class Sales_model extends CI_Model {
 	}
 
 	public function save_payment(){
-		$amount = $this->input->post('amount', TRUE);
+		$CUR_DATE=date('Y-m-d'); $CUR_TIME=date('h:i:s a');
+		$CUR_USERNAME=$this->session->userdata('inv_username') ?: 'System';
+		$SYSTEM_IP=$_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'; $SYSTEM_NAME=gethostname() ?: 'localhost';
+		$store_id=(int)get_current_store_id(); $paymentTransactionOpen=false;
+		try {
+		$amount = round(parse_amount($this->input->post('amount', TRUE)),2);
 		$payment_type = $this->input->post('payment_type', TRUE);
 		$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
 		$payment_date = $this->input->post('payment_date', TRUE);
@@ -2089,7 +2128,7 @@ class Sales_model extends CI_Model {
 		$sales_id = $this->input->post('sales_id', TRUE);
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$account_id = $this->input->post('account_id', TRUE);
-		$store_id = $this->input->post('store_id', TRUE);
+
 		$cheque_number = $this->input->post('cheque_number', TRUE);
 		$cheque_period = $this->input->post('cheque_period', TRUE);
 		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
@@ -2101,7 +2140,18 @@ class Sales_model extends CI_Model {
 		}
 		if($amount>0 && !empty($payment_type)){
 
-			$saleDetails = get_sales_details($sales_id);
+			$this->db->trans_begin(); $paymentTransactionOpen=true;
+			$this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',array($store_id));
+			$this->db->where('id',(int)$sales_id);
+			if(!is_admin())$this->db->where('store_id',$store_id);
+			$saleDetails=$this->db->get('db_sales')->row();
+			if(!$saleDetails)return 'Invoice not found for this store.';
+			$locked=$this->db->query('SELECT * FROM db_sales WHERE id=? AND store_id=? FOR UPDATE',array((int)$sales_id,(int)$saleDetails->store_id));
+			$saleDetails=$locked?$locked->row():null;
+			if(!$saleDetails || $saleDetails->sales_status==='Draft')return 'Issue the draft invoice before recording payments.';
+			if(isset($saleDetails->status) && (int)$saleDetails->status!==1)return 'Payments cannot be recorded on an inactive invoice.';
+			$customer_id=(int)$saleDetails->customer_id;
+			$store_id=(int)$saleDetails->store_id;
 			$saleStoreId = (int)($saleDetails->store_id ?? 0);
 			if(!$saleStoreId){ return 'Invoice not found.'; }
 			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
@@ -2115,7 +2165,9 @@ class Sales_model extends CI_Model {
 				}
 			}
 
-			$this->db->trans_begin();
+			$paidRow=$this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1',array((int)$sales_id))->row();
+			$dueKobo=(int)round((float)$saleDetails->grand_total*100)-(int)round((float)$paidRow->paid*100);
+			if(!is_finite($amount) || $amount<=0 || (int)round($amount*100)>$dueKobo)return 'Payment cannot exceed the outstanding invoice balance.';
 
 			// Look up payment_mode_id
 			$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
@@ -2129,6 +2181,7 @@ class Sales_model extends CI_Model {
 				}
 			}
 
+			if(!empty($account_id) && !$this->db->where('id',(int)$account_id)->where('store_id',$saleStoreId)->count_all_results('ac_accounts')) return 'Choose a payment account belonging to the invoice store.';
 			$payment_code=get_init_code('sales_payment');
 			$salespayments_entry = array(
 					'store_id' 			=> $saleStoreId,
@@ -2229,7 +2282,8 @@ class Sales_model extends CI_Model {
 			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
 		}
 
-		$this->db->trans_commit();
+		if(!$this->db->trans_status())return 'Payment could not be saved. No changes were committed.';
+		$this->db->trans_commit(); $paymentTransactionOpen=false;
 
 		// Send payment received email to customer (non-critical)
 		if($customer_id != 1){ // Skip walk-in customer
@@ -2258,7 +2312,10 @@ class Sales_model extends CI_Model {
 		}
 
 		return "success";
-
+		} catch(Throwable $e){
+			log_message('error','Invoice payment save failed: '.$e->getMessage());
+			return 'Payment could not be recorded. No payment changes were saved; please review the error log.';
+		} finally {if($paymentTransactionOpen)$this->db->trans_rollback();}
 	}
 	
 	public function view_payments_modal($sales_id){

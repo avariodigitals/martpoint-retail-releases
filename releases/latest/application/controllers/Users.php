@@ -100,13 +100,12 @@
 			$data=$this->data;
 			$data['page_title']=$this->lang->line('users_list');
 
-			// The store owner/admin remains fully usable, but is not an
-			// operational staff row and must not appear in tenant user lists.
+			// Keep system administrator roles out of tenant staff lists. A
+			// Business Owner is a normal tenant user and must remain visible.
 			if(!is_admin()){
 				$store_id = get_current_store_id();
-				$owner_roles = array_unique(array_merge(array((int)store_admin_id()), store_owner_role_ids($store_id)));
-				$this->db->where_not_in('a.id', get_excluded_user_ids($store_id));
-				$this->db->where_not_in('a.role_id', $owner_roles);
+				$system_roles = store_admin_role_ids($store_id);
+				$this->db->where_not_in('a.role_id', $system_roles);
 			}
 			$this->db->select("a.*,b.role_name");
 			$this->db->where("b.id=a.role_id");

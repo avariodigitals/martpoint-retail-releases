@@ -141,7 +141,12 @@ class Marketing_model extends CI_Model {
 		];
 		if($id){
 			$this->db->where('id', (int)$id)->where('store_id', (int)$storeId)->where('status', 'draft')->update('db_campaigns', $row);
-			return $this->db->affected_rows() ? (int)$id : false;
+            $changed=$this->db->affected_rows();
+            if($changed){
+                $this->db->where('campaign_id',(int)$id)->where('store_id',(int)$storeId)->where('status','pending')->delete('db_campaign_sends');
+                if($this->db->table_exists('db_messaging_campaign_approvals')) $this->db->where('store_id',(int)$storeId)->where('campaign_id',(int)$id)->delete('db_messaging_campaign_approvals');
+            }
+            return $changed ? (int)$id : false;
 		}
 		$row['created_by'] = substr((string)($this->session->userdata('inv_username') ?: 'system'), 0, 60);
 		$row['created_at'] = date('Y-m-d H:i:s');

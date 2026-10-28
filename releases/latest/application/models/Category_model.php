@@ -89,16 +89,15 @@ class Category_model extends CI_Model {
 
 
 	private function _verify_and_save(){
-		$category = $this->input->post('category', TRUE);
+		$category = mp_catalogue_name($this->input->post('category', TRUE));
+        if($category==='' || mb_strlen($category,'UTF-8')>100)return 'Enter a category name of 1–100 characters.';
 		$description = $this->input->post('description', TRUE);
         try{$parent_id=$this->parent_input(isset($q_id)?(int)$q_id:0);}catch(InvalidArgumentException $e){return $e->getMessage();}
 		
 		//Validate This category already exist or not
 		$store_id=get_current_store_id();
-		$this->db->where("upper(category_name)", strtoupper($category));
-		$this->db->where('store_id', $store_id);
-		$query = $this->db->get('db_category');
-		if($query->num_rows()>0){
+		$this->load->model('catalogue_lookup_model','catalogue_lookups');
+		if($this->catalogue_lookups->find('category',$category,$store_id)){
 			return "This Category Name already Exist.";
 			
 		}
@@ -167,17 +166,15 @@ class Category_model extends CI_Model {
 	private function _update_category(){
 		$q_id = $this->input->post('q_id', TRUE);
         $existing=$this->db->where('id',(int)$q_id)->where('store_id',get_current_store_id())->get('db_category')->row();
-		$category = $this->input->post('category', TRUE);
+		$category = mp_catalogue_name($this->input->post('category', TRUE));
+        if($category==='' || mb_strlen($category,'UTF-8')>100)return 'Enter a category name of 1–100 characters.';
 		$description = $this->input->post('description', TRUE);
         try{$parent_id=$this->parent_input(isset($q_id)?(int)$q_id:0);}catch(InvalidArgumentException $e){return $e->getMessage();}
 
 		//Validate This category already exist or not
 		$store_id=get_current_store_id();
-		$this->db->where("upper(category_name)", strtoupper($category));
-		$this->db->where("id !=", $q_id);
-		$this->db->where('store_id', $store_id);
-		$query = $this->db->get('db_category');
-		if($query->num_rows()>0){
+		$this->load->model('catalogue_lookup_model','catalogue_lookups');
+		if($this->catalogue_lookups->find('category',$category,$store_id, (int)$q_id)){
 			return "This Category Name already Exist.";
 			
 		}

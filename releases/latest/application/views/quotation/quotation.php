@@ -1,3 +1,5 @@
+<div class="mp-document-scope">
+<?php $this->load->view('sales/commercial_assets'); ?>
 <?php $this->load->view('finance/desktop/_styles'); ?>
 <?php $CI =& get_instance();$document_industry=(mp_get_store_profile()['industry_type'] ?? '');$is_garden_document=$document_industry==='garden_centre_landscaping';$is_building_document=$document_industry==='building_materials';$is_clean_document=$is_garden_document || $is_building_document; ?>
 <?php $is_oil_plant_quote = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
@@ -438,16 +440,16 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
      var tax_amount = $("#td_data_"+i+"_11").val();
 
      var qty=$("#td_data_"+i+"_3").val();
-     var quotation_price=parseFloat($("#td_data_"+i+"_10").val());
+     var quotation_price=mpDocumentNumber($("#td_data_"+i+"_10").val());
      $("#td_data_"+i+"_4").val(quotation_price);
      /*Discounr*/
      var discount_amt=$("#td_data_"+i+"_8").val();
-         discount_amt   =(isNaN(parseFloat(discount_amt)))    ? 0 : parseFloat(discount_amt);
+         discount_amt   =(isNaN(mpDocumentNumber(discount_amt)))    ? 0 : mpDocumentNumber(discount_amt);
 
-     var amt=parseFloat(qty) * quotation_price;//Taxable
+     var amt=mpDocumentNumber(qty) * quotation_price;//Taxable
 
      var total_amt=amt-discount_amt;
-     total_amt = (tax_type=='Inclusive') ? total_amt : parseFloat(total_amt) + parseFloat(tax_amount);
+     total_amt = (tax_type=='Inclusive') ? total_amt : mpDocumentNumber(total_amt) + mpDocumentNumber(tax_amount);
 
      //Set Unit cost
      $("#td_data_"+i+"_9").val('').val(to_Fixed(total_amt));
@@ -464,9 +466,9 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
 
      var rowcount=$("#hidden_rowcount").val();
-     var subtotal=parseFloat(0);
+     var subtotal=mpDocumentNumber(0);
 
-     var other_charges_per_amt=parseFloat(0);
+     var other_charges_per_amt=mpDocumentNumber(0);
      var other_charges_total_amt=0;
      var taxable=0;
     if($("#other_charges_input").val()!=null && $("#other_charges_input").val()!=''){
@@ -478,8 +480,8 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
         other_charges_per_amt=(other_charges_tax_id * other_charges_input)/100;
       }
 
-      taxable=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);//Other charges input
-      other_charges_total_amt=parseFloat(other_charges_per_amt)+parseFloat(other_charges_input);
+      taxable=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);//Other charges input
+      other_charges_total_amt=mpDocumentNumber(other_charges_per_amt)+mpDocumentNumber(other_charges_input);
     }
     else{
       //$("#other_charges_amt").html('0.00');
@@ -495,12 +497,12 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
       if(document.getElementById("td_data_"+i+"_3")){
         //customer_id must exist
         if($("#td_data_"+i+"_3").val()!=null && $("#td_data_"+i+"_3").val()!=''){
-             actual_taxable=actual_taxable+ + +(parseFloat($("#td_data_"+i+"_13").val()) * parseFloat($("#td_data_"+i+"_3").val()));
-             subtotal=subtotal+ + +parseFloat($("#td_data_"+i+"_9").val());
+             actual_taxable=actual_taxable+ + +(mpDocumentNumber($("#td_data_"+i+"_13").val()) * mpDocumentNumber($("#td_data_"+i+"_3").val()));
+             subtotal=subtotal+ + +mpDocumentNumber($("#td_data_"+i+"_9").val());
              if($("#td_data_"+i+"_7").val()>=0){
                tax_amt=tax_amt+ + +$("#td_data_"+i+"_7").val();
              }
-             total_quantity +=parseFloat($("#td_data_"+i+"_3").val());
+             total_quantity +=mpDocumentNumber($("#td_data_"+i+"_3").val());
          }
 
       }//if end
@@ -527,7 +529,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
       //discount_to_all_amt
      // if($("#discount_to_all_input").val()!=null && $("#discount_to_all_input").val()!=''){
-          var discount_input=parseFloat($("#discount_to_all_input").val());
+          var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
           discount_input = isNaN(discount_input) ? 0 : discount_input;
           var discount=0;
           if(discount_input>0){
@@ -546,7 +548,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
           else{
              //discount += $("#")
           }
-            discount=parseFloat(to_Fixed(discount));
+            discount=mpDocumentNumber(to_Fixed(discount));
 
              $("#discount_to_all_amt").html(discount);
              $("#hidden_discount_to_all_amt").val(discount);
@@ -586,7 +588,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
 
   function enable_or_disable_item_discount(){
-    /*var discount_input=parseFloat($("#discount_to_all_input").val());
+    /*var discount_input=mpDocumentNumber($("#discount_to_all_input").val());
     discount_input = isNaN(discount_input) ? 0 : discount_input;
     if(discount_input>0){
       $(".item_discount").attr({
@@ -646,7 +648,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
    var tax_id = $("#popup_tax_id").val();
    var description = $("#popup_description").val();
    var tax_name = ($('option:selected', "#popup_tax_id").attr('data-tax-value'));
-   var tax = parseFloat($('option:selected', "#popup_tax_id").attr('data-tax'));
+   var tax = mpDocumentNumber($('option:selected', "#popup_tax_id").attr('data-tax'));
 
    /*Discounr*/
    var item_discount_input = $("#item_discount_input").val();
@@ -671,18 +673,18 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
    var tax = $("#tr_tax_value_"+row_id).val(); //%
    var qty=$("#td_data_"+row_id+"_3").val();
        qty = (isNaN(qty)) ? 0 :qty;
-   var quotation_price = parseFloat($("#td_data_"+row_id+"_10").val());
+   var quotation_price = mpDocumentNumber($("#td_data_"+row_id+"_10").val());
        quotation_price = (isNaN(quotation_price)) ? 0 :quotation_price;
        quotation_price = quotation_price * qty;
 
    /*Discount*/
    var item_discount_type = $("#item_discount_type_"+row_id).val();
-   var item_discount_input = parseFloat($("#item_discount_input_"+row_id).val());
+   var item_discount_input = mpDocumentNumber($("#item_discount_input_"+row_id).val());
        item_discount_input = (isNaN(item_discount_input)) ? 0 :item_discount_input;
 
    //Calculate discount
    var discount_amt=(item_discount_type=='Percentage') ? ((quotation_price) * item_discount_input)/100 : (item_discount_input*qty);
-   quotation_price-=parseFloat(discount_amt);
+   quotation_price-=mpDocumentNumber(discount_amt);
 
    var tax_amount = (tax_type=='Inclusive') ? calculate_inclusive(quotation_price,tax) : calculate_exclusive(quotation_price,tax);
 
@@ -717,3 +719,5 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
 
 <!-- Make sidebar menu highlighter/selector -->
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+
+</div>

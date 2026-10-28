@@ -126,7 +126,7 @@ class Cron extends CI_Controller {
 					if(empty($to)){ $note = trim($note . ' no recipient'); }
 					else {
 						$this->email_service->setStoreId($storeId);
-						$res = $this->email_service->sendRaw($to, 'You left items in your cart', $body['html'], $body['text'], ['template_key' => 'cart_recovery', 'related_module' => 'storefront_cart', 'related_record_id' => $cart->id]);
+						$res = $this->email_service->sendRaw($to, 'You left items in your cart', $body['html'], $body['text'], ['messaging_key'=>'cart:'.$cart->id.':'.date('Y-m-d'),'template_key' => 'cart_recovery', 'related_module' => 'storefront_cart', 'related_record_id' => $cart->id]);
 						$sent = !empty($res['success']);
 						$note = trim($note . ' ' . ($sent ? 'sent' : 'send failed: ' . $res['message']));
 					}
@@ -134,7 +134,7 @@ class Cron extends CI_Controller {
 					$to = $testMode ? ($store->phone ?? $testRecipient) : $cart->customer_phone;
 					if(empty($to)){ $note = trim($note . ' no recipient'); }
 					else {
-						$resp = $this->sms_model->send_sms($to, $body['text']);
+						$resp = $this->sms_model->send_sms($to, $body['text'],array('store_id'=>$storeId,'message_category'=>'promotional','template_key'=>'cart_recovery','messaging_key'=>'cart:'.$cart->id.':'.date('Y-m-d')));
 						$sent = is_string($resp) ? (stripos($resp, 'success') !== false || stripos($resp, 'sent') !== false) : (bool)$resp;
 						$note = trim($note . ' ' . ($sent ? 'sent' : 'send failed'));
 					}
@@ -193,7 +193,7 @@ class Cron extends CI_Controller {
 					. '<p><a href="' . htmlspecialchars($itemUrl) . '">View it here</a></p>'
 					. '<p style="color:#888;font-size:12px;"><a href="' . htmlspecialchars($unsub) . '">Stop these alerts</a></p>',
 					$name . " is back in stock — view: {$itemUrl}\nStop alerts: {$unsub}",
-					['template_key' => 'back_in_stock', 'related_module' => 'stock_alert', 'related_record_id' => $alert->id]);
+					['messaging_key'=>'stock-alert:'.$alert->id.':'.date('Y-m-d'),'template_key' => 'back_in_stock', 'related_module' => 'stock_alert', 'related_record_id' => $alert->id]);
 				$ok = !empty($res['success']);
 				$err = $ok ? null : ($res['message'] ?? 'send failed');
 			}
@@ -233,10 +233,12 @@ class Cron extends CI_Controller {
 			return;
 		}
 		$this->marketing_m->releaseStuckSends();
-		$done = 0; $rateLimited = false;
+		$done = 0; $rateLimited = false; $dispatchStarted=microtime(true);
 		foreach($this->marketing_m->getUnfinishedCampaigns() as $campaign){
-			foreach($this->marketing_m->getPendingSends($campaign->id, 60 - $done) as $send){
-				if($done >= 60) break 2;
+            if(!$this->db->table_exists('db_messaging_campaign_approvals') || !$this->db->where('store_id',$campaign->store_id)->where('campaign_id',$campaign->id)->count_all_results('db_messaging_campaign_approvals')) continue;
+
+			foreach($this->marketing_m->getPendingSends($campaign->id, 5 - $done) as $send){
+				if($done >= 5 || microtime(true)-$dispatchStarted>12) break 2;
 				$claimed = $this->marketing_m->claimSend($send->id);
 				if(!$claimed) continue;
 				if($this->marketing_m->isSuppressed($campaign->store_id, $campaign->channel, $send->recipient)){
@@ -247,7 +249,8 @@ class Cron extends CI_Controller {
 				// handling (Resend/SMTP/SMS) stays in one place.
 				$res = $this->_campaignProviderSend($campaign, $send);
 				if(!empty($res['rate_limited'])){
-					$this->db->where('id', $send->id)->update('db_campaign_sends', ['status' => 'pending', 'error' => 'rate limited']);
+					$this->db->where('id', $send->id)->update('db_campaign_sends', ['status' => 'pending', 'error' => $res['error'] ?? 'Messaging paused']);
+					$this->db->query('UPDATE db_campaign_sends SET attempts=GREATEST(0,attempts-1) WHERE id=?',array($send->id));
 					$rateLimited = true;
 					break 2;
 				}
@@ -262,30 +265,10 @@ class Cron extends CI_Controller {
 		$this->_cartRecoveryOut($isCli, ['status'=>'completed','sent'=>$done,'rate_limited'=>$rateLimited]);
 	}
 
-	private function _campaignProviderSend($campaign, $send){
-		$recipient = $send->recipient;
-		$name = $send->customer_name ?? '';
-		$text = str_replace('{name}', $name ?: 'there', (string)$campaign->message);
-		$unsubUrl = !empty($send->unsub_token) ? base_url('storefront/campaign_unsubscribe/' . $send->unsub_token) : null;
-		if($campaign->channel === 'sms'){
-			if($unsubUrl) $text .= ' Opt out: ' . $unsubUrl;
-			$resp = $this->sms_model->send_sms($recipient, $text);
-			$ok = is_string($resp) ? (stripos($resp, 'success') !== false || stripos($resp, 'sent') !== false) : (bool)$resp;
-			$err = $ok ? null : (is_string($resp) ? $resp : 'SMS send failed');
-			return ['ok' => $ok, 'error' => $err, 'rate_limited' => $err && preg_match('/rate.?limit|429|too many|throttl/i', $err)];
-		}
-		$store = $this->db->where('id', $campaign->store_id)->get('db_store')->row();
-		$storeName = $store->store_name ?? 'Our store';
-		$this->email_service->setStoreId($campaign->store_id);
-		$html = '<p>Hi ' . htmlspecialchars($name ?: 'there') . ',</p><p>' . nl2br(htmlspecialchars($text)) . '</p>'
-			. '<p style="color:#888;font-size:12px;">— ' . htmlspecialchars($storeName) . '</p>'
-			. ($unsubUrl ? '<p style="color:#888;font-size:11px;"><a href="' . htmlspecialchars($unsubUrl) . '">Unsubscribe from these emails</a></p>' : '');
-		$plain = $text . ($unsubUrl ? "\n\nUnsubscribe: {$unsubUrl}" : '');
-		$res = $this->email_service->sendRaw($recipient, $campaign->subject ?: ('A message from ' . $storeName), $html, $plain,
-			['template_key' => 'campaign', 'related_module' => 'campaign', 'related_record_id' => $campaign->id]);
-		$err = empty($res['success']) ? ($res['message'] ?? 'send failed') : null;
-		return ['ok' => !empty($res['success']), 'error' => $err, 'rate_limited' => $err && preg_match('/rate.?limit|429|too many|throttl/i', $err)];
-	}
+    private function _campaignProviderSend($campaign,$send){
+        $this->load->library('campaign_messaging');
+        return $this->campaign_messaging->send($campaign,$send);
+    }
 
 	private function _cartRecoveryOut($isCli, $payload){
 		if($isCli){ echo "Cart recovery: " . json_encode($payload) . "\n"; return; }
@@ -312,6 +295,7 @@ class Cron extends CI_Controller {
 
 	protected function _processSchedule($schedule){
 		$storeId = $schedule->store_id;
+        $this->email_service->setStoreId($storeId);
 		$type = $schedule->report_type;
 		$date = date('Y-m-d');
 
@@ -371,7 +355,7 @@ class Cron extends CI_Controller {
 							'low_stock_items' => $lowStock,
 							'transaction_count' => $reportData['sales']['transactions'] ?? 0,
 						],
-						['related_module' => $type, 'related_record_id' => $date]
+						['messaging_key'=>'scheduled-report:'.$schedule->id.':'.$date,'related_module' => $type, 'related_record_id' => $date]
 					);
 					if(!$res['success']){
 						$errors[] = "Email to {$email}: " . $res['message'];
@@ -385,7 +369,7 @@ class Cron extends CI_Controller {
 							'store_name' => $storeName,
 							'low_stock_items' => $lowStock,
 						],
-						['related_module' => $type, 'related_record_id' => $date]
+						['messaging_key'=>'scheduled-report:'.$schedule->id.':'.$date,'related_module' => $type, 'related_record_id' => $date]
 					);
 					if(!$res['success']){
 						$errors[] = "Email to {$email}: " . $res['message'];
@@ -399,7 +383,7 @@ class Cron extends CI_Controller {
 			$numbers = array_filter(array_map('trim', explode(',', $schedule->whatsapp_numbers)));
 			foreach($numbers as $number){
 				$msg = $this->_buildWhatsAppMessage($type, $storeName, $date, $reportData, $schedule->whatsapp_message_template);
-				$res = $this->sms_model->send_sms($number, $msg);
+				$res = $this->sms_model->send_sms($number, $msg,array('store_id'=>$storeId,'channel'=>'whatsapp','message_category'=>'transactional'));
 				if($res !== 'success'){
 					$errors[] = "WhatsApp to {$number}: {$res}";
 				}
@@ -509,6 +493,7 @@ class Cron extends CI_Controller {
 		$storeIds = $this->db->query("SELECT DISTINCT store_id FROM db_debt_reminder_settings WHERE (customer_id = 0 AND enabled = 1) OR (customer_id > 0 AND enabled = 1)")->result_array();
 		foreach($storeIds as $storeRow){
 			$storeId = $storeRow['store_id'];
+            $this->email_service->setStoreId($storeId);
 
 			// Single delivery path — one of the two schedulers drives a store;
 			// never both. The switch is per-store on db_debt_reminder_config:
@@ -576,7 +561,7 @@ class Cron extends CI_Controller {
 							'due_date' => $dueDate,
 							'payment_link' => base_url('customers')
 						],
-						['related_module' => 'debt_reminder', 'related_record_id' => $customer->customer_id]
+						['messaging_key'=>'debt:'.$customer->customer_id.':'.date('Y-m-d'),'related_module' => 'debt_reminder', 'related_record_id' => $customer->customer_id]
 					);
 
 					if($res['success']){
@@ -595,7 +580,7 @@ class Cron extends CI_Controller {
 				// Send SMS
 				if($sendSms && !empty($mobile)){
 					$msg = "Hi {$customerName}, this is a reminder that you have an outstanding balance of {$this->_currency($amountDue)}. Please settle at your earliest convenience. Thank you, " . get_store_name($storeId);
-					$res = $this->sms_model->send_sms($mobile, $msg);
+					$res = $this->sms_model->send_sms($mobile, $msg,array('store_id'=>$storeId,'message_category'=>'transactional','messaging_key'=>'debt:'.$customer->customer_id.':'.date('Y-m-d')));
 					if($res === 'success'){
 						$smsOk = true;
 						$results['sms_sent']++;

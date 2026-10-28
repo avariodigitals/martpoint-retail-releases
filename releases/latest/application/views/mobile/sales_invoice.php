@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php $this->load->view('sales/commercial_assets'); ?>
+
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -62,7 +64,7 @@
   </style>
 <?php $this->load->view('mobile/building_commercial_style'); ?>
 </head>
-<body>
+<body class="mp-document-scope">
   <div id="app">
     <section class="screen">
       <div class="topbar">
@@ -105,6 +107,9 @@
           $reference_no = $res3->reference_no;
           $sales_code = $res3->sales_code;
           $sales_status = $res3->sales_status;
+          $workflowRow=$this->db->where('id',$sales_id)->where('store_id',$store_id)->get('db_sales')->row();
+          $invoiceIsDraft=$sales_status==='Draft';
+          $documentState=$invoiceIsDraft?'draft':(($workflowRow->invoice_status ?? '')==='sent'?'sent':'issued');
           $sales_note = $res3->sales_note;
           $display_sales_note = function_exists('mp_invoice_note_without_dosage')
               ? mp_invoice_note_without_dosage($sales_note)
@@ -171,6 +176,7 @@
         <div class="invoice-header">
           <div>
             <div class="code">#<?= htmlspecialchars($sales_code); ?></div>
+            <div class="info-row"><span class="label">Document</span><strong><?= ucfirst($documentState); ?></strong></div>
             <div class="info-row" style="margin-top:6px;"><span class="label">Date</span><span><?= show_date($sales_date); ?></span></div>
             <div class="info-row"><span class="label">Due</span><span><?= $due_date; ?></span></div>
             <?php if($reference_no): ?><div class="info-row"><span class="label">Ref</span><span><?= htmlspecialchars($reference_no); ?></span></div><?php endif; ?>
@@ -220,6 +226,7 @@
 
           $tot_qty = $tot_tax_amt = $tot_discount_amt = $tot_total_cost = $sum_of_tot_price = 0;
           foreach($q2->result() as $res2):
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
             $tax_str = ($res2->tax_type == 'Inclusive') ? 'Inc.' : 'Exc.';
             $price_per_unit = $res2->price_per_unit;
             if($res2->tax_type == 'Inclusive'){
@@ -237,7 +244,7 @@
               <span class="item-name"><?= htmlspecialchars($res2->item_name); ?></span>
               <span class="item-qty"><?= format_qty($res2->sales_qty); ?> <?= htmlspecialchars(trim($res2->sold_unit_shortcode ?: $res2->sold_unit_name) ?? ''); ?></span>
             </div>
-            <?php if($res2->description): ?><div style="font-size:12px;color:var(--mp-muted);margin-bottom:6px;"><?= nl2br(htmlspecialchars($res2->description)); ?></div><?php endif; ?>
+            <?= mp_document_description($res2->description); ?>
             <div class="item-row"><span class="label">Unit</span><span><?= store_number_format($price_per_unit); ?></span></div>
             <div class="item-row"><span class="label">Price</span><span><?= store_number_format($tot_price); ?></span></div>
             <div class="item-row"><span class="label">Tax</span><span><?= store_number_format($res2->tax); ?>% <?= htmlspecialchars($res2->tax_name); ?> [<?= $tax_str; ?>]</span></div>
@@ -262,9 +269,10 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Payments</div>
+        <?php if(!empty($hasLegacyLineAmount)): ?><p class="msg-alert" role="status">An older line-amount formatting error was detected. Line amounts shown here use the saved quantity and unit cost. Payments and the invoice balance have not been changed; an administrator should review the stored line totals.</p><?php endif; ?>
+<div class="card-title">Payments</div>
         <?php
-          $q3p = $this->db->where('sales_id', $sales_id)->get('db_salespayments');
+          $q3p = $this->db->where('sales_id', $sales_id)->where('status',1)->get('db_salespayments');
           if($q3p->num_rows() > 0):
             $total_paid = 0;
             foreach($q3p->result() as $res3p):
@@ -288,6 +296,13 @@
       </div>
       <?php endif; ?>
 
+      <?php if($invoiceIsDraft): ?><div class="card" role="status"><strong>DRAFT — NOT ISSUED</strong><p>No payment is due and stock has not been consumed. Edit this draft to issue it.</p></div><?php endif; ?>
+      <?php if(!$invoiceIsDraft && empty($pos) && $CI->permissions('sales_payment_add') && (float)$grand_total>(float)$paid_amount): ?>
+      <div class="card"><a href="<?= base_url('mobile/pay_due/'.$sales_id); ?>" style="display:block;padding:14px;background:var(--mp-primary);color:white;text-align:center;border-radius:12px;font-weight:700;">Record payment</a></div>
+      <?php endif; ?>
+      <?php if(!$invoiceIsDraft && empty($pos) && $documentState!=='sent' && $CI->permissions('sales_edit')): ?>
+      <div class="card"><?= form_open('sales/mark_sent'); ?><input type="hidden" name="sales_id" value="<?= (int)$sales_id; ?>"><input type="hidden" name="mobile" value="1"><button type="submit" style="padding:12px;border:1px solid var(--mp-border);border-radius:12px;background:white;">Mark as sent / shared</button><?= form_close(); ?></div>
+      <?php endif; ?>
       <?php if(!$is_cashier): ?>
       <div class="actions">
         <?php if($CI->permissions('sales_edit')): ?>
@@ -297,7 +312,7 @@
         <a href="<?= base_url('pdf/sales/' . $sales_id); ?>" target="_blank" class="btn-pdf"><i class="fa fa-file-pdf-o"></i> PDF</a>
         <?php $wa_share = get_whatsapp_share_url('sales', $sales_id); ?>
         <a href="<?= $wa_share['url']; ?>" target="_blank" class="btn-whatsapp"><i class="fa fa-whatsapp"></i> Share</a>
-        <?php if($CI->permissions('sales_return_add')): ?>
+        <?php if(!$invoiceIsDraft && $CI->permissions('sales_return_add')): ?>
           <a href="<?= base_url('mobile/sales_return_form/' . $sales_id); ?>" class="btn-return" style="grid-column: span 2;"><i class="fa fa-undo"></i> Sales Return</a>
         <?php endif; ?>
       </div>

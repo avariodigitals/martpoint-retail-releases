@@ -4,7 +4,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /** Permission-filtered pharmacy workspace directory, modelled on Building Materials More. */
 function pharmacy_workspace_tools() {
     $ci =& get_instance();
+    $messagePermission=$ci->permissions('send_email')?'send_email':'send_sms';
     $catalog = [
+        'Messaging & customer engagement' => [
+            [$messagePermission,'messaging?screen=mobile','Messaging balance & packages','Add MartPoint credit, view usage and control spending'],
+            [$messagePermission,'marketing/campaigns?screen=mobile','SMS & email campaigns','Review costs and send customer campaigns through MartPoint'],
+        ],
         'Patient care' => [
             ['sales_add', 'pos', 'Dispensing & checkout', 'Sell, counsel and print the patient invoice'],
             ['sales_view', 'sales', 'Sales history', 'Find invoices, payments and dispensing sales'],
@@ -57,6 +62,7 @@ function pharmacy_workspace_tools() {
             ['users_view', 'users/view', 'Teams & users', 'Staff accounts and access'],
             ['roles_view', 'roles/view', 'Roles & permissions', 'Control access to patient and pharmacy workflows'],
             ['business_profile', 'pharmacy_workspace/configuration', 'Pharmacy configuration', 'Choose Standard or Advanced Pharmacy'],
+            ['business_profile', 'business_profile', 'Business profile & industry', 'Change business type, industry, workflows and enabled features'],
             ['store_profile', 'store_profile/update/'.(int)get_current_store_id(), 'Business settings', 'Business identity, document and payment configuration'],
             ['audit_trail_view', 'audit_trail', 'Audit trail', 'Review recorded business changes'],
             ['tax_view', 'tax', 'Tax rates', 'Manage invoice tax rates'],
@@ -88,6 +94,21 @@ function pharmacy_workspace_tools() {
 /** Use the established admin roles; a delegated permission is not admin identity. */
 function pharmacy_workspace_is_admin() {
     return is_admin() || is_store_admin();
+}
+
+/** Visible desktop entry points; retain the same admin identity and grants as More. */
+function pharmacy_workspace_admin_shortcuts() {
+    if (!pharmacy_workspace_is_admin()) return [];
+    $ci =& get_instance();
+    $links = [];
+    if ($ci->permissions('users_view')) {
+        $links[] = ['path' => 'users/view', 'label' => 'Teams & users', 'icon' => 'users'];
+    }
+    if ($ci->permissions('business_profile')) {
+        $links[] = ['path' => 'business_profile', 'label' => 'Business profile & industry', 'icon' => 'settings'];
+        $links[] = ['path' => 'pharmacy_workspace/configuration', 'label' => 'Pharmacy configuration', 'icon' => 'settings'];
+    }
+    return $links;
 }
 
 /** Shared by navigation and the authenticated server-side route guard. */

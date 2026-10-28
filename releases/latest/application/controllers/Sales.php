@@ -11,6 +11,7 @@ class Sales extends MY_Controller {
 		$this->load_global();
 		$this->load->model('sales_model','sales');
 		$this->load->helper('sms_template_helper');
+		$this->load->library('invoice_workflow');
 	}
 
 	public function is_sms_enabled(){
@@ -78,7 +79,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=16','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -93,7 +94,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=16','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales',$data,TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -104,11 +105,12 @@ class Sales extends MY_Controller {
         $documentCommand=$this->input->post_get('command',TRUE);
         if (!in_array($documentCommand,['save','update'],true)) { echo 'Invalid document action.';return; }
         $this->permission_check_with_msg($documentCommand==='update' ? 'sales_edit' : 'sales_add');
+        if(parse_amount($this->input->post('amount',TRUE))>0)$this->permission_check_with_msg('sales_payment_add');
 		$this->form_validation->set_rules('sales_date', 'Sales Date', 'trim|required');
 		$this->form_validation->set_rules('customer_id', 'Customer Name', 'trim|required');
 		
 		if ($this->form_validation->run() == TRUE) {
-	    	$result = $this->sales->verify_save_and_update();
+			$result = $this->sales->verify_save_and_update(true);
 	    	echo $result;
 		} else {
 			echo "Please Fill Compulsory(* marked) Fields.";
@@ -135,7 +137,7 @@ class Sales extends MY_Controller {
 		if(is_mobile() || $this->input->get('mobile')=='1'){
 			$this->load->view('sales_mobile', $data);
 		} else {
-			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=15','js/ajaxselect/customer_select_ajax.js'];
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/sales.js?v=16','js/ajaxselect/customer_select_ajax.js'];
 			$data['content'] = $this->load->view('sales', $data, TRUE);
 			$this->load->view('mp_layout', $data);
 		}
@@ -165,12 +167,14 @@ class Sales extends MY_Controller {
 					else{
 						$str= "<br><span class='label label-info' style='cursor:pointer'> ".abs($date_difference)." days Left</span>";
 					}
-			$row[] = (!empty($sales->due_date) && $sales->payment_status!='Paid') ? show_date($sales->due_date).$str : '';
+			$row[] = (!empty($sales->due_date) && $sales->payment_status!='Paid' && $sales->sales_status!=='Draft') ? show_date($sales->due_date).$str : '';
 			#-----------------------------------------------------
 
 			$info = (!empty($sales->quotation_id)) ? "<br><span class='label label-success' style='cursor:pointer'><i class='fa fa-fw  fa-check-circle'></i>Against Quotation</span>" : '';
 
 			$info .= (!empty($sales->return_bit)) ? "<br><span class='label label-danger' style='cursor:pointer'><i class='fa fa-fw fa-undo'></i>Return Raised</span>" : '';
+			$documentState=$this->invoice_workflow->status($sales);
+			$info .= '<br><span class="label label-default">'.ucfirst($documentState).'</span>';
 
 			$row[] = $sales->sales_code.$info;
 			
@@ -224,7 +228,7 @@ class Sales extends MY_Controller {
 												</a>
 											</li>';
 
-											if($this->permissions('sales_payment_add'))
+											if($this->permissions('sales_payment_add') && $sales->sales_status!=='Draft')
 											$str2.='<li>
 												<a title="Receive Payments" class="pointer" onclick="pay_now('.$sales->id.')" >
 													<i class="fa fa-fw fa-hourglass-half text-blue"></i>Receive Payments
@@ -248,7 +252,7 @@ class Sales extends MY_Controller {
 														<i class="fa fa-fw fa-whatsapp text-green"></i>WhatsApp
 													</a>
 												</li>';
-											if($this->permissions('sales_return_add'))
+											if($this->permissions('sales_return_add') && $sales->sales_status!=='Draft')
 											$str2.='<li>
 												<a title="Sales Return" href="'.base_url().'sales_return/add/'.$sales->id.'">
 													<i class="fa fa-fw fa-undo text-blue"></i>Sales Return
@@ -334,6 +338,7 @@ class Sales extends MY_Controller {
 		}
 		
 		$data=$this->data;
+		if(is_mobile()){redirect('mobile/sales_invoice/'.(int)$id);return;}
 		$data=array_merge($data,array('sales_id'=>$id));
 		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Invoice' : $this->lang->line('sales_invoice');
 		$data['content']=$this->load->view('sal-invoice',$data,TRUE);
@@ -486,13 +491,25 @@ class Sales extends MY_Controller {
 		echo $this->sales->delete_payment($payment_id);
 	}
 	public function show_pay_now_modal(){
-		$this->permission_check_with_msg('sales_view');
+		$this->permission_check_with_msg('sales_payment_add');
 		$sales_id=$this->input->post('sales_id');
+		$this->belong_to('db_sales',$sales_id);
 		echo $this->sales->show_pay_now_modal($sales_id);
 	}
 	public function save_payment(){
-		$this->permission_check_with_msg('sales_add');
+		$this->permission_check_with_msg('sales_payment_add');
 		echo $this->sales->save_payment();
+	}
+	public function mark_sent(){
+		$this->permission_check_with_msg('sales_edit');
+		if(strtolower($this->input->method())!=='post'){show_error('POST is required.',405);return;}
+		$id=(int)$this->input->post('sales_id');
+		try {
+			$this->invoice_workflow->markSent($id,get_current_store_id());
+			if(function_exists('mp_audit_log'))mp_audit_log('sales','mark_sent',$id,'Invoice marked as shared/sent by staff; no payment recorded.');
+			$this->session->set_flashdata('success','Invoice marked as sent. Payment status is unchanged.');
+		} catch(Throwable $e){$this->session->set_flashdata('error',$e->getMessage());}
+		redirect($this->input->post('mobile') ? 'mobile/sales_invoice/'.$id : 'sales/invoice/'.$id);
 	}
 	public function view_payments_modal(){
 		$this->permission_check_with_msg('sales_view');

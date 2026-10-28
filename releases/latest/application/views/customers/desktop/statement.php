@@ -64,6 +64,7 @@
     </div>
   </form>
 
+  <?php if(!empty($has_history)): ?><div class="history-note" style="padding:12px;background:#f0f6ff;color:#294368">Rose amounts are shown as read-only history. The totals and balances below apply to current MartPoint entries only. Undated source records remain visible for review.</div><?php endif; ?>
   <div class="cs-summary">
     <div class="cs-stat">
       <div class="cs-stat-icon"><i class="fa fa-file-text-o"></i></div>
@@ -124,11 +125,11 @@
             <?php foreach ($rows as $row): ?>
             <tr>
               <td><?= !empty($row['date']) ? show_date($row['date']) : '-'; ?></td>
-              <td><?= htmlspecialchars($row['description']); ?></td>
+              <td><?= htmlspecialchars($row['description']); ?><?php $this->load->view('customer_history/row_details', array('row'=>$row,'history_mobile'=>false)); ?></td>
               <td><?= htmlspecialchars($row['reference']); ?></td>
               <td class="text-right" style="color:var(--mp-danger);"><?= $row['debit'] > 0 ? store_number_format($row['debit']) : '-'; ?></td>
               <td class="text-right" style="color:var(--mp-success);"><?= $row['credit'] > 0 ? store_number_format($row['credit']) : '-'; ?></td>
-              <td class="text-right" style="font-weight:700;"><?= store_number_format($row['balance']); ?></td>
+              <td class="text-right" style="font-weight:700;"><?= !empty($row['historical']) || !empty($row['informational']) ? '—' : store_number_format($row['balance']); ?></td>
             </tr>
             <?php endforeach; ?>
           <?php else: ?>

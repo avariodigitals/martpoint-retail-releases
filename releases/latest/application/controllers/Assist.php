@@ -81,24 +81,12 @@ class Assist extends MY_Controller {
 			return;
 		}
 
-		$this->load->library('email');
-		$this->email->from($email, $name);
-		$this->email->to('support@martpoint.com.ng');
-		$this->email->subject('[MartPoint Support] ' . $subject);
-		$this->email->message(
-			"Support Request from MartPoint Assist\n\n" .
-			"Name: {$name}\n" .
-			"Email: {$email}\n" .
-			"Subject: {$subject}\n\n" .
-			"Message:\n{$message}\n\n" .
-			"---\nSent via MartPoint Assist Support Form"
-		);
+        $this->load->model('email_service');
+        $text="Name: {$name}\nEmail: {$email}\nSubject: {$subject}\n\n{$message}";
+        $result=$this->email_service->sendRaw('support@martpoint.com.ng','[MartPoint Support] '.$subject,nl2br(htmlspecialchars($text,ENT_QUOTES,'UTF-8')),$text,
+            array('template_key'=>'support_request','email_scope'=>'platform','platform_data'=>array('email'=>$email,'message'=>$text)));
+        $this->_json(array('success'=>!empty($result['success']),'error'=>empty($result['success'])?($result['message']??'Support email could not be confirmed.'):null));
 
-		if($this->email->send()){
-			$this->_json(['success' => true]);
-		} else {
-			$this->_json(['success' => false, 'error' => 'Email could not be sent. Please try again later.']);
-		}
 	}
 
 	public function topics(){

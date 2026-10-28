@@ -28,6 +28,7 @@
                                    <option value="">-Select-</option>
                                     <?= get_brands_select_list();  ?>
                                  </select>
+                                 <?php $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'brand','lookup_target'=>'m_brand_id')); ?>
                               </div>
                             </div>
                           </div>
@@ -40,6 +41,7 @@
                                    <option value="">-Select-</option>
                                     <?= get_categories_select_list();  ?>
                                  </select>
+                                 <?php $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'category','lookup_target'=>'m_category_id')); ?>
                               </div>
                             </div>
                           </div>

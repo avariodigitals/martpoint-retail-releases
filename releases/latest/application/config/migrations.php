@@ -488,4 +488,12 @@ return [
           '4.0.9.205v' => '4.0.9.205_pharmacy_modes.sql',
           // .206 adds opt-in FEFO/FIFO batch allocation with auditable sale and return links.
           '4.0.9.206v' => '4.0.9.206_inventory_rotation.sql',
+          '4.0.9.207v' => '4.0.9.207_legacy_customer_history.sql',
+          '4.0.9.208v' => '4.0.9.208_messaging_credits.sql',
+          // .209 republishes the full user-directory/role-selector repair and
+          // resolves Store Admin by role identity rather than hard-coded ID 2.
+          '4.0.9.209v' => '4.0.9.209_business_owner_directory.sql',
+          '4.0.9.210v' => '4.0.9.210_messaging_setup_and_navigation.sql',
+          '4.0.9.211v' => '4.0.9.211_standard_invoice_lifecycle.sql',
+          '4.0.9.212v' => '4.0.9.212_retail_document_stability.sql',
 ];

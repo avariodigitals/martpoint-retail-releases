@@ -41,7 +41,7 @@
           <label for="from_date"><?= $this->lang->line('from_date'); ?></label>
           <div class="input-group date">
             <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
-            <input type="text" class="form-control pull-right datepicker" id="from_date" name="from_date" value="<?php echo show_date(date('d-m-Y')); ?>">
+            <input type="text" class="form-control pull-right datepicker" id="from_date" name="from_date" value="<?= htmlspecialchars(show_date(mp_dashboard_report_date('from_date')),ENT_QUOTES,'UTF-8'); ?>">
           </div>
           <span id="from_date_msg" style="display:none" class="text-danger"></span>
         </div>
@@ -50,7 +50,7 @@
           <label for="to_date"><?= $this->lang->line('to_date'); ?></label>
           <div class="input-group date">
             <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
-            <input type="text" class="form-control pull-right datepicker" id="to_date" name="to_date" value="<?php echo show_date(date('d-m-Y')); ?>">
+            <input type="text" class="form-control pull-right datepicker" id="to_date" name="to_date" value="<?= htmlspecialchars(show_date(mp_dashboard_report_date('to_date')),ENT_QUOTES,'UTF-8'); ?>">
           </div>
           <span id="to_date_msg" style="display:none" class="text-danger"></span>
         </div>

@@ -123,16 +123,16 @@ class Marketing extends MY_Controller {
 		if(!$this->_can_send()){ $this->show_access_denied_page(); return; }
 		$storeId = get_current_store_id();
 		$this->load->model('Marketing_model','marketing_m');
-		// Provider status for cost/config disclosure in the UI.
-		$this->load->model('email_settings_model');
-		$emailCfg = $this->email_settings_model->getSettings($storeId);
+		$this->load->library('messaging_client');
+		$messaging=$this->messaging_client->request('snapshot',$storeId);
 		$data = array_merge($this->data, [
 			'page_title'  => 'Campaigns',
 			'campaigns'   => $this->marketing_m->listCampaigns($storeId),
 			'segments'    => Marketing_model::$SEGMENTS,
 			'saved'       => $this->marketing_m->listSavedSegments($storeId),
-			'email_ready' => !empty($emailCfg['provider']),
-			'sms_ready'   => (bool)mp_get_store_notification_setting($storeId, 'sms_status', 0),
+			'email_ready' => !empty($messaging['channels']['email']),
+            'messaging' => $messaging,
+			'sms_ready'   => !empty($messaging['channels']['sms']),
 			'can_email'   => $this->_can_send_channel('email'),
 			'can_sms'     => $this->_can_send_channel('sms'),
 			'store_name'  => get_store_name(),
@@ -159,6 +159,10 @@ class Marketing extends MY_Controller {
 		}
 		$channel = $this->input->post('channel') === 'sms' ? 'sms' : 'email';
 		if(!$this->_can_send_channel($channel)){ echo json_encode(['status'=>'error','message'=>'You do not have permission to create ' . strtoupper($channel) . ' campaigns']); return; }
+        if(trim((string)$this->input->post('name'))==='' || trim((string)$this->input->post('message'))==='' || ($channel==='email' && trim((string)$this->input->post('subject'))==='')){
+            echo json_encode(array('status'=>'error','message'=>'Enter a campaign name, message and an email subject when sending email.')); return;
+        }
+
 		$id = $this->marketing_m->saveCampaign($storeId, [
 			'name'        => $this->input->post('name'),
 			'segment_key' => $segId ? null : $segKey,
@@ -197,10 +201,20 @@ class Marketing extends MY_Controller {
 		if(!isset(Marketing_model::$SEGMENTS[$key])){ echo json_encode(['status'=>'error','message'=>'Campaign has no valid audience']); return; }
 		$audience = $this->marketing_m->resolveSegment($storeId, $key);
 
+        $quote=$this->_campaignQuote($campaign,$testOnly);
+        if(empty($quote['success']) || empty($quote['ready']) || (int)$this->input->post('approved_cost_kobo')!==(int)($quote['total_kobo']??-1)){
+            echo json_encode(array('status'=>'error','message'=>$quote['message']??'Review and confirm the current messaging cost before sending.')); return;
+        }
+        if(!$testOnly){
+            $approved=$this->messaging_client->request('authorize_campaign',$storeId,array('campaign_id'=>(string)$cid,'budget_kobo'=>(int)$quote['total_kobo']));
+            if(empty($approved['success'])){ echo json_encode(array('status'=>'error','message'=>$approved['message']??'Campaign spend could not be approved.')); return; }
+            $this->db->query('INSERT INTO db_messaging_campaign_approvals (store_id,campaign_id,approved_at) VALUES (?,?,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE approved_at=VALUES(approved_at)',array($storeId,$cid));
+        }
+
 		if($testOnly){
 			// Controlled test: send to the store owner only, touch nothing.
 			$store = get_store_details($storeId);
-			$to = $campaign->channel === 'email' ? ($store->email ?? '') : ($store->phone ?? '');
+			$to = $campaign->channel === 'email' ? ($store->email ?? '') : ($store->phone ?? $store->mobile ?? '');
 			if($to === ''){ echo json_encode(['status'=>'error','message'=>'No store owner ' . $campaign->channel . ' configured']); return; }
 			$fakeSend = (object)['recipient' => $to, 'customer_name' => 'Store owner (test)', 'unsub_token' => null];
 			$res = $this->_dispatchCampaignMessage($campaign, $fakeSend, $storeId);
@@ -208,16 +222,17 @@ class Marketing extends MY_Controller {
 			return;
 		}
 
-		$this->marketing_m->stageCampaignAudience($campaign, $audience);
+		// Audience was frozen when the cost was estimated.
 		// Recover rows stranded in 'sending' by an earlier interrupted run.
 		$this->marketing_m->releaseStuckSends();
 		$this->db->where('id', $cid)->update('db_campaigns', ['status' => 'sending']);
 
-		// Batch: at most 60 provider calls per request — the cron sweep
+		// Batch: at most 5 provider calls per request — the cron sweep
 		// finishes the rest. A rate-limit error pauses the batch, leaves
 		// the send pending, and the campaign resumes on the next run.
-		$rateLimited = false;
-		foreach($this->marketing_m->getPendingSends($cid, 60) as $send){
+		$rateLimited = false; $dispatchStarted=microtime(true);
+		foreach($this->marketing_m->getPendingSends($cid, 5) as $send){
+            if(microtime(true)-$dispatchStarted>12) break;
 			// Atomic claim — a parallel dispatch can never take this row.
 			$claimed = $this->marketing_m->claimSend($send->id);
 			if(!$claimed) continue;
@@ -230,7 +245,8 @@ class Marketing extends MY_Controller {
 			$res = $this->_dispatchCampaignMessage($campaign, $send, $storeId);
 			if(!empty($res['rate_limited'])){
 				// Back to pending — will retry on the next dispatch run.
-				$this->db->where('id', $send->id)->update('db_campaign_sends', ['status' => 'pending', 'error' => 'rate limited']);
+				$this->db->where('id', $send->id)->update('db_campaign_sends', ['status' => 'pending', 'error' => $res['error'] ?? 'Messaging paused']);
+				$this->db->query('UPDATE db_campaign_sends SET attempts=GREATEST(0,attempts-1) WHERE id=?',array($send->id));
 				$rateLimited = true;
 				break;
 			}
@@ -241,7 +257,7 @@ class Marketing extends MY_Controller {
 		$status = $remaining > 0 ? 'partial' : 'sent';
 		$this->db->where('id', $cid)->update('db_campaigns', ['status' => $status, 'sent_at' => date('Y-m-d H:i:s')]);
 		$msg = "{$stats['sent']} accepted, {$stats['failed']} failed, {$stats['suppressed']} opted out" . ($remaining ? ", {$remaining} still queued" : '');
-		if($rateLimited) $msg .= ' — provider rate limit hit, queued sends resume automatically';
+		if($rateLimited) $msg .= ' — messaging paused; queued sends resume when credit, limits and provider confirmation allow';
 		echo json_encode(['status'=>'success','message'=>$msg,'sent'=>$stats['sent'],'failed'=>$stats['failed'],'suppressed'=>$stats['suppressed'],'queued'=>$remaining,'rate_limited'=>$rateLimited]);
 	}
 
@@ -253,9 +269,11 @@ class Marketing extends MY_Controller {
 		$cid = (int)$this->input->post('id');
 		$campaign = $this->marketing_m->getCampaign($cid, $storeId);
 		if(!$campaign){ echo json_encode(['status'=>'error','message'=>'Campaign not found']); return; }
+        if(!$this->_can_send_channel($campaign->channel)){echo json_encode(array('status'=>'error','message'=>'No permission to spend on this channel.'));return;}
+        if($this->db->table_exists('db_messaging_campaign_approvals')) $this->db->where('store_id',$storeId)->where('campaign_id',$cid)->delete('db_messaging_campaign_approvals');
 		$n = $this->marketing_m->requeueFailed($cid, $storeId);
 		if($n > 0) $this->db->where('id', $cid)->where('store_id', $storeId)->update('db_campaigns', ['status' => 'partial']);
-		echo json_encode(['status'=>'success','message'=>"{$n} failed send(s) requeued — sent/accepted rows are never re-contacted"]);
+		echo json_encode(['status'=>'success','message'=>"{$n} failed send(s) requeued — confirm the remaining cost using Resume. Accepted rows are never re-contacted"]);
 	}
 
 	/**
@@ -264,31 +282,44 @@ class Marketing extends MY_Controller {
 	 * than fails the send. Every recipient gets a working unsubscribe
 	 * path: footer link for email, opt-out link appended to SMS.
 	 */
-	private function _dispatchCampaignMessage($campaign, $send, $storeId){
-		$store = get_store_details($storeId);
-		$storeName = $store->store_name ?? 'Our store';
-		$recipient = $send->recipient;
-		$name = $send->customer_name ?? '';
-		$text = str_replace('{name}', $name ?: 'there', (string)$campaign->message);
-		$unsubUrl = !empty($send->unsub_token) ? base_url('storefront/campaign_unsubscribe/' . $send->unsub_token) : null;
-		if($campaign->channel === 'sms'){
-			if($unsubUrl) $text .= ' Opt out: ' . $unsubUrl;
-			$this->load->model('sms_model');
-			$resp = $this->sms_model->send_sms($recipient, $text);
-			$ok = is_string($resp) ? (stripos($resp, 'success') !== false || stripos($resp, 'sent') !== false) : (bool)$resp;
-			$err = $ok ? null : (is_string($resp) ? $resp : 'SMS send failed');
-			return ['ok' => $ok, 'error' => $err, 'rate_limited' => $err && preg_match('/rate.?limit|429|too many|throttl/i', $err)];
-		}
-		$this->load->model('email_service');
-		$this->email_service->setStoreId($storeId);
-		$html = '<p>Hi ' . htmlspecialchars($name ?: 'there') . ',</p><p>' . nl2br(htmlspecialchars($text)) . '</p>'
-			. '<p style="color:#888;font-size:12px;">— ' . htmlspecialchars($storeName) . '</p>'
-			. ($unsubUrl ? '<p style="color:#888;font-size:11px;"><a href="' . htmlspecialchars($unsubUrl) . '">Unsubscribe from these emails</a></p>' : '');
-		$plain = $text . ($unsubUrl ? "\n\nUnsubscribe: {$unsubUrl}" : '');
-		$res = $this->email_service->sendRaw($recipient, $campaign->subject ?: ('A message from ' . $storeName), $html, $plain, ['template_key' => 'campaign', 'related_module' => 'campaign', 'related_record_id' => $campaign->id]);
-		$err = empty($res['success']) ? ($res['message'] ?? 'send failed') : null;
-		return ['ok' => !empty($res['success']), 'error' => $err, 'rate_limited' => $err && preg_match('/rate.?limit|429|too many|throttl/i', $err)];
-	}
+    private function _dispatchCampaignMessage($campaign,$send,$storeId){
+        $this->load->library('campaign_messaging');
+        return $this->campaign_messaging->send($campaign,$send,empty($send->id));
+    }
+
+    private function _campaignQuote($campaign,$test){
+        $this->load->library('campaign_messaging');
+        if($test){
+            $store=get_store_details($campaign->store_id);
+            $to=$campaign->channel==='email'?($store->email??''):($store->phone??$store->mobile??'');
+            if(!$to) return array('success'=>false,'message'=>'Configure the store owner email/phone before a test send.');
+            $sends=array((object)array('recipient'=>$to,'customer_name'=>'Store owner (test)','unsub_token'=>null));
+        }else{
+            $key=$campaign->segment_key;
+            if($campaign->segment_id){
+                $saved=$this->marketing_m->getSegment($campaign->segment_id,$campaign->store_id);
+                if(!$saved) return array('success'=>false,'message'=>'Saved audience no longer exists.');
+                $key=$saved->segment_key;
+            }
+            if(!isset(Marketing_model::$SEGMENTS[$key])) return array('success'=>false,'message'=>'Choose a valid audience.');
+            // First estimate freezes the audience. Editing a draft clears it.
+            if(!$this->db->where('campaign_id',$campaign->id)->count_all_results('db_campaign_sends')){
+                $audience=$this->marketing_m->resolveSegment($campaign->store_id,$key);
+                $this->marketing_m->stageCampaignAudience($campaign,$audience);
+            }
+            $sends=$this->marketing_m->getPendingSends($campaign->id,10000);
+        }
+        return $this->campaign_messaging->estimate($campaign,$sends,$test);
+    }
+
+    public function estimate_campaign(){
+        if(!$this->_can_send()){ echo json_encode(array('success'=>false,'message'=>'Access denied')); return; }
+        $this->load->model('Marketing_model','marketing_m');
+        $campaign=$this->marketing_m->getCampaign((int)$this->input->post('id'),get_current_store_id());
+        if(!$campaign || !$this->_can_send_channel($campaign->channel)){ echo json_encode(array('success'=>false,'message'=>'Campaign access denied')); return; }
+        $this->marketing_m->releaseStuckSends();
+        echo json_encode($this->_campaignQuote($campaign,(bool)$this->input->post('test')));
+    }
 
 	public function campaign_detail($id = 0){
 		if(!$this->_can_send()){ $this->show_access_denied_page(); return; }

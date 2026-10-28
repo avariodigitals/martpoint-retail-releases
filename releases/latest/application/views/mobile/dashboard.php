@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="<?= htmlspecialchars(base_url('theme/css/dashboard_links.css?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>">
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -265,27 +266,31 @@
 
       <div class="kpi-grid">
         <div class="kpi-card blue">
+          <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'sales','card_mobile'=>true,'card_dates'=>array('from'=>$from ?? date('Y-m-d'),'to'=>$to ?? date('Y-m-d')),'card_link_label'=>'View sales details')); ?>
           <div class="label">Sales</div>
-          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($sales)))); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($sales))); ?></div>
+          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($sales)))); ?>"><?= mp_format_money(parse_amount(strip_tags($sales))); ?></div>
         </div>
         <div class="kpi-card green">
+          <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'expense','card_mobile'=>true,'card_dates'=>array('from'=>$from ?? date('Y-m-d'),'to'=>$to ?? date('Y-m-d')),'card_link_label'=>'View expense details')); ?>
           <div class="label">Expenses</div>
-          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($expenses)))); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($expenses))); ?></div>
+          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($expenses)))); ?>"><?= mp_format_money(parse_amount(strip_tags($expenses))); ?></div>
         </div>
         <div class="kpi-card yellow">
+          <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'invoices','card_mobile'=>true,'card_dates'=>array('from'=>$from ?? date('Y-m-d'),'to'=>$to ?? date('Y-m-d')),'card_link_label'=>'View invoices details')); ?>
           <div class="label">Txns</div>
           <div class="value"><?= $transactions; ?></div>
         </div>
         <div class="kpi-card red">
+          <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'debt','card_mobile'=>true,'card_dates'=>array('from'=>$from ?? date('Y-m-d'),'to'=>$to ?? date('Y-m-d')),'card_link_label'=>'View debt details')); ?>
           <div class="label">Debt</div>
-          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($debt)))); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($debt))); ?></div>
+          <div class="value" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($debt)))); ?>"><?= mp_format_money(parse_amount(strip_tags($debt))); ?></div>
         </div>
       </div>
 
       <div class="target-card">
         <div class="header">
           <div class="title"><?= $target_label; ?></div>
-          <div class="value" title="<?= strip_tags(mp_format_money($target)); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($sales))); ?> / <?= mp_format_money_compact($target); ?></div>
+          <div class="value" title="<?= strip_tags(mp_format_money($target)); ?>"><?= mp_format_money(parse_amount(strip_tags($sales))); ?> / <?= mp_format_money($target); ?></div>
         </div>
         <div class="progress-track">
           <div class="progress-fill <?= $target_status; ?>" style="width:<?= $target_progress; ?>%"></div>
@@ -351,7 +356,7 @@
       <div class="card" style="background:var(--mp-success); color:#fff;">
         <div class="header" style="color:#fff;">
           <div class="title" style="display:flex;align-items:center;gap:8px;">Today's Profit <i class="fa fa-chevron-right" style="font-size:12px;opacity:0.8;"></i></div>
-          <div class="value" style="color:#fff; font-size:20px; font-weight:800; margin-left:auto; text-align:right;" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($profit)))); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($profit))); ?></div>
+          <div class="value" style="color:#fff; font-size:20px; font-weight:800; margin-left:auto; text-align:right;" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($profit)))); ?>"><?= mp_format_money(parse_amount(strip_tags($profit))); ?></div>
         </div>
       </div>
       </a>
@@ -415,7 +420,7 @@
         </a>
         <a href="<?= base_url('reports/cash_in_hand'); ?>" class="insight">
           <div class="label">Cash</div>
-          <div class="value success" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($cash_in_hand)))); ?>"><?= mp_format_money_compact(parse_amount(strip_tags($cash_in_hand))); ?></div>
+          <div class="value success" title="<?= strip_tags(mp_format_money(parse_amount(strip_tags($cash_in_hand)))); ?>"><?= mp_format_money(parse_amount(strip_tags($cash_in_hand))); ?></div>
         </a>
         <a href="<?= base_url('mobile/staff'); ?>" class="insight">
           <div class="label">On Duty</div>

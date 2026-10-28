@@ -313,6 +313,8 @@ class Quotation_model extends CI_Model {
 
 	//Save Quotation
 	public function verify_save_and_update(){
+		$CUR_DATE=date('Y-m-d');$CUR_TIME=date('h:i:s a');$CUR_USERNAME=$this->session->userdata('inv_username') ?: 'System';
+		$SYSTEM_IP=$_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';$SYSTEM_NAME=gethostname() ?: 'localhost';
 		$command = $this->input->post_get('command', TRUE);
 		$quotation_date = $this->input->post('quotation_date', TRUE);
 		$expire_date = $this->input->post('expire_date', TRUE);
@@ -321,13 +323,13 @@ class Quotation_model extends CI_Model {
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$other_charges_input = $this->input->post('other_charges_input', TRUE);
 		$other_charges_tax_id = $this->input->post('other_charges_tax_id', TRUE);
-		$other_charges_amt = $this->input->post_get('other_charges_amt', TRUE);
+		$other_charges_amt = parse_amount($this->input->post_get('other_charges_amt', TRUE));
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
-		$tot_discount_to_all_amt = $this->input->post_get('tot_discount_to_all_amt', TRUE);
-		$tot_subtotal_amt = $this->input->post_get('tot_subtotal_amt', TRUE);
-		$tot_round_off_amt = $this->input->post_get('tot_round_off_amt', TRUE);
-		$tot_total_amt = $this->input->post_get('tot_total_amt', TRUE);
+		$tot_discount_to_all_amt = parse_amount($this->input->post_get('tot_discount_to_all_amt', TRUE));
+		$tot_subtotal_amt = parse_amount($this->input->post_get('tot_subtotal_amt', TRUE));
+		$tot_round_off_amt = parse_amount($this->input->post_get('tot_round_off_amt', TRUE));
+		$tot_total_amt = parse_amount($this->input->post_get('tot_total_amt', TRUE));
 		$quotation_note = $this->input->post('quotation_note', FALSE);
 		$rowcount = $this->input->post_get('rowcount', TRUE);
 		$quotation_id = $this->input->post('quotation_id', TRUE);
@@ -336,7 +338,8 @@ class Quotation_model extends CI_Model {
 		$store_id = $this->input->post('store_id', TRUE);
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
-		$this->db->trans_begin();
+		$this->db->trans_begin();$quotationTransactionOpen=true;
+		try {
 		$quotation_date=system_fromatted_date($quotation_date);
 		$expire_date=date('Y-m-d',strtotime($expire_date));
 		$expire_date = ($expire_date=='1970-01-01') ? null : $expire_date;
@@ -455,16 +458,16 @@ class Quotation_model extends CI_Model {
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
 
 				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
-				$quotation_qty			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3']));
-				$price_per_unit 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4']));
+				$quotation_qty			=parse_amount($_REQUEST['td_data_'.$i.'_3'] ?? '');
+				$price_per_unit 	=parse_amount($_REQUEST['td_data_'.$i.'_4'] ?? '');
 				$tax_id 			=$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
-				$tax_amt 			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
-				$unit_total_cost	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10']));
-				//$discount_input	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));
-				$total_cost			=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9']));
+				$tax_amt 			=parse_amount($_REQUEST['td_data_'.$i.'_11'] ?? '');
+				$unit_total_cost	=parse_amount($_REQUEST['td_data_'.$i.'_10'] ?? '');
+				//$discount_input	=parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');
+				$total_cost			=parse_amount($_REQUEST['td_data_'.$i.'_9'] ?? '');
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
-				$unit_tax			=$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));
-				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$unit_tax			=parse_amount($_REQUEST['tr_tax_value_'.$i] ?? '');
+				$description		=mp_clean_text(mp_catalogue_name($_REQUEST['description_'.$i] ?? ''));
 				$section_name = isset($_REQUEST['section_name_'.$i]) ? $this->xss_html_filter(trim($_REQUEST['section_name_'.$i])) : '';
 
                 //$discount_input  =(empty($discount_input)) ? 0 : $discount_input;
@@ -472,9 +475,10 @@ class Quotation_model extends CI_Model {
 
 
 				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
-				$discount_input 	=$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
-				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
+				$discount_input 	=parse_amount($_REQUEST['item_discount_input_'.$i] ?? '');
+				$discount_amt	    =parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');//Amount
 
+				if(!is_finite((float)$quotation_qty) || $quotation_qty<=0){$this->db->trans_rollback();return 'Quotation quantities must be greater than zero.';}
 				$discount_amt_per_unit = $discount_amt/$quotation_qty;
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($unit_tax * $price_per_unit / 100);
@@ -483,6 +487,8 @@ class Quotation_model extends CI_Model {
 					$single_unit_total_cost =$price_per_unit;
 				}
 				$single_unit_total_cost -=$discount_amt_per_unit;
+				// Never persist a formatted browser string as a numeric line total.
+				$total_cost = round($single_unit_total_cost * $quotation_qty, 4);
 
 
 				if($tax_id=='' || $tax_id==0){$tax_id=null;}
@@ -550,9 +556,11 @@ class Quotation_model extends CI_Model {
         $this->load->helper('garden');
         $gardenLinkError=$command==='save' ? mp_garden_link_created_document('quotation',$quotation_id) : null;
         if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
-		$this->db->trans_commit();
+		if(!$this->db->trans_status())return 'Quotation could not be saved. No changes were committed.';
+		$this->db->trans_commit();$quotationTransactionOpen=false;
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
 		return "success<<<###>>>$quotation_id";
+		}finally{if($quotationTransactionOpen)$this->db->trans_rollback();}
 		
 	}//verify_save_and_update() function end
 
@@ -715,7 +723,7 @@ class Quotation_model extends CI_Model {
                   <?php if(function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant' && $item_code !== ''): ?><small style="color:#64748b;font-weight:700"><?=htmlspecialchars($item_code, ENT_QUOTES, 'UTF-8');?> · </small><?php endif; ?><a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_quotation_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a>
                   		<i onclick="show_quotation_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
                   	</label>
-                  <?php if(trim((string)$description) !== ''): ?><small class="quotation-item-description" style="display:block;margin:4px 6px;color:#64748b;white-space:normal;line-height:1.35;"><?= nl2br(htmlspecialchars((string)$description, ENT_QUOTES, 'UTF-8')); ?></small><?php endif; ?>
+                  <?= mp_document_description($description); ?>
                   <?php if (function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'): ?><small style="display:block;margin:5px 0 2px;color:#64748b;font-size:10px">Group heading (optional)</small><input type="text" class="form-control mp-form-control" style="font-size:11px" name="section_name_<?=$rowcount;?>" id="section_name_<?=$rowcount;?>" value="<?=htmlspecialchars($section_name, ENT_QUOTES, 'UTF-8');?>" placeholder="For example: EK-200K · First pressing"><?php endif; ?>
                </td>
 
@@ -772,7 +780,7 @@ class Quotation_model extends CI_Model {
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
                <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
-               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars((string)$description, ENT_QUOTES, 'UTF-8');?>">
+               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars(mp_catalogue_name($description), ENT_QUOTES, 'UTF-8');?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
 
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">

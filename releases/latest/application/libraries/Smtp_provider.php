@@ -68,6 +68,7 @@ class Smtp_provider implements Email_provider_interface {
 			$this->CI->load->library('email');
 		}
 		$this->CI->email->initialize($emailConfig);
+		$this->CI->email->clear(TRUE);
 
 		// From
 		$fromEmail = !empty($params['from']['email']) ? $params['from']['email'] : $this->config['smtp_user'];
@@ -97,7 +98,7 @@ class Smtp_provider implements Email_provider_interface {
 		} else {
 			$error = $this->CI->email->print_debugger();
 			$error = !empty($error) ? strip_tags($error) : 'SMTP send failed';
-			return ['success' => FALSE, 'error' => $error, 'provider_response' => NULL];
+			return ['success' => FALSE, 'error' => $error, 'provider_response' => NULL, 'acceptance_unknown'=>TRUE];
 		}
 	}
 }

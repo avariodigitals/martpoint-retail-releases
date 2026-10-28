@@ -278,7 +278,7 @@ class Otp_service {
 		if(!$this->CI->load->is_loaded('sms_model')){
 			$this->CI->load->model('sms_model');
 		}
-		$resp = $this->CI->sms_model->send_sms($contact, $message);
+		$resp = $this->CI->sms_model->send_sms($contact, $message, array('store_id'=>$storeId,'message_category'=>'transactional','template_key'=>'customer_verification'));
 		$ok = is_string($resp)
 			? (stripos($resp,'success') !== false || stripos($resp,'sent') !== false)
 			: (bool)$resp;

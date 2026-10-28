@@ -34,6 +34,7 @@ th, td {
 </style>
 </head>
 <body onload="window.print();"><!--  -->
+<?php $this->load->view('sales/document_state_banner', array('sales_id'=>$sales_id)); ?>
 <?php
 
     $q1=$this->db->query("select * from db_store where status=1 and id=".get_current_store_id());
@@ -235,6 +236,7 @@ th, td {
                                   WHERE 
                                   c.id=a.item_id AND b.id=a.tax_id AND a.sales_id='$sales_id'");
               foreach ($q2->result() as $res2) {
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
                   $discount = (empty($res2->discount_input)||$res2->discount_input==0)? '0':$res2->discount_input."%";
                   $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
 
@@ -244,7 +246,7 @@ th, td {
                  
                   echo "<td style='border-right: 1px solid;border-top: 1px solid;' colspan='5'>";
                     echo $res2->item_name;
-                    echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8'))."]</i>" : '';
+                    echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars(mp_catalogue_name($res2->description), ENT_QUOTES, 'UTF-8'))."]</i>" : '';
                   echo "</td>";
                   
 

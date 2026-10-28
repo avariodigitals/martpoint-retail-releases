@@ -69,6 +69,12 @@ class Email_service extends CI_Model {
 	 * @return array ['success' => bool, 'message' => string, 'log_id' => int|null]
 	 */
 	public function sendTemplate($templateKey, $to, array $data = [], array $options = []){
+		$this->load->library('messaging_client');
+		if($this->messaging_client->managed() && Messaging_pricing::platformTemplate($templateKey)){
+			$options['template_key']=$templateKey;
+			$options['platform_data']=$data;
+			return $this->sendRaw($to,'MartPoint account update','','',$options);
+		}
 		$template = $this->email_template_model->getByKey($templateKey, $this->storeId);
 
 		if(!$template){
@@ -116,6 +122,30 @@ class Email_service extends CI_Model {
 	 * Send a raw email through the active provider
 	 */
 	public function sendRaw($to, $subject, $html, $text = '', array $options = []){
+		$this->load->library('messaging_client');
+		if(!mp_is_central() && ($this->messaging_client->managed() || Messaging_pricing::category($options)==='promotional')){
+			$r=$this->messaging_client->sendEmail($this->storeId ?: get_current_store_id(),$to,$subject,$html,$text,$options);
+			$r['log_id']=!empty($r['success'])
+				? $this->_logSuccess($options['template_key']??'raw','martpoint',$to,$subject,array('message_id'=>$r['message_id']??null,'cost_kobo'=>$r['cost_kobo']??0),$options)
+				: $this->_logFailure($options['template_key']??'raw',$to,$r['message']??'Messaging paused','martpoint',$options);
+			return $r;
+		}
+		if(mp_is_central() && $this->db->table_exists('db_messaging_settings')){
+			$centralSettings=$this->db->where('id',1)->get('db_messaging_settings')->row_array();
+			if(!empty($centralSettings['updated_at'])){
+				$this->load->model('messaging_wallet_model','messaging_wallet');
+				$storeId=$this->storeId ?: (int)$centralSettings['provider_store_id'];
+				$a=$this->messaging_wallet->account(0,array('store_id'=>$storeId,'store_name'=>'MartPoint platform','reply_to'=>''));
+				$key=$options['messaging_key']??bin2hex(random_bytes(20));
+				foreach(array_unique(is_array($to)?$to:preg_split('/[,;]/',(string)$to)) as $recipient){
+					$r=$this->messaging_wallet->send($a,array('channel'=>'email','category'=>'platform','_central_platform'=>true,
+						'recipient'=>trim($recipient),'subject'=>$subject,'html'=>$html,'text'=>$text,'store_name'=>'MartPoint',
+						'request_key'=>hash('sha256',$key.'|'.$recipient)));
+					if(empty($r['success'])) return $r;
+				}
+				return array('success'=>true,'message'=>'MartPoint platform email accepted.','cost_kobo'=>0);
+			}
+		}
 		$settings = $this->email_settings_model->getSettings($this->storeId);
 
 		if(empty($settings['provider'])){
@@ -206,6 +236,9 @@ class Email_service extends CI_Model {
 	 * Test the active provider by sending a test email
 	 */
 	public function testProvider($testEmail, $providerKey = NULL){
+		$this->load->library('messaging_client');
+		if($this->messaging_client->managed()) return $this->sendRaw($testEmail,'MartPoint messaging test',
+			'<p>This is a test of your MartPoint messaging connection.</p>','This is a test of your MartPoint messaging connection.',array('template_key'=>'provider_test'));
 		if(empty($providerKey)){
 			$settings = $this->email_settings_model->getSettings($this->storeId);
 			$providerKey = $settings['provider'];

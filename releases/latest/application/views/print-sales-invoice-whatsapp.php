@@ -61,6 +61,7 @@ body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; color: #1f2937; 
 </style>
 </head>
 <body <?php if(!empty($auto_print)): ?>onload="window.print();"<?php endif; ?> <?php if(!empty($download_url)): ?>style="width:100%; max-width:210mm; margin:0 auto; padding:14mm 14mm 80px 14mm; box-sizing:border-box; background:#fff; box-shadow:0 0 12px rgba(0,0,0,0.08);"<?php endif; ?>>
+<?php $this->load->view('sales/document_state_banner', array('sales_id'=>$sales_id)); ?>
 
 <?php
 $CI =& get_instance();
@@ -280,13 +281,14 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     $q2 = $this->db->get();
 
     foreach($q2->result() as $res2){
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
         $discount = (empty($res2->discount_input) || $res2->discount_input == 0) ? '0' : $res2->discount_input . '%';
     ?>
     <tr>
       <td class="sl"><?= $i++; ?></td>
       <td>
         <?= $res2->item_name; ?>
-        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;">[<?= nl2br(htmlspecialchars((string)$res2->description, ENT_QUOTES, 'UTF-8')); ?>]</small><?php endif; ?>
+        <?php if(!empty($res2->description)): ?><br><small style="font-size: 8pt; color: #6b7280;">[<?= nl2br(htmlspecialchars(mp_catalogue_name($res2->description), ENT_QUOTES, 'UTF-8')); ?>]</small><?php endif; ?>
       </td>
       <td class="qty"><?= format_qty($res2->sales_qty); ?></td>
       <td class="num"><?= $CI->currency($res2->unit_total_cost); ?></td>
