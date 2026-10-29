@@ -20,12 +20,15 @@ function pharmacy_workspace_tools() {
         ],
         'Online pharmacy' => [
             ['online_store_view', 'online_store', 'Website dashboard', 'Catalogue, enquiries and online order activity', 'online_store'],
-            ['online_store_view', 'online_store/messaging?screen=mobile', 'Messaging', 'Reply to WhatsApp, Instagram and Facebook conversations', 'online_store'],
             ['online_store_orders', 'online_store/quick_wa?screen=mobile', 'Create WhatsApp order', 'Create a pharmacy order from a direct patient chat', 'online_store'],
             ['online_store_edit', 'online_store/products_online', 'Online catalogue', 'Choose medicines and wellness products shown online', 'online_store'],
             ['online_store_edit', 'online_store/settings', 'Store settings', 'Payment, delivery and prescription intake configuration', 'online_store'],
             ['online_store_edit', 'online_store/appearance', 'Appearance', 'Pharmacy storefront colours, type and presentation', 'online_store'],
             ['online_store_edit', 'online_store/journal', 'Care journal', 'Useful pharmacy updates and educational content', 'online_store'],
+        ],
+        'Communications' => [
+            ['online_store_view', 'communications/channel/whatsapp?screen=mobile', 'WhatsApp inbox', 'Read and reply to customer WhatsApp conversations'],
+            ['online_store_view', 'communications/channel/socials?screen=mobile', 'Social inbox', 'Instagram and Facebook customer conversations'],
         ],
         'Locations & fulfilment' => [
             ['store_view', 'pharmacy_workspace/locations', 'Locations & fulfilment', 'Branches, partner stock hubs and pickup-only hubs'],

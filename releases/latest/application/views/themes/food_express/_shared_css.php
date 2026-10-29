@@ -9,8 +9,12 @@
  */
 $fxPrimary   = $this->theme_engine->resolveBrandColor('primary');
 $fxSecondary = $this->theme_engine->resolveBrandColor('secondary');
-$fxFont      = $this->settings->font_family ?: ($this->theme->default_font_family ?? 'Inter');
-$fxBtnStyle  = $this->settings->button_style ?: 'rounded';
+// $settings / $theme arrive as view variables from Theme_engine::view(). They
+// were read as $this->settings, which is the CI Loader object inside a view, so
+// every Food Express page logged an undefined-property warning and silently
+// fell back to the default font and button shape.
+$fxFont      = !empty($settings->font_family) ? $settings->font_family : (($theme->default_font_family ?? 'Inter'));
+$fxBtnStyle  = !empty($settings->button_style) ? $settings->button_style : 'rounded';
 $fxRadius    = ($fxBtnStyle === 'pill') ? '9999px' : (($fxBtnStyle === 'square') ? '12px' : '20px');
 $fxRadiusSm  = ($fxBtnStyle === 'pill') ? '9999px' : (($fxBtnStyle === 'square') ? '8px' : '14px');
 ?>

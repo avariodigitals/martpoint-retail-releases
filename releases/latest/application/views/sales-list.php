@@ -47,6 +47,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
 ?>
 
 <style>
+.sales-payment-action{cursor:pointer!important}
 .mp-filter-bar{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:12px!important;align-items:flex-end!important;margin-bottom:20px!important;width:100%!important;box-sizing:border-box!important}
 .mp-filter-item{display:flex;flex-direction:column;gap:4px;min-width:160px;flex:1 1 180px}
 .mp-filter-item label{font-size:12px;font-weight:600;color:var(--mp-muted);margin:0}
@@ -276,5 +277,5 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     window.open("<?= base_url('sales/print_show_receipt/'); ?>"+id, "_blank", "scrollbars=1,resizable=1,height=500,width=500");
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=16"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=<?= htmlspecialchars(app_version(),ENT_QUOTES,'UTF-8'); ?>"></script>
 <script>$(".sales-list-active-li").addClass("active");</script>

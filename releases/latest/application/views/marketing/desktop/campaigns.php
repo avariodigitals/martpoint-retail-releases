@@ -23,12 +23,12 @@
       <?php if($email_ready): ?>
         <span class="mp-provider-flag mp-prov-ok"><i class="fa fa-check-circle"></i> MartPoint email ready</span>
       <?php else: ?>
-        <span class="mp-provider-flag mp-prov-off"><i class="fa fa-exclamation-circle"></i> MartPoint email is paused or awaiting configuration on Central</span>
+        <span class="mp-provider-flag mp-prov-off"><i class="fa fa-exclamation-circle"></i> Email sending is temporarily unavailable. Contact your Administrator.</span>
       <?php endif; ?>
       <?php if($sms_ready): ?>
         <span class="mp-provider-flag mp-prov-ok" style="margin-left:8px!important"><i class="fa fa-check-circle"></i> MartPoint SMS ready</span>
       <?php else: ?>
-        <span class="mp-provider-flag mp-prov-off" style="margin-left:8px!important"><i class="fa fa-exclamation-circle"></i> MartPoint SMS is paused or awaiting configuration on Central</span>
+        <span class="mp-provider-flag mp-prov-off" style="margin-left:8px!important"><i class="fa fa-exclamation-circle"></i> SMS sending is temporarily unavailable. Contact your Administrator.</span>
       <?php endif; ?>
       <div class="mp-form-hint" style="margin-top:8px!important">Campaigns use your MartPoint messaging balance. Both test sends and audience sends show a cost estimate before confirmation. <a href="<?= base_url('messaging'); ?>">Add credit, view usage &amp; packages</a>.</div>
     </div>

@@ -21,9 +21,9 @@ $theme_link = $theme_link ?? base_url() . 'theme/';
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title><?= $store_title ?> — Access Denied</title>
-  <link rel="shortcut icon" href="<?= base_url('uploads/site/favicon.png'); ?>">
   <link rel="stylesheet" href="<?= base_url('theme/css/font-awesome-4.7.0/css/font-awesome.min.css'); ?>">
   <style>
     body { background: #f4f6fb; margin: 0; }

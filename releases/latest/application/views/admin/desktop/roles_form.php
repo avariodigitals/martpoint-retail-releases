@@ -313,6 +313,7 @@
           ['gstr_1_report','FSTR-1'], ['gstr_2_report','FSTR-2'],
           ['customer_orders_report','Customer Orders'], ['load_sheet_report','Load Sheet'],
           ['delivery_sheet_report','Delivery Sheet'], ['sales_return_payments','Sales Return Payments'],
+          ['receivables_aging_report','Receivables Aging'],
           ['show_purchase_price','Show Purchase Price'],
         ]],
         ['Cross-User Visibility', 'cross_user', [

@@ -153,10 +153,10 @@ if (!function_exists('marketing_menu_items')) {
                 'url_desktop' => 'marketing/segments',
             ],
             [
-                'title' => 'Messaging Balance & Packages',
-                'desc' => 'Add MartPoint credit, manage spending and view usage',
-                'icon' => 'fa-envelope', 'perm_any' => ['send_email','send_sms'], 'color' => 'primary',
-                'url_mobile' => 'messaging?screen=mobile', 'url_desktop' => 'messaging',
+                'title' => 'Communications',
+                'desc' => 'SMS, email, WhatsApp, socials and automation subscriptions',
+                'icon' => 'fa-envelope', 'perm_any' => ['send_email','send_sms','online_store_view','online_store_edit','online_store_orders'], 'color' => 'primary',
+                'url_mobile' => 'communications?screen=mobile', 'url_desktop' => 'communications',
             ],
             [
                 'title' => 'Campaigns',
@@ -202,9 +202,20 @@ if (!function_exists('marketing_menu_items')) {
     }
 }
 
-/** Industry-independent messaging entries. Only explicit sending grants decide visibility. */
+/** Industry-independent workspaces. Channel grants and existing inbox permissions decide visibility. */
 function messaging_workspace_menu_items() {
-    return array_values(array_filter(marketing_menu_items(), function($item) {
-        return in_array($item['url_desktop'] ?? '', array('messaging','marketing/campaigns'), true);
+    $CI =& get_instance();
+    $base = array_values(array_filter(marketing_menu_items(), function($item) {
+        return ($item['url_desktop'] ?? '') === 'communications';
     }));
+    if (!$base) return array();
+    $overview = $base[0]; $overview['title']='Communications overview'; $overview['icon']='fa-comments';
+    $items=array($overview);
+    foreach(array('sms'=>array('SMS','fa-comment'),'email'=>array('Email','fa-envelope'),'whatsapp'=>array('WhatsApp','fa-whatsapp'),'socials'=>array('Socials','fa-share-alt'),'automation'=>array('Automation','fa-random')) as $key=>$meta){
+        if($key==='automation' && !$CI->permissions('send_email') && !$CI->permissions('send_sms'))continue;
+        if(in_array($key,array('sms','email'),true) && !$CI->permissions('send_'.$key))continue;
+        $item=$base[0];$item['title']=$meta[0];$item['icon']=$meta[1];$item['desc']=in_array($key,array('whatsapp','socials'),true)?'Customer conversation inbox':'Subscriptions, credits and campaigns';
+        $item['url_desktop']='communications/channel/'.$key;$item['url_mobile']=$item['url_desktop'].'?screen=mobile';$items[]=$item;
+    }
+    return $items;
 }

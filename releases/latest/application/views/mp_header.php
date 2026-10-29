@@ -2,17 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title><?= $page_title; ?></title>
-<link rel="icon" type="image/webp" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
-<link rel="alternate icon" type="image/png" href="<?php echo base_url('uploads/site/icon-192.png'); ?>">
-<link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">
 <meta name="theme-color" content="#0B1120">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MartPoint">
-<link rel="apple-touch-icon" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -24,7 +17,7 @@
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
-<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=22">
+<link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=25">
 <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

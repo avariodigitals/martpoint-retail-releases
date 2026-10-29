@@ -625,7 +625,10 @@ class Theme_engine {
             $this->CI->load->library('html_theme_renderer');
             $merged['html_theme_primary'] = $this->resolveBrandColor('primary');
             $merged['html_theme_secondary'] = $this->resolveBrandColor('secondary');
-            $html = $this->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => (bool)$this->CI->input->get('mp_theme_preview') || !empty($data['html_theme_preview'])]);
+            // load->library() attaches the instance to the controller, not to
+            // this library, so reading $this->html_theme_renderer here resolved
+            // to nothing and every uploaded-theme page died.
+            $html = $this->CI->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => (bool)$this->CI->input->get('mp_theme_preview') || !empty($data['html_theme_preview'])]);
             // Uploaded themes get shared retail footer branding without gaining
             // PHP execution privileges.
             require_once APPPATH . 'helpers/storefront_footer_helper.php';
@@ -659,6 +662,13 @@ class Theme_engine {
                     elseif (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $share . "\n</body>", $html, 1);
                     else $html .= $share;
                 }
+            }
+            // Event ticketing widget for uploaded HTML themes (same shared
+            // partial as PHP themes; zero per-template code).
+            $eventWidget = $this->eventWidgetHtml($view, $merged);
+            if ($eventWidget !== '') {
+                if (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $eventWidget . "\n</body>", $html, 1);
+                else $html .= $eventWidget;
             }
             if($return) return $html;
             echo $html;
@@ -776,6 +786,9 @@ class Theme_engine {
                 $merged['restaurant_share'] = $themeKey === 'food_express';
                 $merged['content'] .= $this->CI->load->view('themes/shared/product_share', $merged, true);
             }
+            // Event ticketing widget — anchored in the page for PHP themes.
+            $eventWidget = $this->eventWidgetHtml($view, $merged);
+            if ($eventWidget !== '') $merged['content'] .= $eventWidget;
             if($view==='product_detail' && $merged['garden_product_experience']) $merged['content'].=$this->CI->load->view('themes/shared/product_experience',$merged,true);
             $merged['footer_site_links']=$this->CI->load->view('themes/shared/site_links',$merged,true);
             $merged['category_navigation_route']=!empty($merged['sells_products'])?'products':'services';
@@ -814,6 +827,60 @@ class Theme_engine {
         // Final fallback to legacy storefront views (no layout wrapping)
         $legacyView = 'storefront/' . $view;
         return $this->CI->load->view($legacyView, $merged, $return);
+    }
+
+    /**
+     * Event Ticketing widget (4.0.9.221). Assembled once per page from the
+     * ticket items actually on the page, then appended by the PHP path and
+     * the uploaded-HTML path alike — template-agnostic by construction: no
+     * theme file carries event code.
+     */
+    private function eventWidgetHtml($view, $data){
+        if (!function_exists('mp_feature_enabled') || !mp_feature_enabled('event_ticketing')) return '';
+        if (!in_array($view, ['product_detail', 'store', 'products', 'cart', 'checkout'], true)) return '';
+        if (!$this->CI->db->table_exists('db_events')) return '';
+        $this->CI->load->model('events_model');
+        $storeId = (int)($this->settings->store_id ?? 0);
+        $items = [];
+        $add = function($p, $isDetail = false) use (&$items, $storeId){
+            if (!is_object($p) || empty($p->id)) return;
+            if (($p->product_type ?? '') !== 'event') return;
+            $pid = (int)$p->id;
+            if (isset($items[$pid])) { $items[$pid]['detail'] = $items[$pid]['detail'] || $isDetail; return; }
+            $event = $this->CI->events_model->get_event_by_item($pid, $storeId);
+            $sessions = [];
+            if ($event) {
+                foreach ($this->CI->events_model->get_sessions($event->id, $storeId, true) as $s) {
+                    $sessions[] = [
+                        'id' => (int)$s->id,
+                        'date' => (string)$s->session_date,
+                        'time' => substr((string)($s->start_time ?? ''), 0, 5),
+                        'remaining' => (int)$s->remaining,
+                        'venue' => (string)($event->venue ?? ''),
+                    ];
+                }
+            }
+            $items[$pid] = [
+                'id' => $pid,
+                'name' => (string)($p->item_name ?? 'Event ticket'),
+                'price' => (float)($p->effective_price ?? $p->online_price ?? $p->sales_price ?? 0),
+                'sessions' => $sessions,
+                'detail' => $isDetail,
+            ];
+        };
+        if ($view === 'product_detail') $add($data['product'] ?? null, true);
+        foreach (['products', 'all_products', 'featured_products', 'best_sellers', 'new_arrivals', 'related_products'] as $key) {
+            foreach ((array)($data[$key] ?? []) as $row) $add(is_object($row) ? $row : null);
+        }
+        if (!$items) return '';
+        $html = '';
+        foreach ($items as $ev) {
+            if (!empty($ev['detail'])) {
+                $html .= '<div class="mp-event-root-' . $ev['id'] . '"></div>';
+            }
+        }
+        $html .= $this->CI->load->view('themes/shared/event_widget', ['event_ticket_items' => array_values($items)], true);
+        return $html;
     }
 
     /** Apply presentation-only images to every retail theme without changing inventory. */

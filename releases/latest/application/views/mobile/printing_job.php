@@ -19,6 +19,7 @@ $bal = max(0, (float)$job->quote_amount - (float)$net_paid);
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">

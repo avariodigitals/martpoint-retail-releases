@@ -142,6 +142,45 @@
     <?php endif; ?>
   </div>
 
+  <?php if(!empty($event_tickets) || !empty($has_event_line)): ?>
+  <?php
+    $shown = array_slice($event_tickets, 0, 20);
+    $by_date = [];
+    foreach($shown as $tk){ $by_date[$tk['date'] . '|' . $tk['time'] . '|' . $tk['event'] . '|' . $tk['venue']][] = $tk; }
+  ?>
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--primary-dark);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><line x1="13" y1="5" x2="13" y2="19"/></svg>
+      Your Tickets
+    </div>
+    <?php if(empty($shown)): ?>
+      <div style="padding:6px 0;color:var(--text-muted);font-size:14px;">
+        Your ticket codes appear here as soon as payment is confirmed. Show each code at the door.
+      </div>
+    <?php else: ?>
+      <?php foreach($by_date as $key => $group): list($date, $time, $name, $venue) = explode('|', $key, 4); ?>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border,#eee);">
+        <div style="font-weight:600;font-size:14px;"><?= htmlspecialchars($name); ?></div>
+        <div style="font-size:13px;color:var(--text-muted,#666);">
+          <?php if($date): ?><?= date('D, j M Y', strtotime($date)); ?><?php endif; ?>
+          <?php if($time): ?> · <?= date('g:ia', strtotime($time)); ?><?php endif; ?>
+          <?php if($venue): ?> · <?= htmlspecialchars($venue); ?><?php endif; ?>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          <?php foreach($group as $tk): ?>
+            <span style="font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:1px;padding:6px 10px;border:1px dashed var(--primary,#333);border-radius:8px;<?= $tk['status'] === 'redeemed' ? 'opacity:.5;text-decoration:line-through;' : '' ?>"><?= htmlspecialchars($tk['code']); ?></span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+      <?php if(count($event_tickets) > count($shown)): ?>
+        <div style="font-size:13px;color:var(--text-muted,#666);padding-top:8px;"><?= count($event_tickets) - count($shown); ?> more ticket<?= (count($event_tickets) - count($shown)) === 1 ? '' : 's'; ?> for this order.</div>
+      <?php endif; ?>
+      <div style="font-size:13px;color:var(--text-muted,#666);padding-top:8px;">One code admits one guest. Screenshot them or bring this page at the door.</div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
   <?php if(!empty($download_links)): ?>
   <!-- Digital Downloads -->
   <div class="sf-card">

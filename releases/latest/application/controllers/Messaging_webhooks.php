@@ -185,7 +185,7 @@ class Messaging_webhooks extends CI_Controller {
             if(!empty($m['document'])){ $type='document'; $body = $m['document']['filename'] ?? '(document)'; }
 
             $convId = $this->_ensureConversation($CI, $store->id, $channel, $from, $m['from'] ?? null);
-            $CI->db->insert('db_messaging_messages', [
+            $CI->db->insert('db_communication_inbox_messages', [
                 'conversation_id' => $convId,
                 'direction' => 'inbound',
                 'message_type' => $type,
@@ -216,7 +216,7 @@ class Messaging_webhooks extends CI_Controller {
         }
 
         $convId = $this->_ensureConversation($CI, $store->id, $channel, $sender, $recipient);
-        $CI->db->insert('db_messaging_messages', [
+        $CI->db->insert('db_communication_inbox_messages', [
             'conversation_id' => $convId,
             'direction' => 'inbound',
             'message_type' => $type,
@@ -235,7 +235,7 @@ class Messaging_webhooks extends CI_Controller {
             $timestamp = !empty($s['timestamp']) ? date('Y-m-d H:i:s', $s['timestamp']) : date('Y-m-d H:i:s');
             if($mid){
                 $CI->db->where('meta_message_id', $mid)
-                    ->update('db_messaging_messages', ['status' => $status]);
+                    ->update('db_communication_inbox_messages', ['status' => $status]);
             }
         }
     }

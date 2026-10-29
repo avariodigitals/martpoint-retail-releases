@@ -4719,7 +4719,7 @@ class Mobile extends MY_Controller {
 			],
 			'Online Store' => [
 				['title' => 'Store Dashboard', 'desc' => 'Online store overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/online_store/dashboard', 'perm' => 'online_store_view', 'color' => 'blue'],
-				['title' => 'Messaging', 'desc' => 'Reply to WhatsApp, Instagram and Facebook conversations', 'icon' => 'fa-comments', 'url' => 'online_store/messaging?screen=mobile', 'perm' => 'online_store_view', 'color' => 'green'],
+				['title' => 'Abandoned Carts', 'desc' => 'Review saved carts and set up recovery workflows', 'icon' => 'fa-shopping-basket', 'url' => 'online_store/abandoned_carts?screen=mobile', 'perm_any' => ['online_store_orders','online_store_view','online_store_edit'], 'color' => 'orange'],
 				['title' => 'Create WhatsApp Order', 'desc' => 'Create a customer order from a direct WhatsApp chat', 'icon' => 'fa-whatsapp', 'url' => 'online_store/quick_wa?screen=mobile', 'perm_any' => ['online_store_orders', 'online_store_edit'], 'color' => 'green'],
 				['title' => 'Orders', 'desc' => 'Website & app orders', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/online_store/orders', 'perm' => 'online_store_view', 'color' => 'primary'],
 				['title' => 'Online Products', 'desc' => 'Products on the storefront', 'icon' => 'fa-cube', 'url' => 'mobile/online_store/products', 'perm' => 'online_store_view', 'color' => 'teal'],
@@ -4876,7 +4876,7 @@ class Mobile extends MY_Controller {
 
 		// Add after specialist workspace pruning: messaging is not a storefront
 		// or retail-only feature, and clinics must not lose it with Marketing.
-		$menu_groups['Messaging & credits'] = array_map(function($item) {
+		$menu_groups['Communications'] = array_map(function($item) {
 			return ['title'=>$item['title'], 'desc'=>$item['desc'], 'icon'=>$item['icon'],
 				'url'=>$item['url_mobile'], 'perm_any'=>$item['perm_any'], 'color'=>$item['color']];
 		}, messaging_workspace_menu_items());

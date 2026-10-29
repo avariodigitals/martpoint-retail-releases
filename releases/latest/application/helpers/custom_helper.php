@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.215';
+    return '4.0.9.226';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -2468,7 +2468,9 @@
     if ($relative === '' || preg_match('~(^|/)\.\.(/|$)~', $relative)) return null;
     $root = mp_private_storage_root(!$mustExist);
     $target = rtrim($root, '/') . '/' . $relative;
-    if (is_file($target)) return $target;
+    // Uploaded HTML themes resolve to a directory of templates, so a "must
+    // exist" check has to accept one, not only a single file.
+    if (is_file($target) || is_dir($target)) return $target;
     $legacy = rtrim(str_replace('\\', '/', FCPATH), '/') . '/' . $relative;
     if (is_file($legacy)) {
       $dir = dirname($target);

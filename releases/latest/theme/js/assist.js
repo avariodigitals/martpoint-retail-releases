@@ -1,3 +1,4 @@
+// .224: republished with web-readable ZIP permissions.
 (function(){
   'use strict';
 

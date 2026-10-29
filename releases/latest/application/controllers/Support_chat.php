@@ -15,7 +15,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   support/chat/messages        — proxy GET from /api/azera/merchant/messages
  *
  * Config (config/support_chat.php or .env key SUPPORT_CHAT_NEXTJS_BASE):
- *   $config['support_chat_nextjs_base'] = 'https://martpoint.com.ng';
+ *   $config['support_chat_nextjs_base'] = 'https://www.martpoint.com.ng';
  */
 class Support_chat extends MY_Controller {
 
@@ -24,9 +24,10 @@ class Support_chat extends MY_Controller {
     public function __construct(){
         parent::__construct();
         $this->load_global();
-
-        // Read Next.js base URL from config, fall back to production domain.
-        $this->nextjsBase = rtrim(getenv('SUPPORT_CHAT_NEXTJS_BASE') ?: $this->config->item('support_chat_nextjs_base') ?: 'https://martpoint.com.ng', '/');
+        $this->config->load('support_chat', FALSE, TRUE);
+        require_once APPPATH . 'libraries/Support_chat_transport.php';
+        // Also repair old per-install overrides still pointing at the bare host.
+        $this->nextjsBase = Support_chat_transport::baseUrl(getenv('SUPPORT_CHAT_NEXTJS_BASE') ?: $this->config->item('support_chat_nextjs_base'));
     }
 
     /**
@@ -144,7 +145,6 @@ class Support_chat extends MY_Controller {
             return;
         }
 
-        $ch = curl_init($this->nextjsBase . '/api/azera/merchant/upload');
         $body = [
             'business_id' => (string)$storeId,
             'external_id' => $externalId,
@@ -152,18 +152,7 @@ class Support_chat extends MY_Controller {
             'message_type' => $messageType,
             'file' => new CURLFile($file['tmp_name'], $file['type'] ?: 'application/octet-stream', $file['name']),
         ];
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_bridgeHeaders());
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        $response = curl_exec($ch);
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-        http_response_code($httpCode ?: 200);
-        header('Content-Type: application/json');
-        echo $response ?: json_encode(['status'=>'error','message'=>'We could not upload that file right now. Please try again shortly.']);
+        echo $this->_bridgeResponse(Support_chat_transport::request($this->nextjsBase . '/api/azera/merchant/upload', $this->_bridgeHeaders(), $body, 30));
     }
 
     /* ------------------------------------------------------------------ */
@@ -190,14 +179,18 @@ class Support_chat extends MY_Controller {
     }
 
     private function _chatToken(){
-        return trim((string)$this->session->userdata('support_chat_token'));
+        $tokens = $this->session->userdata('support_chat_tokens');
+        return is_array($tokens) ? trim((string)($tokens[(int)get_current_store_id()] ?? '')) : '';
     }
 
     private function _rememberChatToken($response){
         $decoded = json_decode((string)$response, TRUE);
         $token = $decoded['data']['conversation_token'] ?? '';
         if($token){
-            $this->session->set_userdata('support_chat_token', $token);
+            $tokens = $this->session->userdata('support_chat_tokens');
+            if(!is_array($tokens)) $tokens = [];
+            $tokens[(int)get_current_store_id()] = $token;
+            $this->session->set_userdata('support_chat_tokens', $tokens);
         }
     }
 
@@ -227,41 +220,18 @@ class Support_chat extends MY_Controller {
     }
 
     private function _proxyPost(string $path, array $body){
-        $ch = curl_init($this->nextjsBase . $path);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_bridgeHeaders('application/json'));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        $response = curl_exec($ch);
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        http_response_code($httpCode ?: 200);
-        header('Content-Type: application/json');
-        if($response === false){
-            return json_encode(['status'=>'error','message'=>'Cannot reach Next.js chat API: '.$curlError]);
-        }
-        return $response ?: json_encode(['status'=>'error','message'=>'Empty response from Next.js chat API']);
+        return $this->_bridgeResponse(Support_chat_transport::request($this->nextjsBase . $path, $this->_bridgeHeaders('application/json'), json_encode($body), 30));
     }
 
     private function _proxyGet(string $url){
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_bridgeHeaders());
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        $response = curl_exec($ch);
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+        return $this->_bridgeResponse(Support_chat_transport::request($url, $this->_bridgeHeaders(), null, 15));
+    }
 
-        http_response_code($httpCode ?: 200);
+    private function _bridgeResponse(array $response){
+        http_response_code($response['status']);
         header('Content-Type: application/json');
-        if($response === false){
-            return json_encode(['status'=>'error','message'=>'Cannot reach Next.js chat API: '.$curlError]);
-        }
-        return $response ?: json_encode(['status'=>'error','message'=>'Empty response from Next.js chat API']);
+        header('Cache-Control: private, no-store');
+        return $response['body'];
     }
 
 }

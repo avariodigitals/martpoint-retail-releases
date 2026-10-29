@@ -1,3 +1,4 @@
+/* .224: republished with web-readable ZIP permissions. */
 /* MartPoint Assist Styles — isolated from page-level CSS leaks */
 
 /* Follow the active dashboard theme. Every accent/surface reads the app's own
@@ -899,3 +900,23 @@
   .mp-assist-fab{min-height:46px!important;padding:11px 15px!important;border-radius:16px!important;animation:none!important;box-shadow:0 4px 14px var(--mpa-ring)}
   .mp-assist-fab::before{display:none!important}
 }
+
+/* Stable shell controls: keep the action menu and support form out of normal
+   document flow even when a theme stylesheet overrides generic modal rules. */
+html body #mp-fab-menu{display:none!important;flex-direction:column!important;align-items:flex-end!important;gap:8px!important}
+html body #mp-fab-menu.open{display:flex!important}
+html body #mp-fab-menu>.mp-fab-menu-item{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;box-sizing:border-box!important;width:max-content!important;max-width:min(360px,calc(100vw - 32px))!important;min-height:40px!important;margin:0!important;padding:10px 14px!important;border:0!important;border-radius:8px!important;background:#fff!important;color:#263247!important;box-shadow:0 2px 10px rgba(15,23,42,.18)!important;font-family:inherit!important;font-size:13px!important;font-weight:600!important;line-height:1.35!important;text-decoration:none!important;white-space:nowrap!important;cursor:pointer!important}
+html body #mp-fab-menu>.mp-fab-menu-item.mp-fab-cancel{background:#fee2e2!important;color:#991b1b!important}
+html body #mp-support-modal{display:none!important;position:fixed!important;inset:0!important;z-index:10002!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;padding:20px!important;background:rgba(15,23,42,.55)!important}
+html body #mp-support-modal.open{display:flex!important}
+html body #mp-support-modal>.mp-support-content{display:block!important;box-sizing:border-box!important;width:420px!important;max-width:100%!important;max-height:calc(100vh - 40px)!important;overflow:auto!important;margin:0!important;border:1px solid #e5e7eb!important;border-radius:14px!important;background:#fff!important;box-shadow:0 20px 60px rgba(15,23,42,.28)!important}
+html body #mp-support-modal .mp-support-header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:0!important;padding:16px 20px!important;background:#0a48b3!important;color:#fff!important}
+html body #mp-support-modal .mp-support-header h3{margin:0!important;color:inherit!important;font-size:17px!important}
+html body #mp-support-modal .mp-support-body{display:block!important;margin:0!important;padding:20px!important}
+html body #mp-support-modal .mp-support-form{display:block!important;width:100%!important;margin:0!important}
+html body #mp-support-modal .mp-form-group{display:block!important;width:100%!important;margin:0 0 14px!important}
+html body #mp-support-modal .mp-form-group label{display:block!important;margin:0 0 5px!important;color:#374151!important;font-size:13px!important;font-weight:600!important}
+html body #mp-support-modal input.mp-form-input,html body #mp-support-modal textarea.mp-form-textarea{display:block!important;width:100%!important;min-height:42px!important;box-sizing:border-box!important;margin:0!important;padding:10px 12px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#111827!important;font-family:inherit!important;font-size:14px!important;font-weight:400!important;line-height:1.45!important}
+html body #mp-support-modal textarea.mp-form-textarea{min-height:110px!important;resize:vertical!important}
+html body #mp-support-modal .mp-support-submit{display:flex!important;width:100%!important;min-height:44px!important;align-items:center!important;justify-content:center!important;gap:8px!important;margin:0!important;border:0!important;border-radius:8px!important;background:#0a48b3!important;color:#fff!important;font-weight:700!important;cursor:pointer!important}
+@media(max-width:600px){html body #mp-support-modal{padding:12px!important}html body #mp-support-modal>.mp-support-content{max-height:calc(100vh - 24px)!important}html body #mp-support-modal .mp-support-body{padding:16px!important}}

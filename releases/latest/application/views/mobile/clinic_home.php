@@ -17,6 +17,7 @@ $patientTerm = mp_label('customer');
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Clinic</title>
@@ -24,7 +25,7 @@ $patientTerm = mp_label('customer');
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=25">
   <style>
     :root{
       --mp-primary:#176753; --mp-primary-dark:#104d40; --mp-bg:#eef3f0; --mp-surface:#fff;

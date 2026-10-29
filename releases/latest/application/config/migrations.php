@@ -499,4 +499,30 @@ return [
           '4.0.9.213v' => '4.0.9.213_messaging_table_separation.sql',
           '4.0.9.214v' => '4.0.9.214_sales_render_and_login_runtime.sql',
           '4.0.9.215v' => '4.0.9.215_invoice_payments_and_setup_checkpoints.sql',
+          '4.0.9.216v' => '4.0.9.216_communications.sql',
+          '4.0.9.217v' => '4.0.9.217_communication_audiences_automation_plans.sql',
+          '4.0.9.218v' => '4.0.9.218_sms_review.sql',
+          '4.0.9.219v' => '4.0.9.219_cart_workflow_and_inbox.sql',
+          // .220 bills VAT on Communications subscriptions, recharges and add-on
+          // requests, adds Central-set hourly send caps, named audience lists,
+          // the campaign template hub and campaign open/click reporting tables.
+          '4.0.9.220v' => '4.0.9.220_client_release_prep_billing_caps_audience_templates_reports.sql',
+          // .221 adds Event Ticketing: dated sessions with per-seat capacity and
+          // door-scan codes, sold as db_items product_type='event' so every
+          // storefront theme and uploaded HTML theme can sell tickets.
+          '4.0.9.221v' => '4.0.9.221_event_ticketing.sql',
+          // .222 records the Central Assist layout/cache repair release.
+          // It intentionally has no schema changes.
+          '4.0.9.222v' => '4.0.9.222_release_marker.sql',
+          // .223 republishes the Assist layout repair with a versioned external
+          // stylesheet and removes deferred development SQL from Central's
+          // migration directory. No tenant data or schema is changed.
+          '4.0.9.223v' => '4.0.9.223_release_marker.sql',
+          // .224 republishes Assist assets with web-readable archive modes.
+          '4.0.9.224v' => '4.0.9.224_release_marker.sql',
+          // .225 fixes BulkSMSNigeria v2 balance/send routes and clarifies
+          // Central provider-account selection; no schema change.
+          '4.0.9.225v' => '4.0.9.225_release_marker.sql',
+          // .226 fixes Central Communications layout when the subscription notice is visible.
+          '4.0.9.226v' => '4.0.9.226_release_marker.sql',
 ];

@@ -1,15 +1,8 @@
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title><?=$page_title;?></title>
-  <link rel="icon" type="image/webp" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
-  <link rel="alternate icon" type="image/png" href="<?php echo base_url('uploads/site/icon-192.png'); ?>">
-  <link rel="manifest" href="<?php echo base_url('manifest.json'); ?>">
   <meta name="theme-color" content="#0B1120">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="MartPoint">
-  <link rel="apple-touch-icon" href="<?php echo base_url('uploads/site/icon.webp'); ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,8 +20,8 @@
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.dataTables.min.css">
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.bootstrap.min.css">
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.dataTables.min.css">
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.bootstrap.min.css">  
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/css/buttons.bootstrap.min.css">  
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.bootstrap.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/css/buttons.bootstrap.min.css">
   <!-- end -->
   <!-- Theme style -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/AdminLTE.min.css">
@@ -56,10 +49,10 @@
   <!-- Autocomplete -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
   <!-- MartPoint Assist -->
-  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=22">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=25">
   <!-- Pace Loader -->
   <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
-  <?php 
+  <?php
       $lang = trim(strtoupper($this->session->userdata('language')));
       if($lang==strtoupper('arabic') || $lang==strtoupper('urdu')) {?>
   <!-- RTL For arabic styles -->

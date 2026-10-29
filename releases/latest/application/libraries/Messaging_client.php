@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH.'libraries/Communication_copy.php';
+
 /** Fleet transport. Provider keys and balances never travel to the fleet. */
 class Messaging_client {
     protected $CI;
@@ -16,18 +18,35 @@ class Messaging_client {
         return !empty($id['fleet_url']) && !empty($id['install_key']);
     }
 
+    /**
+     * The name and reply address this store wants its customers to see. MartPoint
+     * still sends from its own verified address, and can pin either value per store.
+     */
+    public function senderIdentity($storeId, $store = null) {
+        $store = $store ?: $this->CI->db->where('id',(int)$storeId)->get('db_store')->row();
+        $cfg = $this->CI->db->table_exists('db_email_settings')
+            ? $this->CI->db->where('store_id',(int)$storeId)->get('db_email_settings')->row_array() : array();
+        $name = trim((string)($cfg['email_from_name'] ?? '')) ?: trim((string)($cfg['resend_from_name'] ?? ''))
+            ?: trim((string)($store->store_name ?? ''));
+        $reply = trim((string)($cfg['email_reply_to'] ?? ''));
+        if (!filter_var($reply,FILTER_VALIDATE_EMAIL)) $reply = trim((string)($store->email ?? ''));
+        return array('name'=>mb_substr($name,0,190), 'reply_to'=>filter_var($reply,FILTER_VALIDATE_EMAIL) ? $reply : '');
+    }
+
     public function request($action, $storeId, array $payload = array()) {
         $id = $this->identity();
         if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
-            return array('success'=>false,'code'=>'not_enrolled','message'=>'Connect this installation to MartPoint Central before buying credits or sending campaigns.');
+            return array('success'=>false,'code'=>'not_enrolled','message'=>'Messaging is not set up for this account. Contact your Administrator before buying credits or sending campaigns.');
         }
         $url = rtrim($id['fleet_url'],'/');
-        if (parse_url($url,PHP_URL_SCHEME) !== 'https') return array('success'=>false,'message'=>'The Central connection must use HTTPS.');
+        if (parse_url($url,PHP_URL_SCHEME) !== 'https') return array('success'=>false,'message'=>'Messaging is unavailable because the account connection needs attention. Contact your Administrator.');
         $store = $this->CI->db->where('id',(int)$storeId)->get('db_store')->row();
         if (!$store) return array('success'=>false,'message'=>'Store not found.');
         $payload['store_id'] = (int)$storeId;
         $payload['store_name'] = $store->store_name;
-        $payload['reply_to'] = filter_var($store->email ?? '',FILTER_VALIDATE_EMAIL) ? $store->email : '';
+        $sender = $this->senderIdentity((int)$storeId, $store);
+        $payload['sender_name'] = $sender['name'];
+        $payload['reply_to'] = $sender['reply_to'];
         $payload['nonce'] = bin2hex(random_bytes(12));
         $body = json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE);
         $timestamp = (string)time();
@@ -46,7 +65,8 @@ class Messaging_client {
         $raw = curl_exec($ch); $http = (int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
         $result = is_string($raw) ? json_decode($raw,true) : null;
         if (!is_array($result) || $http !== 200) return array('success'=>false,'code'=>'central_unavailable',
-            'message'=>'MartPoint Central could not confirm this request. Check the messaging history before retrying.');
+            'message'=>'Your request could not be confirmed. Check its history before retrying, or contact your Administrator.');
+        if(isset($result['message']))$result['message']=Communication_copy::message($result['message']);
         return $result;
     }
 
@@ -68,7 +88,7 @@ class Messaging_client {
                 'recipient'=>$recipient,'subject'=>$subject,'html'=>$html,'text'=>$text,
                 'request_key'=>hash('sha256',$rootKey.'|'.strtolower($recipient)),
                 'campaign_id'=>(string)(($options['related_module'] ?? '') === 'campaign' ? ($options['related_record_id'] ?? '') : ''),
-                'retry_failed'=>!empty($options['retry_failed']));
+                'retry_failed'=>!empty($options['retry_failed']),'requires_automation'=>!empty($options['requires_automation']),'automation_workflow_key'=>$options['automation_workflow_key']??'','automation_template_key'=>$options['automation_template_key']??'');
             // Only server-rendered, allowlisted security/subscription templates
             // can use the uncharged platform lane. Raw HTML cannot opt into it.
             if (!empty($options['platform_data']) && Messaging_pricing::platformTemplate($options['template_key'] ?? '')) {
@@ -90,6 +110,6 @@ class Messaging_client {
     public function sendSms($storeId, $recipient, $text, array $options = array()) {
         return $this->request('send',$storeId,array('channel'=>'sms','category'=>Messaging_pricing::category($options),
             'recipient'=>$recipient,'text'=>$text,'request_key'=>hash('sha256',($options['messaging_key'] ?? bin2hex(random_bytes(20))).'|'.$recipient),
-            'campaign_id'=>(string)($options['related_record_id'] ?? ''),'retry_failed'=>!empty($options['retry_failed'])));
+            'campaign_id'=>(string)($options['related_record_id'] ?? ''),'retry_failed'=>!empty($options['retry_failed']),'requires_automation'=>!empty($options['requires_automation']),'automation_workflow_key'=>$options['automation_workflow_key']??'','automation_template_key'=>$options['automation_template_key']??''));
     }
 }

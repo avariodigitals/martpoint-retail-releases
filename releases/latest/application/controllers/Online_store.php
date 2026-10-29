@@ -272,11 +272,8 @@ class Online_store extends MY_Controller {
 				'newsletter_subtitle' => trim($this->input->post('newsletter_subtitle'))
 			];
 			// .73 adds automated-recovery columns — skip on unmigrated installs.
-			if($this->db->field_exists('auto_recovery_enabled', 'db_storefront_settings')){
-				$data['auto_recovery_enabled'] = $this->input->post('auto_recovery_enabled') ? 1 : 0;
-				$data['auto_recovery_channel'] = $this->input->post('auto_recovery_channel') === 'sms' ? 'sms' : 'email';
-				$data['auto_recovery_test'] = $this->input->post('auto_recovery_test') ? 1 : 0;
-			}
+			// Automatic cart reminders are managed by Communications workflows. Preserve legacy settings for history.
+
 			// Deliberate store-level opt-in. Keep legacy/unmigrated installs safe.
 			if(!mp_pharmacy_industry(mp_get_store_profile($storeId)['industry_type'] ?? '') && $this->db->field_exists('partner_marketplace_enabled', 'db_storefront_settings')){
 				$data['partner_marketplace_enabled'] = $this->input->post('partner_marketplace_enabled') ? 1 : 0;
@@ -398,6 +395,8 @@ class Online_store extends MY_Controller {
 			'hours' => $hours,
 			'store_slug' => $settings->store_slug ?? ''
 		]);
+        $data['SITE_TITLE']=get_store_name();$data['can_remind']=$this->_can_edit_orders();
+        if($this->input->get('screen')==='mobile' || ($this->input->get('screen')!=='desktop' && is_mobile())){$this->load->view('mobile/abandoned_carts',$data);return;}
 		$data['content'] = $this->load->view('online_store/abandoned_carts', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -3410,107 +3409,16 @@ class Online_store extends MY_Controller {
 	// ============== MESSAGING INBOX (WhatsApp / Instagram / Messenger) ==============
 
 	public function messaging(){
-		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
-		$storeId = get_current_store_id();
-		$settings = $this->storefront_model->getSettings($storeId);
-		$channel = $this->input->get('channel') ?: 'whatsapp';
-		$data = array_merge($this->data, [
-			'page_title' => 'Messaging Inbox',
-			'conversations' => $this->db->where('store_id', $storeId)
-				->where('channel', $channel)
-				->order_by('last_message_at', 'desc')
-				->get('db_messaging_conversations')->result(),
-			'channels' => $this->_messagingChannels($settings),
-			'active_channel' => $channel,
-			'settings' => $settings,
-		]);
-		if($this->input->get('screen') === 'mobile' || is_mobile()){
-			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
-			$this->load->view('mobile/online_store/messaging_inbox', $data);
-			return;
-		}
-		$data['content'] = $this->load->view('online_store/messaging_inbox', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-
-	public function messaging_conversation($conversationId = 0){
-		if(!$this->_can_view()){ $this->show_access_denied_page(); return; }
-		$storeId = get_current_store_id();
-		$conv = $this->db->where('id', $conversationId)->where('store_id', $storeId)->get('db_messaging_conversations')->row();
-		if(!$conv) show_404();
-		$messages = $this->db->where('conversation_id', $conversationId)
-			->order_by('created_at', 'asc')->get('db_messaging_messages')->result();
-		$data = array_merge($this->data, [
-			'page_title' => 'Conversation',
-			'conversation' => $conv,
-			'messages' => $messages,
-			'settings' => $this->storefront_model->getSettings($storeId),
-		]);
-		if($this->input->get('screen') === 'mobile' || is_mobile()){
-			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
-			$this->load->view('mobile/online_store/messaging_conversation', $data);
-			return;
-		}
-		$data['content'] = $this->load->view('online_store/messaging_conversation', $data, TRUE);
-		$this->load->view('mp_layout', $data);
-	}
-
-	public function messaging_send(){
-		if(!$this->_can_edit_orders()){
-			echo json_encode(['status' => 'error', 'message' => 'Access denied']); return;
-		}
-		$storeId = get_current_store_id();
-		$convId = (int)$this->input->post('conversation_id');
-		$text = trim($this->input->post('text', TRUE));
-		if(!$convId || !$text){
-			echo json_encode(['status' => 'error', 'message' => 'Missing conversation or message']); return;
-		}
-		$conv = $this->db->where('id', $convId)->where('store_id', $storeId)->get('db_messaging_conversations')->row();
-		if(!$conv){
-			echo json_encode(['status' => 'error', 'message' => 'Conversation not found']); return;
-		}
-		$this->load->library('meta_messaging');
-		$mm = new Meta_messaging($storeId);
-		$result = ['ok'=>false, 'error'=>''];
-		switch($conv->channel){
-			case 'whatsapp':
-				$result = $mm->sendWhatsappText($conv->customer_phone, $text);
-				break;
-			case 'messenger':
-				$result = $mm->sendMessengerText($conv->external_conversation_id, $text);
-				break;
-			case 'instagram':
-				$result = $mm->sendInstagramText($conv->external_conversation_id, $text);
-				break;
-		}
-		if(!$result['ok']){
-			echo json_encode(['status'=>'error','message'=>$result['error'] ?: 'Send failed']); return;
-		}
-		$metaId = $result['data']['messages'][0]['id'] ?? null;
-		$this->db->insert('db_messaging_messages', [
-			'conversation_id' => $convId,
-			'direction' => 'outbound',
-			'message_type' => 'text',
-			'body' => $text,
-			'meta_message_id' => $metaId,
-			'status' => 'sent',
-			'created_at' => date('Y-m-d H:i:s'),
-		]);
-		$this->db->where('id', $convId)->update('db_messaging_conversations', [
-			'last_message_at' => date('Y-m-d H:i:s'),
-			'status' => 'open',
-		]);
-		echo json_encode(['status' => 'success', 'message' => 'Message sent']);
-	}
-
-	private function _messagingChannels($settings){
-		$out = [];
-		if($settings->whatsapp_api_enabled){ $out[] = ['key'=>'whatsapp','label'=>'WhatsApp Business API']; }
-		if(!empty($settings->instagram_access_token)){ $out[] = ['key'=>'instagram','label'=>'Instagram Direct']; }
-		if(!empty($settings->facebook_page_access_token)){ $out[] = ['key'=>'messenger','label'=>'Facebook Messenger']; }
-		if(empty($out)){ $out[] = ['key'=>'whatsapp','label'=>'WhatsApp Business API (not configured)']; }
-		return $out;
-	}
+        if(!$this->_can_view_orders()){$this->show_access_denied_page();return;}$channel=$this->input->get('channel');$workspace=in_array($channel,array('instagram','messenger'),true)?'socials':'whatsapp';$q=array('section'=>'inbox');if($workspace==='socials')$q['inbox_channel']=$channel;if($this->input->get('screen')==='mobile' || is_mobile())$q['screen']='mobile';redirect('communications/channel/'.$workspace.'?'.http_build_query($q));
+    }
+    public function messaging_conversation($conversationId=0){
+        if(!$this->_can_view_orders()){$this->show_access_denied_page();return;}redirect('communications/conversation/'.(int)$conversationId.(($this->input->get('screen')==='mobile' || is_mobile())?'?screen=mobile':''));
+    }
+    public function messaging_send(){
+        if($this->input->method()!=='post' || !$this->_can_edit_orders()){echo json_encode(array('status'=>'error','message'=>'Reply permission is required.'));return;}
+        $this->load->model('communication_inbox_model');$store=get_current_store_id();$id=(int)$this->input->post('conversation_id');$c=$this->communication_inbox_model->conversation($store,$id);if(!$c){echo json_encode(array('status'=>'error','message'=>'Conversation not found.'));return;}
+        try{$r=$this->communication_inbox_model->reply($store,$id,$c['channel'],(string)$this->input->post('text'),(string)$this->input->post('request_key'));echo json_encode(array('status'=>!empty($r['success'])?'success':'error','message'=>$r['message']));}catch(Throwable $e){echo json_encode(array('status'=>'error','message'=>'Open this conversation in Communications to send your reply.'));}
+    }
 
 	// ============== GOOGLE MY BUSINESS SYNC ==============
 

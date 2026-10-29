@@ -1,9 +1,14 @@
 <?php if (!empty($GLOBALS['__mp_flashdata_loaded'])) { return; } $GLOBALS['__mp_flashdata_loaded'] = true; ?>
-<div class="col-md-12">
+<div class="mp-flash-wrap" style="display:block;clear:both;float:none;width:100%;max-width:100%;padding:0;box-sizing:border-box">
       <!-- ********** ALERT MESSAGE START******* -->
       <style>
         /* Ensure alert close icon has breathing room from message text */
-        .alert .close {
+        .mp-flash-wrap .alert {
+          max-width: 100%;
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+        .mp-flash-wrap .alert .close {
           margin-left: 15px;
           padding: 0 5px;
         }

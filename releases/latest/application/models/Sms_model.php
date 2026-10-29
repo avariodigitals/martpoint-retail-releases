@@ -109,7 +109,7 @@ class Sms_model extends CI_Model {
 			$ok = $this->_provider_upsert('db_bulksmsng', [
 				'api_token' => (string)$this->input->post('bulksmsng_api_token', TRUE),
 				'sender_id' => (string)($this->input->post('bulksmsng_sender_id', TRUE) ?: 'BulkSMS'),
-				'base_url'  => rtrim((string)($this->input->post('bulksmsng_base_url', TRUE) ?: 'https://www.bulksmsnigeria.com/api'), '/'),
+				'base_url'  => rtrim((string)($this->input->post('bulksmsng_base_url', TRUE) ?: 'https://www.bulksmsnigeria.com/api/v2'), '/'),
 				'gateway'   => (string)$this->input->post('bulksmsng_gateway', TRUE),
 			], $store_id);
 			if(!$ok){ $this->db->trans_rollback(); return "failed"; }
@@ -125,8 +125,9 @@ class Sms_model extends CI_Model {
         $store_id = (int)($options['store_id'] ?? get_current_store_id());
         $this->load->library('messaging_client');
         $activeProvider=(int)mp_get_store_notification_setting($store_id,'sms_status',0);
+        if(!mp_is_central() && $this->messaging_client->managed() && ($options['channel']??'')==='whatsapp')return 'failed: WhatsApp Communications is under development.';
         if(($options['channel']??'')==='whatsapp' && $activeProvider!==3) return 'failed: WhatsApp is not connected for this store.';
-        if(!mp_is_central() && $activeProvider!==3 && ($this->messaging_client->managed() || ($options['message_category'] ?? '')==='promotional')){
+        if(!mp_is_central() && ($this->messaging_client->managed() || ($activeProvider!==3 && ($options['message_category'] ?? '')==='promotional'))){
             $r=$this->messaging_client->sendSms($store_id,$mobile,$message,$options);
             if(empty($r['success'])) log_message('error','MartPoint SMS paused: '.($r['code']??'unavailable'));
             return !empty($r['success']) ? 'success' : 'failed: Messaging is paused; check Messaging balance.';

@@ -106,10 +106,9 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title><?= htmlspecialchars($storeName); ?> — <?= htmlspecialchars($page_title ?? 'Clinic'); ?></title>
-<link rel="icon" type="image/webp" href="<?= base_url('uploads/site/icon.webp'); ?>">
-<link rel="manifest" href="<?= base_url('manifest.json'); ?>">
 <meta name="theme-color" content="#153b32">
 <link rel="stylesheet" href="<?= $theme_link; ?>bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -121,7 +120,7 @@ if(!$physioLogo || strpos($physioLogo, '..') !== false || !is_file(FCPATH.$physi
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=25">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">

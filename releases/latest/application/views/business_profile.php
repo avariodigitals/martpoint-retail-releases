@@ -227,7 +227,7 @@
                       'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue','leads'
                     ],
                     'POS' => [
-                      'pos_retail_button','pos_wholesale_button','manual_shipping'
+                      'pos_retail_button','pos_wholesale_button','manual_shipping','pos_receipt_reprint'
                     ],
                     'Products & Inventory' => [
                       'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','item_variants','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','perfumery_workflow','digital_products','courses'

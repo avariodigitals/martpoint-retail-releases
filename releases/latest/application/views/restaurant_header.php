@@ -35,10 +35,9 @@ $restaurant_can = function ($permission) use ($CI) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title><?= htmlspecialchars(($restaurant_name ?: 'Restaurant') . ' — ' . ($page_title ?? 'Workspace'), ENT_QUOTES, 'UTF-8'); ?></title>
-<link rel="icon" type="image/webp" href="<?= base_url('uploads/site/icon.webp'); ?>">
-<link rel="manifest" href="<?= base_url('manifest.json'); ?>">
 <meta name="theme-color" content="#f7f6f2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="<?= $theme_link; ?>bootstrap/css/bootstrap.min.css">
@@ -50,7 +49,7 @@ $restaurant_can = function ($permission) use ($CI) {
 <link rel="stylesheet" href="<?= $theme_link; ?>toastr/toastr.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/datepicker/datepicker3.css">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
-<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
+<link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=25">
 <link rel="stylesheet" href="<?= $theme_link; ?>plugins/pace/pace.min.css">
 <?php if (!empty($extra_css_files) && is_array($extra_css_files)): ?>
   <?php foreach ($extra_css_files as $css): ?><link rel="stylesheet" href="<?= $theme_link . $css; ?>"><?php endforeach; ?>

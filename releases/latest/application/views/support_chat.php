@@ -121,7 +121,7 @@
 
   function showToast(msg, type='success'){
     toast.textContent = msg;
-    toast.className = 'mp-toast show ' + (type === 'error' ? 'mp-toast-error' : 'mp-toast-success');
+    toast.className = 'mp-toast show ' + (type === 'error' ? 'error' : 'success');
     setTimeout(()=>{ toast.classList.remove('show'); }, 3000);
   }
 
@@ -162,10 +162,6 @@
   async function loadMessages(){
     try {
       const res = await fetch(baseUrl + 'support/chat/messages?store_id=' + storeId + '&external_id=' + encodeURIComponent(externalId));
-      if(!res.ok){
-        showToast('Unable to connect to support chat. Please try again later.', 'error');
-        return;
-      }
       const json = await res.json();
       const payload = json.data || json;
       if(json.success && payload.messages){
@@ -230,13 +226,17 @@
       });
       const json = await res.json();
       if(!json.success){
-        showToast(json.message || 'Failed to send', 'error');
+        tempEl.remove();
+        msgInput.value = text;
+        showToast(json.message || json.error || 'Failed to send', 'error');
       } else {
         showToast('Message sent');
         // Refresh to get real message IDs and any replies
         setTimeout(loadMessages, 800);
       }
     } catch(e){
+      tempEl.remove();
+      msgInput.value = text;
       showToast('Network error', 'error');
     } finally {
       sendBtn.disabled = false;

@@ -117,6 +117,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'auto_parts'                => 'Auto Parts / Spares Catalog',
             'kitchen_workflow'          => 'Kitchen Workflow',
             'restaurant_workspace'      => 'RestaurantOS Workspace',
+            'event_ticketing'           => 'Event Ticketing (Dated Sessions & Door Codes)',
             'table_management'          => 'Table Management',
             'laundry_workflow'          => 'Laundry Workflow',
             'meat_butchery_workflow'    => 'Meat / Butchery Workflow',
@@ -148,6 +149,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
+            'pos_receipt_reprint'       => 'Reprint Receipts from POS Sales List',
             'customer_contacts'         => 'Customer Contacts (Multiple Contacts per Organisation)',
             'customer_sites'            => 'Customer Sites (Multiple Delivery / Service Sites)',
             'equipment_register'        => 'Customer Equipment Register',
@@ -261,7 +263,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'restaurant' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission'],
+                'features'=>['accounts','online_store','qr_ordering','restaurant_workspace','table_management','kitchen_workflow','loyalty','delivery_scheduling','manager_approvals','recipe_tracking','production_workflow','staff_commission','event_ticketing'],
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Dining Service','table'=>'Table','order'=>'Order','pos'=>'Counter'],
             ],
@@ -792,6 +794,8 @@ if (!function_exists('mp_feature_enabled')) {
             // Sales & storefront
             case 'price_catalogue': case 'public_catalogue': return in_array($flag_key, $profile_features);
             case 'customer_notes': case 'manager_approvals': case 'cashier_shifts': return true;
+            // Cashier receipt reprints are opt-in per store, never enabled by an industry preset.
+            case 'pos_receipt_reprint': return false;
             case 'medical_notes': return in_array('medical_notes', $profile_features);
             case 'payplan': return true;
             // 'bundles' is the legacy flag key for item variants — kept as a

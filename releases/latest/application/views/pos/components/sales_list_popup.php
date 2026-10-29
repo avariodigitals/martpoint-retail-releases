@@ -1,4 +1,4 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php defined('BASEPATH') OR exit('No direct script access allowed'); $pos_receipt_reprint = !empty($pos_receipt_reprint); ?>
 <div class="modal-backdrop" id="salesListPopup">
   <div class="modal" style="max-width: 720px; max-height: 80vh; display: flex; flex-direction: column;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
@@ -15,10 +15,11 @@
             <th style="padding: 12px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Customer</th>
             <th style="padding: 12px; text-align: right; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Amount</th>
             <th style="padding: 12px; text-align: center; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Time</th>
+            <?php if ($pos_receipt_reprint): ?><th style="padding: 12px; text-align: center; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Action</th><?php endif; ?>
           </tr>
         </thead>
         <tbody id="salesListBody">
-          <tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>
+          <tr><td colspan="<?= $pos_receipt_reprint ? 5 : 4 ?>" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>
         </tbody>
       </table>
     </div>

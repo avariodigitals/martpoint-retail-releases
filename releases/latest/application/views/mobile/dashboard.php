@@ -3,6 +3,7 @@
 <head>
 <link rel="stylesheet" href="<?= htmlspecialchars(base_url('theme/css/dashboard_links.css?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>">
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -11,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=22">
+  <link rel="stylesheet" href="<?= $theme_link; ?>css/assist.css?v=25">
   <style>
     :root {
       --mp-primary: #0057FF;

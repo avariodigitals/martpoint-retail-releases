@@ -5,8 +5,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * BulkSMSNigeria SMS provider.
  *
  * API v2 contract (verified against the vendor's own Postman collection):
- *   Base URL : https://www.bulksmsnigeria.com/api
- *   Send     : POST /v2/sms
+ *   Base URL : https://www.bulksmsnigeria.com/api/v2
+ *   Send     : POST /sms
+ *   Balance  : GET /balance
  *   Auth     : Authorization: Bearer <api_token>
  *   Body     : { "from": <sender_id>, "to": <string|string[]>, "body": <message>,
  *                "gateway"?: "mtn"|"airtel"|"glo"|"9mobile",
@@ -23,7 +24,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  */
 class Bulksmsng_model extends CI_Model {
 
-	const DEFAULT_BASE = 'https://www.bulksmsnigeria.com/api';
+	const DEFAULT_BASE = 'https://www.bulksmsnigeria.com/api/v2';
 	const TIMEOUT      = 80;
 
 	/** Base URL resolution order: env override -> stored setting -> default. */
@@ -32,6 +33,14 @@ class Bulksmsng_model extends CI_Model {
 		if($env){ return rtrim($env, '/'); }
 		if($creds && !empty($creds->base_url)){ return rtrim($creds->base_url, '/'); }
 		return self::DEFAULT_BASE;
+	}
+
+	/** Accept both the legacy /api base and current vendor /api/v2 base. */
+	public function endpoint_url($base, $path){
+		$base = rtrim((string)$base, '/');
+		$path = '/' . ltrim((string)$path, '/');
+		if (preg_match('~/api/(?:sandbox/)?v2$~i', $base)) { return $base . $path; }
+		return $base . '/v2' . $path;
 	}
 
 	public function get_credentials($store_id = null){
@@ -78,7 +87,7 @@ class Bulksmsng_model extends CI_Model {
 			return ['ok'=>false,'http'=>0,'json'=>null,'raw'=>'','error'=>'Invalid BulkSMSNigeria API token!'];
 		}
 
-		$url = $this->_base_url($creds) . $path;
+		$url = $this->endpoint_url($this->_base_url($creds), $path);
 		if(!empty($query)){ $url .= '?' . http_build_query($query); }
 
 		$ch = curl_init($url);
@@ -110,7 +119,8 @@ class Bulksmsng_model extends CI_Model {
 
 		// A transport that returns 200 with a non-"success" status is still a
 		// failure (the vendor uses HTTP 200 + status:"error" for some cases).
-		$statusOk = is_array($json) && isset($json['status']) && strtolower((string)$json['status']) === 'success';
+		$status = is_array($json) ? ($json['status'] ?? ($json['data']['status'] ?? null)) : null;
+		$statusOk = is_string($status) && strtolower($status) === 'success';
 		$httpOk   = ($http >= 200 && $http < 300);
 		if($httpOk && $statusOk){
 			return ['ok'=>true,'http'=>$http,'json'=>$json,'raw'=>(string)$raw,'error'=>null];
@@ -143,7 +153,7 @@ class Bulksmsng_model extends CI_Model {
 	 * Same as index() but returns the diagnostic envelope, so callers (OTP,
 	 * campaigns) can surface WHY a send failed.
 	 */
-	public function send($to, $message, $storeId = null, $scheduleTime = null, $timeout = null){
+	public function send($to, $message, $storeId = null, $scheduleTime = null, $timeout = null, $senderId = null){
 		$creds = $this->get_credentials($storeId);
 		if(!$creds || empty($creds->api_token)){
 			return ['ok'=>false,'http'=>0,'json'=>null,'raw'=>'','error'=>'Invalid BulkSMSNigeria API token!'];
@@ -158,14 +168,14 @@ class Bulksmsng_model extends CI_Model {
 		}
 
 		$payload = [
-			'from' => $creds->sender_id ?: 'BulkSMS',
+			'from' => $senderId ?: ($creds->sender_id ?: 'BulkSMS'),
 			'to'   => $phone,
 			'body' => (string)$message,
 		];
 		if(!empty($creds->gateway)){ $payload['gateway'] = $creds->gateway; }
 		if(!empty($scheduleTime)){ $payload['schedule_time'] = $scheduleTime; }
 
-		return $this->_call('POST', '/v2/sms', $payload, $storeId, array(), $timeout);
+		return $this->_call('POST', '/sms', $payload, $storeId, array(), $timeout);
 	}
 
 	/** Native bulk — one API call for every recipient. */
@@ -193,7 +203,7 @@ class Bulksmsng_model extends CI_Model {
 		if(!empty($creds->gateway)){ $payload['gateway'] = $creds->gateway; }
 		if(!empty($scheduleTime)){ $payload['schedule_time'] = $scheduleTime; }
 
-		$res = $this->_call('POST', '/v2/sms', $payload, $storeId);
+		$res = $this->_call('POST', '/sms', $payload, $storeId);
 		return ['ok'=>$res['ok'],'error'=>$res['error'],'raw'=>$res['raw'],'json'=>$res['json']];
 	}
 
@@ -202,12 +212,12 @@ class Bulksmsng_model extends CI_Model {
 	 * Used by the settings screen's "Test connection" action.
 	 */
 	public function test_connection($storeId = null){
-		$res = $this->_call('GET', '/wallet/balance', null, $storeId);
+		$res = $this->_call('GET', '/balance', null, $storeId);
 		if(!$res['ok']){
 			return ['ok'=>false,'message'=>$res['error']];
 		}
 		$data = $res['json']['data'] ?? $res['json'];
-		$bal  = is_array($data) ? ($data['balance'] ?? $data['current_balance'] ?? null) : null;
+		$bal  = $res['json']['balance']['total_balance'] ?? (is_array($data) ? ($data['balance'] ?? $data['current_balance'] ?? null) : null);
 		$cur  = is_array($data) ? ($data['currency'] ?? 'NGN') : 'NGN';
 		return [
 			'ok'      => true,

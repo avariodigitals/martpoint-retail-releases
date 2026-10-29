@@ -140,7 +140,7 @@ class Email_service extends CI_Model {
 				foreach(array_unique(is_array($to)?$to:preg_split('/[,;]/',(string)$to)) as $recipient){
 					$r=$this->messaging_wallet->send($a,array('channel'=>'email','category'=>'platform','_central_platform'=>true,
 						'recipient'=>trim($recipient),'subject'=>$subject,'html'=>$html,'text'=>$text,'store_name'=>'MartPoint',
-						'request_key'=>hash('sha256',$key.'|'.$recipient)));
+						'request_key'=>hash('sha256',$key.'|'.$recipient),'retry_failed'=>!empty($options['retry_failed'])));
 					if(empty($r['success'])) return $r;
 				}
 				return array('success'=>true,'message'=>'MartPoint platform email accepted.','cost_kobo'=>0);

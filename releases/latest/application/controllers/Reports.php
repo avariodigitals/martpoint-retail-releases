@@ -258,6 +258,7 @@ class Reports extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 	public function show_receivables_aging_report(){
+		$this->permission_check('receivables_aging_report');
 		echo $this->reports->show_receivables_aging_report();
 	}
 

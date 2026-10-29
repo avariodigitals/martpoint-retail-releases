@@ -14,6 +14,7 @@ $mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile
 $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
 $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
 $mp_is_restaurant = function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace();
+$mp_pos_receipt_reprint = function_exists('mp_feature_enabled') && mp_feature_enabled('pos_receipt_reprint');
 $mp_pos_palette = $mp_is_restaurant ? [
     'primary' => '#5E4D66', 'primary_dark' => '#4E3F55', 'bg' => '#F7F6F2',
     'text' => '#3A3733', 'muted' => '#77736D', 'border' => '#E9E4DD',
@@ -41,10 +42,9 @@ $pos_json = static function ($value) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : ($mp_is_restaurant ? 'Restaurant Order Desk' : 'Point of Sale') ?></title>
-  <link rel="icon" href="<?= $favicon_url ?>">
-  <link rel="apple-touch-icon" href="<?= $favicon_url ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -2066,10 +2066,11 @@ $pos_json = static function ($value) {
               <th style="padding: 12px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Customer</th>
               <th style="padding: 12px; text-align: right; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Amount</th>
               <th style="padding: 12px; text-align: center; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Time</th>
+              <?php if ($mp_pos_receipt_reprint): ?><th style="padding: 12px; text-align: center; font-weight: 600; border-bottom: 1px solid var(--mp-border);">Action</th><?php endif; ?>
             </tr>
           </thead>
           <tbody id="salesListBody">
-            <tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>
+            <tr><td colspan="<?= $mp_pos_receipt_reprint ? 5 : 4 ?>" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>
           </tbody>
         </table>
       </div>
@@ -4215,7 +4216,7 @@ $pos_json = static function ($value) {
     document.getElementById('posStartupError').hidden = true;
   </script>
   <?php $this->load->view('pos/components/hold_popup'); ?>
-  <?php $this->load->view('pos/components/sales_list_popup'); ?>
+  <?php $this->load->view('pos/components/sales_list_popup', ['pos_receipt_reprint' => $mp_pos_receipt_reprint]); ?>
   <?php $this->load->view('pos/components/payment_popup', ['pos_json' => $pos_json]); ?>
   <script>
   (function() {
@@ -4288,7 +4289,9 @@ $pos_json = static function ($value) {
       closeAllPopups();
       document.getElementById('salesListPopup').classList.add('active');
       const tbody = document.getElementById('salesListBody');
-      tbody.innerHTML = '<tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>';
+      const reprintEnabled = <?= $mp_pos_receipt_reprint ? 'true' : 'false' ?>;
+      const emptyColspan = reprintEnabled ? 5 : 4;
+      tbody.innerHTML = '<tr><td colspan="' + emptyColspan + '" style="padding: 24px; text-align: center; color: var(--mp-muted);">Loading sales...</td></tr>';
       
       // Fetch today's sales
       posFetchJson(baseUrl + '/pos/get_todays_sales_ajax', {
@@ -4297,14 +4300,16 @@ $pos_json = static function ($value) {
       })
         .then(data => {
           if (!data.sales || data.sales.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--mp-muted);">No sales today</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="' + emptyColspan + '" style="padding: 24px; text-align: center; color: var(--mp-muted);">No sales today</td></tr>';
           } else {
+            const escapeCell = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
             tbody.innerHTML = data.sales.map(s => `
               <tr style="border-bottom: 1px solid var(--mp-border);">
-                <td style="padding: 12px; font-weight: 600;">${s.sales_code || '-'}</td>
-                <td style="padding: 12px;">${s.customer_name || 'Walk-in'}</td>
-                <td style="padding: 12px; text-align: right; font-weight: 600;">₦${s.grand_total_formatted}</td>
-                <td style="padding: 12px; text-align: center; color: var(--mp-muted); font-size: 12px;">${s.time || '-'}</td>
+                <td style="padding: 12px; font-weight: 600;">${escapeCell(s.sales_code || '-')}</td>
+                <td style="padding: 12px;">${escapeCell(s.customer_name || 'Walk-in')}</td>
+                <td style="padding: 12px; text-align: right; font-weight: 600;">${escapeCell(s.grand_total_formatted || '0.00')}</td>
+                <td style="padding: 12px; text-align: center; color: var(--mp-muted); font-size: 12px;">${escapeCell(s.time || '-')}</td>
+                ${reprintEnabled ? `<td style="padding: 8px; text-align: center;"><button type="button" class="btn-secondary" style="cursor:pointer; white-space:nowrap;" onclick="window.open(baseUrl + '/sales/print_invoice_pos/' + encodeURIComponent(${Number(s.id) || 0}), '_blank', 'noopener')">Reprint</button></td>` : ''}
               </tr>
             `).join('');
           }
@@ -4313,7 +4318,7 @@ $pos_json = static function ($value) {
           tbody.innerHTML = '';
           const row = tbody.insertRow();
           const cell = row.insertCell();
-          cell.colSpan = 4;
+          cell.colSpan = emptyColspan;
           cell.style.cssText = 'padding: 24px; text-align: center; color: var(--mp-danger);';
           cell.textContent = posErrorText(err, 'Failed to load sales. Please try again.');
         });

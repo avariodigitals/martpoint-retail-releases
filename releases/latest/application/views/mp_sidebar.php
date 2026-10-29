@@ -152,7 +152,8 @@ $mp_icons = [
       <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Patients</a><?php endif; ?>
       <?php if($CI->permissions('items_view')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Medicines &amp; inventory</a><?php endif; ?>
       <?php if($CI->permissions('stock_transfer_view') && warehouse_module() && mp_pharmacy_advanced()): ?><a href="<?= base_url('stock_transfer/view'); ?>" class="mp-nav-item stock_transfer_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Branch transfers</a><?php endif; ?>
-      <?php if(($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?><a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['online']; ?></span> Patient orders</a><?php endif; ?>
+      <?php if(($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?><a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['online']; ?></span> Patient orders</a>
+          <a href="<?= base_url('online_store/abandoned_carts'); ?>" class="mp-nav-item online_store-abandoned_carts-active-li"><span class="mp-nav-icon"><i class="fa fa-shopping-basket"></i></span> Abandoned Carts</a><?php endif; ?>
       <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales_and_payments'); ?>" class="mp-nav-item report-sales-and-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Reports</a><?php endif; ?>
       <a href="<?= base_url('pharmacy_workspace/more'); ?>" class="mp-nav-item<?= $mp_open(['pharmacy_workspace'])?' active':''; ?>"><span class="mp-nav-icon"><i class="fa fa-th-large"></i></span> More</a>
     </div>
@@ -737,6 +738,7 @@ $mp_icons = [
         <?php if($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
           <div class="mp-nav-subhead"><?= $is_printing ? 'Enquiries &amp; Requests' : 'Enquiries &amp; Orders'; ?></div>
           <a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Orders</a>
+          <a href="<?= base_url('online_store/abandoned_carts'); ?>" class="mp-nav-item online_store-abandoned_carts-active-li"><span class="mp-nav-icon"><i class="fa fa-shopping-basket"></i></span> Abandoned Carts</a>
           <?php if(!$is_printing && !$is_building_workspace && ($CI->permissions('online_store_orders') || $CI->permissions('online_store_edit') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('online_store/quick_wa'); ?>" class="mp-nav-item online_store-quick_wa-active-li"><span class="mp-nav-icon"><i class="fa fa-whatsapp"></i></span> Create WhatsApp Order</a><?php endif; ?>
         <?php endif; ?>
         <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1): ?>
@@ -762,7 +764,6 @@ $mp_icons = [
           <a href="<?= base_url('online_store/appearance'); ?>" class="mp-nav-item online_store-appearance-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Appearance</a>
           <a href="<?= base_url('online_store/domains'); ?>" class="mp-nav-item online_store-domains-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Domains</a>
           <a href="<?= base_url('online_store/settings'); ?>" class="mp-nav-item online_store-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store Settings</a>
-          <a href="<?= base_url('online_store/messaging'); ?>" class="mp-nav-item online_store-messaging-active-li"><span class="mp-nav-icon"><i class="fa fa-whatsapp"></i></span> Messaging</a>
         <?php endif; ?>
       </div>
     </div></div>
@@ -770,7 +771,7 @@ $mp_icons = [
 
     <!-- Operations -->
     <?php
-      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','meat_butchery_workflow','frozen_food_cold_chain','automobile_workflow','perfumery_workflow','nylon_workflow','equipment_register','service_jobs'];
+      $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','meat_butchery_workflow','frozen_food_cold_chain','automobile_workflow','perfumery_workflow','nylon_workflow','equipment_register','service_jobs','event_ticketing'];
       if($is_creator) { $ops_flags = array_diff($ops_flags, ['memberships']); } /* creator gets memberships in its own menu */
       $has_ops = false; foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
       $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -795,6 +796,8 @@ $mp_icons = [
         <?php if(mp_feature_enabled('production_workflow')): ?><a href="<?= base_url('operations/production_schedule'); ?>" class="mp-nav-item operations-production_schedule-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Production Schedule</a><?php endif; ?>
         <?php if(mp_feature_enabled('recipe_tracking') && !$is_restaurant_ws): ?><a href="<?= base_url('operations/recipes'); ?>" class="mp-nav-item operations-recipes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Recipe Book</a><?php endif; ?>
         <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('operations/memberships'); ?>" class="mp-nav-item operations-memberships-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Memberships</a><?php endif; ?>
+        <?php if(mp_feature_enabled('event_ticketing')): ?><a href="<?= base_url('events'); ?>" class="mp-nav-item events-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Events &amp; Tickets</a><?php endif; ?>
+        <?php if(mp_feature_enabled('event_ticketing')): ?><a href="<?= base_url('events/tickets'); ?>" class="mp-nav-item events-tickets-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Ticket Check-in</a><?php endif; ?>
         <?php if(mp_feature_enabled('treatment_notes')): ?><a href="<?= base_url('operations/treatment_notes'); ?>" class="mp-nav-item operations-treatment_notes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Treatment Notes</a><?php endif; ?>
         <?php if(mp_feature_enabled('medical_notes')): ?><a href="<?= base_url('operations/medical_notes'); ?>" class="mp-nav-item operations-medical_notes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Medical Notes</a><?php endif; ?>
         <?php if(mp_feature_enabled('kitchen_workflow') && !$is_restaurant_ws): ?><a href="<?= base_url('operations/kitchen'); ?>" class="mp-nav-item operations-kitchen-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Kitchen Display</a><?php endif; ?>
@@ -930,6 +933,7 @@ $mp_icons = [
       <div class="mp-nav-submenu">
         <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
         <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
+        <a href="<?= base_url('communications_admin'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Communications</a>
         <a href="<?= base_url('messaging_admin'); ?>" class="mp-nav-item messaging_admin-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Messaging usage &amp; credits</a>
         <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
         <a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><span class="mp-nav-icon"><i class="fa fa-lock"></i></span> Change Password</a>

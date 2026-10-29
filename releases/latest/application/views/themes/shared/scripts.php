@@ -159,7 +159,9 @@
     const spice = options && ['mild','medium','hot','extra'].includes(options.spice_level) ? options.spice_level : '';
     const note = options ? String(options.note || '').slice(0,500) : '';
     const addonKey = addons.map(addon=>addon.id+'x'+addon.qty).join(',');
-    const key = cartType + '_' + id + (addonKey ? '_' + addonKey : '') + (spice || note ? '_' + JSON.stringify([spice,note]) : '');
+    // Event tickets: one line per session date, session carried to checkout.
+    const evSession = (cartType === 'product' && options && options.session_id) ? parseInt(options.session_id, 10) : 0;
+    const key = cartType + '_' + id + (addonKey ? '_' + addonKey : '') + (spice || note ? '_' + JSON.stringify([spice,note]) : '') + (evSession ? '_s' + evSession : '');
     if(isPhysical && stock !== undefined && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?> && cart.filter(i=>i.id===id && i.type===cartType).reduce((sum,i)=>sum+Number(i.qty),qty)>stock){
       showToast('Not enough stock'); return false;
     }
@@ -170,7 +172,7 @@
       }
       existing.qty += qty;
     } else {
-      cart.push({key, id, type:cartType, name, price, image, qty: qty, stock: stock ?? 999, addons:addons, spice_level:spice, note:note});
+      cart.push(Object.assign({key, id, type:cartType, name, price, image, qty: qty, stock: stock ?? 999, addons:addons, spice_level:spice, note:note}, evSession ? {session_id: evSession} : {}));
     }
     saveCart();
     const unitPrice = price + addons.reduce((sum,addon)=>sum+(addon.price*addon.qty),0);

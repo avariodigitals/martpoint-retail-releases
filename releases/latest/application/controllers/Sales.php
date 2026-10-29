@@ -223,14 +223,14 @@ class Sales extends MY_Controller {
 
 											if($this->permissions('sales_payment_view'))
 											$str2.='<li>
-												<a title="Pay" class="pointer" onclick="view_payments('.$sales->id.')" >
+					<a href="#" role="button" title="View Payments" class="pointer sales-payment-action" onclick="view_payments('.$sales->id.',this); return false;">
 													<i class="fa fa-fw fa-money text-blue"></i>View Payments
 												</a>
 											</li>';
 
 											if($this->permissions('sales_payment_add') && $sales->sales_status!=='Draft')
 											$str2.='<li>
-												<a title="Receive Payments" class="pointer" onclick="pay_now('.$sales->id.')" >
+					<a href="#" role="button" title="Receive Payments" class="pointer sales-payment-action" onclick="pay_now('.$sales->id.',this); return false;">
 													<i class="fa fa-fw fa-hourglass-half text-blue"></i>Receive Payments
 												</a>
 											</li>';

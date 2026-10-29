@@ -804,7 +804,7 @@ class Default_data_model extends CI_Model {
                         'return_items_report','stock_transfer_report',
             'sales_summary_report','sales_return_payments',
             'purchase_return_report','sales_return_report',
-            'customer_orders_report',
+            'customer_orders_report','receivables_aging_report',
             // FSTR (tax) reports are intentionally NOT granted here —
             // they stay flagged for the Store Admin role only.
             // Fashion Intelligence reports
@@ -913,7 +913,7 @@ class Default_data_model extends CI_Model {
             'return_items_report','stock_transfer_report',
             'sales_summary_report','sales_return_payments',
             'purchase_return_report','sales_return_report',
-            'customer_orders_report',
+            'customer_orders_report','receivables_aging_report',
             // FSTR (tax) reports are intentionally NOT granted here —
             // they stay flagged for the Store Admin role only.
             // Fashion Intelligence reports

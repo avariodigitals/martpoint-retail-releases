@@ -16,7 +16,15 @@ class Marketing_model extends CI_Model {
 
 	/** Segment preset registry — key => [label, description]. */
 	public static $SEGMENTS = [
-		'all'           => ['All reachable customers', 'Every customer with an email or phone number'],
+        'abandoned_carts'=>['Abandoned online-store carts','Eligible abandoned checkouts; used only by the cart recovery workflow'],
+        'birthday_today'=>['Birthdays today','Active customers whose recorded birthday falls today (West Africa Time)'],
+		'communications' => ['Imported communication contacts', 'Contacts uploaded with permission for campaigns'],
+        'leads'=>['Leads · CRM','New, contacted and qualified leads'],
+        'users'=>['Users / staff · main app','Active staff; separate internal audience'],
+        'suppliers'=>['Suppliers · main app','Active supplier business contacts'],
+        'online_buyers'=>['Buyers · online store','Active, non-cancelled storefront order contacts'],
+        'customer_contacts'=>['Combined customer contacts','Customer-facing sources only; deduplicated per channel'],
+		'all'           => ['Customers · main app', 'Every customer with an email or phone number'],
 		'top_spenders'  => ['Top spenders', 'Top 25% of customers by lifetime spend'],
 		'repeat'        => ['Repeat buyers', 'Customers with 2+ completed sales'],
 		'one_time'      => ['One-time buyers', 'Customers with exactly one completed sale'],
@@ -45,10 +53,72 @@ class Marketing_model extends CI_Model {
 	 * Resolve a segment key to customer rows [id, name, email, phone].
 	 * $countOnly returns minimal rows for counting.
 	 */
-	public function resolveSegment($storeId, $key, $countOnly = false){
+    public function resolveSegment($storeId,$key,$countOnly=false){
+        $this->load->library('communication_audience');
+        $this->load->model('communication_lists_model','comm_lists');
+        if($key==='abandoned_carts')return array(); // Cart tokens are bound only by the recovery workflow.
+        $listId=Communication_lists_model::id($key);
+        if($listId){
+            $list=$this->comm_lists->get($storeId,$listId);
+            return $list?$this->comm_lists->contacts($storeId,$listId,$list['channel']):array();
+        }
+        if(isset(Communication_audience::definitions()[$key])){
+            if(!$this->communication_audience->allowed($key))return array();
+            // Return both contact channels; dispatch and previews choose the channel.
+            $channel=in_array($key,array('subscribers','customer_contacts'),true)?'email':'sms';
+            if($this->communication_audience->status($key,$channel)!==null)$channel='email';
+            return $this->communication_audience->raw($storeId,$key,$channel);
+        }
+        if($key==='birthday_today')return $this->birthdayAudience($storeId);
+        $rows=$this->resolveLegacySegment($storeId,$key,false);
+        if($this->db->table_exists('db_customers') && $this->db->field_exists('status','db_customers')){
+            $active=array();foreach($this->db->select('id')->where('store_id',(int)$storeId)->where('status',1)->get('db_customers')->result() as $row)$active[$row->id]=true;
+            $rows=array_values(array_filter($rows,function($row)use($active){return isset($active[$row->id]);}));
+        }
+        return $rows;
+    }
+    public function audienceSummary($storeId,$key,$channel){
+        $this->load->library('communication_audience');$this->load->model('communication_lists_model','comm_lists');
+        $isList=Communication_lists_model::id($key)>0;
+        $summary=$this->communication_audience->summarize($storeId,$key,$channel,$isList || !isset(Communication_audience::definitions()[$key])?$this->resolveSegment($storeId,$key):null);
+        if($isList){
+            $list=$this->comm_lists->get($storeId,Communication_lists_model::id($key));
+            $summary['name']=$list?$list['name']:'Audience list';
+            $summary['group']=Communication_lists_model::GROUP;
+            $summary['description']=$list && $list['note']!==''?$list['note']:'Contacts you grouped into this list.';
+            if(!$list)$summary['status']='List not available';
+        }
+        return $summary;
+    }
+    public function audienceOptions($storeId,$channel){
+        $options=array();foreach(self::$SEGMENTS as $key=>$definition){if($key==='abandoned_carts')continue;$summary=$this->audienceSummary($storeId,$key,$channel);unset($summary['contacts']);if($summary['status']===null)$options[$key]=$summary;}
+        $this->load->model('communication_lists_model','comm_lists');
+        foreach($this->comm_lists->all($storeId,$channel) as $list){$summary=$this->audienceSummary($storeId,$list['key'],$channel);unset($summary['contacts']);if($summary['status']===null)$options[$list['key']]=$summary;}
+        return $options;
+    }
+    public function birthdayAudience($storeId,$day=null){
+        $this->load->library('communication_audience');if(!$this->communication_audience->allowed('all') || !$this->db->field_exists('birthday','db_customers'))return array();
+        $day=$day??(new DateTimeImmutable('now',new DateTimeZone('Africa/Lagos')))->format('m-d');$ids=array();
+        foreach($this->db->select('id,birthday')->where('store_id',(int)$storeId)->where('status',1)->get('db_customers')->result() as $row){$value=(string)$row->birthday;$date=DateTimeImmutable::createFromFormat('!Y-m-d',$value);if($date && $date->format('Y-m-d')===$value && $date->format('m-d')===$day)$ids[$row->id]=true;}
+        $channel=$this->communication_audience->status('all','sms')===null?'sms':'email';return array_values(array_filter($this->communication_audience->raw($storeId,'all',$channel),function($r)use($ids){return isset($ids[$r->id]);}));
+    }
+    public function canUseSegment($key,$storeId=null){
+        if($key==='abandoned_carts'){$ci =& get_instance();return !method_exists($ci,'permissions') || (function_exists('is_admin') && is_admin()) || (function_exists('is_store_admin') && is_store_admin()) || $ci->permissions('online_store_orders') || $ci->permissions('online_store_view') || $ci->permissions('online_store_edit');}
+        $this->load->model('communication_lists_model','comm_lists');
+        $listId=Communication_lists_model::id($key);
+        if($listId){
+            $storeId=$storeId===null?(function_exists('get_current_store_id')?get_current_store_id():0):(int)$storeId;
+            return (bool)$this->comm_lists->get($storeId,$listId);
+        }
+        $this->load->library('communication_audience');return isset(self::$SEGMENTS[$key]) && $this->communication_audience->allowed($key==='birthday_today'?'all':$key);
+    }
+    private function resolveLegacySegment($storeId, $key, $countOnly = false){
 		$storeId = (int)$storeId;
 		$fields = $countOnly ? 'c.id' : 'c.id, c.customer_name AS name, c.email, c.mobile AS phone';
 		switch($key){
+            case 'communications':
+                if(!$this->db->table_exists('db_communication_contacts'))return array();
+                return $this->db->select('id,name,email,phone')->where('store_id',$storeId)->get('db_communication_contacts')->result();
 			case 'subscribers':
 				if(!$this->db->table_exists('db_newsletter_subscribers')) return [];
 				return $this->db->select("id, '' AS name, email, '' AS phone")
@@ -130,6 +200,7 @@ class Marketing_model extends CI_Model {
 
 	public function saveCampaign($storeId, array $data, $id = null){
 		if(!$this->db->table_exists('db_campaigns')) return false;
+        if(!empty($data['segment_key']) && !$this->canUseSegment($data['segment_key'],$storeId))return false;
 		$row = [
 			'store_id'    => (int)$storeId,
 			'name'        => substr(trim((string)$data['name']), 0, 150),
@@ -140,12 +211,16 @@ class Marketing_model extends CI_Model {
 			'message'     => (string)($data['message'] ?? ''),
 		];
 		if($id){
+            $this->db->trans_begin();$locked=$this->db->query('SELECT id,status FROM db_campaigns WHERE id=? AND store_id=? FOR UPDATE',array((int)$id,(int)$storeId))->row_array();
+            if(!$locked || $locked['status']!=='draft'){$this->db->trans_rollback();return false;}
+            if($this->db->table_exists('db_communication_campaign_schedules') && $this->db->where('campaign_id',(int)$id)->where('store_id',(int)$storeId)->where_in('status',array('scheduled','paused'))->count_all_results('db_communication_campaign_schedules')){$this->db->trans_rollback();return false;}
 			$this->db->where('id', (int)$id)->where('store_id', (int)$storeId)->where('status', 'draft')->update('db_campaigns', $row);
             $changed=$this->db->affected_rows();
             if($changed){
                 $this->db->where('campaign_id',(int)$id)->where('store_id',(int)$storeId)->where('status','pending')->delete('db_campaign_sends');
                 if($this->db->table_exists('db_messaging_campaign_approvals')) $this->db->where('store_id',(int)$storeId)->where('campaign_id',(int)$id)->delete('db_messaging_campaign_approvals');
             }
+            if(!$this->db->trans_status()){$this->db->trans_rollback();return false;}$this->db->trans_commit();
             return $changed ? (int)$id : false;
 		}
 		$row['created_by'] = substr((string)($this->session->userdata('inv_username') ?: 'system'), 0, 60);
@@ -177,7 +252,9 @@ class Marketing_model extends CI_Model {
 		$staged = 0;
 		foreach($audience as $m){
 			$recipient = $campaign->channel === 'sms' ? trim((string)($m->phone ?? '')) : trim((string)($m->email ?? ''));
-			if($recipient === '') continue;
+            $this->load->library('communication_audience');
+            $recipient=Communication_audience::recipient($campaign->channel,$recipient);
+            if(!$recipient || $this->isSuppressed($campaign->store_id,$campaign->channel,$recipient))continue;
 			if($campaign->channel === 'email' && !filter_var($recipient, FILTER_VALIDATE_EMAIL)) continue;
 			$cols = '(store_id, campaign_id, channel, recipient, customer_name, status' . ($hasToken ? ', unsub_token' : '') . ', created_at)';
 			$vals = [(int)$campaign->store_id, (int)$campaign->id, $campaign->channel, substr($recipient, 0, 191), substr((string)($m->name ?? ''), 0, 191), 'pending'];
@@ -283,16 +360,27 @@ class Marketing_model extends CI_Model {
 	 * or 'all' — means the recipient is never contacted again by
 	 * campaigns, regardless of when the audience was staged.
 	 */
-	public function isSuppressed($storeId, $channel, $recipient){
-		if(!$this->db->table_exists('db_marketing_suppressions')) return false;
-		return $this->db->where('store_id', (int)$storeId)
-			->where_in('channel', [$channel, 'all'])
-			->where('recipient', substr((string)$recipient, 0, 191))
-			->count_all_results('db_marketing_suppressions') > 0;
-	}
+    public function isSuppressed($storeId,$channel,$recipient){
+        $this->load->library('communication_audience');$normal=Communication_audience::recipient($channel,$recipient);
+        if($channel==='email' && $normal && $this->db->table_exists('db_newsletter_subscribers') && $this->db->field_exists('status','db_newsletter_subscribers')){
+            if($this->db->query('SELECT id FROM db_newsletter_subscribers WHERE store_id=? AND status=0 AND LOWER(TRIM(email))=? LIMIT 1',array((int)$storeId,$normal))->num_rows())return true;
+        }
+        if(!$this->db->table_exists('db_marketing_suppressions'))return false;
+        if($channel==='sms' && $normal){
+            // Compare the same canonical form used by source previews and staging.
+            // Reading fresh here also respects opt-outs received during a batch.
+            foreach($this->db->select('recipient')->where('store_id',(int)$storeId)->where_in('channel',array('sms','all'))->get('db_marketing_suppressions')->result_array() as $row)if(Communication_audience::recipient('sms',$row['recipient'])===$normal)return true;
+            return false;
+        }
+        if($channel==='email' && $normal)return $this->db->query("SELECT id FROM db_marketing_suppressions WHERE store_id=? AND channel IN ('email','all') AND LOWER(TRIM(recipient))=? LIMIT 1",array((int)$storeId,$normal))->num_rows()>0;
+        return $this->db->where('store_id',(int)$storeId)->where_in('channel',array($channel,'all'))->where('recipient',substr((string)$recipient,0,191))->count_all_results('db_marketing_suppressions')>0;
+    }
 
 	public function suppressRecipient($storeId, $channel, $recipient, $source = 'link'){
 		if(!$this->db->table_exists('db_marketing_suppressions')) return false;
+        if(in_array($channel,array('sms','email'),true)){
+            $this->load->library('communication_audience');$normal=Communication_audience::recipient($channel,$recipient);if($normal)$recipient=$normal;
+        }
 		$this->db->query('INSERT IGNORE INTO db_marketing_suppressions (store_id, channel, recipient, source, created_at) VALUES (?,?,?,?,NOW())',
 			[(int)$storeId, $channel === 'sms' ? 'sms' : 'email', substr((string)$recipient, 0, 191), substr((string)$source, 0, 30)]);
 		return $this->db->affected_rows() >= 0;

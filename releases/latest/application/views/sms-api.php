@@ -384,7 +384,7 @@
             <div class="tab-pane" id="tab_7">
              <?php
              $bulksmsng_api_token = $bulksmsng_sender_id = $bulksmsng_gateway ='';
-             $bulksmsng_base_url = 'https://www.bulksmsnigeria.com/api';
+             $bulksmsng_base_url = 'https://www.bulksmsnigeria.com/api/v2';
              if($this->db->table_exists('db_bulksmsng')){
                $q1=$this->db->select("*")->where("store_id",get_current_store_id())->get("db_bulksmsng");
                if($q1->num_rows()>0){
@@ -448,7 +448,7 @@
                                     <label for="bulksmsng_base_url" class="col-sm-4 control-label">API Base URL</label>
                                     <div class="col-sm-5">
                                        <input type="text" class="form-control" id="bulksmsng_base_url" name="bulksmsng_base_url" value="<?php print htmlspecialchars($bulksmsng_base_url, ENT_QUOTES); ?>" >
-                                       <p class="help-block" style="margin-bottom:0">Sends to <code>&lt;base&gt;/v2/sms</code>. Only change if the vendor moves the endpoint.</p>
+                                       <p class="help-block" style="margin-bottom:0">Uses <code>&lt;base&gt;/sms</code> to send and <code>&lt;base&gt;/balance</code> to test. The default base is <code>https://www.bulksmsnigeria.com/api/v2</code>; legacy <code>/api</code> bases are also supported.</p>
                                     </div>
                                  </div>
                               </div>

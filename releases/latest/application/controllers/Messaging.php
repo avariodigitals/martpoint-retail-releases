@@ -8,6 +8,7 @@ class Messaging extends MY_Controller {
         $this->load->library('messaging_client');
     }
     public function index() {
+        if(!mp_is_central()){redirect('communications'.((is_mobile() || $this->input->get('screen')==='mobile')?'?screen=mobile':''));return;}
         if (mp_is_central()) { redirect('messaging_admin'); return; }
         $data = $this->data; $data['page_title'] = 'Messaging balance & packages';
         $data['messaging'] = $this->messaging_client->request('snapshot',get_current_store_id());

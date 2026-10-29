@@ -3687,7 +3687,14 @@ class Reports_model extends CI_Model {
 	 * Buckets unpaid Final sales by invoice age (0-30/31-60/61-90/90+)
 	 * ============================================================ */
 	public function show_receivables_aging_report(){
-		$store_id = $this->input->post('store_id', TRUE);
+		// A store selector is exposed only to Central/store administrators. A
+		// manager's hidden form field is not an authorization boundary: always
+		// scope ordinary users to their active store, even if they alter POST.
+		$store_id = get_current_store_id();
+		if(store_module() && is_admin()){
+			$requested_store_id = (int)$this->input->post('store_id', TRUE);
+			if($requested_store_id > 0){ $store_id = $requested_store_id; }
+		}
 		$as_of    = $this->input->post('as_of_date', TRUE);
 		if(empty($store_id)){ $store_id = get_current_store_id(); }
 		if(empty($as_of)){ $as_of = date('d-m-Y'); }

@@ -165,20 +165,7 @@
         <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="cart_recovery_enabled" name="cart_recovery_enabled" value="1" <?= ($settings->cart_recovery_enabled ?? 1) ? 'checked' : ''; ?>> Track Abandoned Carts</label><div class="mp-form-hint" style="margin-top:6px;">Stores cart snapshots so you can see and follow up on abandoned checkouts.</div></div>
         <div class="mp-form-group"><label for="abandoned_after_hours">Consider abandoned after (hours)</label><input type="number" min="1" max="720" class="mp-form-control" id="abandoned_after_hours" name="abandoned_after_hours" value="<?= (int)($settings->abandoned_after_hours ?? 24); ?>"><div class="mp-form-hint">A cart with customer contact details older than this appears on the Abandoned Carts page.</div></div>
       </div>
-      <?php if(isset($settings->auto_recovery_enabled)): ?>
-      <div class="os-section-title" style="font-size:13px;margin-top:14px;"><i class="fa fa-paper-plane"></i> Automated Recovery</div>
-      <div class="os-form-grid">
-        <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="auto_recovery_enabled" name="auto_recovery_enabled" value="1" <?= ($settings->auto_recovery_enabled ?? 0) ? 'checked' : ''; ?>> Auto-send recovery reminders</label><div class="mp-form-hint" style="margin-top:6px;">The scheduled job (cron/cart_recovery) emails or texts customers about abandoned carts — max 3 reminders, 24h apart, and customers can opt out. Reminder clicks are tracked on the Abandoned Carts page.</div></div>
-        <div class="mp-form-group"><label for="auto_recovery_channel">Send via</label>
-          <select class="mp-form-control" id="auto_recovery_channel" name="auto_recovery_channel">
-            <option value="email" <?= ($settings->auto_recovery_channel ?? 'email') === 'email' ? 'selected' : ''; ?>>Email — uses your configured email provider</option>
-            <option value="sms" <?= ($settings->auto_recovery_channel ?? 'email') === 'sms' ? 'selected' : ''; ?>>SMS / WhatsApp API — uses your configured SMS provider</option>
-          </select>
-          <div class="mp-form-hint"><b>Provider cost:</b> each reminder is sent through your own email provider (SMTP/Resend) or SMS/WhatsApp provider (SMS API, Twilio, Brevo, Sendchamp…). Provider charges per message apply and are billed by them, not MartPoint. Nothing is sent until a provider is configured in Communication settings.</div>
-        </div>
-        <div class="mp-form-group"><label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;"><input type="checkbox" id="auto_recovery_test" name="auto_recovery_test" value="1" <?= ($settings->auto_recovery_test ?? 1) ? 'checked' : ''; ?>> Test mode — send to store owner only</label><div class="mp-form-hint" style="margin-top:6px;">While on, reminders are redirected to your store email/phone so you can verify delivery without messaging customers. Turn off for live sends.</div></div>
-      </div>
-      <?php endif; ?>
+      <div class="os-section-title" style="font-size:13px;margin-top:14px;">Automated recovery</div><p class="mp-form-hint">Set up abandoned-cart reminders in Communications → Automation. The workflow uses an Automation plan slot and SMS or email credits, stops after purchase or opt-out, and allows up to three reminders at least 24 hours apart.</p><a class="mp-btn-primary" href="<?= base_url('communications/channel/automation?section=create&recipe=abandoned_cart'); ?>">Set up cart recovery workflow</a>
 
       <div class="os-section-title"><i class="fa fa-instagram"></i> Instagram Integration</div>
       <div class="os-form-grid">

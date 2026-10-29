@@ -15,7 +15,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * CORS: Access-Control-Allow-Origin reflects the request origin when allowed.
  *
  * The admin side reads/writes the same db_messaging_conversations /
- * db_messaging_messages tables used by Online_store > Messaging, so support
+ * db_communication_inbox_messages tables used by Communications inboxes, so support
  * staff reply from the MartPoint dashboard and customers see replies in the
  * Next.js chat widget.
  */
@@ -119,7 +119,7 @@ class Chat_api extends CI_Controller {
             ]);
         }
 
-        $this->db->insert('db_messaging_messages', [
+        $this->db->insert('db_communication_inbox_messages', [
             'conversation_id' => $convId,
             'direction'       => 'inbound',
             'message_type'    => 'text',
@@ -187,7 +187,7 @@ class Chat_api extends CI_Controller {
         }
         $messages = $this->db->where('conversation_id', $convId)
             ->order_by('created_at', 'asc')
-            ->get('db_messaging_messages')
+            ->get('db_communication_inbox_messages')
             ->result();
         $out = [];
         foreach($messages as $m){
@@ -219,7 +219,7 @@ class Chat_api extends CI_Controller {
         if(!$conv){
             $this->_json(['status'=>'error','message'=>'Conversation not found'], 404);
         }
-        $this->db->insert('db_messaging_messages', [
+        $this->db->insert('db_communication_inbox_messages', [
             'conversation_id' => $convId,
             'direction'       => 'outbound',
             'message_type'    => 'text',

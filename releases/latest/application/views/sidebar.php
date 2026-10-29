@@ -700,6 +700,7 @@
             <?php } ?>
             <?php if($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
             <li class="online-store-orders-active-li"><a href="<?php echo $base_url; ?>online_store/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
+            <li class="online-store-abandoned-carts-active-li"><a href="<?php echo $base_url; ?>online_store/abandoned_carts"><i class="fa fa-shopping-basket"></i> Abandoned Carts</a></li>
             <?php } ?>
             <?php if($CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) { ?>
             <li class="online-store-products-active-li"><a href="<?php echo $base_url; ?>online_store/products_online"><i class="fa fa-cube"></i> Online Products</a></li>

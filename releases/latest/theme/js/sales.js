@@ -546,25 +546,47 @@ function multi_delete(){
    });
 }
 
-function pay_now(sales_id){
+function closeSalesActionMenu(trigger){
+	if(!trigger)return;
+	var $group=$(trigger).closest('.btn-group');
+	$group.removeClass('open');
+	$group.find('[data-toggle="dropdown"]').attr('aria-expanded','false');
+}
+
+function presentSalesPaymentModal(wrapperSelector, html, modalSelector){
+	var $open=$('.pay_now_modal .modal.in, .view_payments_modal .modal.in');
+	var render=function(){
+		$('.pay_now_modal, .view_payments_modal').empty();
+		$(wrapperSelector).html(html);
+		$(modalSelector).modal('show');
+	};
+	if(!$open.length){render();return;}
+	var remaining=$open.length;
+	$open.one('hidden.bs.modal',function(){
+		remaining--;
+		if(remaining===0)render();
+	});
+	$open.modal('hide');
+}
+
+function pay_now(sales_id, trigger){
+  closeSalesActionMenu(trigger);
   var base_url=$("#base_url").val();
   $.post(base_url+'sales/show_pay_now_modal', {sales_id: sales_id}, function(result) {
-    $(".pay_now_modal").html('').html(result);
+    presentSalesPaymentModal('.pay_now_modal', result, '#pay_now');
     //Date picker
     $('.datepicker').datepicker({
       autoclose: true,
     format: 'dd-mm-yyyy',
      todayHighlight: true
     });
-    $('#pay_now').modal('toggle');
-
   });
 }
-function view_payments(sales_id){
+function view_payments(sales_id, trigger){
+  closeSalesActionMenu(trigger);
   var base_url=$("#base_url").val();
   $.post(base_url+'sales/view_payments_modal', {sales_id: sales_id}, function(result) {
-    $(".view_payments_modal").html('').html(result);
-    $('#view_payments_modal').modal('toggle');
+    presentSalesPaymentModal('.view_payments_modal', result, '#view_payments_modal');
   });
 }
 

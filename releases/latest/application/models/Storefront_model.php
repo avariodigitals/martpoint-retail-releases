@@ -108,7 +108,7 @@ class Storefront_model extends CI_Model {
 					store_id INT(11) NOT NULL,
 					api_token TEXT NOT NULL,
 					sender_id VARCHAR(50) NOT NULL DEFAULT 'BulkSMS',
-					base_url VARCHAR(255) NOT NULL DEFAULT 'https://www.bulksmsnigeria.com/api',
+					base_url VARCHAR(255) NOT NULL DEFAULT 'https://www.bulksmsnigeria.com/api/v2',
 					gateway VARCHAR(20) NULL DEFAULT NULL,
 					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 					updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -844,7 +844,7 @@ class Storefront_model extends CI_Model {
 		$salesId = (int)$this->db->insert_id();
 		if(!$salesId){ $this->db->trans_rollback(); return false; }
 		foreach($this->getOrderItems($orderId) as $line){
-			if(!in_array((string)$line->item_type, ['product','bundle'], true)) continue;
+			if(!in_array((string)$line->item_type, ['product','bundle','event'], true)) continue;
 			$this->db->insert('db_salesitems', [
 				'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'sales_status' => 'Final',
 				'item_id' => (int)$line->item_id, 'sales_qty' => (float)$line->qty,
@@ -1299,6 +1299,15 @@ class Storefront_model extends CI_Model {
 		$order = $this->getOrder($orderId);
 		if(!$order){
 			return false;
+		}
+		// Event seats are not warehouse stock: release them here whatever the
+		// physical stock_state says. Paid orders give their seats back through
+		// ticket voids; never-issued lines through the per-line claim. Both are
+		// atomic, so duplicate cancels/expiries release exactly once.
+		if($this->db->table_exists('db_event_tickets')){
+			$this->load->model('events_model');
+			$this->events_model->void_tickets_for_order((int)$orderId, (int)$order->store_id);
+			$this->events_model->release_line_seats((int)$orderId, (int)$order->store_id);
 		}
 		if(isset($order->stock_state) && $order->stock_state === 'none') return true;
 		if(!isset($order->stock_state) && empty($order->stock_adjusted)) return true;
@@ -2544,6 +2553,28 @@ class Storefront_model extends CI_Model {
 		return true;
 	}
 
+	/**
+	 * Issue door codes for paid event tickets (migration 4.0.9.221).
+	 * Idempotent per order line, so a replayed payment callback never
+	 * double-issues. Seat capacity itself was already committed at order
+	 * placement; this turns the held seats into scannable tickets.
+	 */
+	public function deliverEventTickets($orderId){
+		$order = $this->getOrder($orderId);
+		if(!$order || $order->payment_status !== 'paid') return false;
+		if(!$this->db->table_exists('db_event_tickets')) return true;
+		$this->load->model('events_model');
+		foreach($this->getOrderItems($orderId) as $line){
+			if(($line->item_type ?? '') !== 'event') continue;
+			if(empty($line->event_session_id ?? null)){
+				log_message('error', 'Event order line '.$line->id.' on order '.$orderId.' has no session — cannot issue tickets');
+				continue;
+			}
+			$this->events_model->issue_tickets_for_order($order, $line, (int)$order->store_id);
+		}
+		return true;
+	}
+
 	public function completeIfNoPhysicalProducts($orderId){
 		$items = $this->getOrderItems($orderId);
 		if (!$items) return false;
@@ -2579,6 +2610,7 @@ class Storefront_model extends CI_Model {
 			}
 			$this->deliverDigitalOrder($orderId);
 			$this->deliverCourseAndMembership($orderId);
+			$this->deliverEventTickets($orderId);
 			$this->completeIfNoPhysicalProducts($orderId);
 		} catch (Exception $e) {
 			log_message('error', "fulfilPaidOrder failed for order {$orderId}: " . $e->getMessage());

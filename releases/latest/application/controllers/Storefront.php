@@ -1469,6 +1469,8 @@ class Storefront extends CI_Controller {
 		$hasCourse = false;
 		$hasMembership = false;
 		$hasServices = false;
+		$hasEvents = false;
+		$eventSeatLines = [];
 		$orderQty = 0;
 		$itemsToInsert = [];
 		$bundleComponentsByLine = [];
@@ -1548,6 +1550,31 @@ class Storefront extends CI_Controller {
 				} else if($product_type === 'membership'){
 					$hasMembership = true;
 				}
+				// Event tickets (4.0.9.221): the customer picked a session date in
+				// the shared storefront widget; the line carries its id. Never
+				// trust it — resolve store-scoped through the event that owns
+				// this item, then commit seats atomically in the order
+				// transaction below.
+				$evSession = null;
+				if($product_type === 'event'){
+					$evSessionId = (int)($item['session_id'] ?? ($item['options']['session_id'] ?? 0));
+					if(!$evSessionId){
+						echo json_encode(['status' => false, 'message' => 'Please choose an event date for ' . $product->item_name . ' — open the event page to pick a date.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+						return;
+					}
+					$this->load->model('events_model');
+					$evSession = $this->events_model->get_session($evSessionId, $storeId);
+					$evEvent = $evSession ? $this->events_model->get_event($evSession->event_id, $storeId) : null;
+					if(!$evEvent || (int)$evEvent->item_id !== $id || (int)$evSession->status !== 1){
+						echo json_encode(['status' => false, 'message' => 'The chosen date for ' . $product->item_name . ' is no longer on sale.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+						return;
+					}
+					if($evSession->session_date < date('Y-m-d')){
+						echo json_encode(['status' => false, 'message' => 'That event date has already passed.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+						return;
+					}
+					$hasEvents = true;
+				}
 				$price = $isBundle
 					? $this->extras_model->bundleUnitPrice($product, $storeId)
 					: $this->storefront_model->getProductEffectivePrice($product);
@@ -1562,16 +1589,31 @@ class Storefront extends CI_Controller {
 					$instructions = isset($item['note']) && is_string($item['note']) ? mb_substr(trim(strip_tags($item['note'])), 0, 500, 'UTF-8') : '';
 					$mealNote = implode(' · ', array_filter([$mealNote, $instructions]));
 				}
+				$evNote = $mealNote;
+				$evItemType = $isBundle ? 'bundle' : (in_array($product_type, ['digital','course','membership']) ? $product_type : 'product');
+				if($evSession){
+					$evItemType = 'event';
+					$evWhen = date('D, j M Y', strtotime($evSession->session_date));
+					if(!empty($evSession->start_time)) $evWhen .= ' · ' . substr($evSession->start_time, 0, 5);
+					$evNote = trim('When: ' . $evWhen . ($mealNote !== '' ? ' · ' . $mealNote : ''));
+				}
 				$itemsToInsert[] = [
-					'item_type' => $isBundle ? 'bundle' : (in_array($product_type, ['digital','course','membership']) ? $product_type : 'product'),
+					'item_type' => $evItemType,
 					'item_id' => $id,
 					'item_name' => $product->item_name,
 					'item_image' => $product->item_image,
 					'qty' => $qty,
 					'unit_price' => $price,
 					'total_price' => $price * $qty,
-					'service_note' => $mealNote
+					'service_note' => $evNote,
 				];
+				// Column arrives with 4.0.9.221 — omit on older schemas.
+				if($evSession && $this->db->field_exists('event_session_id', 'db_online_order_items')){
+					$itemsToInsert[count($itemsToInsert) - 1]['event_session_id'] = (int)$evSession->id;
+				}
+				if($evSession){
+					$eventSeatLines[] = ['line_index' => count($itemsToInsert) - 1, 'session_id' => (int)$evSession->id, 'qty' => $qty];
+				}
 				if($isBundle){
 					$bundleServiceComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents,function($component){ return (int)($component->service_bit ?? 0)===1 && ($component->product_type ?? '')==='service'; }));
 					$bundleComponentsByLine[$lineIndex] = array_values(array_filter($bundleComponents, function($component){
@@ -1631,12 +1673,20 @@ class Storefront extends CI_Controller {
 		}
 
 		// Pay on delivery only makes sense for physical products
-		if($paymentMethod == 'pay_on_delivery' && ($hasDigital || $hasCourse || $hasMembership || $hasServices)){
-			echo json_encode(['status' => false, 'message' => 'Pay on delivery is not available for digital products, courses, memberships or services.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		if($paymentMethod == 'pay_on_delivery' && ($hasDigital || $hasCourse || $hasMembership || $hasServices || $hasEvents)){
+			echo json_encode(['status' => false, 'message' => 'Pay on delivery is not available for digital products, courses, memberships, event tickets or services.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		// Ticket baskets only ever reach pay-on-delivery by falling back from
+		// paystack/whatsapp when the store has neither enabled — say so plainly.
+		if($paymentMethod == 'pay_on_delivery' && $hasEvents && !$settings->allow_pay_on_delivery){
+			echo json_encode(['status' => false, 'message' => 'Event tickets need online payment or WhatsApp — this store has neither enabled.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 
 		$hasOnlyDigital = ($hasDigital || $hasCourse || $hasMembership) && !$hasPhysical && !$hasServices;
+		// Ticket-only baskets need no delivery either.
+		$hasOnlyDigital = $hasOnlyDigital || ($hasEvents && !$hasPhysical && !$hasServices && !$hasDigital && !$hasCourse && !$hasMembership);
 		$orderType = ($hasProducts && $hasServices) ? 'mixed' : ($hasServices ? 'service' : 'product');
 		if ($appointmentRequest) {
 			$shippingMethod = null;
@@ -1906,6 +1956,20 @@ class Storefront extends CI_Controller {
 				];
 				$this->storefront_model->addOrderItem($componentLine);
 				$bundleDraws[] = ['item_id' => (int)$component->component_item_id, 'qty' => $componentQty];
+			}
+		}
+
+		// Reserve event seats atomically — the capacity guard lives in the
+		// UPDATE itself, so two checkouts cannot oversell a session, and the
+		// hold rolls back with the order transaction if anything later fails.
+		if(!empty($eventSeatLines)){
+			$this->load->model('events_model');
+			foreach($eventSeatLines as $seatLine){
+				if(!$this->events_model->reserve_seats($seatLine['session_id'], $seatLine['qty'], $storeId)){
+					$this->db->trans_rollback();
+					echo json_encode(['status' => false, 'message' => 'Some seats for ' . $itemsToInsert[$seatLine['line_index']]['item_name'] . ' were just taken. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+					return;
+				}
 			}
 		}
 
@@ -2210,6 +2274,45 @@ class Storefront extends CI_Controller {
 			'</p></body></html>';
 	}
 
+	/**
+	 * Campaign open pixel (public, token-scoped). Returns an invisible 1x1 image
+	 * and counts one open per recipient per hour; mail scanners are never counted.
+	 */
+	public function campaign_open($token = ''){
+		$this->load->model('communication_report_model', 'comm_report');
+		$this->load->library('communication_tracking');
+		try {
+			if ($this->comm_report->ready()) {
+				$send = $this->comm_report->sendByToken($token);
+				if ($send && $send->status === 'sent') $this->comm_report->recordOpen($send, (string)$this->input->server('HTTP_USER_AGENT'));
+			}
+		} catch (Throwable $e) {}
+		$this->output->set_content_type('image/gif')
+			->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0')
+			->set_header('Pragma: no-cache')->set_header('Expires: Thu, 01 Jan 1970 00:00:00 GMT')
+			->set_header('X-Content-Type-Options: nosniff')
+			->set_output(base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'));
+	}
+
+	/**
+	 * Campaign link redirect (public). The signature is bound to the recipient
+	 * token, so only links this store actually delivered can pass through.
+	 */
+	public function campaign_click($token = '', $signature = '', $link = ''){
+		$this->load->model('communication_report_model', 'comm_report');
+		$this->load->library('communication_tracking');
+		$url = Communication_tracking::verifyClick($token, $link, $signature);
+		if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL)) { show_error('This link is no longer valid.', 400); return; }
+		try {
+			if ($this->comm_report->ready()) {
+				$send = $this->comm_report->sendByToken($token);
+				if ($send && $send->status === 'sent') $this->comm_report->recordClick($send, $url, (string)$this->input->server('HTTP_USER_AGENT'));
+			}
+		} catch (Throwable $e) {}
+		// The reader's destination must not learn the recipient token from a referrer.
+		$this->output->set_header('Referrer-Policy: no-referrer')->set_header('Cache-Control: no-store')->set_status_header(302)->set_header('Location: ' . $url);
+	}
+
 	/** One-click unsubscribe for stock alerts (token in link). */
 	public function stock_unsubscribe($token = ''){
 		$this->load->model('Marketing_model','marketing_m');
@@ -2263,12 +2366,24 @@ class Storefront extends CI_Controller {
 			}
 		}
 
+		$eventTickets = [];
+		$hasEventLine = false;
+		foreach($items as $item){
+			if(($item->item_type ?? '') === 'event'){ $hasEventLine = true; break; }
+		}
+		if($hasEventLine){
+			$this->load->model('events_model');
+			$eventTickets = $this->events_model->customerTickets($order->id, $storeId);
+		}
+
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'order' => $order,
 			'items' => $items,
 			'download_links' => $downloadLinks,
+			'event_tickets' => $eventTickets,
+			'has_event_line' => $hasEventLine,
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),

@@ -86,4 +86,21 @@ class Messaging_pricing {
         $parts = explode('.', (string)$naira);
         return (int)$parts[0] * 100 + (int)str_pad($parts[1] ?? '', 2, '0');
     }
+
+    /**
+     * VAT applied to what a store buys from Central — subscriptions, credit
+     * recharges and add-on packages. Consumption tax on individual messages is
+     * separate; a store that pays per message is never also charged on deposit.
+     */
+    public static function vat($netKobo, $bps) {
+        $net = max(0, (int)$netKobo); $bps = max(0, min(10000, (int)$bps));
+        $tax = (int)round($net * $bps / 10000);
+        return array('net_kobo' => $net, 'tax_bps' => $bps, 'tax_kobo' => $tax, 'total_kobo' => $net + $tax);
+    }
+
+    /** A per-store override wins; 0 on the override means "use the platform default". */
+    public static function cap($accountValue, $platformDefault) {
+        $override = max(0, (int)$accountValue);
+        return $override > 0 ? $override : max(0, (int)$platformDefault);
+    }
 }

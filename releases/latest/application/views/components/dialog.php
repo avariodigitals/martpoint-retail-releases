@@ -16,7 +16,7 @@
   .cq-prompt-card{position:relative;width:100%;max-width:420px;background:#fff;border-radius:18px;padding:22px;box-shadow:0 28px 70px rgba(15,23,42,.28);transform:translateY(10px) scale(.97);opacity:0;transition:all .2s cubic-bezier(.16,1,.3,1);font-family:inherit;}
   .cq-prompt-wrap.open .cq-prompt-card{transform:translateY(0) scale(1);opacity:1;}
   .cq-prompt-card h4{margin:0 0 6px;font-size:17px;font-weight:700;color:#0F172A;}
-  .cq-prompt-card p{margin:0 0 16px;font-size:13px;line-height:1.5;color:#64748B;}
+  .cq-prompt-card p{margin:0 0 16px;font-size:13px;line-height:1.5;color:#64748B;white-space:pre-line;}
   .cq-prompt-body textarea,.cq-prompt-body input[type=text]{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #E2E8F0;border-radius:12px;font-size:15px;font-family:inherit;color:#0F172A;background:#fff;outline:none;transition:border-color .15s, box-shadow .15s;}
   .cq-prompt-body textarea:focus,.cq-prompt-body input[type=text]:focus{border-color:#0D9488;box-shadow:0 0 0 3px rgba(13,148,136,.15);}
   .cq-prompt-opts{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;}

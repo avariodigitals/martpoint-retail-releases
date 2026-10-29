@@ -120,6 +120,7 @@ class Marketing extends MY_Controller {
 	/* ================= PHASE 3: CAMPAIGNS ================= */
 
 	public function campaigns(){
+        if(!mp_is_central()){redirect('communications/channel/'.($this->_can_send_channel('email')?'email':'sms').((is_mobile() || $this->input->get('screen')==='mobile')?'?screen=mobile':''));return;}
 		if(!$this->_can_send()){ $this->show_access_denied_page(); return; }
 		$storeId = get_current_store_id();
 		$this->load->model('Marketing_model','marketing_m');
@@ -159,6 +160,7 @@ class Marketing extends MY_Controller {
 		}
 		$channel = $this->input->post('channel') === 'sms' ? 'sms' : 'email';
 		if(!$this->_can_send_channel($channel)){ echo json_encode(['status'=>'error','message'=>'You do not have permission to create ' . strtoupper($channel) . ' campaigns']); return; }
+        if($segKey==='abandoned_carts'){echo json_encode(array('status'=>'error','message'=>'Use Automation → Recover abandoned carts for cart reminders.'));return;}
         if(trim((string)$this->input->post('name'))==='' || trim((string)$this->input->post('message'))==='' || ($channel==='email' && trim((string)$this->input->post('subject'))==='')){
             echo json_encode(array('status'=>'error','message'=>'Enter a campaign name, message and an email subject when sending email.')); return;
         }
@@ -186,6 +188,7 @@ class Marketing extends MY_Controller {
 		// Channel permission is enforced per send — send_email does not
 		// authorise SMS spend and vice versa.
 		if(!$this->_can_send_channel($campaign->channel)){ echo json_encode(['status'=>'error','message'=>'No ' . strtoupper($campaign->channel) . ' send permission']); return; }
+        $this->load->model('communication_schedule_model');$schedule=$this->communication_schedule_model->get($storeId,$cid);if($schedule && in_array($schedule['status'],array('scheduled','paused'),true) && !$testOnly){echo json_encode(array('status'=>'error','message'=>'This campaign is scheduled. Cancel its schedule before sending now.'));return;}
 		// draft starts, partial/sending resume — 'sent' is terminal.
 		if($campaign->status === 'sent' && !$testOnly){ echo json_encode(['status'=>'error','message'=>'Campaign already fully dispatched']); return; }
 
@@ -206,7 +209,7 @@ class Marketing extends MY_Controller {
             echo json_encode(array('status'=>'error','message'=>$quote['message']??'Review and confirm the current messaging cost before sending.')); return;
         }
         if(!$testOnly){
-            $approved=$this->messaging_client->request('authorize_campaign',$storeId,array('campaign_id'=>(string)$cid,'budget_kobo'=>(int)$quote['total_kobo']));
+            $approved=$this->messaging_client->request('authorize_campaign',$storeId,array('campaign_id'=>(string)$cid,'budget_kobo'=>(int)$quote['total_kobo'],'channel'=>$campaign->channel,'budget_units'=>(int)($quote['credit_units']??0)));
             if(empty($approved['success'])){ echo json_encode(array('status'=>'error','message'=>$approved['message']??'Campaign spend could not be approved.')); return; }
             $this->db->query('INSERT INTO db_messaging_campaign_approvals (store_id,campaign_id,approved_at) VALUES (?,?,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE approved_at=VALUES(approved_at)',array($storeId,$cid));
         }
@@ -288,6 +291,7 @@ class Marketing extends MY_Controller {
     }
 
     private function _campaignQuote($campaign,$test){
+        $this->load->model('communication_schedule_model');$schedule=$this->communication_schedule_model->get($campaign->store_id,$campaign->id);if(!$test && $schedule && in_array($schedule['status'],array('scheduled','paused'),true))return array('success'=>false,'message'=>'This campaign is scheduled. Its audience will be resolved at the scheduled time.');
         $this->load->library('campaign_messaging');
         if($test){
             $store=get_store_details($campaign->store_id);

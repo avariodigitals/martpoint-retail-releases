@@ -67,7 +67,7 @@ class Sms extends MY_Controller {
 			$creds = (object)[
 				'api_token' => $token,
 				'sender_id' => 'BulkSMS',
-				'base_url'  => $base !== '' ? $base : 'https://www.bulksmsnigeria.com/api',
+				'base_url'  => $base !== '' ? $base : Bulksmsng_model::DEFAULT_BASE,
 				'gateway'   => null,
 			];
 			$res = $this->_probe_with_credentials($creds, $base);
@@ -79,7 +79,10 @@ class Sms extends MY_Controller {
 
 	/** One-shot balance probe against explicit credentials. */
 	private function _probe_with_credentials($creds, $base){
-		$url = rtrim($base !== '' ? $base : 'https://www.bulksmsnigeria.com/api', '/') . '/wallet/balance';
+		$url = $this->bulksmsng_model->endpoint_url(
+			$base !== '' ? $base : Bulksmsng_model::DEFAULT_BASE,
+			'/balance'
+		);
 		$ch = curl_init($url);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, TRUE);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
@@ -94,9 +97,10 @@ class Sms extends MY_Controller {
 		curl_close($ch);
 		if($cerr !== ''){ return ['ok'=>false,'message'=>'Connection error: ' . $cerr]; }
 		$json = json_decode((string)$raw, true);
-		if($http >= 200 && $http < 300 && is_array($json) && strtolower((string)($json['status'] ?? '')) === 'success'){
+		$status = is_array($json) ? ($json['status'] ?? ($json['data']['status'] ?? null)) : null;
+		if($http >= 200 && $http < 300 && is_string($status) && strtolower($status) === 'success'){
 			$data = $json['data'] ?? $json;
-			$bal  = is_array($data) ? ($data['balance'] ?? $data['current_balance'] ?? null) : null;
+			$bal  = $json['balance']['total_balance'] ?? (is_array($data) ? ($data['balance'] ?? $data['current_balance'] ?? null) : null);
 			return [
 				'ok' => true,
 				'message' => $bal !== null

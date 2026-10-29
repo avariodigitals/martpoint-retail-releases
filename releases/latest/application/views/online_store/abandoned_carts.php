@@ -15,7 +15,7 @@
 </div>
 
 <div class="mp-table-wrap">
-  <div class="mp-card-head"><h3>Abandoned Carts</h3></div>
+  <div class="mp-card-head"><h3>Abandoned Carts</h3></div><div style="padding:16px"><a class="mp-btn-primary" href="<?= base_url('communications/channel/automation?section=create&recipe=abandoned_cart'); ?>">Create cart recovery workflow</a><p class="mp-form-hint">Automatic reminders are managed in Communications → Automation. Your cart records and manual WhatsApp recovery remain here.</p></div>
   <div class="box-body">
     <?php if(!$enabled): ?>
       <div class="ac-empty">

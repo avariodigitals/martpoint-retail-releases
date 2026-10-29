@@ -22,6 +22,14 @@ class Cron extends CI_Controller {
 		$this->load->model('debt_reminder_model');
 	}
 
+    public function communications($cliKey=''){
+        $secret=(string)$this->config->item('cron_secret_key');$key=(string)($this->input->get('key')?:$cliKey);
+        if(PHP_SAPI!=='cli' && ($secret==='' || !hash_equals($secret,$key))){show_error('Invalid cron key.',403);return;}
+        if(mp_is_central()){$this->load->model('communications_model');$result=$this->communications_model->ready()?$this->communications_model->notify(5):0;}
+        else{$this->load->model('communication_automation_model');$result=$this->communication_automation_model->run();}
+        $this->output->set_content_type('application/json')->set_output(json_encode(array('success'=>true,'processed'=>$result)));
+    }
+
 	/**
 	 * Run all due scheduled reports
 	 */
@@ -82,6 +90,7 @@ class Cron extends CI_Controller {
 			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
 			return;
 		}
+        if($this->db->table_exists('db_communication_auto_workflows') && $this->db->table_exists('db_communication_cart_sends')){$this->load->model('communication_automation_model');$processed=$this->communication_automation_model->run('abandoned_cart');$this->_cartRecoveryOut($isCli,array('status'=>'completed','processed'=>$processed,'message'=>'Cart recovery is managed by Automation workflows.'));return;}
 		$this->load->model('storefront_model');
 		if(!$this->db->table_exists('db_storefront_carts') || !$this->db->field_exists('auto_recovery_enabled', 'db_storefront_settings')){
 			$this->_cartRecoveryOut($isCli, ['status'=>'skipped','message'=>'feature tables not installed']);
@@ -232,6 +241,7 @@ class Cron extends CI_Controller {
 			$this->_cartRecoveryOut($isCli, ['status'=>'skipped','message'=>'campaign tables not installed']);
 			return;
 		}
+        $this->load->model('communication_schedule_model');$this->communication_schedule_model->run();
 		$this->marketing_m->releaseStuckSends();
 		$done = 0; $rateLimited = false; $dispatchStarted=microtime(true);
 		foreach($this->marketing_m->getUnfinishedCampaigns() as $campaign){
