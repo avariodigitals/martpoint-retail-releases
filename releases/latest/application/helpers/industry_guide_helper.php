@@ -22,6 +22,7 @@ if (!function_exists('mp_industry_guide')) {
             'butcher' => array('Butchery Use Case', 'Meat stock, processing and daily sales.', 'butchery-frozen-customer-guide.html', 'fa-cutlery'),
             'perfume_shop' => array('Perfume Shop Use Case', 'Blending, decants and bespoke orders.', 'perfume-shop-customer-guide.html', 'fa-flask'),
             'car_dealership' => array('Automobile Use Case', 'Vehicle stock, sales and customer records.', 'automobile-customer-guide.html', 'fa-car'),
+            'tyre_shop' => array('Tyre Shop Use Case', 'Sizes, DOT batches, customer vehicles and fitting jobs.', 'tyre-shop-customer-guide.html', 'fa-circle-o'),
         );
         if (!isset($guides[$industry_type])) return null;
         $guide = $guides[$industry_type];

@@ -636,6 +636,41 @@ class Default_data_model extends CI_Model {
     }
 
     /**
+     * Pharmacy preset flags that installs built before the pharmacy review
+     * never received: selling a strip by the piece, and the Rx-only medicine
+     * rule. Only keys that are completely absent are added — a store that
+     * switched either flag off deliberately keeps its own choice.
+     */
+    public function sync_pharmacy_feature_flags($store_id, $apply = true) {
+        $out = array('changed' => array(), 'already' => 0);
+        $store_id = (int) $store_id;
+        if (empty($store_id) || !$this->db->table_exists('db_store_industry_settings')) {
+            return $out;
+        }
+        $row = $this->db->select('industry_type, feature_flags_json')
+            ->where('store_id', $store_id)->get('db_store_industry_settings')->row();
+        if (!$row || empty($row->industry_type)) {
+            return $out;
+        }
+        if (!function_exists('mp_pharmacy_industry') || !mp_pharmacy_industry($row->industry_type)) {
+            return $out;
+        }
+        $flags = json_decode((string) $row->feature_flags_json, true);
+        if (!is_array($flags)) { $flags = array(); }
+        foreach (array('multi_unit_selling', 'prescription_required') as $flag) {
+            if (array_key_exists($flag, $flags)) { $out['already']++; continue; }
+            $out['changed'][$flag] = '1';
+            $flags[$flag] = '1';
+        }
+        if ($apply && !empty($out['changed'])) {
+            $this->db->where('store_id', $store_id)->update('db_store_industry_settings', array(
+                'feature_flags_json' => json_encode($flags),
+            ));
+        }
+        return $out;
+    }
+
+    /**
      * Additively sync a store's physiotherapy role presets with the current
      * role map.
      *
@@ -774,6 +809,7 @@ class Default_data_model extends CI_Model {
             // Stock
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            'recall_view','recall_add',
             // Warehouse
 'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
@@ -885,6 +921,7 @@ class Default_data_model extends CI_Model {
             // Stock
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            'recall_view','recall_add',
             // Warehouse
 'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
@@ -1067,6 +1104,7 @@ class Default_data_model extends CI_Model {
             // Stock
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            'recall_view','recall_add',
             // Warehouse
 'warehouse_edit','warehouse_delete',            // Reports (inventory-focused, NO GST reports)
             'purchase_report','stock_report','expired_items_report',
@@ -1322,6 +1360,116 @@ class Default_data_model extends CI_Model {
         return $results;
     }
 
+    // ============================================================
+    // PHARMACY ROLES
+    // Seeded when the store's business type is a pharmacy. Explicit clinical
+    // grants only: the Pharmacist may freeze a batch and decide a prescription
+    // review, the Dispensing Assistant may not.
+    // ============================================================
+
+    /**
+     * Pharmacist: dispenses at the till, owns the prescription queue, may
+     * quarantine a batch and fulfil reviewed online patient orders.
+     * No users, roles, settings, tax or system access.
+     */
+    private function get_pharmacist_permissions() {
+        return array(
+            'dashboard_view','dashboard_info_box_1','dashboard_info_box_2',
+            'dashboard_recent_items','dashboard_stock_alert','dashboard_expired_items',
+            // Dispensing
+            'pos','sales_add','sales_edit','sales_view',
+            'sales_payment_view','sales_payment_add',
+            'sales_return_add','sales_return_edit','sales_return_view',
+            'cashier_shifts_manage',
+            // Patients
+            'customers_add','customers_edit','customers_view',
+            // Prescriptions — record and review, the deletion right stays with the owner
+            'medical_notes_add','medical_notes_edit','medical_notes_view',
+            // Online patient orders (intake, prescription review, fulfilment)
+            'online_store_view','online_store_orders',
+            // Catalogue read + batch fields
+            'items_view','items_category_view','brand_view','units_view','print_labels',
+            // Stock safety
+            'stock_adjustment_add','stock_adjustment_view',
+            'stock_transfer_view',
+            'expired_items_report','expiry_settings',
+            'recall_view','recall_add',
+            // Purchasing visibility
+            'purchase_view','suppliers_view','purchase_report',
+            'quotation_view',
+            // Reports
+            'sales_report','stock_report',
+            'show_purchase_price'
+        );
+    }
+
+    /**
+     * Dispensing Assistant: counter work. Takes a prescription in, sells over
+     * the counter, cannot review a prescription, freeze stock or see costs.
+     */
+    private function get_dispensing_assistant_permissions() {
+        return array(
+            'dashboard_view','dashboard_info_box_1',
+            'pos','sales_add','sales_view',
+            'sales_payment_view',
+            'sales_return_view',
+            'customers_add','customers_edit','customers_view',
+            'medical_notes_add','medical_notes_view',
+            'items_view','units_view','print_labels',
+            'recent_sales_invoice_list'
+        );
+    }
+
+    /**
+     * Pharmacy role map — name => permission set. Seeded by
+     * create_pharmacy_roles() when the store runs a pharmacy business type;
+     * also registered in get_role_default_permissions() so reseed backfills.
+     */
+    private function get_pharmacy_role_map() {
+        return array(
+            'Pharmacist' => array(
+                'description' => 'Dispensing pharmacist. Prescriptions, checkout, batch quarantine and online order review.',
+                'permissions' => $this->get_pharmacist_permissions(),
+            ),
+            'Dispensing Assistant' => array(
+                'description' => 'Counter staff. Takes prescriptions in and sells over the counter. No review, quarantine or costing.',
+                'permissions' => $this->get_dispensing_assistant_permissions(),
+            ),
+        );
+    }
+
+    /**
+     * Create the pharmacy role presets for a store. Idempotent — skips roles
+     * that already exist, so an owner's renamed role is never duplicated.
+     */
+    public function create_pharmacy_roles($store_id) {
+        $results = array('count' => 0, 'errors' => array());
+        if (empty($store_id)) {
+            return $results;
+        }
+        foreach ($this->get_pharmacy_role_map() as $role_name => $config) {
+            $exists = $this->db->query(
+                "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = UPPER(?)",
+                array($store_id, $role_name)
+            )->num_rows();
+            if ($exists > 0) {
+                continue;
+            }
+            if ($this->db->insert('db_roles', array(
+                'store_id'    => $store_id,
+                'role_name'   => $role_name,
+                'description' => $config['description'],
+                'status'      => 1,
+            ))) {
+                $this->assign_permissions($this->db->insert_id(), $store_id, $config['permissions']);
+                $results['count']++;
+            } else {
+                $results['errors'][] = "Failed to create role: {$role_name}";
+            }
+        }
+        return $results;
+    }
+
     /**
      * Partner: Implementation and setup partner.
      * Full setup access (users, roles, business setup, master data) plus operational view.
@@ -1371,6 +1519,7 @@ class Default_data_model extends CI_Model {
             // Stock / Warehouse
             'stock_transfer_add','stock_transfer_edit','stock_transfer_delete','stock_transfer_view',
             'stock_adjustment_add','stock_adjustment_edit','stock_adjustment_delete','stock_adjustment_view',
+            'recall_view','recall_add',
 'warehouse_edit','warehouse_delete',            // Accounts
             'accounts_add','accounts_edit','accounts_delete','accounts_view',
             'money_transfer_add','money_transfer_edit','money_transfer_delete','money_transfer_view',
@@ -1507,6 +1656,8 @@ class Default_data_model extends CI_Model {
             'Finance Officer'=> $this->get_finance_officer_permissions(),
             'Auditor'        => $this->get_auditor_permissions(),
             'Porter'         => $this->get_porter_permissions(),
+            'Pharmacist'     => $this->get_pharmacist_permissions(),
+            'Dispensing Assistant' => $this->get_dispensing_assistant_permissions(),
         );
 
         foreach ($maps as $name => $perms) {
@@ -1630,6 +1781,7 @@ class Default_data_model extends CI_Model {
             'juice_bar'            => 'food_service',
             'buka'                 => 'food_service',
             'canteen'              => 'food_service',
+            'bar_lounge'           => 'bar_drinks',
             'electronics'          => 'electronics',
             'computer_store'       => 'electronics',
             'gadget_store'         => 'electronics',
@@ -1665,12 +1817,18 @@ class Default_data_model extends CI_Model {
             'garden_centre_landscaping' => 'garden_centre',
             'feed_store'           => 'agro',
             'auto_parts'           => 'auto_parts',
-            'tyre_shop'            => 'auto_parts',
+            'tyre_shop'            => 'tyre_shop',
             'car_dealership'       => 'auto_dealer',
             'printing'             => 'printing',
             'tailoring'            => 'tailoring',
             'manufacturer'         => 'manufacturing',
             'nylon_polythene'      => 'nylon',
+            'oil_processing_plant' => 'oil_processing',
+            'lpg_gas_business'     => 'lpg_gas',
+            'fuel_station'         => 'fuel_station',
+            'bulk_fuel_depot'      => 'bulk_fuel_depot',
+            'lubricants_distributor' => 'lubricants',
+            'oil_gas_supply_services' => 'oil_gas_supply_services',
             'scientific_equipment' => 'scientific',
             'service_business'     => 'services',
             'online_store'         => 'digital',
@@ -1686,6 +1844,7 @@ class Default_data_model extends CI_Model {
      *  brands           => [names]                       (optional)
      *  services         => name => [price, duration, appointment] (optional)
      *  items            => name => [category, unit, sales_price, purchase_price, stock] (optional)
+     *  variants         => attribute_type => [values]    (optional — size/colour master rows)
      */
     private function _industry_seed_packs() {
         return array(
@@ -1771,6 +1930,29 @@ class Default_data_model extends CI_Model {
                 ),
                 'recipe_categories' => array(
                     'Mains', 'Starters', 'Drinks', 'Desserts', 'Combos',
+                ),
+            ),
+            'bar_drinks' => array(
+                'units' => array(
+                    'Glass'   => array('GLS', null, 1, 1),
+                    'Shot'    => array('SHOT', null, 1, 0),
+                    'Bottle'  => array('BTL', null, 1, 0),
+                    'Can'     => array('CAN', null, 1, 0),
+                    'Crate'   => array('CRATE', null, 1, 0),
+                    'Plate'   => array('PLATE', null, 1, 0),
+                    'Kilogram'=> array('KG', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Cocktails'             => 'Blended and mixed drinks made to order',
+                    'Spirits'               => 'Gin, whiskey, brandy, rum and other hard liquor',
+                    'Beer & Stout'          => 'Draft, bottled and canned beers and stouts',
+                    'Soft Drinks & Water'   => 'Sodas, juices, mineral water and mixers',
+                    'Bar Bites & Snacks'    => 'Small chops and snacks served at the bar',
+                    'Wine & Champagne'      => 'Still and sparkling wines',
+                    'Ingredients'           => 'Recipe stock items (not for direct sale)',
+                ),
+                'recipe_categories' => array(
+                    'Cocktails', 'Bar Bites', 'House Mixes',
                 ),
             ),
             'electronics' => array(
@@ -2123,8 +2305,8 @@ class Default_data_model extends CI_Model {
                     'Kilogram'   => array('KG',  null, 1,        0),
                     'Gram'       => array('g',   'KG', 1000,     0),
                     'Piece'      => array('PCS', null, 1,        0),
-                    'Bottle'     => array('',    null, 1,        0),
-                    'Decant'     => array('',    null, 1,        0),
+                    'Bottle'     => array('BTL', null, 1,        0),
+                    'Decant'     => array('DCT', null, 1,        0),
                 ),
                 'item_categories' => array(
                     'Fragrance Oils & Concentrates' => 'Pure perfume oils, dupes and concentrates used in blending',
@@ -2244,6 +2426,45 @@ class Default_data_model extends CI_Model {
                     'Tyres & Wheels'    => 'Tyres, rims and wheel accessories',
                     'Body & Accessories'=> 'Body parts and accessories',
                 ),
+                'brands' => array('Bosch', 'Denso', 'Champion', 'Ferodo', 'Gates', 'Exide', 'Tiger Head', 'Grosfire'),
+                'services' => array(
+                    'Part Fitting'       => array('price' => 0, 'duration' => '30 min', 'appointment' => 0, 'description' => 'Fit a purchased part onto the customer vehicle'),
+                    'Battery Fitting'    => array('price' => 0, 'duration' => '15 min', 'appointment' => 0, 'description' => 'Swap and connect a new battery, road-test the charge'),
+                    'Spark Plug Change'  => array('price' => 0, 'duration' => '30 min', 'appointment' => 0, 'description' => 'Replace worn spark plugs and check the gap'),
+                    'Oil & Filter Change'=> array('price' => 0, 'duration' => '40 min', 'appointment' => 1, 'description' => 'Drain engine oil, replace the filter, top up and record the mileage'),
+                    'Fault Diagnostic'   => array('price' => 0, 'duration' => '45 min', 'appointment' => 1, 'description' => 'Read fault codes and report what the vehicle needs'),
+                ),
+            ),
+            'tyre_shop' => array(
+                'units' => array(
+                    'Piece' => array('PCS', null, 1, 1),
+                    'Set'   => array('SET', null, 1, 0),
+                    'Pair'  => array('PAIR', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Passenger Car Tyres'     => 'Tyres for saloons and crossovers',
+                    'SUV & 4x4 Tyres'         => 'Highway and all-terrain tyres for SUVs',
+                    'Truck & Commercial Tyres'=> 'Heavy-duty, bus and fleet tyres',
+                    'Rims & Wheels'           => 'Alloy and steel rims',
+                    'Tubes, Flaps & Valves'   => 'Inner tubes, flaps and valve accessories',
+                ),
+                'brands' => array('Gondwana', 'Hallburg', 'Fortune', 'Double Coin', 'GT Radial', 'Michelin', 'Continental', 'Bridgestone'),
+                'services' => array(
+                    'Tyre Fitting'     => array('price' => 0, 'duration' => '20 min', 'appointment' => 0, 'description' => 'Mount a tyre on its rim and secure it on the vehicle'),
+                    'Wheel Balancing'  => array('price' => 0, 'duration' => '15 min', 'appointment' => 0, 'description' => 'Balance the wheel so the ride stays smooth'),
+                    'Wheel Alignment'  => array('price' => 0, 'duration' => '30 min', 'appointment' => 1, 'description' => 'Set the wheel angles so the vehicle tracks straight'),
+                    'Puncture Repair'  => array('price' => 0, 'duration' => '15 min', 'appointment' => 0, 'description' => 'Plug or patch a punctured tyre'),
+                    'Tyre Rotation'    => array('price' => 0, 'duration' => '20 min', 'appointment' => 0, 'description' => 'Move tyres between positions for even wear'),
+                ),
+                // Size master rows so a new tyre shop can tag stock with the
+                // sizes it actually sells the day it opens.
+                'variants' => array(
+                    'size' => array(
+                        '155/65R13', '165/70R13', '175/65R14', '185/65R15', '195/65R15',
+                        '205/55R16', '215/60R16', '225/45R17', '235/60R18', '245/70R16',
+                        '265/65R17', '285/60R18', '7.50R16', '9.00R20', '315/80R22.5',
+                    ),
+                ),
             ),
             'auto_dealer' => array(
                 'units' => array(
@@ -2328,6 +2549,126 @@ class Default_data_model extends CI_Model {
                 ),
                 'recipe_categories' => array(
                     'Film Specifications',
+                ),
+            ),
+            'oil_processing' => array(
+                'units' => array(
+                    'Kilogram' => array('KG', null, 1, 1),
+                    'Litre'    => array('L', null, 1, 0),
+                    'Tonnes'   => array('T', 'KG', 1000, 0),
+                    'Drum'     => array('DRUM', 'KG', 220, 0),
+                    'Keg'      => array('KEG', 'L', 25, 0),
+                    'Bag'      => array('BAG', null, 1, 0),
+                    'Bottle'   => array('BTL', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Fresh Fruit Bunches'   => 'Palm bunches and other oil-bearing fruit received at the plant',
+                    'Nuts & Kernels'        => 'Palm oil nuts and kernels before crushing',
+                    'Crude Oil (WIP)'       => 'CPO and crude vegetable oil held for refining',
+                    'Refined Finished Oil'  => 'RBD palm oil, olein, stearin and refined vegetable oil for sale',
+                    'By-Products & Residue' => 'PK cake, fibre, shell and sludge recovered from processing',
+                    'Packaging & Consumables' => 'Drums, kegs, cartons, labels and sealing materials',
+                ),
+                'recipe_categories' => array(
+                    'Process Formulas',
+                ),
+            ),
+            // Fuel trading profiles. These are deliberately separate from
+            // 'oil_processing' above, which is the edible palm/vegetable oil
+            // plant. Volumes sell by the litre, LPG by the kilogram, and a
+            // cylinder is counted apart from the gas inside it.
+            'lpg_gas' => array(
+                'units' => array(
+                    'Kilogram' => array('KG', null, 1, 1),
+                    'Litre'    => array('L', null, 1, 0),
+                    'Cylinder' => array('CYL', null, 1, 0),
+                    'Drum'     => array('DRUM', 'KG', 220, 0),
+                    'Piece'    => array('PCS', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'LPG Cylinders'        => 'Cylinders sold or exchanged, counted apart from the gas inside',
+                    'Gas Refills'          => 'Refills and top-ups sold by weight',
+                    'Bulk LPG (Drum/IBC)'  => 'Drums and bulk vessels for shops and kitchens',
+                    'Regulators & Hoses'   => 'Regulators, hoses, clips and hose sets',
+                    'Cylinder Accessories' => 'Valves, caps, seals and handles',
+                    'Safety Equipment'     => 'Leak detectors, fire blankets and signage',
+                ),
+                'services' => array(
+                    'Cylinder Refill'  => array('price' => 0, 'duration' => '', 'description' => 'Refill a customer cylinder by weight', 'appointment' => 0),
+                    'Cylinder Exchange' => array('price' => 0, 'duration' => '', 'description' => 'Swap an empty cylinder for a filled one', 'appointment' => 0),
+                ),
+            ),
+            'fuel_station' => array(
+                'units' => array(
+                    'Litre'  => array('L', null, 1, 1),
+                    'Kilogram' => array('KG', null, 1, 0),
+                    'Piece'  => array('PCS', null, 1, 0),
+                    'Carton' => array('CTN', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Petrol (Gasoline)'      => 'Pump petrol sold by the litre',
+                    'Diesel (AGO)'           => 'Automotive gas oil sold by the litre',
+                    'Kerosene (DPK)'         => 'Dual purpose kerosene',
+                    'Lubricants & Coolants'  => 'Engine oil, coolant and brake fluid sold at the forecourt',
+                    'Forecourt Goods'        => 'Snacks, drinks and other convenience store lines',
+                    'Other Products'         => 'Anything else the station sells',
+                ),
+            ),
+            'bulk_fuel_depot' => array(
+                'units' => array(
+                    'Litre'  => array('L', null, 1, 1),
+                    'Kilogram' => array('KG', null, 1, 0),
+                    'Drum'   => array('DRUM', 'L', 220, 0),
+                    'IBC/Tank' => array('IBC', 'L', 1000, 0),
+                    'Piece'  => array('PCS', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Bulk Diesel'            => 'Diesel received and dispatched in bulk',
+                    'Bulk Petrol (Gasoline)' => 'Petrol received and dispatched in bulk',
+                    'Kerosene (DPK)'         => 'Bulk kerosene',
+                    'Bulk LPG'               => 'LPG held in drums and bulk vessels',
+                    'Additives & Treatment'  => 'Fuel treatment chemicals and dosing products',
+                    'Depot Consumables'      => 'Hoses, seals, gauges and dispensing consumables',
+                ),
+            ),
+            'lubricants' => array(
+                'units' => array(
+                    'Litre'  => array('L', null, 1, 1),
+                    'Kilogram' => array('KG', null, 1, 0),
+                    'Pail'   => array('PAIL', 'L', 20, 0),
+                    'Drum'   => array('DRUM', 'L', 220, 0),
+                    'Carton' => array('CTN', null, 1, 0),
+                    'Piece'  => array('PCS', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Engine & Gear Oils'      => 'Monograde and multigrade engine oils, gear oils',
+                    'Greases'                 => 'Lithium and industrial greases in tubs and cartridges',
+                    'Coolants & Antifreeze'   => 'Radiator coolants and antifreeze',
+                    'Brake & Transmission Fluids' => 'Brake fluid, ATF and power steering fluid',
+                    'Industrial Oils'         => 'Hydraulic, cutting and compressor oils',
+                    'Packaging & Consumables' => 'Bottles, caps, labels and sealing materials',
+                ),
+            ),
+            'oil_gas_supply_services' => array(
+                'units' => array(
+                    'Piece'  => array('PCS', null, 1, 1),
+                    'Set'    => array('SET', null, 1, 0),
+                    'Kit'    => array('KIT', null, 1, 0),
+                    'Litre'  => array('L', null, 1, 0),
+                    'Kilogram' => array('KG', null, 1, 0),
+                    'Metre'  => array('M', null, 1, 0),
+                ),
+                'item_categories' => array(
+                    'Spare Parts & Fittings' => 'Pumps, valves, flanges, pipes and fittings',
+                    'Safety & PPE'           => 'Coveralls, helmets, gloves, boots and fire extinguishers',
+                    'Instruments & Meters'   => 'Gauges, flow meters and test equipment',
+                    'Tools & Equipment'      => 'Hand tools, torque tools and workshop equipment',
+                    'Hoses & Regulators'     => 'Gas hoses, regulators and clamps',
+                    'Consumables'            => 'Seals, gaskets, tape and thread compound',
+                ),
+                'services' => array(
+                    'Installation'      => array('price' => 0, 'duration' => '', 'description' => 'Install or commission equipment on site', 'appointment' => 1),
+                    'Maintenance Visit' => array('price' => 0, 'duration' => '', 'description' => 'Scheduled servicing of customer equipment', 'appointment' => 1),
                 ),
             ),
             'services' => array(
@@ -2558,6 +2899,38 @@ class Default_data_model extends CI_Model {
                     $results['services_created']++;
                 }
                 $sort++;
+            }
+        }
+
+        // --- Variant master rows (e.g. tyre sizes a shop sells day one) ---
+        if ($this->db->table_exists('db_variants') && !empty($cfg['variants'])) {
+            if (!isset($results['variants_created'])) { $results['variants_created'] = 0; }
+            foreach ($cfg['variants'] as $vtype => $values) {
+                foreach ($values as $vvalue) {
+                    $exists = $this->db->where('store_id', $store_id)
+                        ->where('UPPER(variant_name)', strtoupper($vvalue))->count_all_results('db_variants');
+                    if ($exists > 0) { continue; }
+                    $this->db->insert('db_variants', array(
+                        'store_id'       => $store_id,
+                        'variant_name'   => $vvalue,
+                        'attribute_type' => $vtype,
+                        'attribute_value'=> $vvalue,
+                        'description'    => 'Seeded for ' . $industry_type,
+                        'status'         => 1,
+                    ));
+                    $variant_id = $this->db->insert_id();
+                    if ($variant_id && $this->db->table_exists('db_variant_attributes')) {
+                        $this->db->insert('db_variant_attributes', array(
+                            'store_id'       => $store_id,
+                            'variant_id'     => $variant_id,
+                            'attribute_type' => $vtype,
+                            'attribute_value'=> $vvalue,
+                            'sort_order'     => 1,
+                            'created_date'   => date('Y-m-d'),
+                        ));
+                    }
+                    $results['variants_created']++;
+                }
             }
         }
 

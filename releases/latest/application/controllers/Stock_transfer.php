@@ -73,6 +73,7 @@ class Stock_transfer extends MY_Controller {
 					$str.='</i>';
 
 			$row[] = $str;
+			$row[] = $this->_arrival_cell($stock_transfer);
 			$row[] = $stock_transfer->note;
 			
 			$row[] = ($stock_transfer->created_by);
@@ -102,6 +103,178 @@ class Stock_transfer extends MY_Controller {
 				);
 		//output to json format
 		echo json_encode($output);
+	}
+
+	/**
+	 * Arrival cell for the transfer list.
+	 * Loads are only counted in where the store switched arrival receipts on;
+	 * older installs keep posting straight away and show nothing here.
+	 */
+	private function _arrival_cell($transfer){
+		$status = isset($transfer->receipt_status) ? (string)$transfer->receipt_status : 'Posted';
+		if($status === '' || $status === 'Posted'){
+			return '<span class="text-muted">&mdash;</span>';
+		}
+
+		$out = '';
+		if($status === 'In Transit'){
+			$out .= '<span class="label label-warning">In transit</span>';
+			if($this->permissions('stock_transfer_edit') && $this->stock_transfer->may_receive($transfer)){
+				$out .= ' <a href="'.base_url('stock_transfer/receive/'.$transfer->id).'" class="mp-edit" title="Count this load in"><i class="fa fa-check-circle"></i> Count in</a>';
+			}
+			return $out;
+		}
+		if($status === 'Awaiting Approval'){
+			$out .= '<span class="label label-danger">Short &mdash; needs approval</span>';
+			$out .= ' <a href="'.base_url('stock_transfer/receive/'.$transfer->id).'" class="mp-edit" title="Review this load"><i class="fa fa-exclamation-triangle"></i> Review</a>';
+			return $out;
+		}
+		if($status === 'Received'){
+			$who = trim((string)$transfer->received_by);
+			$who = $who !== '' ? htmlspecialchars(explode(' ', $who)[0]) : '';
+			$out .= '<span class="label label-success">Arrived</span>';
+			if(!empty($transfer->received_date)) $out .= ' <small>'.show_date($transfer->received_date).'</small>';
+			if($who !== '') $out .= ' <small>by '.$who.'</small>';
+			return $out;
+		}
+		return '<span class="text-muted">&mdash;</span>';
+	}
+
+	/** Count-in screen: what actually arrived at the receiving location. */
+	public function receive($id){
+		$this->permission_check('stock_transfer_view');
+		$this->belong_to('db_stocktransfer',$id);
+		$transfer = $this->stock_transfer->get_receipt_header($id);
+		if(!$transfer){
+			$this->show_access_denied_page();
+			return;
+		}
+		$status = (string)$transfer->receipt_status;
+		if($status === '' || $status === 'Posted'){
+			redirect('stock_transfer/view');
+			return;
+		}
+
+		$data = $this->data;
+		$data['stocktransfer_id'] = (int)$id;
+		$data['transfer'] = $transfer;
+		$data['lines'] = $this->stock_transfer->get_receipt_lines($id);
+		$data['tolerance'] = function_exists('mp_transfer_loss_tolerance_percent')
+			? mp_transfer_loss_tolerance_percent($transfer->store_id) : 0;
+		$data['can_receive'] = $this->permissions('stock_transfer_edit') && $this->stock_transfer->may_receive($transfer);
+		$data['can_decide'] = $this->_may_decide_variance();
+		$data['site_label'] = function_exists('mp_label') ? mp_label('warehouse') : 'Warehouse';
+		$sent_total = 0;
+		foreach ($data['lines'] as $line) { $sent_total += (float)$line->transfer_qty; }
+		$data['sent_total'] = $sent_total;
+		$data['from_name'] = get_warehouse_name($transfer->warehouse_from);
+		$data['to_name'] = get_warehouse_name($transfer->warehouse_to);
+		$data['transfer_note'] = (string)$transfer->note;
+		$data['tolerance_text'] = rtrim(rtrim(number_format((float)$data['tolerance'], 2), '0'), '.');
+		$counter = trim((string)$transfer->received_by);
+		$data['received_first'] = $counter !== '' ? explode(' ', $counter)[0] : '';
+		$data['page_title'] = 'Count In Arriving Load';
+
+		if(is_mobile()){
+			$this->load->view('mobile/stock_transfer_receive',$data);
+			return;
+		}
+		$data['content'] = $this->load->view('inventory/desktop/stock_transfer_receive',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	public function save_receive(){
+		$this->permission_check_with_msg('stock_transfer_edit');
+		$id = (int)$this->input->post('stocktransfer_id',TRUE);
+		$this->belong_to('db_stocktransfer',$id);
+		$lines = $this->input->post('received',TRUE);
+		$reason = (string)$this->input->post('variance_reason',TRUE);
+		$result = $this->stock_transfer->save_receipt($id, is_array($lines) ? $lines : array(), $reason);
+		if(stripos($result,'success') !== false){
+			$this->session->set_flashdata('success','Counted in. The stock now shows at the receiving location.');
+		}elseif(stripos($result,'Recorded.') === 0){
+			$this->session->set_flashdata('success',$result);
+		}else{
+			$this->session->set_flashdata('error', strip_tags($result));
+		}
+		redirect('stock_transfer/receive/'.$id);
+	}
+
+	/** Manager decision on a short load. */
+	public function decide_variance(){
+		if(!$this->_may_decide_variance()){
+			$this->session->set_flashdata('error','Only a manager can decide on a short load.');
+			redirect('stock_transfer/view');
+			return;
+		}
+		$id = (int)$this->input->post('stocktransfer_id',TRUE);
+		$this->belong_to('db_stocktransfer',$id);
+		$note = (string)$this->input->post('decision_note',TRUE);
+		$decision = $this->input->post('decision',TRUE);
+		if($note === ''){
+			$this->session->set_flashdata('error','Please say why before deciding on this load.');
+			redirect('stock_transfer/receive/'.$id);
+			return;
+		}
+		if($decision === 'approve'){
+			$result = $this->stock_transfer->approve_receipt_variance($id,$note);
+			$ok = (stripos($result,'success') !== false);
+			$msg = $ok ? 'Approved. The counted quantity has been added to the receiving location.' : strip_tags($result);
+		}elseif($decision === 'reject'){
+			$result = $this->stock_transfer->reject_receipt_variance($id,$note);
+			$ok = (stripos($result,'success') !== false);
+			$msg = $ok ? 'Rejected. The load is back in transit and must be counted in again.' : strip_tags($result);
+		}else{
+			$ok = false;
+			$msg = 'Unknown decision.';
+		}
+		$this->session->set_flashdata($ok ? 'success' : 'error', $msg);
+		redirect('stock_transfer/receive/'.$id);
+	}
+
+	/** Head-office rule: how much of a load may go missing in transit before a manager must approve. */
+	public function tolerance(){
+		if(!function_exists('mp_feature_enabled') || !mp_feature_enabled('transfer_receipt')){
+			redirect('stock_transfer/view');
+			return;
+		}
+		if(!is_store_admin() && !is_admin()){
+			$this->session->set_flashdata('error','Only the store owner can change the transit loss limit.');
+			redirect('stock_transfer/view');
+			return;
+		}
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$data['tolerance'] = function_exists('mp_transfer_loss_tolerance_percent') ? mp_transfer_loss_tolerance_percent($store_id) : 0;
+		$data['page_title'] = 'Transit Loss Limit';
+		$data['content'] = $this->load->view('inventory/desktop/stock_transfer_tolerance',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	public function save_tolerance(){
+		$this->permission_check_with_msg('stock_transfer_edit');
+		if(!is_store_admin() && !is_admin()){
+			$this->session->set_flashdata('error','Only the store owner can change the transit loss limit.');
+			redirect('stock_transfer/tolerance');
+			return;
+		}
+		$value = $this->input->post('tolerance',TRUE);
+		if(!is_numeric($value) || (float)$value < 0 || (float)$value > 100){
+			$this->session->set_flashdata('error','Enter a limit between 0 and 100 percent.');
+			redirect('stock_transfer/tolerance');
+			return;
+		}
+		if(function_exists('mp_set_store_setting')){
+			mp_set_store_setting(get_current_store_id(),'oil_gas','transfer_loss_tolerance_percent',round((float)$value,3),'float');
+			$this->session->set_flashdata('success','Saved. Loads counted short by more than '.rtrim(rtrim(number_format((float)$value,2),'0'),'.').'% now wait for a manager.');
+		}else{
+			$this->session->set_flashdata('error','The limit could not be saved.');
+		}
+		redirect('stock_transfer/tolerance');
+	}
+
+	private function _may_decide_variance(){
+		return is_store_admin() || is_admin() || $this->permissions('approval_logs_view');
 	}
 
 	public function info($id)

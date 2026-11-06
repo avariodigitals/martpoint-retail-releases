@@ -629,6 +629,204 @@ class Cron extends CI_Controller {
 	}
 
 	/**
+	 * Vehicle service-due reminders.
+	 *
+	 * Stores with the vehicle register (tyre shops and auto-parts shops) that
+	 * have deliberately enabled reminders in Vehicle History → Service
+	 * Reminders get one sweep: service records whose explicitly configured
+	 * next_due_date falls inside the store's window. Delivery reuses the
+	 * established infrastructure — the vehicle_service_due email template
+	 * through Email_service (db_email_logs records every attempt) and
+	 * Sms_model for SMS, exactly like the debt reminders.
+	 *
+	 * Duplicate prevention: last_reminder_slot on the record marks the due
+	 * date already messaged, so daily re-runs never re-send; editing the due
+	 * date clears it and re-arms the reminder. A per-store same-day sweep
+	 * stamp backs that up at the store level. Consent: sends honour the
+	 * store's marketing suppression list, the email template's own disable
+	 * switch, and the per-channel SMS/email switches; a record with no
+	 * contact details on file is simply skipped.
+	 *
+	 * CLI: php index.php cron vehicle_service_reminders
+	 * Web: /cron/vehicle_service_reminders?key=<cron_secret_key>
+	 */
+	public function vehicle_service_reminders($cliKey = ''){
+		$requestKey = $this->input->get('key') ?: $cliKey;
+		$isCli = (php_sapi_name() === 'cli');
+		if(!$isCli && !$this->cronKeyValid($requestKey)){
+			http_response_code(403);
+			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
+			return;
+		}
+		$this->load->model('vehicle_service_model','vsm');
+		$result = array('stores'=>0,'checked'=>0,'emailed'=>0,'texted'=>0,'skipped'=>0,'failed'=>0,'suppressed'=>0,'errors'=>array());
+		if(!$this->db->table_exists('db_vehicle_service_records') || !$this->db->table_exists('db_vehicle_reminder_config')){
+			if($isCli){ echo "Vehicle reminders: tables not installed yet\n"; }
+			else { header('Content-Type','application/json'); echo json_encode(array('status'=>'ok')+$result); }
+			return;
+		}
+		$stores = $this->db->where_in('industry_type', array('tyre_shop','auto_parts'))
+			->where('feature_flags_json IS NOT NULL', null, false)
+			->get('db_store_industry_settings')->result();
+		foreach($stores as $s){
+			$sid = (int)$s->store_id;
+			if(!mp_feature_enabled_for_store('automobile_workflow',$sid)) continue;
+			$cfg = $this->vsm->reminder_config($sid);
+			if(!$cfg || (int)$cfg->enabled !== 1) continue;
+			$today = date('Y-m-d');
+			// The slot stamp records the last day a message went out; the
+			// per-record due slot below is the real dedupe.
+			if((string)$cfg->last_sweep_slot === $today) continue;
+			$result['stores']++;
+			$this->email_service->setStoreId($sid);
+			// Stores created after the template migration ran have no template
+			// rows at all; seed the key before the first attempt so the sweep
+			// works on every store, while a merchant's own copy is left alone.
+			$this->load->model('email_template_model');
+			$this->email_template_model->ensureTemplate('vehicle_service_due', $sid);
+			$rows = $this->vsm->due_for_reminder(max(0,(int)$cfg->days_before), array($sid), 200);
+			$result['checked'] += count($rows);
+			// One message per vehicle, not per open service record: a car can be
+			// due for a rotation this week and plugs the week after, and the
+			// owner should hear about the soonest date once. Rows already come
+			// back ordered by due date, so the first row for a vehicle leads.
+			$by_vehicle = array();
+			foreach($rows as $r){
+				$vid = (int)$r->vehicle_id;
+				if(!isset($by_vehicle[$vid])) $by_vehicle[$vid] = array();
+				$by_vehicle[$vid][] = $r;
+			}
+			$blocked = $this->_reminderSuppressions($sid);
+			$anySent = false;
+			foreach($by_vehicle as $group){
+				$r = $group[0];
+				$slot = date('Y-m-d', strtotime($r->next_due_date));
+				$vehicleLabel = $this->_vehicleReminderLabel($r);
+				$data = array(
+					'customer_name' => (string)$r->customer_name,
+					'store_name'    => get_store_name($sid),
+					'vehicle_label' => $vehicleLabel,
+					'service_type'  => Vehicle_service_model::TYPES[$r->service_type] ?? Vehicle_service_model::TYPES['general'],
+					'service_date'  => date('d M Y', strtotime((string)$r->service_date)),
+					'due_date'      => date('d M Y', strtotime((string)$r->next_due_date)),
+				);
+				$sentHere = false; $failedHere = false;
+				if((int)$cfg->email_enabled === 1 && !empty($r->email)){
+					$to = trim($r->email);
+					if(isset($blocked['email'][$to]) || isset($blocked['all'][$to])){ $result['suppressed']++; }
+					else {
+						$res = $this->email_service->sendTemplate('vehicle_service_due', $to, $data, array(
+							'messaging_key'    => 'vehsvc:'.$r->id.':'.$slot,
+							'related_module'   => 'vehicle_service',
+							'related_record_id'=> (int)$r->id,
+						));
+						// A merchant-disabled template reports success without
+						// sending — treat it as a skip, not a delivery.
+						if(!empty($res['success']) && strpos((string)($res['message'] ?? ''), 'Skipped.') === false){ $sentHere = true; $result['emailed']++; }
+						elseif(!empty($res['success'])){ $result['skipped']++; }
+						else { $failedHere = true; $result['failed']++; $result['errors'][] = "store {$sid} record {$r->id} email: ".$res['message']; }
+					}
+				}
+				if((int)$cfg->sms_enabled === 1 && !empty($r->mobile)){
+					$to = trim($r->mobile);
+					$smsBlocked = isset($blocked['sms'][$to]) || isset($blocked['all'][$to]) || isset($blocked['sms'][preg_replace('/\D+/','',$to)]);
+					if($smsBlocked){ $result['suppressed']++; }
+					else {
+						$msg = 'Hi '.(explode(' ', (string)$r->customer_name)[0] ?: 'there').', your '.$vehicleLabel
+							.' is due for service on '.$data['due_date'].' at '.$data['store_name'].'. Reply here or call to book a slot.';
+						$sres = $this->sms_model->send_sms($to, $msg, array('store_id'=>$sid,'message_category'=>'transactional','messaging_key'=>'vehsvc:'.$r->id.':'.$slot));
+						if($sres === 'success'){ $sentHere = true; $result['texted']++; }
+						else { $failedHere = true; $result['failed']++; $result['errors'][] = "store {$sid} record {$r->id} sms: ".$sres; }
+					}
+				}
+				if($sentHere){
+					// The due slot is closed once any channel reaches the
+					// customer — same rule as debt reminders. A failed channel
+					// without a success stays un-stamped and is retried on the
+					// next daily sweep. Every date this one message covered is
+					// stamped, so none of them fires a second reminder today.
+					foreach($group as $member){
+						$this->vsm->mark_reminder_queued($member->id, date('Y-m-d', strtotime($member->next_due_date)));
+					}
+					$anySent = true;
+				} elseif(!$failedHere){
+					$result['skipped']++;
+				}
+			}
+			if($anySent){ $this->vsm->mark_sweep($sid, $today); }
+		}
+		if($isCli){
+			echo "Vehicle service reminders: stores={$result['stores']} checked={$result['checked']} emailed={$result['emailed']} texted={$result['texted']} skipped={$result['skipped']} suppressed={$result['suppressed']} failed={$result['failed']}\n";
+			foreach($result['errors'] as $e){ echo "  - {$e}\n"; }
+		} else {
+			header('Content-Type','application/json');
+			echo json_encode(array('status'=>'ok')+$result);
+		}
+	}
+
+	/** Recipients this store has asked us never to message, per channel. */
+	private function _reminderSuppressions($sid){
+		$out = array('email'=>array(),'sms'=>array(),'all'=>array());
+		if(!$this->db->table_exists('db_marketing_suppressions')) return $out;
+		foreach($this->db->select('channel, recipient')->where('store_id',(int)$sid)->where_in('channel',array('email','sms','all'))->get('db_marketing_suppressions')->result() as $b){
+			$rec = trim((string)$b->recipient);
+			if($rec === '') continue;
+			$out[$b->channel][$rec] = true;
+			if($b->channel !== 'email') $out[$b->channel][preg_replace('/\D+/','',$rec)] = true;
+		}
+		return $out;
+	}
+
+	/** How a reminder should name the vehicle to its owner. */
+	private function _vehicleReminderLabel($r){
+		$label = trim($r->make.' '.$r->model);
+		if($label === '') $label = 'vehicle';
+		if(!empty($r->year)) $label .= ' '.substr((string)$r->year, -4);
+		if(!empty($r->license_plate)) $label .= (' ('.$r->license_plate.')');
+		return $label;
+	}
+
+	/**
+	 * Daily expiry list — the shop's own warning window, sent to the people who
+	 * asked for it instead of waiting for somebody to open the report.
+	 *
+	 * The list comes out of the batch ledger through
+	 * Pharmacy_expiry_alert_model, which calls the same report /batch_reports
+	 * shows, so a message can never promise a shelf the till would refuse. Each
+	 * shop is stamped with the day a digest actually reached it, so a re-run —
+	 * or a cron that fires twice — sends one list per shop per day. A shop with
+	 * nothing expiring is not stamped, so stock that moves later the same day
+	 * still gets its list.
+	 *
+	 * Example: curl -s "https://yoursite.com/cron/expiry_alerts?key=YOUR_SECRET_KEY"
+	 * Or CLI:  php index.php cron expiry_alerts YOUR_SECRET_KEY
+	 */
+	public function expiry_alerts($cliKey = ''){
+		$requestKey = $this->input->get('key') ?: $cliKey;
+		$isCli = (php_sapi_name() === 'cli');
+		if(!$isCli && !$this->cronKeyValid($requestKey)){
+			http_response_code(403);
+			echo json_encode(['status'=>'error','message'=>'Invalid or missing cron key.']);
+			return;
+		}
+		$this->load->model('pharmacy_expiry_alert_model','expiry_list');
+		$result = array('stores'=>0,'sent'=>0,'skipped'=>0,'failed'=>0,'errors'=>array());
+		if(!$this->expiry_list->ready()){
+			if($isCli){ echo "Expiry alerts: the batch ledger or the alert settings are not installed on this server yet\n"; }
+			else { header('Content-Type','application/json'); echo json_encode(array('status'=>'ok')+$result); }
+			return;
+		}
+		$result = $this->expiry_list->sweep();
+		if($isCli){
+			echo "Expiry alerts: stores={$result['stores']} sent={$result['sent']} skipped={$result['skipped']} failed={$result['failed']}\n";
+			foreach($result['errors'] as $e){ echo "  - {$e}\n"; }
+		} else {
+			header('Content-Type','application/json');
+			echo json_encode(array('status'=>'ok')+$result);
+		}
+	}
+
+	/**
 	 * Unattended system update — pulls the pending release from the update
 	 * channel and applies it. Runs within a wall-clock budget and resumes on
 	 * the next invocation, so a daily cron is enough.

@@ -10,7 +10,7 @@ class Communications_model extends CI_Model {
     }
     private function central() { if (!mp_is_central() || !$this->ready()) throw new RuntimeException('Communications is not available yet. Contact your Administrator.'); }
     public function review(){ $this->load->model('communication_review_model');$ci =& get_instance();return isset($ci->communication_review_model) && $ci->communication_review_model->ready()?$ci->communication_review_model:null; }
-    public function catalogue() { $out=array(); foreach($this->db->get('db_communication_catalogue')->result_array() as $r) { $r['packages']=json_decode($r['packages_json'],true) ?: array(); $r['name']=self::$modules[$r['module_key']]; $r['development']=in_array($r['module_key'],array('whatsapp','socials'),true); $out[$r['module_key']]=$r; } $review=$this->review();if($review)foreach(array('sms','email') as $key)if(isset($out[$key])){$out[$key]['minimum_kobo']=$review->minimum($key);$out[$key]['credit_bundles']=$review->bundles($key);}return $out; }
+    public function catalogue() { $out=array(); foreach($this->db->get('db_communication_catalogue')->result_array() as $r) { $r['packages']=json_decode($r['packages_json'],true) ?: array(); $r['name']=self::$modules[$r['module_key']]; $r['development']=in_array($r['module_key'],array('whatsapp','socials'),true);if(in_array($r['module_key'],array('sms','email'),true)){$r['monthly_kobo']=0;$r['annual_kobo']=0;} $out[$r['module_key']]=$r; } $review=$this->review();if($review)foreach(array('sms','email') as $key)if(isset($out[$key])){$out[$key]['minimum_kobo']=$review->minimum($key);$out[$key]['credit_bundles']=$review->bundles($key);}return $out; }
     public function provision($id) {
         foreach(self::$modules as $key=>$name) $this->db->query('INSERT IGNORE INTO db_communication_modules (account_id,module_key) VALUES (?,?)',array($id,$key));
         foreach(array('sms','email') as $channel) $this->db->query('INSERT IGNORE INTO db_communication_wallets (account_id,channel) VALUES (?,?)',array($id,$channel));
@@ -31,9 +31,13 @@ class Communications_model extends CI_Model {
     public function access($id,$key) {
         $this->central();
         $row=$this->db->query('SELECT m.*,c.enabled FROM db_communication_modules m JOIN db_communication_catalogue c ON c.module_key=m.module_key WHERE m.account_id=? AND m.module_key=?',array($id,$key))->row_array();
-        return $row && $this->fleetAllowed($id,$key) && !in_array($key,array('whatsapp','socials'),true) && (int)$row['allowed'] && (int)$row['enabled'] && (int)$row['merchant_enabled'] && !empty($row['subscribed_until']) && strtotime($row['subscribed_until'].' UTC')>time();
+        if(!$row || !$this->fleetAllowed($id,$key) || in_array($key,array('whatsapp','socials'),true) || !(int)$row['allowed'] || !(int)$row['enabled'])return false;
+        // SMS and Email are included channel access. Customers pay only for
+        // purchased credits; legacy subscription dates cannot turn access off.
+        if(in_array($key,array('sms','email'),true))return true;
+        return (int)$row['merchant_enabled'] && !empty($row['subscribed_until']) && strtotime($row['subscribed_until'].' UTC')>time();
     }
-    public function requireAccess($id,$key) { if(!$this->access($id,$key)) throw new RuntimeException('Your '.(self::$modules[$key]??'Communications').' module is disabled, awaiting Administrator activation, or expired. Open Communications to subscribe.'); }
+    public function requireAccess($id,$key) { if(!$this->access($id,$key)) throw new RuntimeException('Your '.(self::$modules[$key]??'Communications').' access is disabled by Central or unavailable. Contact your Administrator.'); }
     private function lock($id) { $a=$this->db->query('SELECT * FROM db_messaging_accounts WHERE id=? FOR UPDATE',array($id))->row_array(); if(!$a)throw new RuntimeException('Account not found.'); return $a; }
     private function commit() { if(!$this->db->trans_status())throw new RuntimeException('Communications could not be saved.'); $this->db->trans_commit(); }
     public function snapshot($id,$page=0,$channel=null) {
@@ -65,10 +69,11 @@ class Communications_model extends CI_Model {
     public function saveCatalogue(array $p,$actor) {
         $this->central();$key=$p['module_key']??'';if(!isset(self::$modules[$key]))throw new InvalidArgumentException('Choose a module.');
         $monthly=Messaging_pricing::money($p['monthly']??'0');$annual=Messaging_pricing::money($p['annual']??'0');$rate=Messaging_pricing::money($p['credit_price']??'1');
+        if(in_array($key,array('sms','email'),true)){$monthly=0;$annual=0;}
         if($rate<1 || $rate>10000000)throw new InvalidArgumentException('Enter a credit price between ₦0.01 and ₦100,000.');
         $packages=array();foreach(preg_split('/[,\s]+/',trim($p['packages']??''),-1,PREG_SPLIT_NO_EMPTY) as $n){$v=Messaging_pricing::money($n);if($v<10000 || $v>50000000)throw new InvalidArgumentException('Recharge packages must be between ₦100 and ₦500,000.');$packages[]=$v/100;}
         if(count($packages)>12)throw new InvalidArgumentException('Use at most 12 recharge packages.');
-        $review=$this->review();if($review && in_array($key,array('sms','email'),true) && isset($p['minimum_topup'])){$min=Messaging_pricing::money($p['minimum_topup']);if($min<10000 || $min>50000000)throw new InvalidArgumentException('Minimum top-up must be between ₦100 and ₦500,000.');$this->db->where('channel',$key)->update('db_communication_credit_rules',array('minimum_kobo'=>$min));}
+        $review=$this->review();if($review && in_array($key,array('sms','email'),true) && isset($p['minimum_topup'])){$min=Messaging_pricing::money($p['minimum_topup']);if($min<500000 || $min>50000000)throw new InvalidArgumentException('Minimum custom top-up must be between ₦5,000 and ₦500,000.');$this->db->where('channel',$key)->update('db_communication_credit_rules',array('minimum_kobo'=>$min));}
         $this->db->where('module_key',$key)->update('db_communication_catalogue',array('monthly_kobo'=>$monthly,'annual_kobo'=>$annual,'credit_price_kobo'=>$rate,'packages_json'=>json_encode(array_values(array_unique($packages))),'enabled'=>!in_array($key,array('whatsapp','socials'),true) && !empty($p['enabled'])?1:0));
         $this->event('catalogue:'.bin2hex(random_bytes(12)),0,'Communications catalogue updated','Module: '.$key.'. Updated by '.$actor.'. Monthly: '.$monthly.' kobo; annual: '.$annual.' kobo; credit: '.$rate.' kobo.');
     }
@@ -76,9 +81,10 @@ class Communications_model extends CI_Model {
         $this->central();$id=$a['id'];$key=$p['module_key']??'';$purpose=$p['purpose']??'subscription';$catalogue=$this->catalogue();$c=$catalogue[$key]??null;
         if(!$c || $c['development'] || !$c['enabled'])throw new RuntimeException('This module is not available.');
         if(!in_array($purpose,array('subscription','recharge'),true))throw new InvalidArgumentException('Choose subscription or recharge.');
+        if($purpose==='subscription' && in_array($key,array('sms','email'),true))throw new RuntimeException('SMS and Email access are included. Purchase message credits only; there is no separate channel subscription.');
         $email=trim((string)($p['email']??''));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new InvalidArgumentException('Enter a contact email.');
         $requestKey=(string)($p['request_key']??'');if(!preg_match('/^[a-zA-Z0-9:_-]{16,100}$/D',$requestKey))throw new InvalidArgumentException('Reload this form before submitting.');
-        $period=$p['period']??'monthly';$units=0;$autoPlan=null;$review=$this->review();$packageId=0;$net=0;
+        $period=$p['period']??'monthly';$units=0;$autoPlan=null;$review=$this->review();$packageId=0;$net=0;$vatMode='exclusive';
         if($key==='automation'){$policy=$this->automationPlans(true);$autoPlan=$policy->plan($p['plan_key']??'plan_a');}
         if($purpose==='subscription'){
             if(!in_array($period,array('monthly','annual'),true))throw new InvalidArgumentException('Choose monthly or annual.');
@@ -86,7 +92,13 @@ class Communications_model extends CI_Model {
         }else{
             if(!in_array($key,array('sms','email'),true))throw new InvalidArgumentException('Only SMS and email have credits.');
             if($review){$quote=$review->quote($key,$p,(int)$c['credit_price_kobo']);$net=$quote['amount'];$units=$quote['units'];$packageId=$quote['package_id'];}
-            else{if(!empty($p['package_id']))throw new RuntimeException('Credit bundles are not available yet. Contact your Administrator.');$net=Messaging_pricing::money($p['amount']??'');if($net<10000 || $net>50000000)throw new InvalidArgumentException('Recharge between ₦100 and ₦500,000.');$units=intdiv($net,(int)$c['credit_price_kobo']);if($units<1)throw new InvalidArgumentException('This amount does not buy one credit.');}$period=null;
+            else{if(!empty($p['package_id']))throw new RuntimeException('Credit bundles are not available yet. Contact your Administrator.');$net=Messaging_pricing::money($p['amount']??'');if($net<500000 || $net>50000000)throw new InvalidArgumentException('Custom top-ups must be between ₦5,000 and ₦500,000.');$units=intdiv($net,(int)$c['credit_price_kobo']);if($units<1)throw new InvalidArgumentException('This amount does not buy one credit.');}
+            if(!$packageId && in_array(($p['vat_mode']??'exclusive'),array('inclusive','exclusive'),true))$vatMode=$p['vat_mode'];
+            if(!$packageId && $vatMode==='inclusive'){
+                $grossInput=$net;$bps=$this->taxBps();$net=$bps>0?(int)round($grossInput*10000/(10000+$bps)):$grossInput;
+                $units=intdiv($net,(int)$c['credit_price_kobo']);if($units<1)throw new InvalidArgumentException('The amount after VAT does not buy one credit.');
+            }
+            $period=null;
         }
         // The store is charged net + VAT; credit units always come from the net price.
         $vat=$this->vat($net);$amount=(int)$vat['total_kobo'];
@@ -95,21 +107,23 @@ class Communications_model extends CI_Model {
             $m=$this->db->where('account_id',$id)->where('module_key',$key)->get('db_communication_modules')->row_array();if(!$m['allowed'] || !$this->fleetAllowed($id,$key))throw new RuntimeException('Your Administrator has disabled this module for your account.');
             if($purpose==='recharge')$this->requireAccess($id,$key);
             $old=$this->db->where('account_id',$id)->where('request_key',$requestKey)->get('db_communication_requests')->row_array();
-            if($old){if($purpose==='recharge' && $review && $review->requestPackage($old['id'])!==$packageId)throw new RuntimeException('This request key belongs to another credit bundle.');if($autoPlan && $policy->requestPlan($old['id'])!==$autoPlan['plan_key'])throw new RuntimeException('This request key belongs to another Automation plan.');if($old['module_key']!==$key || $old['purpose']!==$purpose || $old['billing_period']!==$period || (int)($old['net_kobo']?:$old['amount_kobo'])!==$net)throw new RuntimeException('This request key belongs to another purchase.');$this->commit();return $old;}
+            if($old){if($purpose==='recharge' && $review && $review->requestPackage($old['id'])!==$packageId)throw new RuntimeException('This request key belongs to another credit bundle.');if($autoPlan && $policy->requestPlan($old['id'])!==$autoPlan['plan_key'])throw new RuntimeException('This request key belongs to another Automation plan.');if($old['module_key']!==$key || $old['purpose']!==$purpose || $old['billing_period']!==$period || (int)($old['net_kobo']?:$old['amount_kobo'])!==$net || (($old['vat_mode']??'exclusive')!==$vatMode))throw new RuntimeException('This request key belongs to another purchase.');$this->commit();return $old;}
             // Reuse an unresolved manual request instead of creating repeated sales alerts.
             $pending=$this->db->where('account_id',$id)->where('module_key',$key)->where('purpose',$purpose)->where('billing_period',$period)->where('amount_kobo',$amount)->where_in('status',array('requested','awaiting_payment','paid'))->order_by('id','desc')->get('db_communication_requests')->row_array();
-            if($pending && (int)$pending['credit_units']===$units && (!$review || $review->requestPackage($pending['id'])===$packageId) && (!$autoPlan || $policy->requestPlan($pending['id'])===$autoPlan['plan_key'])){$this->commit();return $pending;}
-            $row=array('account_id'=>$id,'request_key'=>$requestKey,'module_key'=>$key,'purpose'=>$purpose,'billing_period'=>$period,'amount_kobo'=>$amount,'net_kobo'=>$vat['net_kobo'],'tax_bps'=>$vat['tax_bps'],'tax_kobo'=>$vat['tax_kobo'],'total_kobo'=>$vat['total_kobo'],'credit_units'=>$units,'contact_email'=>$email,'created_at'=>gmdate('Y-m-d H:i:s'));
+            if($pending && (int)$pending['credit_units']===$units && (($pending['vat_mode']??'exclusive')===$vatMode) && (!$review || $review->requestPackage($pending['id'])===$packageId) && (!$autoPlan || $policy->requestPlan($pending['id'])===$autoPlan['plan_key'])){$this->commit();return $pending;}
+            $row=array('account_id'=>$id,'request_key'=>$requestKey,'module_key'=>$key,'purpose'=>$purpose,'billing_period'=>$period,'amount_kobo'=>$amount,'net_kobo'=>$vat['net_kobo'],'tax_bps'=>$vat['tax_bps'],'tax_kobo'=>$vat['tax_kobo'],'total_kobo'=>$vat['total_kobo'],'vat_mode'=>$vatMode,'credit_units'=>$units,'contact_email'=>$email,'created_at'=>gmdate('Y-m-d H:i:s'));
             if(!$this->db->insert('db_communication_requests',$row))throw new RuntimeException('Could not record the request.');$row['id']=$this->db->insert_id();$row['status']='requested';
             if($packageId)$this->db->insert('db_communication_request_packages',array('request_id'=>$row['id'],'package_id'=>$packageId));
             if($autoPlan)$policy->bindRequest($row['id'],$autoPlan['plan_key']);
             if($purpose==='subscription')$this->db->where('account_id',$id)->where('module_key',$key)->update('db_communication_modules',array('merchant_enabled'=>1));
-            $this->event('request:'.$row['id'],$id,'Communications '.$purpose.' request — '.$a['store_name'],'Request #'.$row['id'].'; '.$key.'; '.($autoPlan?$autoPlan['name'].' ('.$autoPlan['max_workflows'].' workflows); ':'').($period?:'credits').'; net ₦'.number_format($vat['net_kobo']/100,2).'; VAT ₦'.number_format($vat['tax_kobo']/100,2).' ('.$vat['tax_bps'].' bps); total ₦'.number_format($vat['total_kobo']/100,2).'; credits '.$units.'. Contact: '.$email.'. Open '.base_url('communications_admin?account='.$id));
+            $transferCode='MP-COMM-'.str_pad((string)$row['id'],6,'0',STR_PAD_LEFT);
+            $this->event('request:'.$row['id'],$id,'Communications '.$purpose.' request — '.$a['store_name'],'Request #'.$row['id'].'; '.$key.'; transfer narration '.$transferCode.'; VAT mode '.$vatMode.'; '.($autoPlan?$autoPlan['name'].' ('.$autoPlan['max_workflows'].' workflows); ':'').($period?:'credits').'; net ₦'.number_format($vat['net_kobo']/100,2).'; VAT ₦'.number_format($vat['tax_kobo']/100,2).' ('.$vat['tax_bps'].' bps); total ₦'.number_format($vat['total_kobo']/100,2).'; credits '.$units.'. Contact: '.$email.'. Open '.base_url('communications_admin?account='.$id));
             $this->commit();return $row;
         }catch(Throwable $e){$this->db->trans_rollback();throw $e;}
     }
     public function toggle($id,$key,$enabled) {
         $this->central();if(!isset(self::$modules[$key]) || in_array($key,array('whatsapp','socials'),true))throw new RuntimeException('This module is under development.');
+        if(in_array($key,array('sms','email'),true))throw new RuntimeException('SMS and Email access is managed by Central; use purchased credits for sending.');
         $this->db->trans_begin();try{$this->lock($id);$this->provision($id);$m=$this->db->where('account_id',$id)->where('module_key',$key)->get('db_communication_modules')->row_array();
             if($enabled && (!$this->fleetAllowed($id,$key) || !$m['allowed'] || !$this->catalogue()[$key]['enabled']))throw new RuntimeException('Your Administrator has disabled this module.');
             if($enabled && (!$m['subscribed_until'] || strtotime($m['subscribed_until'].' UTC')<=time()))throw new RuntimeException('Select a monthly or annual subscription first.');
@@ -120,6 +134,7 @@ class Communications_model extends CI_Model {
     }
     public function activate($id,$key,$period,$source,$allowed,$actor,$note,$operationKey=null,$planKey=null) {
         $this->central();if(!isset(self::$modules[$key]) || in_array($key,array('whatsapp','socials'),true))throw new RuntimeException('This module is under development.');
+        if(in_array($key,array('sms','email'),true))throw new RuntimeException('SMS and Email no longer use subscriptions. Enable channel access in Central; merchants buy message credits separately.');
         if(!in_array($period,array('monthly','annual'),true) || !in_array($source,array('manual_payment','annual_bill','complimentary'),true))throw new InvalidArgumentException('Choose a billing period and billing source.');
         if(mb_strlen(trim($note))<5)throw new InvalidArgumentException('Record the payment or billing reason.');
         $this->db->trans_begin();try{$this->lock($id);$this->provision($id);
@@ -141,6 +156,10 @@ class Communications_model extends CI_Model {
     }
     public function resolve($requestId,$approve,$actor,$note) {
         $this->central();$r=$this->db->where('id',(int)$requestId)->get('db_communication_requests')->row_array();if(!$r)throw new RuntimeException('Request not found.');
+        $legacyChannelSubscription=$r['purpose']==='subscription' && in_array($r['module_key'],array('sms','email'),true);
+        if($legacyChannelSubscription && $approve)throw new RuntimeException('Legacy SMS/Email subscription requests cannot be activated. Review any payment and arrange a refund if it was collected; channel access is included and credits are purchased separately.');
+        if($legacyChannelSubscription && $r['status']==='paid')throw new RuntimeException('This legacy subscription request has a verified payment. Arrange a provider refund before rejecting it; do not activate the subscription.');
+        if($legacyChannelSubscription && $r['status']!=='requested')throw new RuntimeException('This legacy subscription request is not eligible for approval. Verify or cancel its payment with the provider first.');
         if(mb_strlen(trim($note))<5)throw new InvalidArgumentException('Record payment evidence or a reason.');
         $this->db->trans_begin();try{$this->lock($r['account_id']);$r=$this->db->where('id',$r['id'])->get('db_communication_requests')->row_array();
             if(in_array($r['status'],array('approved','rejected'),true)){$this->commit();return;}

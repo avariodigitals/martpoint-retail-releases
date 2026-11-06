@@ -97,7 +97,6 @@
                                 if(isset($sales_id)){
                                   $btn_id='update';
                                   $btn_name="Update";
-                                  echo '<input type="hidden" name="sales_id" id="sales_id" value="'.$sales_id.'"/>';
                                 }
                                 else{
                                   $btn_id='save';
@@ -309,12 +308,16 @@
 <?php include "modals/modal_sales_item.php"; ?>
 <section class="content" id="sales-editor-content">
 <?= form_open('#', array('class' => 'mp-sales-form', 'id' => 'sales-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+<?php if(isset($sales_id)): ?><input type="hidden" name="sales_id" id="sales_id" value="<?= (int)$sales_id; ?>" /><?php endif; ?>
 
                            <?php $this->load->view('garden/document_project_field',['garden_document_kind'=>'invoice','garden_document_edit'=>!empty($sales_id)]); ?>
 <input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-                           <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
+                           <section class="invoice-header-controls" aria-label="Invoice status and payment account">
+                             <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
+                             <?php $this->load->view('sales/invoice_payment_account'); ?>
+                           </section>
 
                            <input type="hidden" value="" id="hidden_total_amt" name="hidden_total_amt">
                            <input type="hidden" value="" id="hidden_discount_to_all_amt" name="hidden_discount_to_all_amt">
@@ -606,7 +609,7 @@ if(isset($sales_id)){
       echo "<tr id='payment_row_".$res3->id."'>";
       echo "<td class='pm-num'>".$i."</td>";
       echo "<td>".show_date($res3->payment_date)."</td>";
-      echo "<td><span class='mp-pill paid'>".$res3->payment_type."</span></td>";
+      echo "<td><span class='mp-pill paid'>".htmlspecialchars(payment_mode_label($res3->payment_type), ENT_QUOTES, 'UTF-8')."</span></td>";
       echo "<td class='pm-note'>".$res3->payment_note."</td>";
       echo "<td class='num amt' id='paid_amt_$i'>".store_number_format($res3->payment)."</td>";
       echo "<td class='action-col'><a class='remove-btn' onclick='delete_payment(".$res3->id.")' title='Delete ?'><i class='fa fa-trash'></i></a></td>";
@@ -642,9 +645,9 @@ if(isset($sales_id)){
             </div>
             <div class="form-group payment-account" style="margin: 14px 0 0 0;">
               <label for="account_id">Account</label>
-              <select class="form-control select2" id="account_id" name="account_id" style="width:100%;" data-placeholder="-None-">
+              <select class="form-control select2" id="account_id" name="account_id" style="width:100%;" data-default-account="<?= (int)get_store_details()->default_account_id; ?>" data-placeholder="-None-">
                   <option value="">-None-</option>
-                  <?= get_accounts_select_list(get_store_details()->default_account_id); ?>
+                  <?= get_accounts_select_list(!empty($saved_invoice_account_id) ? $saved_invoice_account_id : get_store_details()->default_account_id); ?>
                 </select>
                 <span id="account_id_msg" style="display:none" class="text-danger"></span>
             </div>
@@ -766,7 +769,8 @@ function resetCustomerTrends(){ ['trend_invoices','trend_bought','trend_paid','t
     return (walkin_customer_id && cid == walkin_customer_id);
   }
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=<?= htmlspecialchars(app_version(),ENT_QUOTES,'UTF-8'); ?>"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/sales.js?v=<?= (int)@filemtime(FCPATH.'theme/js/sales.js'); ?>"></script>
+<script src="<?= htmlspecialchars(base_url('theme/js/customer_pricing_documents.js?v='.(int)@filemtime(FCPATH.'theme/js/customer_pricing_documents.js')),ENT_QUOTES,'UTF-8'); ?>"></script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/ajaxselect/customer_select_ajax.js?v=2"></script>
 <script>$(function(){ if($("#item_search").data('ui-autocomplete')){ $("#item_search").autocomplete('option','position',{ my:'left top', at:'left bottom', collision:'flip fit' }); } });</script>
       <script>

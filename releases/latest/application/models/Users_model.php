@@ -9,7 +9,11 @@ class Users_model extends CI_Model {
 	}
 	public function verify_and_save($data){
 		
-		$store_id = isset($_REQUEST['store_id']) ? $_REQUEST['store_id'] : get_current_store_id();
+		// Tenant user creation is always scoped to the signed-in store; never
+		// trust the hidden store_id field supplied by a mobile/desktop form.
+		$store_id = is_admin()
+			? (isset($_REQUEST['store_id']) ? (int)$_REQUEST['store_id'] : (int)get_current_store_id())
+			: (int)get_current_store_id();
 		
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_users','db_users',$store_id);
@@ -264,14 +268,20 @@ class Users_model extends CI_Model {
 		}
 
 
+		$target_user = $this->db->select('store_id')->where('id', (int)$q_id)->get('db_users')->row();
+		if(!$target_user){
+			return 'User not found.';
+		}
 		if(!is_admin()){
-			$user_store_id = $this->db->select('store_id')->where("id",$q_id)->get('db_users')->row()->store_id;
-			if(empty($user_store_id)){
+			$user_store_id = (int)$target_user->store_id;
+			if($user_store_id <= 0){
 				echo "Something went Wrong!!";exit();
 			}
 			if($user_store_id!=get_current_store_id()){
 				echo "Something went Wrong!!";exit();
 			}
+			// Editing a tenant user must never transfer that account to another store.
+			$store_id = $user_store_id;
 		}
 
 		$this->db->where('UPPER(username)', strtoupper($username));

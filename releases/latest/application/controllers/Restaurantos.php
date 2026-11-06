@@ -109,13 +109,13 @@ class Restaurantos extends MY_Controller {
     private function _branch_options() {
         $options = [];
         if (!warehouse_module() || !$this->db->table_exists('db_warehouse')) return $options;
-        $rows = $this->db->where('store_id', get_current_store_id())->where('status', 1)
-            ->order_by('warehouse_name', 'asc')->limit(24)->get('db_warehouse')->result();
         $allowed = $this->_allowed_branch_ids();
-        if ($allowed !== null) {
-            $rows = $this->db->where('store_id', get_current_store_id())->where('status', 1)->where_in('id', $allowed)
-                ->order_by('warehouse_name', 'asc')->limit(24)->get('db_warehouse')->result();
-        }
+        // A staff member with no outlet assigned has nothing to switch between;
+        // an empty where_in would build invalid SQL rather than an empty board.
+        if ($allowed !== null && empty($allowed)) return $options;
+        $this->db->where('store_id', get_current_store_id())->where('status', 1);
+        if ($allowed !== null) $this->db->where_in('id', $allowed);
+        $rows = $this->db->order_by('warehouse_name', 'asc')->get('db_warehouse')->result();
         if (count($rows) < 2) return $options;
         foreach ($rows as $w) {
             $options[] = ['id' => (int) $w->id, 'name' => $w->warehouse_name];
@@ -130,6 +130,9 @@ class Restaurantos extends MY_Controller {
         '30Days'    => '30 days',
         'ThisMonth' => 'This month',
     ];
+
+    /** How many outlet lines the overview shows before grouping the remainder. */
+    const OUTLET_ROWS = 8;
 
     /** How far back the "right now" kitchen boards look. Older open tickets are
      *  counted separately as backlog rather than shown as live service. */
@@ -369,7 +372,7 @@ class Restaurantos extends MY_Controller {
         $presets = function_exists('mp_get_restaurant_nav_presets') ? mp_get_restaurant_nav_presets() : [];
         $preset_key = function_exists('mp_restaurant_nav_preset') ? mp_restaurant_nav_preset() : 'quick_service';
 
-        $this->_render('Restaurant Overview', 'restaurantos/overview', [
+        $this->_render(mp_workspace_word('Restaurant') . ' Overview', 'restaurantos/overview', [
             'range_key'    => $range_key,
             'ranges'       => self::RANGES,
             'range_label'  => $info['label'],
@@ -572,14 +575,11 @@ class Restaurantos extends MY_Controller {
         if (!warehouse_module() || !$this->db->table_exists('db_warehouse')) return $outlets;
         $from = $from ?: date('Y-m-d');
         $to = $to ?: $from;
-        $warehouse_rows = $this->db->where('store_id', $store_id)
-            ->order_by('warehouse_name', 'asc')->limit(24)->get('db_warehouse')->result();
         $allowed = $this->_allowed_branch_ids();
-        if ($allowed !== null) {
-            $warehouse_rows = array_values(array_filter($warehouse_rows, function ($w) use ($allowed) {
-                return in_array((int) $w->id, $allowed, true);
-            }));
-        }
+        if ($allowed !== null && empty($allowed)) return $outlets;
+        $this->db->where('store_id', $store_id);
+        if ($allowed !== null) $this->db->where_in('id', $allowed);
+        $warehouse_rows = $this->db->order_by('warehouse_name', 'asc')->get('db_warehouse')->result();
         if (count($warehouse_rows) <= 1) return $outlets;
 
         $by_branch = [];
@@ -609,7 +609,25 @@ class Restaurantos extends MY_Controller {
             ];
         }
         usort($outlets, function ($a, $b) { return $b['takings'] <=> $a['takings']; });
-        return $outlets;
+
+        // A wide estate cannot be read one row per outlet: the busiest keep their
+        // lines and the rest are grouped, so the takings still add up to the day.
+        if (count($outlets) <= self::OUTLET_ROWS) return $outlets;
+        $head = array_slice($outlets, 0, self::OUTLET_ROWS);
+        $tail = array_slice($outlets, self::OUTLET_ROWS);
+        $rest = ['takings' => 0.0, 'orders' => 0];
+        foreach ($tail as $t) {
+            $rest['takings'] += (float) $t['takings'];
+            $rest['orders']  += (int) $t['orders'];
+        }
+        $head[] = [
+            'id'      => null,
+            'name'    => 'Other ' . count($tail) . ' outlets',
+            'takings' => $rest['takings'],
+            'orders'  => $rest['orders'],
+            'pct'     => $sum > 0 ? round(($rest['takings'] / $sum) * 100) : 0,
+        ];
+        return $head;
     }
 
     /**
@@ -924,7 +942,7 @@ class Restaurantos extends MY_Controller {
                 } else {
                     $this->db->insert('db_store_industry_settings', [
                         'store_id' => $store_id,
-                        'industry_type' => 'restaurant',
+                        'industry_type' => $profile['industry_type'] ?? 'restaurant',
                         'industry_settings_json' => $encoded,
                     ]);
                 }
@@ -972,7 +990,7 @@ class Restaurantos extends MY_Controller {
             $promises[$k] = $held;
         }
 
-        $this->_render('Restaurant Setup', 'restaurantos/settings', [
+        $this->_render(mp_workspace_word('Restaurant') . ' Setup', 'restaurantos/settings', [
             'presets'  => $presets,
             'current'  => mp_restaurant_nav_preset(),
             // Each layout rendered through the same gating code the sidebar

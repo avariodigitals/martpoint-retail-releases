@@ -83,7 +83,13 @@ $company_vat_no = $res1->vat_no;
 $store_logo_path = mp_get_store_theme_setting(get_current_store_id(), 'store_logo');
 $store_logo = !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
 $store_website = $res1->store_website;
-$bank_details = mp_get_store_payment_setting(get_current_store_id(), 'bank_details', '');
+$invoice_bank_account = null;
+if ($this->db->field_exists('invoice_account_id', 'db_sales') && $this->db->field_exists('bank_account_number', 'ac_accounts')) {
+  $selected = $this->db->select('invoice_account_id')->where('id', (int)$sales_id)->where('store_id', (int)$res1->id)->get('db_sales')->row();
+  if ($selected && (int)$selected->invoice_account_id > 0) {
+    $invoice_bank_account = $this->db->where('id', (int)$selected->invoice_account_id)->where('store_id', (int)$res1->id)->get('ac_accounts')->row();
+  }
+}
 $sales_invoice_footer_text = mp_get_store_receipt_setting(get_current_store_id(), 'sales_invoice_footer_text', '');
 $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', '');
 
@@ -173,7 +179,7 @@ foreach($this->db->where('store_id', get_current_store_id())->where('status', 1)
     $pm_map[strtolower($pm->code)] = $pm->name;
     $pm_map[strtolower($pm->name)] = $pm->name;
 }
-$payment_method = ($q_payments->num_rows() > 0) ? ($pm_map[strtolower($first_payment->payment_type)] ?? $first_payment->payment_type) : 'Unpaid';
+$payment_method = ($q_payments->num_rows() > 0) ? ($pm_map[strtolower($first_payment->payment_type)] ?? payment_mode_label($first_payment->payment_type)) : 'Unpaid';
 $payment_note_display = '';
 if($q_payments->num_rows() > 0 && !empty($first_payment->payment_note)){
     $pn = $first_payment->payment_note;
@@ -307,9 +313,12 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 <table class="totals">
   <tr>
     <td valign="top" style="padding-right: 10px; font-size: 9pt; color: #374151;">
-      <?php if(!empty($bank_details)): ?>
+      <?php if($invoice_bank_account && !empty($invoice_bank_account->bank_account_number)): ?>
         <strong><?= $this->lang->line('bank_details'); ?>:</strong><br>
-        <?= nl2br($bank_details); ?>
+        <?= htmlspecialchars($invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
+        <?php if(!empty($invoice_bank_account->bank_name)): ?><?= htmlspecialchars($invoice_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?><br><?php endif; ?>
+        <?= htmlspecialchars($invoice_bank_account->bank_account_name ?: $invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
+        <?= htmlspecialchars($invoice_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?>
       <?php endif; ?>
     </td>
     <td align="right" valign="top" style="white-space: nowrap; text-align: right; width: 50%; vertical-align: top;">
@@ -357,7 +366,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
       <td class="sl"><?= $pi++; ?></td>
       <td><?= show_date($p->payment_date); ?></td>
       <td>
-        <?= $pm_map[strtolower($p->payment_type)] ?? $p->payment_type; ?>
+        <?= htmlspecialchars($pm_map[strtolower($p->payment_type)] ?? payment_mode_label($p->payment_type), ENT_QUOTES, 'UTF-8'); ?>
         <?php if(!empty($p->cheque_number)): ?><br><small>Cheque no.: <?= $p->cheque_number; ?></small><?php endif; ?>
       </td>
       <td><?= get_account_name($p->account_id); ?></td>

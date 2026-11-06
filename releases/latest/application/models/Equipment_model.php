@@ -106,10 +106,64 @@ class Equipment_model extends CI_Model {
 
 	/* ---------------- SERVICE JOBS ---------------- */
 
+	/**
+	 * Is work tied to locations on this install yet? Checked before a query
+	 * builder opens: CI wipes a half-built query to run SHOW COLUMNS, which would
+	 * silently drop every filter set before it.
+	 */
+	private $_has_site_column = null;
+	private function _has_site_column(){
+		if($this->_has_site_column === null){
+			$this->_has_site_column = $this->db->field_exists('warehouse_id', 'db_service_jobs');
+		}
+		return $this->_has_site_column;
+	}
+
+	/** Where a job that is currently in this status may still be moved to. */
+	public function next_statuses($from){
+		$allowed = array(
+			'open' => array('scheduled','in_progress','cancelled'),
+			'scheduled' => array('in_progress','cancelled'),
+			'in_progress' => array('awaiting_parts','completed','cancelled'),
+			'awaiting_parts' => array('in_progress','cancelled'),
+		);
+		return isset($allowed[$from]) ? $allowed[$from] : array();
+	}
+
+	/**
+	 * May the signed-in person touch work belonging to this location? In a fuel
+	 * company a site's staff are limited to their own sites; head office, and
+	 * every trade that has no site structure, keeps the whole store as before.
+	 */
+	private function _job_reachable($store_id, $warehouse_id){
+		if(!$this->_has_site_column()) return true;
+		if(!function_exists('mp_is_oil_gas_workspace') || !mp_is_oil_gas_workspace()) return true;
+		if(!function_exists('mp_location_assigned_ids')) return true;
+		$assigned = mp_location_assigned_ids((int)$store_id);
+		if(!is_array($assigned)) return true;
+		return in_array((int)$warehouse_id, $assigned, true);
+	}
+
 	private function _next_job_code($sourceStoreId = null){
 		$store_id = $sourceStoreId===null ? get_current_store_id() : (int)$sourceStoreId;
 		$count = $this->db->where('store_id', $store_id)->count_all_results('db_service_jobs') + 1;
 		return 'JOB-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+	}
+
+	/**
+	 * Is this team member allowed to work at this location? Staff who have never
+	 * been given a site list are not restricted — most stores leave the branch
+	 * assignment table empty, and an engineer is often sent out from head
+	 * office rather than pinned to one forecourt.
+	 */
+	private function _user_covers_site($store_id, $user_id, $warehouse_id){
+		if(!$this->db->table_exists('db_userswarehouses')) return true;
+		$rows = $this->db->query('SELECT uw.warehouse_id FROM db_userswarehouses uw'
+			.' INNER JOIN db_warehouse w ON w.id = uw.warehouse_id'
+			.' WHERE uw.user_id = '.(int)$user_id.' AND w.store_id = '.(int)$store_id.' AND w.status = 1')->result_array();
+		if(empty($rows)) return true;
+		foreach($rows as $row){ if((int)$row['warehouse_id'] === (int)$warehouse_id) return true; }
+		return false;
 	}
 
 	public function save_job(){
@@ -132,6 +186,9 @@ class Equipment_model extends CI_Model {
 			'title'            => mp_clean_text($this->input->post('title')),
 			'description'      => mp_clean_text($this->input->post('description')),
 			'labour_charge'    => (float)str_replace(',', '', (string)$this->input->post('labour_charge')),
+			// Only the Oil & Gas workspace offers a site control; elsewhere this
+			// arrives as 0, which is what the column has always meant: no site.
+			'warehouse_id'     => (int)$this->input->post('warehouse_id'),
 		);
 		try { return 'success<<<###>>>'.$this->save_job_data($data,$job_id); }
         catch (InvalidArgumentException $e) { return $e->getMessage(); }
@@ -152,6 +209,16 @@ class Equipment_model extends CI_Model {
             if (!$this->db->where('id',(int)$data[$column])->where('store_id',$store_id)->where('customer_id',$customer_id)->get($table)->row()) throw new InvalidArgumentException('The selected site, equipment or invoice does not belong to this customer.');
         }
         if (!empty($data['assigned_user_id']) && !$this->db->where('id',(int)$data['assigned_user_id'])->where('store_id',$store_id)->where('status',1)->get('db_users')->row()) throw new InvalidArgumentException('Team member not found.');
+        // A caller that says nothing about a site leaves it as it was found; only
+        // an explicit id (or an explicit 0) moves a job.
+        if (array_key_exists('warehouse_id', $data) && $this->_has_site_column()) {
+            $warehouse_id = max(0, (int)$data['warehouse_id']);
+            if ($warehouse_id > 0 && !$this->db->where('id',$warehouse_id)->where('store_id',$store_id)->where('status',1)->get('db_warehouse')->row()) throw new InvalidArgumentException('Location not found.');
+            if ($warehouse_id > 0 && !empty($data['assigned_user_id']) && !$this->_user_covers_site($store_id, (int)$data['assigned_user_id'], $warehouse_id)) throw new InvalidArgumentException('That team member is not assigned to this location.');
+            $data['warehouse_id'] = $warehouse_id;
+        } else {
+            unset($data['warehouse_id']);
+        }
         if (!in_array($data['status'] ?? 'open',$this->JOB_STATUSES,true)) throw new InvalidArgumentException('Invalid job status.');
         if (empty($data['title'])) $data['title']=ucfirst($data['job_type'] ?? 'Service').' job';
         if (strlen($data['title'])>200) throw new InvalidArgumentException('Enter a job title of at most 200 characters.');
@@ -165,11 +232,16 @@ class Equipment_model extends CI_Model {
             if ($job_id) {
                 $existing=$this->db->where('id',(int)$job_id)->where('store_id',$store_id)->get('db_service_jobs')->row();
                 if (!$existing) throw new InvalidArgumentException('Service job not found.');
+                if (!$this->_job_reachable($store_id, (int)$existing->warehouse_id)) throw new InvalidArgumentException('This job belongs to another location.');
+                if (!empty($data['warehouse_id']) && !$this->_job_reachable($store_id, (int)$data['warehouse_id'])) throw new InvalidArgumentException('That location is not one of yours.');
                 if ((int)$existing->customer_id!==$customer_id) throw new InvalidArgumentException('A service job cannot be moved to another customer.');
                 if ($this->db->table_exists('db_service_job_context') && $this->db->where('store_id',$store_id)->where('job_id',(int)$job_id)->get('db_service_job_context')->row()
                     && (($data['status'] ?? $existing->status)!==$existing->status || (int)($data['sales_id'] ?? $existing->sales_id)!==(int)$existing->sales_id)) throw new InvalidArgumentException('Manage project status and invoice linkage from its project workspace.');
                 $ok=$this->db->where('id',(int)$job_id)->where('store_id',$store_id)->update('db_service_jobs',$data);
             } else {
+                // A site's technician raises work at their own site; head office
+                // may still raise company work with no site chosen yet.
+                if (array_key_exists('warehouse_id', $data) && !$this->_job_reachable($store_id, (int)$data['warehouse_id'])) throw new InvalidArgumentException('Choose which of your locations this work happens at.');
                 $data['store_id']=$store_id;
                 $data['job_code']=$this->_next_job_code($store_id);
                 $data['count_id']=(int)($this->db->select_max('count_id')->get('db_service_jobs')->row()->count_id ?? 0)+1;
@@ -184,12 +256,15 @@ class Equipment_model extends CI_Model {
 
 	public function get_job_list($filters = array()){
 		$store_id = get_current_store_id();
-		$this->db->select("j.*, c.customer_name, u.username AS engineer, COALESCE(NULLIF(sa.site_name,''), sa.address) AS site_name,
-			e.serial_number AS equipment_serial, i.item_name AS equipment_item", FALSE);
+		$has_site = $this->_has_site_column();
+		$this->db->select("j.*, c.customer_name, u.username AS engineer, COALESCE(NULLIF(sa.site_name,''), sa.address) AS site_name,"
+			.($has_site ? " w.warehouse_name AS location_name," : "")
+			." e.serial_number AS equipment_serial, i.item_name AS equipment_item", FALSE);
 		$this->db->from('db_service_jobs j');
 		$this->db->join('db_customers c', 'c.id = j.customer_id AND c.store_id=j.store_id', 'left');
 		$this->db->join('db_users u', 'u.id = j.assigned_user_id AND u.store_id=j.store_id', 'left');
 		$this->db->join('db_shippingaddress sa', 'sa.id = j.site_id AND sa.store_id=j.store_id', 'left');
+		if($has_site){ $this->db->join('db_warehouse w', 'w.id = j.warehouse_id AND w.store_id=j.store_id', 'left'); }
 		$this->db->join('db_customer_equipment e', 'e.id = j.equipment_id AND e.store_id=j.store_id', 'left');
 		$this->db->join('db_items i', 'i.id = e.item_id AND i.store_id=e.store_id', 'left');
 		$this->db->where('j.store_id', $store_id);
@@ -197,14 +272,26 @@ class Equipment_model extends CI_Model {
 		if(!empty($filters['equipment_id'])){ $this->db->where('j.equipment_id', $filters['equipment_id']); }
 		if(!empty($filters['status'])){ $this->db->where('j.status', $filters['status']); }
 		if(!empty($filters['open_only'])){ $this->db->where_not_in('j.status', array('completed','cancelled')); }
+		if($has_site && !empty($filters['warehouse_id'])){ $this->db->where('j.warehouse_id', (int)$filters['warehouse_id']); }
+		// Only a fuel company has sites to hide behind. Everywhere else the job
+		// list stays exactly as it always was: the whole store's work. A site's
+		// staff see their own sites' jobs; an empty site list means nothing shows,
+		// which is the same rule the write path enforces.
+		if($has_site && isset($filters['scope_location_ids']) && is_array($filters['scope_location_ids'])){
+			$ids = array_values(array_filter(array_map('intval', $filters['scope_location_ids'])));
+			if(empty($ids)) $this->db->where('j.warehouse_id', -1);
+			else $this->db->where_in('j.warehouse_id', $ids);
+		}
 		$this->db->order_by('j.id', 'DESC');
 		if (!empty($filters['limit'])) $this->db->limit(min(500,(int)$filters['limit']));
 		return $this->db->get()->result();
 	}
 
 	public function get_job($id){
-		$job = $this->db->select("j.*, c.customer_name, u.username AS engineer, COALESCE(NULLIF(sa.site_name,''), sa.address) AS site_name, sa.address AS site_address,
-				e.serial_number AS equipment_serial, e.model AS equipment_model, i.item_name AS equipment_item,
+		$has_site = $this->_has_site_column();
+		$job = $this->db->select("j.*, c.customer_name, u.username AS engineer, COALESCE(NULLIF(sa.site_name,''), sa.address) AS site_name, sa.address AS site_address,"
+				.($has_site ? " w.warehouse_name AS location_name," : "")
+				." e.serial_number AS equipment_serial, e.model AS equipment_model, i.item_name AS equipment_item,
 				s.sales_code", FALSE)
 			->from('db_service_jobs j')
 			->join('db_customers c', 'c.id = j.customer_id AND c.store_id=j.store_id', 'left')
@@ -212,9 +299,11 @@ class Equipment_model extends CI_Model {
 			->join('db_shippingaddress sa', 'sa.id = j.site_id AND sa.store_id=j.store_id', 'left')
 			->join('db_customer_equipment e', 'e.id = j.equipment_id AND e.store_id=j.store_id', 'left')
 			->join('db_items i', 'i.id = e.item_id AND i.store_id=e.store_id', 'left')
-			->join('db_sales s', 's.id = j.sales_id AND s.store_id=j.store_id', 'left')
-			->where('j.id', (int)$id)->where('j.store_id', get_current_store_id())
-			->get()->row();
+			->join('db_sales s', 's.id = j.sales_id AND s.store_id=j.store_id', 'left');
+		if($has_site){
+			$job = $this->db->join('db_warehouse w', 'w.id = j.warehouse_id AND w.store_id=j.store_id', 'left');
+		}
+		$job = $this->db->where('j.id', (int)$id)->where('j.store_id', get_current_store_id())->get()->row();
 		return $job;
 	}
 
@@ -411,9 +500,9 @@ class Equipment_model extends CI_Model {
 		if(!in_array($status, $this->JOB_STATUSES)){ return 'Invalid status.'; }
 		$job = $this->db->where('id', $job_id)->where('store_id', get_current_store_id())->get('db_service_jobs')->row();
 		if(!$job){ return "Service job not found."; }
+		if(!$this->_job_reachable(get_current_store_id(), (int)$job->warehouse_id)){ return 'This job belongs to another location.'; }
 		if ($this->db->table_exists('db_service_job_context') && $this->db->where('store_id',get_current_store_id())->where('job_id',$job_id)->get('db_service_job_context')->row()) return 'Manage project status from its project workspace.';
-		$allowed=['open'=>['scheduled','in_progress','cancelled'],'scheduled'=>['in_progress','cancelled'],'in_progress'=>['awaiting_parts','completed','cancelled'],'awaiting_parts'=>['in_progress','cancelled']];
-		if ($status!==$job->status && !in_array($status,$allowed[$job->status] ?? [],true)) return 'Invalid service job transition.';
+		if ($status!==$job->status && !in_array($status,$this->next_statuses($job->status),true)) return 'Invalid service job transition.';
 		if ($status===$job->status) return 'success';
 		$jobProfile=mp_get_store_profile();
 		if (($jobProfile['industry_type'] ?? '')==='garden_centre_landscaping') {

@@ -197,7 +197,9 @@ class Customers_model extends CI_Model {
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
 
-		$store_id=get_current_store_id();  
+		$store_id=get_current_store_id();
+        try { $pricingAssignment = mp_customer_pricing()->assignment($store_id, (array)$this->input->post(null, TRUE)); }
+        catch (RuntimeException $e) { return $e->getMessage(); }
 
 		$this->db->where('mobile', $mobile);
 		$this->db->where('store_id', $store_id);
@@ -235,6 +237,7 @@ class Customers_model extends CI_Model {
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 	              );
+        $info = array_merge($info, $pricingAssignment);
 		// Preserve existing notes when the feature is disabled and its input is hidden.
 		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
 			
@@ -337,6 +340,8 @@ class Customers_model extends CI_Model {
 			$data['photo']= property_exists($query, 'photo') ? $query->photo : '';
 			$data['price_level_type']=$query->price_level_type;
 			$data['price_level']=$query->price_level;
+            $data['pricing_group_id']=$query->pricing_group_id ?? null;
+            $data['pricing_rule_mode']=$query->pricing_rule_mode ?? ((float)$query->price_level != 0 ? 'custom' : 'inherit');
 			$data['credit_limit']=$query->credit_limit;
 		$data['payment_terms_days']=$query->payment_terms_days ?? 0;
 
@@ -405,6 +410,8 @@ class Customers_model extends CI_Model {
 
 		//Validate This customers already exist or not
 		$store_id= get_current_store_id();
+        try { $pricingAssignment = mp_customer_pricing()->assignment($store_id, (array)$this->input->post(null, TRUE)); }
+        catch (RuntimeException $e) { return $e->getMessage(); }
 		
 			    $info = array(
 			                'customer_name'         => $customer_name,
@@ -424,6 +431,7 @@ class Customers_model extends CI_Model {
                 'birthday'             => (!empty($birthday)) ? $birthday : NULL,
                 'notes'                => $notes,
 			              );
+        $info = array_merge($info, $pricingAssignment);
 		// Preserve existing notes when the feature is disabled and its input is hidden.
 		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
 			    if(isset($price_level_type)){

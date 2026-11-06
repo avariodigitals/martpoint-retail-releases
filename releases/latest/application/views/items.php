@@ -1,5 +1,6 @@
 <?php
 $CI =& get_instance();
+$auto_retail_markup = mp_feature_enabled('auto_retail_markup');
 // Business model: product_based, service_based, product_and_service
 $store_profile = mp_get_store_profile();
 $is_plant = ($store_profile['industry_type'] ?? '') === 'oil_processing_plant';
@@ -16,6 +17,9 @@ if(!isset($item_name)){
   $stock = 0;
   $seller_points =0;
   $custom_barcode ='';
+  $manufacturer_part_no ='';
+  $oem_reference ='';
+  $cross_reference ='';
   $description ='';
   $mrp ='';
   $batch_lot ='';
@@ -29,6 +33,7 @@ if(!isset($item_name)){
   $track_serial = 0;
   $track_imei = 0;
   $not_for_sale = 0;
+  $prescription_required = 0;
   $consumable_unit ='';
   $accept_custom_order = 0;
   $requires_quote = 0;
@@ -64,6 +69,9 @@ else{
   $opening_stock_readonly = 'readonly';
   // Ensure these have defaults for edit mode (get_details may not set all)
   if(!isset($warehouse_id)) $warehouse_id='';
+  if(!isset($manufacturer_part_no)) $manufacturer_part_no='';
+  if(!isset($oem_reference)) $oem_reference='';
+  if(!isset($cross_reference)) $cross_reference='';
   if(!isset($accept_custom_order)) $accept_custom_order=0;
   if(!isset($requires_quote)) $requires_quote=0;
   if(!isset($requires_deposit)) $requires_deposit=0;
@@ -375,6 +383,23 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <input class="mp-form-control" id="sku" name="sku" placeholder="Stock keeping unit" type="text" value="<?php print htmlspecialchars($sku); ?>">
         <span id="sku_msg" style="display:none" class="text-danger"></span>
       </div>
+      <?php if(mp_feature_enabled('auto_parts')): ?>
+      <input type="hidden" name="auto_part_identity_section" value="1">
+      <div class="mp-form-group">
+        <label for="manufacturer_part_no">Manufacturer Part No.</label>
+        <input class="mp-form-control" id="manufacturer_part_no" name="manufacturer_part_no" placeholder="e.g. 04465-33471" type="text" value="<?php print htmlspecialchars($manufacturer_part_no); ?>">
+        <p class="mp-form-hint">The number a workshop or dealer asks for. Searching the <?= htmlspecialchars(mp_label('item')) ?> list finds this part by it.</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="oem_reference">OEM Reference (optional)</label>
+        <input class="mp-form-control" id="oem_reference" name="oem_reference" placeholder="Original equipment number" type="text" value="<?php print htmlspecialchars($oem_reference); ?>">
+      </div>
+      <div class="mp-form-group full">
+        <label for="cross_reference">Cross References / Also Known As (optional)</label>
+        <input class="mp-form-control" id="cross_reference" name="cross_reference" placeholder="e.g. BPR2A, Nippondenso 29129" type="text" value="<?php print htmlspecialchars($cross_reference); ?>">
+        <p class="mp-form-hint">Separate alternatives with commas — any of them will find this part in a search.</p>
+      </div>
+      <?php endif; ?>
       <?php if(mp_feature_enabled('kitchen_workflow')): ?>
       <div class="mp-form-group mp-item-only">
         <label for="fulfilment_route">Preparation route</label>
@@ -568,6 +593,64 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
   </div>
 </div>
 
+<?php if(mp_feature_enabled('auto_parts')): ?>
+<?php
+  $compat_rows = (isset($vehicle_compat_rows) && is_array($vehicle_compat_rows)) ? $vehicle_compat_rows : [];
+  $compat_makes = (isset($vehicle_makes) && is_array($vehicle_makes)) ? $vehicle_makes : [];
+  $compat_models = (isset($vehicle_models) && is_array($vehicle_models)) ? $vehicle_models : [];
+?>
+<!-- Vehicle fitment — which vehicles this part fits -->
+<div class="mp-card-form mp-item-only" id="vehicle_compat_section">
+  <div class="mp-card-head">
+    <h3>Fits These Vehicles <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Blank means &quot;any&quot; — a workshop searching by a customer's vehicle finds this part)</span></h3>
+    <button type="button" class="mp-table-add-btn" onclick="addCompatRow()"><i class="fa fa-plus"></i> Add Vehicle</button>
+  </div>
+  <div class="mp-card-body">
+    <input type="hidden" name="vehicle_compat_section" value="1">
+    <datalist id="mp_vehicle_makes"><?php foreach($compat_makes as $m): ?><option value="<?=htmlspecialchars($m->name ?? $m);?>"></option><?php endforeach; ?></datalist>
+    <datalist id="mp_vehicle_models"><?php foreach($compat_models as $m): ?><option value="<?=htmlspecialchars($m->name ?? $m);?>"></option><?php endforeach; ?></datalist>
+    <div style="overflow-x:auto;">
+    <table class="mp-inner-table" id="vehicle_compat_table">
+      <thead>
+        <tr>
+          <th>Make</th>
+          <th>Model</th>
+          <th>Year From</th>
+          <th>Year To</th>
+          <th>Engine (optional)</th>
+          <th>Note (optional)</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if(!empty($compat_rows)): $ci = 0; foreach($compat_rows as $crow): $ci++; ?>
+        <tr id="compat_row_<?=$ci;?>">
+          <td><input type="text" name="compat_make[]" list="mp_vehicle_makes" value="<?=htmlspecialchars($crow->make);?>" placeholder="e.g. Toyota"></td>
+          <td><input type="text" name="compat_model[]" list="mp_vehicle_models" value="<?=htmlspecialchars($crow->model ?? '');?>"></td>
+          <td><input type="text" name="compat_year_from[]" value="<?=htmlspecialchars($crow->year_from ?? '');?>" placeholder="2015" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_year_to[]" value="<?=htmlspecialchars($crow->year_to ?? '');?>" placeholder="2020" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_engine[]" value="<?=htmlspecialchars($crow->engine ?? '');?>" placeholder="e.g. 2.0 D-4D"></td>
+          <td><input type="text" name="compat_note[]" value="<?=htmlspecialchars($crow->note ?? '');?>" placeholder="e.g. petrol only, check before fitting"></td>
+          <td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('<?=$ci;?>')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endforeach; else: ?>
+        <tr id="compat_row_1">
+          <td><input type="text" name="compat_make[]" list="mp_vehicle_makes" placeholder="e.g. Toyota"></td>
+          <td><input type="text" name="compat_model[]" list="mp_vehicle_models" placeholder="e.g. Corolla"></td>
+          <td><input type="text" name="compat_year_from[]" placeholder="2015" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_year_to[]" placeholder="2020" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_engine[]" placeholder="e.g. 2.0 D-4D"></td>
+          <td><input type="text" name="compat_note[]" placeholder="Anything a fitter should know"></td>
+          <td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('1')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <!-- Optionals (item-only) -->
 <div class="mp-card-form mp-item-only">
   <div class="mp-card-head"><h3><?= $is_plant ? 'Plant Use & Tracking' : 'Optionals'; ?></h3></div>
@@ -580,6 +663,15 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         </label>
         <p class="mp-form-hint"><?= $is_plant ? 'Select for raw inputs and consumables. Leave off for sellable finished oil, products, or spare parts.' : 'Hide from POS. Use in treatments, production, etc.'; ?></p>
       </div>
+      <?php if(mp_feature_enabled('prescription_required') && $this->db->field_exists('prescription_required', 'db_items')): ?>
+      <div class="mp-form-group full">
+        <label class="mp-check-label">
+          <input type="checkbox" id="prescription_required" name="prescription_required" value="1" <?= ($prescription_required==1) ? 'checked' : ''; ?>>
+          Prescription Required <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Rx-only medicine)</span>
+        </label>
+        <p class="mp-form-hint">The till refuses this medicine unless an approved prescription is linked to the sale.</p>
+      </div>
+      <?php endif; ?>
       <div class="mp-form-group">
         <label for="consumable_unit"><?= $is_plant ? 'Consumption Unit' : 'Unit Label'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(for consumables)</span></label>
         <input class="mp-form-control" id="consumable_unit" name="consumable_unit" placeholder="<?= $is_plant ? 'e.g. kg, litre, metre, piece' : 'e.g. ml, bottle, pump, sachet'; ?>" type="text" value="<?php print htmlspecialchars($consumable_unit); ?>">
@@ -799,7 +891,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="purchase_price_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="sales_price"><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Sale Price'; ?></label>
+        <label for="sales_price"><?= $is_plant ? 'Quotation / Selling Unit Price' : ($auto_retail_markup ? 'Wholesale Price' : 'Sale Price'); ?></label>
         <input class="mp-form-control only_currency" id="sales_price" name="sales_price" type="text" value="<?php print store_number_format($sales_price,0); ?>" placeholder="0.00">
         <span id="sales_price_msg" style="display:none" class="text-danger"></span>
       </div>
@@ -809,7 +901,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         <span id="profit_margin_msg" style="display:none" class="text-danger"></span>
       </div>
       <div class="mp-form-group">
-        <label for="mrp"><?= $is_plant ? 'List Price (optional)' : 'MRP'; ?></label>
+        <label for="mrp"><?= $is_plant ? 'List Price (optional)' : ($auto_retail_markup ? 'Retail Price' : 'MRP'); ?></label>
         <input class="mp-form-control only_currency" id="mrp" name="mrp" type="text" value="<?php print store_number_format($mrp,0); ?>" placeholder="0.00">
         <span id="mrp_msg" style="display:none" class="text-danger"></span>
       </div>
@@ -1317,6 +1409,25 @@ function addBarcodeRow(){
 function removeBarcodeRow(id){
   $('#barcode_row_'+id).remove();
 }
+<?php if(mp_feature_enabled('auto_parts')): ?>
+var compatRowIndex = <?= count((isset($vehicle_compat_rows) && is_array($vehicle_compat_rows)) ? $vehicle_compat_rows : []); ?>;
+function addCompatRow(){
+  compatRowIndex++;
+  var html = '<tr id="compat_row_'+compatRowIndex+'">'+
+    '<td><input type="text" name="compat_make[]" list="mp_vehicle_makes" placeholder="e.g. Toyota"></td>'+
+    '<td><input type="text" name="compat_model[]" list="mp_vehicle_models" placeholder="e.g. Corolla"></td>'+
+    '<td><input type="text" name="compat_year_from[]" placeholder="2015" style="min-width:70px;"></td>'+
+    '<td><input type="text" name="compat_year_to[]" placeholder="2020" style="min-width:70px;"></td>'+
+    '<td><input type="text" name="compat_engine[]" placeholder="e.g. 2.0 D-4D"></td>'+
+    '<td><input type="text" name="compat_note[]" placeholder="Anything a fitter should know"></td>'+
+    '<td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('+compatRowIndex+')"><i class="fa fa-trash"><\/i><\/button><\/td>'+
+    '<\/tr>';
+  $('#vehicle_compat_table tbody').append(html);
+}
+function removeCompatRow(id){
+  $('#compat_row_'+id).remove();
+}
+<?php endif; ?>
 
 $(function(){
   // Custom Order field builder
@@ -1524,3 +1635,5 @@ $(function(){
 
 <!-- Make sidebar menu highlighter/selector -->
 <script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+
+<?php $this->load->view('inventory/retail_markup_script'); ?>

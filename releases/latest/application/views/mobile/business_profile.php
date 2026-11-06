@@ -56,6 +56,18 @@
     .mp-select .option.selected { background: #EFF6FF; color: var(--mp-primary); font-weight: 600; }
     .mp-select .hidden-select { position: absolute; opacity: 0; pointer-events: none; }
     .flag-list { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+    .flag-group { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--mp-border, #E2E8F0); border-radius: 14px; }
+    .flag-group-title { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--mp-ink); list-style: none; }
+    .cap-blurb { font-size: 12px; color: var(--mp-muted, #64748B); margin: 0; }
+    .cap-hint { font-size: 11px; color: var(--mp-muted, #64748B); margin: -4px 0 0; }
+    .rotation-box { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+    .rotation-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--mp-bg); border-radius: 12px; font-size: 14px; color: var(--mp-ink); }
+    .rotation-option input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--mp-primary); }
+    .rotation-option small { display: block; font-size: 11px; color: var(--mp-muted, #64748B); margin-top: 2px; }
+    .rotation-warn { padding: 12px; border-radius: 12px; background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.35); color: #92400E; font-size: 13px; display: flex; flex-direction: column; gap: 10px; }
+    .rotation-warn a { color: #92400E; font-weight: 600; text-decoration: underline; }
+    .rotation-warn label { display: flex; align-items: flex-start; gap: 8px; font-weight: 500; }
+    .rotation-warn input[type=checkbox] { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--mp-warning); }
     .flag-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--mp-bg); border-radius: 12px; }
     .flag-item label { font-size: 14px; color: var(--mp-ink); }
     .toggle { width: 46px; height: 26px; border-radius: 13px; background: #E2E8F0; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
@@ -215,34 +227,89 @@
           </div>
         </details>
 
+        <?php
+          /*
+           * Same registry the desktop screen uses, so a store sees the same
+           * capability switches whichever device it is holding — and a switch
+           * that is working can never disappear from one of them.
+           */
+          $m_preset_key = $profile['industry_type'] ?? '';
+          $m_recommended = ($m_preset_key && isset($presets[$m_preset_key]['features'])) ? $presets[$m_preset_key]['features'] : [];
+          $m_flag_on = function ($key) use ($current_flags, $m_recommended) {
+            if (isset($current_flags[$key])) return filter_var($current_flags[$key], FILTER_VALIDATE_BOOLEAN);
+            if ($key === 'mfg_tracking') return mp_feature_enabled('expiry_tracking');
+            if ($key === 'accounts')     return accounts_module();
+            if ($key === 'warehouse')    return warehouse_module();
+            return in_array($key, $m_recommended, true);
+          };
+          $m_layout = mp_store_feature_layout($m_preset_key, $m_recommended ?: null, (array)$current_flags, ['rotation_method' => $rotation_method ?? 'MANUAL']);
+          $m_rotation_methods = mp_get_rotation_methods();
+          $m_rotation = strtoupper((string)($rotation_method ?? 'MANUAL'));
+        ?>
         <details class="section">
-          <summary>Feature Flags (<?= count($feature_flags); ?>) <i class="fa fa-chevron-right arrow"></i></summary>
+          <summary>Capabilities (<?= count($feature_flags); ?>) <i class="fa fa-chevron-right arrow"></i></summary>
           <div class="section-body">
-            <div class="flag-list">
-              <?php foreach($feature_flags as $key => $label):
-                if (isset($current_flags[$key])) {
-                  $is_flagged = filter_var($current_flags[$key], FILTER_VALIDATE_BOOLEAN);
-                } else {
-                  if ($key === 'mfg_tracking') {
-                    $is_flagged = mp_feature_enabled('expiry_tracking');
-                  } elseif ($key === 'accounts') {
-                    $is_flagged = accounts_module();
-                  } elseif ($key === 'warehouse') {
-                    $is_flagged = warehouse_module();
-                  } else {
-                    $is_flagged = false;
-                  }
-                }
-              ?>
-                <div class="flag-item">
-                  <label for="flag_<?= $key; ?>"><?= $label; ?></label>
-                  <div class="toggle <?= $is_flagged ? 'on' : ''; ?>">
-                    <input type="checkbox" name="feature_flags[<?= $key; ?>]" id="flag_<?= $key; ?>" value="1" <?= $is_flagged ? 'checked' : ''; ?> onchange="this.parentElement.classList.toggle('on', this.checked)">
-                    <div class="knob"></div>
-                  </div>
+            <?php foreach ($m_layout['sections'] as $m_section): ?>
+              <div class="flag-group">
+                <div class="flag-group-title"><?= htmlspecialchars($m_section['label']); ?></div>
+                <p class="cap-blurb"><?= htmlspecialchars($m_section['blurb']); ?></p>
+                <?php if (!empty($m_section['flags'])): ?>
+                <div class="flag-list">
+                  <?php foreach ($m_section['flags'] as $flag): $key = $flag['key']; $is_flagged = $m_flag_on($key); ?>
+                    <div class="flag-item">
+                      <label for="flag_<?= htmlspecialchars($key); ?>"><?= htmlspecialchars($flag['label']); ?></label>
+                      <input type="hidden" name="feature_flags_seen[<?= htmlspecialchars($key); ?>]" value="1">
+                      <div class="toggle <?= $is_flagged ? 'on' : ''; ?>">
+                        <input type="checkbox" name="feature_flags[<?= htmlspecialchars($key); ?>]" id="flag_<?= htmlspecialchars($key); ?>" value="1" <?= $is_flagged ? 'checked' : ''; ?> onchange="this.parentElement.classList.toggle('on', this.checked)">
+                        <div class="knob"></div>
+                      </div>
+                    </div>
+                    <?php if ($key === 'auto_retail_markup') $this->load->view('inventory/retail_markup_setting'); ?>
+                    <?php if (!empty($flag['hint'])): ?><p class="cap-hint"><?= htmlspecialchars($flag['hint']); ?></p><?php endif; ?>
+                  <?php endforeach; ?>
                 </div>
-              <?php endforeach; ?>
-            </div>
+                <?php endif; ?>
+                <?php if (in_array('rotation_method', $m_section['controls'], true)): ?>
+                  <div class="rotation-box">
+                    <div class="flag-group-title">Batch rotation</div>
+                    <?php if (empty($rotation_available)): ?>
+                      <p class="cap-hint">Batch rotation is not installed on this store yet, so sales stay on Manual until the update is applied.</p>
+                    <?php else: ?>
+                      <p class="cap-blurb">Which batch the counter draws when a medicine sells. This store only.</p>
+                      <?php foreach ($m_rotation_methods as $mk => $mm): ?>
+                        <label class="rotation-option"><input type="radio" name="rotation_method" value="<?= $mk; ?>" <?= $m_rotation === $mk ? 'checked' : ''; ?>><span><?= htmlspecialchars($mm['label']); ?><small><?= htmlspecialchars($mm['blurb']); ?></small></span></label>
+                      <?php endforeach; ?>
+                      <?php $m_rotation_gaps = (int)($rotation_gaps ?? mp_rotation_gap_count()); ?>
+                      <?php if ($m_rotation === 'MANUAL' && $m_rotation_gaps > 0): ?>
+                        <div class="rotation-warn">
+                          <span><strong><?= $m_rotation_gaps; ?> <?= $m_rotation_gaps === 1 ? 'medicine is' : 'medicines are'; ?></strong> held in batches that do not match their stock figures. Under automatic rotation each one stops at the till until it is balanced. <a href="<?= base_url('batch_reconciliation'); ?>">Review them</a>.</span>
+                          <label><input type="checkbox" name="rotation_ack" value="1"><span>Switch anyway — I will balance each one when the till flags it</span></label>
+                        </div>
+                      <?php endif; ?>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+              </div>
+            <?php endforeach; ?>
+            <?php if (!empty($m_layout['other'])): ?>
+              <details class="flag-group">
+                <summary class="flag-group-title">Other capabilities (<?= count($m_layout['other']); ?>)</summary>
+                <p class="cap-blurb">For businesses that run more than one model — a shop that also manufactures, sells on account, or holds stock for a vendor. Nothing changes until you save.</p>
+                <div class="flag-list">
+                  <?php foreach ($m_layout['other'] as $key => $label): $is_flagged = $m_flag_on($key); ?>
+                    <div class="flag-item">
+                      <label for="flag_<?= htmlspecialchars($key); ?>"><?= htmlspecialchars($label); ?></label>
+                      <input type="hidden" name="feature_flags_seen[<?= htmlspecialchars($key); ?>]" value="1">
+                      <div class="toggle <?= $is_flagged ? 'on' : ''; ?>">
+                        <input type="checkbox" name="feature_flags[<?= htmlspecialchars($key); ?>]" id="flag_<?= htmlspecialchars($key); ?>" value="1" <?= $is_flagged ? 'checked' : ''; ?> onchange="this.parentElement.classList.toggle('on', this.checked)">
+                        <div class="knob"></div>
+                      </div>
+                    </div>
+                    <?php if ($key === 'auto_retail_markup') $this->load->view('inventory/retail_markup_setting'); ?>
+                  <?php endforeach; ?>
+                </div>
+              </details>
+            <?php endif; ?>
           </div>
         </details>
 

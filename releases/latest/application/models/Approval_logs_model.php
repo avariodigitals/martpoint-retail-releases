@@ -89,8 +89,10 @@ class Approval_logs_model extends CI_Model {
 		return ['total' => $count, 'rows' => $results];
 	}
 
-	public function getLogById($id){
+	public function getLogById($id, $storeId = null){
 		if(!$this->db->table_exists('db_approval_logs')) return null;
-		return $this->db->where('id', $id)->get('db_approval_logs')->row();
+		$this->db->where('id', $id);
+		if($storeId !== null) $this->db->where('store_id', (int)$storeId);
+		return $this->db->get('db_approval_logs')->row();
 	}
 }

@@ -37,6 +37,135 @@ class Reports extends MY_Controller {
 		echo $this->reports->show_sales_report();
 	}
 
+	/** Member-group versus retail sales report with server-side pagination. */
+	public function customer_group_sales(){
+		$this->permission_check('sales_report');
+		$data = $this->data;
+		$data['page_title'] = 'Member & Retail Sales';
+		$this->load->model('customer_pricing_model', 'customer_pricing');
+		$data['customer_pricing_ready'] = $this->customer_pricing->installed();
+		$data['customer_pricing_groups'] = $this->customer_pricing->groups(get_current_store_id());
+		$data['sales_report_warehouses'] = $this->db->select('id, warehouse_name')->where('store_id', get_current_store_id())
+			->where('status', 1)->order_by('warehouse_name')->get('db_warehouse')->result();
+		$mobile = $this->input->get('screen') === 'mobile' || ($this->input->get('screen') !== 'desktop' && is_mobile());
+		if($mobile){
+			$data['SITE_TITLE'] = $data['store_name'] ?? $this->session->userdata('store_name') ?: 'MartPoint';
+			$this->load->view('mobile/reports/customer_group_sales', $data);
+			return;
+		}
+		$data['content'] = $this->load->view('reports/desktop/customer_group_sales', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
+
+	public function customer_group_sales_data(){
+		$this->permission_check('sales_report');
+		$filters = $this->_customer_group_sales_filters($this->input->post(NULL, TRUE));
+		if(is_cashier() && !permissions('show_all_users_sales_invoices')) $filters['created_by'] = $this->session->userdata('inv_username');
+		$start = max(0, (int)$this->input->post('start'));
+		$length = max(1, min(200, (int)$this->input->post('length')));
+		$search = trim((string)$this->input->post('search', TRUE));
+		$result = $this->reports->customer_group_sales_page(get_current_store_id(), $filters, $start, $length, $search);
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'draw'=>(int)$this->input->post('draw'), 'recordsTotal'=>$result['total'], 'recordsFiltered'=>$result['total'],
+			'data'=>$result['rows'], 'summary'=>$result['summary'], 'csrf_hash'=>$this->security->get_csrf_hash()
+		]));
+	}
+
+	/** Export the complete filtered result as CSV, Excel-compatible workbook, or PDF. */
+	public function customer_group_sales_export($format = ''){
+		$this->permission_check('sales_report');
+		$format = strtolower((string)$format);
+		if(!in_array($format, ['csv','excel','pdf'], TRUE)) show_404();
+		$filters = $this->_customer_group_sales_filters($this->input->get(NULL, TRUE));
+		if(is_cashier() && !permissions('show_all_users_sales_invoices')) $filters['created_by'] = $this->session->userdata('inv_username');
+		$search = trim((string)$this->input->get('search', TRUE));
+		$report = $this->reports->customer_group_sales_export_rows(get_current_store_id(), $filters, $search);
+		$rows = $report['rows'];
+		$summary = $report['summary'];
+		if((int)$report['total'] > count($rows)){
+			$this->output->set_status_header(413)->set_content_type('text/plain')->set_output('This export exceeds 50,000 sales lines. Narrow the date range or add a branch/group filter and export again.');
+			return;
+		}
+		$filename = 'member-retail-sales-' . date('Ymd-His');
+		$headers = ['Date','Invoice','Customer code','Customer','Item','Quantity','Unit price','Line total','Sale type','Customer group','Branch','Cashier'];
+		if($format === 'csv'){
+			$this->output->set_content_type('text/csv', 'UTF-8');
+			$this->output->set_header('Content-Disposition: attachment; filename="'.$filename.'.csv"');
+			$fp = fopen('php://temp', 'w+');
+			fwrite($fp, "\xEF\xBB\xBF");
+			fputcsv($fp, ['Member & Retail Sales']);
+			fputcsv($fp, ['Member sales', (float)$summary['member_sales'], 'Individual adjustments', (float)$summary['individual_sales'], 'Retail sales', (float)$summary['retail_sales'], 'Total sales', (float)$summary['total_sales']]);
+			fputcsv($fp, $headers);
+			foreach($rows as $row) fputcsv($fp, $this->_customer_group_sales_export_row($row));
+			rewind($fp); $csv = stream_get_contents($fp); fclose($fp);
+			$this->output->set_output($csv); return;
+		}
+		if($format === 'excel'){
+			$xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>';
+			$xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Member Retail Sales"><Table>';
+			$xml .= '<Row><Cell><Data ss:Type="String">Member &amp; Retail Sales</Data></Cell></Row>';
+			$xml .= '<Row><Cell><Data ss:Type="String">Member sales</Data></Cell><Cell><Data ss:Type="Number">'.(float)$summary['member_sales'].'</Data></Cell><Cell><Data ss:Type="String">Individual adjustments</Data></Cell><Cell><Data ss:Type="Number">'.(float)$summary['individual_sales'].'</Data></Cell><Cell><Data ss:Type="String">Retail sales</Data></Cell><Cell><Data ss:Type="Number">'.(float)$summary['retail_sales'].'</Data></Cell><Cell><Data ss:Type="String">Total sales</Data></Cell><Cell><Data ss:Type="Number">'.(float)$summary['total_sales'].'</Data></Cell></Row>';
+			$xml .= '<Row>';
+			foreach($headers as $header) $xml .= '<Cell><Data ss:Type="String">'.htmlspecialchars($header, ENT_XML1|ENT_QUOTES, 'UTF-8').'</Data></Cell>';
+			$xml .= '</Row>';
+			foreach($rows as $row){
+				$xml .= '<Row>';
+				foreach($this->_customer_group_sales_export_row($row) as $index=>$value){
+					$type = in_array($index, [5,6,7], TRUE) ? 'Number' : 'String';
+					$xml .= '<Cell><Data ss:Type="'.$type.'">'.htmlspecialchars((string)$value, ENT_XML1|ENT_QUOTES, 'UTF-8').'</Data></Cell>';
+				}
+				$xml .= '</Row>';
+			}
+			$xml .= '</Table></Worksheet></Workbook>';
+			$this->output->set_content_type('application/vnd.ms-excel', 'UTF-8')->set_header('Content-Disposition: attachment; filename="'.$filename.'.xls"')->set_output($xml); return;
+		}
+		$this->load->helper('url');
+		$CI =& get_instance();
+		$currency = htmlspecialchars($CI->currency(), ENT_QUOTES, 'UTF-8');
+		$html = '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:9px;color:#172033}h1{font-size:18px}p{color:#536176}.summary{width:100%;margin:12px 0}.summary td{padding:8px;background:#eef3f8}.summary strong{display:block;font-size:12px}table.data{width:100%;border-collapse:collapse}th{background:#123b67;color:#fff}th,td{border:1px solid #d5dce5;padding:5px;text-align:left}td.num{text-align:right}tr:nth-child(even){background:#f6f8fb}</style></head><body>';
+		$html .= '<h1>Member &amp; Retail Sales</h1><p>Generated '.date('Y-m-d H:i').' · All amounts in '.$currency.'</p>';
+		$html .= '<table class="summary"><tr><td>Member sales<strong>'.htmlspecialchars(store_number_format($summary['member_sales']), ENT_QUOTES, 'UTF-8').'</strong></td><td>Individual adjustments<strong>'.htmlspecialchars(store_number_format($summary['individual_sales']), ENT_QUOTES, 'UTF-8').'</strong></td><td>Retail sales<strong>'.htmlspecialchars(store_number_format($summary['retail_sales']), ENT_QUOTES, 'UTF-8').'</strong></td><td>Total sales<strong>'.htmlspecialchars(store_number_format($summary['total_sales']), ENT_QUOTES, 'UTF-8').'</strong></td></tr></table><table class="data"><thead><tr>';
+		foreach($headers as $header) $html .= '<th>'.htmlspecialchars($header, ENT_QUOTES, 'UTF-8').'</th>';
+		$html .= '</tr></thead><tbody>';
+		foreach($rows as $row){
+			$html .= '<tr>';
+			foreach($this->_customer_group_sales_export_row($row) as $index=>$value){
+				$html .= '<td'.(in_array($index, [5,6,7], TRUE) ? ' class="num"' : '').'>'.htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8').'</td>';
+			}
+			$html .= '</tr>';
+		}
+		$html .= '</tbody></table></body></html>';
+		$options = new \Dompdf\Options(); $options->set('isRemoteEnabled', false);
+		$pdf = new \Dompdf\Dompdf($options); $pdf->loadHtml($html, 'UTF-8'); $pdf->setPaper('A4', 'landscape'); $pdf->render();
+		$this->output->set_content_type('application/pdf')->set_header('Content-Disposition: attachment; filename="'.$filename.'.pdf"')->set_output($pdf->output());
+	}
+
+	private function _customer_group_sales_filters($input){
+		$input = is_array($input) ? $input : [];
+		$filters = [];
+		foreach(['from_date','to_date'] as $key){
+			$value = trim((string)($input[$key] ?? ''));
+			if($value !== '' && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value) && date('Y-m-d', strtotime($value)) === $value) $filters[$key] = $value;
+		}
+		$filters['warehouse_id'] = max(0, (int)($input['warehouse_id'] ?? 0));
+		$filters['group_id'] = max(0, (int)($input['group_id'] ?? 0));
+		$filters['customer_id'] = max(0, (int)($input['customer_id'] ?? 0));
+		$type = (string)($input['sale_type'] ?? 'all');
+		$filters['sale_type'] = in_array($type, ['all','member','retail','other'], TRUE) ? $type : 'all';
+		return $filters;
+	}
+
+	private function _customer_group_sales_export_row(array $row){
+		return [
+			(string)($row['sales_date'] ?? ''), (string)($row['sales_code'] ?? ''),
+			(string)($row['customer_code'] ?? ''), (string)($row['customer_name'] ?? 'Walk-in'),
+			(string)($row['item_name'] ?? ''), (float)($row['qty'] ?? 0), (float)($row['unit_price'] ?? 0), (float)($row['line_total'] ?? 0),
+			($row['pricing_source'] ?? '') === 'group' ? 'Member' : ((($row['pricing_source'] ?? '') === 'customer') ? 'Individual adjustment' : 'Retail'),
+			(string)(($row['pricing_source'] ?? '') === 'group' ? ($row['pricing_group_name'] ?? 'Member group') : ''),
+			(string)($row['warehouse_name'] ?? ''), (string)($row['created_by'] ?? '')
+		];
+	}
+
 	/** Dedicated monthly repeat-purchase trend report for the active store. */
 	public function repeat_purchase_trends(){
 		$this->permission_check('sales_report');

@@ -1985,6 +1985,7 @@ class Assist_model extends CI_Model {
 					'system_ip'      => $this->input->ip_address(),
 					'system_name'    => 'Azera'
 				];
+                $insert = mp_apply_retail_markup($insert, mp_retail_markup_config($storeId));
 				$this->db->insert('db_items', $insert);
 				$itemId = $this->db->insert_id();
 				$this->_clearConversation($sessionId);
@@ -2188,7 +2189,7 @@ class Assist_model extends CI_Model {
 
 	private function _rawMaterialLabel(){
 		$biz = $this->_biz();
-		$foodTypes = ['restaurant','fast_food','cafe','pizza_shop','shawarma','juice_bar','buka','canteen','butcher','bakery_cake_studio','frozen_foods_retailer'];
+		$foodTypes = ['restaurant','fast_food','cafe','pizza_shop','shawarma','juice_bar','buka','canteen','butcher','bakery_cake_studio','frozen_foods_retailer','bar_lounge'];
 		return in_array($biz['industry_type'] ?? '', $foodTypes) ? 'Ingredient' : 'Raw Material';
 	}
 

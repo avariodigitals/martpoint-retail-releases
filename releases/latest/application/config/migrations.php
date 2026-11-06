@@ -525,4 +525,106 @@ return [
           '4.0.9.225v' => '4.0.9.225_release_marker.sql',
           // .226 fixes Central Communications layout when the subscription notice is visible.
           '4.0.9.226v' => '4.0.9.226_release_marker.sql',
+          // .227 adds running tabs: a db_tabs grouping record plus db_sales.tab_id,
+          // so a table or bar tab can accumulate several round invoices. Rounds stay
+          // ordinary ledger invoices and payments; nothing historical is rewritten.
+          '4.0.9.227v' => '4.0.9.227_running_tabs.sql',
+          // .228 gives stock adjustment lines a reason code, so breakage,
+          // spillage, expiry and loss stop blending into one uncounted "wasted"
+          // figure. Nullable and additive: movements recorded before it keep
+          // their meaning and read back as "reason not recorded".
+          '4.0.9.228v' => '4.0.9.228_wastage_reasons.sql',
+          // .229 adds the pharmacy readiness controls: an Rx-required catalogue
+          // flag, supplier-return lot provenance, recall quarantine records and
+          // a per-store idempotency key so an offline till replay lands once.
+          // Everything is additive; history keeps its meaning.
+          '4.0.9.229v' => '4.0.9.229_pharmacy_ledger_controls.sql',
+          // .230 gives the floor its two own words back: a round that never
+          // reached the guest (Voided — money off the bill, stock back on the
+          // shelf) and a round the house gave away (compliment — stock out and
+          // on COGS, charge removed). Both keep the invoice row as evidence.
+          // Everything is additive; history keeps its meaning.
+          '4.0.9.230v' => '4.0.9.230_lounge_voids_comps.sql',
+          // .231 puts the floor staff on the bill: each round names the waiter
+          // who served it, the cashier can key a tip and record which waiter it
+          // belongs to (kept out of house revenue on purpose), and a service
+          // charge becomes an optional per-bill line that rides the existing
+          // other-charges money path. Additive; older invoices read as unset.
+          '4.0.9.231v' => '4.0.9.231_lounge_tips_waiter.sql',
+          // .232 makes the Tyre Shop its own business: a bill can name the
+          // vehicle the tyres went on (fleet history reads per vehicle), and
+          // stores still carrying the old distributor-shaped tyre profile are
+          // moved onto the rebuilt preset — fitting services, sizes, vehicles
+          // and warranty switch on together. Stores that customised their
+          // profile on purpose are left exactly as they are.
+          '4.0.9.232v' => '4.0.9.232_tyre_shop_fleet_fitments.sql',
+          // .233 adds secure, expiring payment links for approved online
+          // prescription orders so customers can pay after pharmacist review.
+          '4.0.9.233v' => '4.0.9.233_online_rx_payment_link.sql',
+          // .234 records each verified online-order payment and creates the
+          // order-payment ledger used by partial payments and reconciliation.
+          '4.0.9.234v' => '4.0.9.234_online_order_payments.sql',
+          // .235 lets a floor be divided up: each table can name the waiter it
+          // belongs to, and a tab opened on that table inherits the name instead
+          // of every order needing it typed again. The round-attribution chain
+          // from .231 is untouched — this only feeds its starting point. Tables
+          // created before now read as "no section", so nothing changes until a
+          // manager assigns one. Additive; guarded in code on un-migrated stores.
+          '4.0.9.235v' => '4.0.9.235_lounge_waiter_sections.sql',
+          // .236 gives a pharmacy the tool it needs before switching on batch
+          // selling: a place to settle where the batch ledger and the stock
+          // figures disagree, and a record of which side a human took as the
+          // truth. Additive — no quantity is moved by the migration itself.
+          '4.0.9.236v' => '4.0.9.236_batch_reconciliation.sql',
+          // .237 closes the window between an online order and the counter. When
+          // a shop sells from the batch ledger, an online reservation now holds
+          // the exact lots it will draw, so a till sale cannot take units a
+          // shopper has already reserved and a paid order never arrives at the
+          // ledger with nothing to give it. Additive — open orders placed
+          // before this runs are allocated from the ledger when they post, as
+          // they always were.
+          '4.0.9.237v' => '4.0.9.237_online_batch_holds.sql',
+          // .238 is the read side of the batch ledger: Pharmacy → Batch ledger
+          // reports (what each batch holds, what sold from it, how long it has
+          // sat, what is running out of date). Grants + indexes only; the
+          // reports read the ledgers that .236 and .237 already maintain.
+          '4.0.9.238v' => '4.0.9.238_pharmacy_batch_reports.sql',
+          '4.0.9.239v' => '4.0.9.239_customer_pricing_groups.sql',
+          '4.0.9.240v' => '4.0.9.240_storefront_customer_pricing.sql',
+          // .241-.243 are the Automotive Parts & Accessories preset: the
+          // preset repair (same dual-signature pattern as .232), the vehicle
+          // service history table reminders read, and the part-number /
+          // vehicle-compatibility schema.
+          '4.0.9.241v' => '4.0.9.241_auto_parts_preset.sql',
+          '4.0.9.242v' => '4.0.9.242_vehicle_service_history.sql',
+          '4.0.9.243v' => '4.0.9.243_auto_part_identity_compat.sql',
+          // .244 backs the service-due reminder sweep: per-store config
+          // (off by default — nothing messages until a store opts in) and the
+          // vehicle_service_due email template seeded per store.
+          '4.0.9.244v' => '4.0.9.244_vehicle_service_reminders.sql',
+          // .245 gives the expiry warning a voice. Three columns on the store's
+          // own db_expiry_settings row — the WhatsApp switch (off by default),
+          // the number it goes to, and the day stamp that keeps the nightly
+          // digest to one list per shop per day. No quantities, no selling rules.
+          '4.0.9.245v' => '4.0.9.245_pharmacy_expiry_alerts.sql',
+          // .246 teaches the audit trail the two things it could not do: name
+          // the record a change touched (ref_label) and show the value before
+          // and after (changes). Both nullable — every older entry keeps
+          // reading exactly as it does today.
+          '4.0.9.246v' => '4.0.9.246_pharmacy_audit_capture.sql',
+		  // Oil & Gas location capabilities and transfer arrival receipt.
+		  '4.0.9.247v' => '4.0.9.247_oil_gas_location_flags.sql',
+		  '4.0.9.248v' => '4.0.9.248_oil_gas_transfer_receipt.sql',
+		  // Oil & Gas forecourt: tanks, pumps, meter readings and duty reconciliation.
+		  '4.0.9.249v' => '4.0.9.249_oil_gas_forecourt.sql',
+		  // Oil & Gas LPG: cylinder register, refill weights and deposits.
+		  '4.0.9.250v' => '4.0.9.250_oil_gas_lpg.sql',
+		  // Oil & Gas service jobs: a job belongs to a site, so head office and a
+		  // site attendant can see different slices of the same job book.
+		  '4.0.9.251v' => '4.0.9.251_oil_gas_service_jobs.sql',
+		  // VAT entry mode and the ₦5,000 minimum custom Communications top-up.
+		  '4.0.9.252v' => '4.0.9.252_communications_vat_mode_and_minimum.sql',
+          '4.0.9.253v' => '4.0.9.253_nigeria_bulk_sms.sql',
+          // .254 lets each standard invoice select a bank destination from Account List.
+          '4.0.9.254v' => '4.0.9.254_invoice_payment_accounts.sql',
 ];

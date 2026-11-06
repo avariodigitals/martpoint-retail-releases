@@ -445,6 +445,28 @@ class Online_store extends MY_Controller {
 			'order' => $order,
 			'items' => $this->storefront_model->getOrderItems($orderId)
 		]);
+		$rx = $this->storefront_model->rxItemNames($orderId, (int)$order->store_id);
+		$this->load->model('online_payments_model', 'onlinepay');
+		$data['money_box'] = $this->onlinepay->summaryFor($order);
+		$data['can_record_money'] = $this->_can_edit_orders();
+		$data['trail'] = $this->storefront_model->orderTrail((int)$order->store_id, (int)$orderId, 8);
+		$data['delivery_box'] = [
+			'collection' => $this->storefront_model->orderIsCollection($order),
+			'status' => (string)($order->delivery_status ?? ''),
+			'word' => $this->storefront_model->deliveryWord($order->delivery_status ?: 'pending'),
+		];
+		$data['can_move_delivery'] = $this->_can_edit_orders();
+		if(!empty($rx['ids'])){
+			$data['rx_review_box'] = [
+				'names' => $rx['names'],
+				'note' => $this->storefront_model->findRxNote($orderId, (int)$order->store_id),
+				'approved' => $this->storefront_model->rxApprovedForOrder($orderId, (int)$order->store_id),
+				'invoice' => [
+					'sent_at' => (string)($order->pay_link_sent_at ?? ''),
+					'expires_at' => (string)($order->pay_link_expires_at ?? ''),
+				],
+			];
+		}
 		$data['content'] = $this->load->view('online_store/order_detail', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -473,6 +495,13 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		if($previousStatus === $status){ echo json_encode(['status' => 'success', 'message' => 'Order status unchanged']); return; }
+		// Rx-only medicine cannot move toward fulfilment until a pharmacist has
+		// approved the prescription — cancelling stays allowed.
+		if($status !== 'cancelled' && !$this->storefront_model->rxApprovedForOrder($orderId, (int)$order->store_id)){
+			echo json_encode(['status' => 'error', 'prescription_review_required' => true,
+				'message' => 'This order contains prescription-only medicine that has not been approved by a pharmacist yet. Open the order and review the prescription first.']);
+			return;
+		}
 		$this->db->trans_begin();
 		$prepared = $status === 'cancelled' && in_array($previousStatus, ['processing','ready'], true);
 		if($prepared){
@@ -493,7 +522,13 @@ class Online_store extends MY_Controller {
 				: 'Order status could not be updated.']);
 			return;
 		}
-		if($status === 'paid' && $previousStatus !== 'paid' && !$this->storefront_model->adjustStock($orderId)){
+		if($status === 'paid' && $previousStatus !== 'paid'
+			// A board tick after the money column already committed the stock (or
+			// the other way round) is a second statement about the same money, not
+			// a second stock move — so only an order whose stock has not been
+			// committed yet has to pass the commit.
+			&& (string)($order->stock_state ?? '') !== 'committed'
+			&& !$this->storefront_model->adjustStock($orderId)){
 			$this->db->trans_rollback();
 			echo json_encode(['status' => 'error', 'message' => 'Stock could not be committed; order status was not updated.']);
 			return;
@@ -509,7 +544,270 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$this->db->trans_commit();
-		echo json_encode(['status' => 'success', 'message' => 'Order status updated']);
+		$notified = $this->notifyOrderProgress($order, ucfirst(str_replace('_', ' ', $status)), $status);
+		echo json_encode(['status' => 'success', 'message' => 'Order status updated', 'notified' => $notified]);
+	}
+
+	/**
+	 * The delivery leg of an order: on its way, arrived, or it did not arrive.
+	 * Separate from the stage control above because packing and sending out are
+	 * different facts, and an order the customer is collecting has no delivery
+	 * to move at all.
+	 */
+	public function update_delivery_status(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$orderId = (int)$this->input->post('order_id');
+		$status = (string)$this->input->post('status');
+		$storeId = (int)get_current_store_id();
+		$order = $this->storefront_model->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== $storeId){
+			echo json_encode(['status' => 'error', 'message' => 'That order is not one of yours.']);
+			return;
+		}
+		// Nothing prescription-only leaves this shop before a pharmacist has
+		// approved it, whoever is holding the bag.
+		if(in_array($status, ['out_for_delivery', 'delivered'], true)
+			&& !$this->storefront_model->rxApprovedForOrder($orderId, $storeId)){
+			echo json_encode(['status' => 'error', 'prescription_review_required' => true,
+				'message' => 'This order contains prescription-only medicine that has not been approved by a pharmacist yet. Review the prescription first.']);
+			return;
+		}
+		$res = $this->storefront_model->setOrderDelivery($storeId, $orderId, $status, [
+			'rider' => (string)$this->input->post('rider'),
+			'note' => (string)$this->input->post('note'),
+			'channel' => !empty($order->table_number) ? 'qr' : 'online',
+		]);
+		if(!$res['ok']){
+			echo json_encode(['status' => 'error', 'message' => $res['error']]);
+			return;
+		}
+		// Only a step that actually happened is announced, so a second click on
+		// the same button cannot send the customer the same news twice.
+		$sent = $res['changed']
+			? $this->notifyOrderProgress($order, $res['word'], $status, (string)$this->input->post('rider'))
+			: '';
+		echo json_encode([
+			'status' => 'success',
+			'message' => $res['changed'] ? $res['word'] . '.' : 'It already says ' . strtolower($res['word']) . '.',
+			'delivery_status' => $status,
+			'notified' => $sent,
+		]);
+	}
+
+	/**
+	 * Where the customer is told what just happened. Only a move that actually
+	 * changed something is announced, so a second click on the same step does
+	 * not send the same message twice.
+	 *
+	 * @return string what went out, in words the reply can show
+	 */
+	private function notifyOrderProgress($order, $word, $state, $rider = ''){
+		$text = $this->progressSentence($order, $word, $state, $rider);
+		if($text === '') return '';
+		$out = [];
+		$phone = preg_replace('/[^0-9]/', '', (string)($order->customer_phone ?? ''));
+		if($phone !== ''){
+			try {
+				$this->load->library('transactional_sms');
+				$sent = $this->transactional_sms->send((int)$order->store_id, $phone, $text, 'online_order_status',
+					'online-order-status:' . (int)$order->store_id . ':' . (int)$order->id . ':' . $state . ':' . gmdate('YmdHi'));
+				$out[] = $sent ? 'texted' : 'the text did not go out';
+			} catch (Throwable $e) {
+				$out[] = 'the text could not be sent';
+			}
+		} else {
+			$out[] = 'no phone number on the order';
+		}
+		$email = trim((string)($order->customer_email ?? ''));
+		if(filter_var($email, FILTER_VALIDATE_EMAIL)){
+			$this->load->model('email_template_model');
+			if($this->email_template_model->getByKey('order_progress', (int)$order->store_id)){
+				try {
+					$this->load->model('email_service');
+					$res = $this->email_service->sendTemplate('order_progress', $email, [
+						'customer_name' => (string)($order->customer_name ?? ''),
+						'invoice_number' => (string)($order->order_code ?? ''),
+						'status' => $word,
+						'note' => $text,
+					], ['related_module' => 'storefront', 'related_record_id' => (int)$order->id]);
+					$out[] = !empty($res['success']) ? 'emailed' : 'the email did not go out';
+				} catch (Throwable $e) {
+					$out[] = 'the email could not be sent';
+				}
+			} else {
+				$out[] = 'no progress email template for this store';
+			}
+		}
+		return implode(', ', $out);
+	}
+
+	/**
+	 * The sentence itself. Each step says what happens next in words a customer
+	 * would use, and never a status code from the database.
+	 */
+	private function progressSentence($order, $word, $state, $rider = ''){
+		if((string)$state === 'pending') return '';
+		$store = get_store_details((int)$order->store_id);
+		$name = trim((string)($store->store_name ?? 'MartPoint'));
+		if($name === '') $name = 'MartPoint';
+		$code = (string)($order->order_code ?? '');
+		$collect = $this->storefront_model->orderIsCollection($order);
+		$rider = trim((string)$rider);
+		switch ((string)$state) {
+			case 'ready':
+				$what = $collect ? 'is ready for collection' : 'is packed and ready to go out';
+				break;
+			case 'out_for_delivery':
+				$what = 'is on its way to you' . ($rider !== '' ? ' with ' . $rider : '');
+				break;
+			case 'delivered':
+				$what = 'has been delivered';
+				break;
+			case 'failed':
+				$what = 'could not be delivered — please contact the shop to fix another time';
+				break;
+			case 'cancelled':
+				$what = 'has been cancelled. If you have already paid, the shop will refund you';
+				break;
+			case 'completed':
+				$what = $collect ? 'was collected — thank you' : 'is complete — thank you';
+				break;
+			case 'processing':
+				$what = 'is being prepared';
+				break;
+			case 'paid':
+				$what = 'is paid for and is being prepared';
+				break;
+			default:
+				$what = 'is now ' . strtolower((string)$word);
+		}
+		return $name . ': your order ' . $code . ' ' . $what . '.';
+	}
+
+	/**
+	 * Pharmacist decision on an online prescription request. Nothing may be
+	 * dispensed for the order until it is approved.
+	 */
+	public function review_prescription(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$orderId = (int)$this->input->post('order_id');
+		$decision = (string)$this->input->post('decision');
+		if(!in_array($decision, ['approved', 'rejected'], true)){
+			echo json_encode(['status' => 'error', 'message' => 'Choose approve or reject.']);
+			return;
+		}
+		$order = $this->storefront_model->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== (int)get_current_store_id()){
+			echo json_encode(['status' => 'error', 'message' => 'Order not found']);
+			return;
+		}
+		$rx = $this->storefront_model->rxItemNames($orderId, (int)$order->store_id);
+		if(empty($rx['ids'])){
+			echo json_encode(['status' => 'error', 'message' => 'This order has no prescription-only medicine to review.']);
+			return;
+		}
+		$note = $this->storefront_model->findRxNote($orderId, (int)$order->store_id);
+		$hasFiles = $this->db->field_exists('prescription_file', 'db_medical_notes');
+		if(!$note){
+			if(!$hasFiles || trim((string)($order->prescription_file ?? '')) === ''){
+				echo json_encode(['status' => 'error', 'message' => 'The customer has not attached a prescription to this order yet, so there is nothing to review. Ask them to resend the order with the prescription attached.']);
+				return;
+			}
+			$noteRow = [
+				'store_id' => (int)$order->store_id,
+				'customer_id' => (int)($order->customer_id ?? 0),
+				'note_date' => date('Y-m-d'),
+				'diagnosis' => 'Online prescription request — order ' . $order->order_code . ': ' . implode(', ', $rx['names']),
+				'prescription_ref' => 'ONLINE-' . $orderId,
+				'prescription_file' => $order->prescription_file,
+				'status' => 'active',
+				'created_by' => (string)($this->session->userdata('username') ?: 'online-store'),
+				'created_date' => date('Y-m-d'),
+				'created_time' => date('H:i:s'),
+			];
+			if($this->db->field_exists('online_order_id', 'db_medical_notes')) $noteRow['online_order_id'] = $orderId;
+			if($this->db->field_exists('review_status', 'db_medical_notes')) $noteRow['review_status'] = 'pending';
+			$this->db->insert('db_medical_notes', $noteRow);
+			$note = $this->storefront_model->findRxNote($orderId, (int)$order->store_id);
+			if(!$note){
+				echo json_encode(['status' => 'error', 'message' => 'The prescription record could not be created. Please try again.']);
+				return;
+			}
+		}
+		$update = [];
+		$reviewBefore = (string)($note->review_status ?? '');
+		if($this->db->field_exists('review_status', 'db_medical_notes')) $update['review_status'] = $decision;
+		if($this->db->field_exists('reviewed_at', 'db_medical_notes')) $update['reviewed_at'] = date('Y-m-d H:i:s');
+		if($this->db->field_exists('reviewed_by', 'db_medical_notes')) $update['reviewed_by'] = ((int) get_current_user_id()) ?: null;
+		$this->db->where('id', (int)$note->id)->where('store_id', (int)$order->store_id)->update('db_medical_notes', $update);
+		if($decision === 'rejected' && (string)$order->order_status !== 'cancelled'){
+			$this->storefront_model->updateOrderStatus($orderId, 'cancelled');
+		}
+		// A pharmacist's judgement is a record, not a chat message: the decision,
+		// who made it and which medicines it covers go in the trail.
+		$rxNames = array_slice($rx['names'], 0, 3);
+		if(count($rx['names']) > 3) $rxNames[] = (count($rx['names']) - 3) . ' others';
+		$capture = mp_audit_capture();
+		if($capture) $capture->event((int)$order->store_id, 'dispensing', $decision === 'approved' ? 'rx_approved' : 'rx_rejected',
+			$orderId, 'Order ' . $order->order_code,
+			array(mp_audit_change('Prescription review',
+				$reviewBefore === '' ? 'Not reviewed' : mp_audit_format_value($reviewBefore, 'word'),
+				mp_audit_format_value($decision, 'word'))),
+			($decision === 'approved' ? 'Cleared for dispensing — ' : 'Refused — the order was cancelled. Medicines: ')
+				. implode(', ', $rxNames));
+		$invoice = null;
+		if($decision === 'approved' && (string)$order->payment_status !== 'paid'){
+			// The customer was quoted a delivery charge at checkout, so the
+			// invoice they are sent has to carry it. Best-effort: a store without
+			// an SMS or email provider still gets an approved order and a link it
+			// can send itself.
+			$invoice = $this->storefront_model->sendOrderInvoiceLink($orderId, (int)$order->store_id);
+		}
+		$message = $decision === 'approved'
+			? 'Prescription approved. The pharmacy may now dispense order ' . $order->order_code . '.'
+			: 'Prescription rejected. Order ' . $order->order_code . ' was cancelled because the medicine cannot be dispensed.';
+		if($invoice && $invoice['message'] !== ''){
+			$message .= ' ' . $invoice['message'];
+		} elseif($decision === 'approved' && (string)$order->payment_status === 'paid'){
+			$message .= ' Payment was already received for this order, so no invoice was sent.';
+		}
+		echo json_encode(['status' => 'success', 'decision' => $decision, 'message' => $message,
+			'invoice' => $invoice]);
+	}
+
+	/**
+	 * Re-send the invoice link for an approved order. Re-issuing replaces the
+	 * previous secret, so a customer never holds two live amounts for one order.
+	 */
+	public function send_payment_link($orderId = 0){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$orderId = (int)($orderId ?: $this->input->post('order_id'));
+		$storeId = (int)get_current_store_id();
+		$order = $this->storefront_model->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== $storeId){
+			echo json_encode(['status' => 'error', 'message' => 'Order not found']);
+			return;
+		}
+		if((string)$order->payment_status === 'paid'){
+			echo json_encode(['status' => 'error', 'message' => 'This order is already paid — nothing to send.']);
+			return;
+		}
+		if(!$this->storefront_model->rxApprovedForOrder($orderId, $storeId)){
+			echo json_encode(['status' => 'error', 'message' => 'A pharmacist must approve the prescription before the customer is invoiced.']);
+			return;
+		}
+		$invoice = $this->storefront_model->sendOrderInvoiceLink($orderId, $storeId);
+		echo json_encode(['status' => $invoice['ok'] ? 'success' : 'error', 'message' => $invoice['message'],
+			'invoice' => $invoice]);
 	}
 
 	public function update_payment_status(){
@@ -598,7 +896,10 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		if($status === 'paid' && $previousStatus !== 'paid'){
-			if(!$this->storefront_model->adjustStock($orderId)){
+			// Same rule as the status board: when the stock is already committed,
+			// the money still has to be recordable, and calling for a second
+			// commit would only undo the payment behind it.
+			if((string)($order->stock_state ?? '') !== 'committed' && !$this->storefront_model->adjustStock($orderId)){
 				$this->db->trans_rollback();
 				echo json_encode(['status' => 'error', 'message' => 'Stock could not be committed; payment status was not updated.']);
 				return;
@@ -616,6 +917,20 @@ class Online_store extends MY_Controller {
 			return;
 		}
 		$this->db->trans_commit();
+		// "Paid" has to mean money, so the amount and reference are recorded as a
+		// payment on the order instead of leaving only a status word behind. This
+		// runs outside the status transaction above: a ledger failure must not be
+		// able to leave half-written sales rows committed behind it.
+		$moneyNote = $this->_recordStatedMoney($order, $status);
+		if ($status === 'paid' && $previousStatus !== 'paid' && !empty($order->customer_phone)) {
+			$store = get_store_details((int)$order->store_id);
+			$currency = $this->db->select('c.currency')->from('db_store s')->join('db_currency c', 'c.id=s.currency_id', 'left')->where('s.id', (int)$order->store_id)->get()->row();
+			$currencyCode = trim((string)($currency->currency ?? 'NGN')) ?: 'NGN';
+			$message = trim((string)($store->store_name ?? 'MartPoint')) . ': payment received for order ' . $order->order_code
+				. '. Amount ' . $currencyCode . ' ' . number_format((float)$order->grand_total, 2) . '.';
+			$this->load->library('transactional_sms');
+			$this->transactional_sms->send((int)$order->store_id, $order->customer_phone, $message, 'online_order_payment_received', 'online-order:' . (int)$order->store_id . ':' . (int)$order->id . ':payment-paid');
+		}
 		if($status === 'refunded'){
 			$message = 'Refund recorded against provider reference ' . $refundReference
 				. ' for ' . store_number_format($order->grand_total) . '. '
@@ -623,9 +938,117 @@ class Online_store extends MY_Controller {
 					? 'Stock returned to inventory.'
 					: 'Goods kept by the customer — stock was NOT restocked.');
 		} else {
-			$message = 'Payment status updated';
+			$message = 'Payment status updated' . $moneyNote;
 		}
 		echo json_encode(['status' => 'success', 'message' => $message]);
+	}
+
+	/**
+	 * The order screen's payment dropdown is a statement about money, so it now
+	 * leaves a money record behind: the amount that was typed, or the balance the
+	 * order still owed when nobody typed one. Returns the plain-English tail for
+	 * the reply, and nothing on an install that has no money ledger yet.
+	 */
+	private function _recordStatedMoney($order, $status){
+		if(!in_array($status, ['paid', 'partially_paid'], true)) return '';
+		$this->load->model('online_payments_model', 'onlinepay');
+		if(!$this->onlinepay->available()) return '';
+		$box = $this->onlinepay->summaryFor($order);
+		$amount = parse_amount($this->input->post('paid_amount', TRUE));
+		if($amount <= 0 && $status === 'paid'){
+			// Nobody typed an amount, so what they are claiming is "the rest of it".
+			$amount = round((float)$order->grand_total - (float)$box['verified'], 2);
+		}
+		if($amount <= 0) return '';
+		$reference = trim((string)$this->input->post('payment_reference', TRUE));
+		$note = 'Stated on the payment status screen';
+		if($reference === '') $note .= ' — no bank or gateway reference given';
+		$res = $this->onlinepay->recordPayment((int)$order->store_id, (int)$order->id, [
+			'provider'    => trim((string)$this->input->post('payment_channel', TRUE)) ?: ($order->payment_method ?: 'counter'),
+			'amount'      => $amount,
+			'reference'   => $reference,
+			'note'        => $note,
+			'status'      => Online_payments_model::VERIFIED,
+			'recorded_by' => (int)$this->session->userdata('inv_userid'),
+			'verified_by' => (int)$this->session->userdata('inv_userid'),
+		]);
+		return empty($res['ok'])
+			? ' — but the money itself could not be recorded: ' . $res['message']
+			: '. ' . $res['message'];
+	}
+
+	/**
+	 * "Money in" on the order screen: how much came in, through what, and its
+	 * reference. A bank transfer is somebody's claim until a person who can see
+	 * the account says so, so it waits for confirmation unless the recorder
+	 * states they have seen the money — or the money is physically in their hand.
+	 */
+	public function record_order_payment(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$orderId = (int)$this->input->post('order_id');
+		$order = $this->storefront_model->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== (int)get_current_store_id()){
+			echo json_encode(['status' => 'error', 'message' => 'Order not found']);
+			return;
+		}
+		$this->load->model('online_payments_model', 'onlinepay');
+		if(!$this->onlinepay->available()){
+			echo json_encode(['status' => 'error', 'message' => 'Money tracking is not set up on this server yet. Ask your administrator to run the current update.']);
+			return;
+		}
+		$channel = trim((string)$this->input->post('channel', TRUE));
+		$allowedChannels = ['transfer', 'cash', 'card', 'pay_at_collection', 'pay_on_delivery'];
+		if(!in_array($channel, $allowedChannels, true)){
+			echo json_encode(['status' => 'error', 'message' => 'Choose how the money came in.']);
+			return;
+		}
+		$amount = parse_amount($this->input->post('amount', TRUE));
+		if($amount <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Enter the amount that came in, in numbers.']);
+			return;
+		}
+		// Cash handed over the counter needs no second look; a transfer does unless
+		// the person recording it states they have seen it in the account.
+		$inHand = in_array($channel, ['cash', 'pay_at_collection', 'pay_on_delivery'], true);
+		$seen = $this->input->post('seen') ? true : false;
+		$res = $this->onlinepay->recordPayment((int)$order->store_id, (int)$orderId, [
+			'provider'    => $channel,
+			'amount'      => $amount,
+			'reference'   => (string)$this->input->post('reference', TRUE),
+			'note'        => (string)$this->input->post('note', TRUE),
+			'status'      => ($inHand || $seen) ? Online_payments_model::VERIFIED : Online_payments_model::PENDING,
+			'recorded_by' => (int)$this->session->userdata('inv_userid'),
+			'verified_by' => (int)$this->session->userdata('inv_userid'),
+		]);
+		$box = $this->onlinepay->summaryFor($this->storefront_model->getOrder($orderId));
+		echo json_encode([
+			'status' => $res['ok'] ? 'success' : 'error',
+			'message' => $res['message'],
+			'outstanding' => (float)($box['outstanding'] ?? 0),
+			'covered' => !empty($box['covered']),
+		]);
+	}
+
+	/**
+	 * Confirm or dismiss a money claim. Only a pending line can move, so a second
+	 * click on the same transfer says so instead of posting the money twice.
+	 */
+	public function decide_order_payment(){
+		if(!$this->_can_edit_orders()){
+			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
+			return;
+		}
+		$this->load->model('online_payments_model', 'onlinepay');
+		$res = $this->onlinepay->decidePayment(
+			(int)get_current_store_id(),
+			(int)$this->input->post('payment_id'),
+			(string)$this->input->post('decision', TRUE),
+			(int)$this->session->userdata('inv_userid')
+		);
+		echo json_encode(['status' => $res['ok'] ? 'success' : 'error', 'message' => $res['message']]);
 	}
 
 	// ============== QUICK WHATSAPP ORDER ==============
@@ -695,7 +1118,12 @@ class Online_store extends MY_Controller {
 
 		$settings = $this->storefront_model->getSettings($storeId);
 		if((int)$product->stock < $qty && empty($settings->allow_backorder)){
-			$this->session->set_flashdata('error', 'Not enough stock.');
+			// `stock` here is what the shelf can actually hand over, so this
+			// refuses for the same reason the counter would.
+			$left = (float)($product->sellable_qty ?? $product->stock);
+			$this->session->set_flashdata('error', $left <= 0
+				? ($product->item_name . ' is out of stock')
+				: ($product->item_name . ' has only ' . format_qty($left) . ' on the shelf — reduce the quantity or restock it first'));
 			redirect($formUrl);
 			return;
 		}
@@ -746,6 +1174,15 @@ class Online_store extends MY_Controller {
 
 		// Reserve stock immediately; cancelling the order releases it.
 		$this->storefront_model->adjustStock($orderId);
+		// And hold the batches the order will be served from, so the counter
+		// cannot sell the same units before this order is rung up.
+		if(!$this->storefront_model->hold_order_batches($orderId)){
+			$this->storefront_model->restoreStock($orderId);
+			$this->session->set_flashdata('error', $this->storefront_model->last_reservation_error
+				?: ('Not enough stock on the shelf for ' . $product->item_name . '. The order was not placed.'));
+			redirect($formUrl);
+			return;
+		}
 
 		$this->session->set_flashdata('success', 'WhatsApp order created. Stock is reserved until you cancel or complete it.');
 		redirect($mobile ? 'mobile/online_store/orders' : 'online_store/order/' . $orderId);

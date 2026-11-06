@@ -1,5 +1,5 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
-<?php $j = $job ?? null; $pe = $prefill_equipment ?? null; ?>
+<?php $j = $job ?? null; $pe = $prefill_equipment ?? null; $og_sites = $work_sites ?? array(); ?>
 
 <div class="mp-page-head">
   <div>
@@ -13,6 +13,20 @@
   <div class="mp-card-body">
     <form id="jobForm" class="mp-form-grid">
       <input type="hidden" name="job_id" value="<?= $j ? (int)$j->id : 0; ?>">
+<?php if($og_sites): $current_site = $j ? (int)$j->warehouse_id : 0; ?>
+      <div class="mp-form-group" style="grid-column:span 2;">
+        <label>Working location</label>
+        <select name="warehouse_id" class="mp-form-control">
+          <option value="">— No site chosen —</option>
+          <?php if($current_site && !isset($og_sites[$current_site])): ?>
+          <option value="<?= $current_site; ?>" selected><?= htmlspecialchars($j->location_name ?? ('Site '.$current_site)); ?> (currently not one of your locations)</option>
+          <?php endif; ?>
+          <?php foreach($og_sites as $sid => $sname): ?>
+          <option value="<?= (int)$sid; ?>" <?= $current_site === (int)$sid ? 'selected' : ''; ?>><?= htmlspecialchars($sname); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+<?php endif; ?>
 
       <div class="mp-form-group">
         <label>Job type <span class="text-danger">*</span></label>

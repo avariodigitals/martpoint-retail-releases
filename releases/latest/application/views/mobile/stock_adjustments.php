@@ -40,6 +40,12 @@
     .adj-item .count { font-size: 11px; color: var(--mp-muted); margin-top: 2px; }
     .empty-state { text-align: center; padding: 40px 20px; color: var(--mp-muted); }
     .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; color: var(--mp-border); }
+    .wastage-cta { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--mp-border); border-left: 4px solid var(--mp-danger); border-radius: 14px; padding: 14px; margin-bottom: 12px; text-decoration: none; color: var(--mp-text); }
+    .wastage-cta > i.fa { color: var(--mp-danger); font-size: 18px; }
+    .wastage-cta span { flex: 1; min-width: 0; }
+    .wastage-cta strong { display: block; font-size: 15px; font-weight: 700; }
+    .wastage-cta em { display: block; font-size: 12px; color: var(--mp-muted); font-style: normal; margin-top: 2px; }
+    .wastage-cta .chey { color: var(--mp-muted); font-size: 14px; }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 100px; } }
     @media (min-width: 1024px) { .screen { padding: 24px 48px 120px; } }
   </style>
@@ -59,6 +65,17 @@
         <i class='fa fa-search'></i>
         <input type='text' id='adj-search' placeholder='Search by reference or note'>
       </div>
+
+      <?php if(!empty($can_record_wastage)): ?>
+        <a class='wastage-cta' href='<?= base_url('mobile/record_wastage'); ?>'>
+          <i class='fa fa-exclamation-triangle'></i>
+          <span>
+            <strong>Record wastage</strong>
+            <em>Broken, spilled, expired or counted short</em>
+          </span>
+          <i class='fa fa-chevron-right chey'></i>
+        </a>
+      <?php endif; ?>
 
       <div class='card adj-list'>
         <?php if(!empty($adjustments)): ?>

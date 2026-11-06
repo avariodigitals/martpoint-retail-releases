@@ -52,6 +52,9 @@ class Items_model extends CI_Model {
 								'a.mfg_date',
 								'a.not_for_sale',
 								'a.consumable_unit',
+								'a.manufacturer_part_no',
+								'a.oem_reference',
+								'a.cross_reference',
 								); //set column field database for datatable searchable 
 	var $order = array('a.id' => 'desc'); // default order 
 
@@ -98,8 +101,15 @@ class Items_model extends CI_Model {
 		$this->db->where("a.child_bit", 0);
 		//	echo $this->db->get_compiled_select();exit();
 		$i = 0;
+		// Part references are searched too; the columns arrive with 4.0.9.243,
+		// so a store that has not migrated yet keeps catalogue search working.
+		$search_columns = $this->column_search;
+		if (!$this->db->field_exists('manufacturer_part_no', 'db_items')) {
+			$search_columns = array_values(array_diff($search_columns,
+				['a.manufacturer_part_no', 'a.oem_reference', 'a.cross_reference']));
+		}
 	
-		foreach ($this->column_search as $item) // loop column
+		foreach ($search_columns as $item) // loop column
 		{
 			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
 			{
@@ -114,7 +124,7 @@ class Items_model extends CI_Model {
 					$this->db->or_like($item, $_POST['search']['value']);
 				}
 
-				if(count($this->column_search) - 1 == $i) //last loop
+				if(count($search_columns) - 1 == $i) //last loop
 					$this->db->group_end(); //close bracket
 			}
 			$i++;
@@ -184,6 +194,29 @@ class Items_model extends CI_Model {
 			log_message('error', 'Items_model: skipped missing db_items columns: '.implode(',', array_keys($dropped)));
 		}
 		return array_intersect_key($data, $this->_db_items_columns);
+	}
+
+	/**
+	 * Part references (manufacturer part no, OEM, cross refs) come only from the
+	 * auto catalogue form; stores without that section keep stored values.
+	 */
+	private function _auto_part_identity_fields(){
+		if ($this->input->post('auto_part_identity_section') === false) return [];
+		$limits = ['manufacturer_part_no' => 100, 'oem_reference' => 100, 'cross_reference' => 255];
+		$fields = [];
+		foreach ($limits as $col => $len) {
+			$val = trim((string) $this->input->post($col, TRUE));
+			$fields[$col] = ($val === '') ? null : substr($val, 0, $len);
+		}
+		return $fields;
+	}
+
+	/** Vehicle fitments are part knowledge; the part form posts the whole list,
+	 * and a form that never showed it must leave the stored list untouched. */
+	private function _save_vehicle_compat($store_id, $item_id){
+		if (!$this->db->table_exists('db_item_vehicle_compat')) return;
+		$this->load->model('item_vehicle_compat_model');
+		$this->item_vehicle_compat_model->replace_from_post($store_id, $item_id);
 	}
 
 	/** Save extra storefront gallery photos without changing db_items.item_image. */
@@ -273,6 +306,9 @@ class Items_model extends CI_Model {
 		$sales_price = str_replace(',','',$this->input->post('sales_price', TRUE));
 		$seller_points = $this->input->post('seller_points', TRUE);
 		$custom_barcode = $this->input->post('custom_barcode', TRUE);
+		$manufacturer_part_no = $this->input->post('manufacturer_part_no', TRUE);
+		$oem_reference = $this->input->post('oem_reference', TRUE);
+		$cross_reference = $this->input->post('cross_reference', TRUE);
 		$description = $this->input->post('description', TRUE);
 		$laundry_service_type = $this->input->post('laundry_service_type', TRUE);
 		$commission_type = $this->input->post('commission_type', TRUE) ?? 'none';
@@ -470,6 +506,8 @@ class Items_model extends CI_Model {
 		
 		//Validate This items already exist or not
 		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+        $retail_markup = mp_retail_markup_config($store_id);
+        if (!$service_bit) $mrp = mp_retail_price_from_wholesale($sales_price, $mrp, $retail_markup);
 		/*$query=$this->db->query("select * from db_items where upper(item_name)=upper('$item_name') and store_id=$store_id");
 		if($query->num_rows()>0){
 			return "Sorry! This Items Name already Exist.";
@@ -564,6 +602,12 @@ class Items_model extends CI_Model {
 
 			    			);
 			if ($this->input->post('fulfilment_route') === false) unset($info['fulfilment_route']);
+			// Rx-only flag arrives only when the pharmacy form shows the box;
+			// other business types keep whatever was stored before.
+			if ($this->input->post('prescription_required') !== false) {
+				$info['prescription_required'] = $this->input->post('prescription_required', TRUE) ? 1 : 0;
+			}
+			$info = array_merge($info, $this->_auto_part_identity_fields());
 			// Items flagged "not for sale" must never stay published online
 			if($not_for_sale){
 				$info['publish_online'] = 0;
@@ -597,6 +641,10 @@ class Items_model extends CI_Model {
 			}
 			else{
 				$item_id = $q_id;
+				// Snapshot before the write: the audit trail has to be able to
+				// say what the price used to be, not only what it is now.
+				$audit_before = $this->db->where('id', $q_id)->get('db_items')->row();
+				$audit_lots_before = $this->_audit_lot_snapshot($item_id);
 				$query1 = $this->db->where('id',$q_id)->update('db_items', $this->_filter_item_columns(array_merge($info,$initial)));
 			}
 			
@@ -604,6 +652,7 @@ class Items_model extends CI_Model {
 				$this->db->trans_rollback();
 				return "failed";
 			}
+			$this->_save_vehicle_compat($store_id, $item_id);
 
 			// Save barcode / batch / lot records (also unit tracking for electronics)
 			$barcode_save_ok = true;
@@ -635,7 +684,7 @@ class Items_model extends CI_Model {
 					'imei_number'    => $bc_imei !== '' ? $bc_imei : null,
 					'purchase_price' => store_number_format($barcode_pprices[$bc] ?? 0,0),
 					'sales_price'    => store_number_format($barcode_sprices[$bc] ?? 0,0),
-					'mrp'            => store_number_format($barcode_mrps[$bc] ?? 0,0),
+					'mrp'            => mp_retail_price_from_wholesale($barcode_sprices[$bc] ?? '', store_number_format($barcode_mrps[$bc] ?? 0,0), $retail_markup),
 					'qty'            => store_number_format($barcode_qtys[$bc] ?? 0,0),
 					'warehouse_id'   => $warehouse_id,
 					'status'         => 1,
@@ -751,6 +800,10 @@ class Items_model extends CI_Model {
 										'child_bit' 								=> 0,
 	    						);
 			if ($this->input->post('fulfilment_route') === false) unset($parent_info['fulfilment_route']);
+			if ($this->input->post('prescription_required') !== false) {
+				$parent_info['prescription_required'] = $this->input->post('prescription_required', TRUE) ? 1 : 0;
+			}
+			$parent_info = array_merge($parent_info, $this->_auto_part_identity_fields());
 			// Items flagged "not for sale" must never stay published online
 			if($not_for_sale){
 				$parent_info['publish_online'] = 0;
@@ -800,6 +853,7 @@ class Items_model extends CI_Model {
 				log_message('error', "Variant parent save failed: " . $this->db->error()['message']);
 				return "failed";
 			}
+			$this->_save_vehicle_compat($store_id, $item_id);
 
 			// Save the parent selling-unit template (not sellable itself; cloned to children)
 			if($this->db->table_exists('db_item_selling_units') && $this->input->post('selling_unit_unit_id')){
@@ -826,6 +880,7 @@ class Items_model extends CI_Model {
 						$profit_margin	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_5'] ?? '')));
 						$sales_price	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_6'] ?? '')));
 						$item_mrp	 		=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10'] ?? '')));
+                        $item_mrp = mp_retail_price_from_wholesale($sales_price, $item_mrp, $retail_markup);
 						$opening_stock	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11'] ?? '')));
 						
 						$child_item_name = '';
@@ -1009,6 +1064,9 @@ class Items_model extends CI_Model {
 			}
 		}
 		if ($query1 && $barcode_save_ok){
+				if ($command != 'save' && !empty($audit_before)) {
+					$this->_audit_item_edit($audit_before, $audit_lots_before, $item_id, $store_id);
+				}
 				$this->db->trans_commit();
 				foreach ($gallery_deleted_files as $path) {
 					$full_path = FCPATH . ltrim(str_replace('..', '', (string)$path), '/\\');
@@ -1036,6 +1094,61 @@ class Items_model extends CI_Model {
 		        return $msg;
 		}
 		
+	}
+
+	/**
+	 * The lots on a product as they stand right now, keyed by batch number, so
+	 * an edit can be compared against what it replaced.
+	 */
+	private function _audit_lot_snapshot($item_id){
+		$item_id = (int)$item_id;
+		if ($item_id <= 0 || !$this->db->table_exists('db_item_barcodes')) return array();
+		$rows = $this->db->where('item_id', $item_id)->get('db_item_barcodes')->result_array();
+		$snapshot = array();
+		foreach ($rows as $row) {
+			$key = trim((string)($row['batch_lot'] ?? ''));
+			if ($key === '') continue;          // an unlabelled row is not something to name in a trail
+			$snapshot[$key] = $row;
+		}
+		return $snapshot;
+	}
+
+	/**
+	 * Record what a catalogue edit actually moved. The row is read back from the
+	 * database rather than taken from the form, so the trail reports what the
+	 * shelf now holds — including prices the app recalculated itself, such as a
+	 * recipe cost or a retail markup — and an edit that changed nothing
+	 * contributes nothing to the trail.
+	 */
+	private function _audit_item_edit($before, $lotsBefore, $item_id, $store_id){
+		if (!function_exists('mp_audit_log')) return;
+		try {
+			$after = $this->db->where('id', (int)$item_id)->get('db_items')->row();
+			if (!$after) return;
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$changes = mp_audit_diff($before, $after, array(
+				'alert_qty'             => array('label' => 'Low-stock warning level', 'type' => 'qty'),
+				'prescription_required' => array('label' => 'Needs a prescription', 'type' => 'yesno'),
+				'publish_online'        => array('label' => 'Listed in the online store', 'type' => 'yesno'),
+			) + $capture->priceFields());
+
+			if (is_array($lotsBefore) && $lotsBefore) {
+				foreach ($this->_audit_lot_snapshot($item_id) as $lot => $row) {
+					$was = isset($lotsBefore[$lot]) ? $lotsBefore[$lot] : null;
+					if (!$was) continue;   // a batch first seen here arrived on a receipt, not on this edit
+					$moved = $capture->lotLine($lot,
+						$was['qty'] ?? null, $row['qty'] ?? null,
+						$was['expire_date'] ?? null, $row['expire_date'] ?? null);
+					if ($moved) $changes = array_merge($changes, $moved);
+				}
+			}
+			if (!$changes) return;
+			$capture->event($store_id, 'catalogue', 'update', $item_id,
+				mp_catalogue_name($after->item_name ?? ''), $changes);
+		} catch (Throwable $e) {
+			log_message('error', 'Catalogue audit capture failed: ' . $e->getMessage());
+		}
 	}
 
 	//Get items_details
@@ -1068,6 +1181,9 @@ class Items_model extends CI_Model {
 			
 			$data['seller_points']=$query->seller_points;
 			$data['custom_barcode']=$query->custom_barcode;
+			$data['manufacturer_part_no']=$query->manufacturer_part_no ?? '';
+			$data['oem_reference']=$query->oem_reference ?? '';
+			$data['cross_reference']=$query->cross_reference ?? '';
 			$data['description']=$query->description;
 			$data['laundry_service_type']=$query->laundry_service_type;
 			$data['item_group']=$query->item_group;
@@ -1099,6 +1215,7 @@ class Items_model extends CI_Model {
 			$data['track_serial']=$query->track_serial ?? 0;
 			$data['track_imei']=$query->track_imei ?? 0;
 			$data['not_for_sale']=$query->not_for_sale ?? 0;
+			$data['prescription_required']=$query->prescription_required ?? 0;
 			$data['consumable_unit']=$query->consumable_unit ?? '';
 			$data['fill_qty']=$query->fill_qty ?? '';
 			$data['bottle_item_id']=$query->bottle_item_id ?? '';

@@ -311,7 +311,7 @@ elseif($purchase_status=='Received') $status_class='received';
                     echo "<tr id='payment_row_".$res3p->id."'>";
                     echo "<td>".$pi++."</td>";
                     echo "<td>".show_date($res3p->payment_date)."</td>";
-                    echo "<td>".$res3p->payment_type."</td>";
+                    echo "<td>".htmlspecialchars(payment_mode_label($res3p->payment_type), ENT_QUOTES, 'UTF-8')."</td>";
                     echo "<td>".get_account_name($res3p->account_id)."</td>";
                     echo "<td>".$res3p->payment_note."</td>";
             echo "<td style='text-align:right;font-weight:600;'>".$CI->currency($res3p->payment)."</td>";

@@ -1,3 +1,4 @@
+<?php $am_tyre = mp_vehicle_register_mode(); ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — Vehicles</title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= $am_tyre ? 'Customer Vehicles' : 'Vehicles'; ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -66,11 +67,25 @@
       <div class="topbar">
         <div class="topbar-titles">
           <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
-          <h1>Vehicles</h1>
+          <h1><?= $am_tyre ? 'Customer Vehicles' : 'Vehicles'; ?></h1>
         </div>
       </div>
 
       <div class="kpi-grid">
+        <?php if ($am_tyre): ?>
+        <a href="<?= base_url('mobile/automobile'); ?>" class="kpi-card green">
+          <div class="label">On file</div>
+          <div class="value"><?= number_format((int)($counts['available'] ?? 0) + (int)($counts['reserved'] ?? 0) + (int)($counts['sold'] ?? 0)); ?></div>
+        </a>
+        <a href="<?= base_url('mobile/automobile?status=reserved'); ?>" class="kpi-card yellow">
+          <div class="label">In workshop</div>
+          <div class="value"><?= number_format($counts['reserved'] ?? 0); ?></div>
+        </a>
+        <a href="<?= base_url('mobile/automobile?status=sold'); ?>" class="kpi-card blue">
+          <div class="label">With owner</div>
+          <div class="value"><?= number_format($counts['sold'] ?? 0); ?></div>
+        </a>
+        <?php else: ?>
         <a href="<?= base_url('mobile/automobile?status=available'); ?>" class="kpi-card green">
           <div class="label">Available</div>
           <div class="value"><?= number_format($counts['available'] ?? 0); ?></div>
@@ -83,13 +98,14 @@
           <div class="label">Sold</div>
           <div class="value"><?= number_format($counts['sold'] ?? 0); ?></div>
         </a>
+        <?php endif; ?>
       </div>
 
       <div class="status-chips">
         <a href="<?= base_url('mobile/automobile'); ?>" class="chip <?= empty($status) ? 'active' : ''; ?>">All</a>
-        <a href="<?= base_url('mobile/automobile?status=available'); ?>" class="chip <?= $status === 'available' ? 'active' : ''; ?>">Available</a>
-        <a href="<?= base_url('mobile/automobile?status=reserved'); ?>" class="chip <?= $status === 'reserved' ? 'active' : ''; ?>">Reserved</a>
-        <a href="<?= base_url('mobile/automobile?status=sold'); ?>" class="chip <?= $status === 'sold' ? 'active' : ''; ?>">Sold</a>
+        <a href="<?= base_url('mobile/automobile?status=available'); ?>" class="chip <?= $status === 'available' ? 'active' : ''; ?>"><?= $am_tyre ? 'On file' : 'Available'; ?></a>
+        <a href="<?= base_url('mobile/automobile?status=reserved'); ?>" class="chip <?= $status === 'reserved' ? 'active' : ''; ?>"><?= $am_tyre ? 'In workshop' : 'Reserved'; ?></a>
+        <a href="<?= base_url('mobile/automobile?status=sold'); ?>" class="chip <?= $status === 'sold' ? 'active' : ''; ?>"><?= $am_tyre ? 'With owner' : 'Sold'; ?></a>
       </div>
 
       <?php if (!empty($vehicles)): ?>
@@ -102,11 +118,17 @@
           <?php endif; ?>
           <div class="details">
             <div class="title"><?= htmlspecialchars(($v->year ? $v->year . ' ' : '') . $v->make . ' ' . $v->model); ?></div>
+            <?php if ($am_tyre): ?>
+            <div class="meta"><?= htmlspecialchars($v->license_plate ?: 'No plate') ?><?= $v->mileage ? ' · ' . number_format($v->mileage) . ' km' : ''; ?></div>
+            <span class="badge badge-<?= $v->status === 'available' ? 'success' : ($v->status === 'reserved' ? 'warning' : 'primary'); ?>"><?= $v->status === 'available' ? 'On file' : ($v->status === 'reserved' ? 'In workshop' : 'With owner'); ?></span>
+            <?php else: ?>
             <div class="meta"><?= htmlspecialchars(ucfirst($v->vehicle_condition)); ?> <?= $v->mileage ? '· ' . number_format($v->mileage) . ' km' : ''; ?></div>
             <div class="price"><?= number_format($v->price, 2); ?></div>
             <span class="badge badge-<?= $v->status === 'available' ? 'success' : ($v->status === 'reserved' ? 'warning' : 'primary'); ?>"><?= ucfirst($v->status); ?></span>
+            <?php endif; ?>
           </div>
         </a>
+        <?php if (!$am_tyre): ?>
         <div style="display:flex; gap:8px; justify-content:flex-end; margin: -4px 0 12px;">
           <?php if($v->status !== 'sold'): ?>
             <a href="<?= base_url('mobile/sell_vehicle/'.$v->id); ?>" style="padding:8px 14px; border-radius:20px; background:var(--mp-success); color:#fff; font-size:13px; font-weight:600; text-decoration:none;">Sell</a>
@@ -114,9 +136,10 @@
             <a href="<?= base_url('mobile/vehicle_receipt/'.$v->id); ?>" style="padding:8px 14px; border-radius:20px; background:var(--mp-info); color:#fff; font-size:13px; font-weight:600; text-decoration:none;">Receipt</a>
           <?php endif; ?>
         </div>
+        <?php endif; ?>
         <?php endforeach; ?>
       <?php else: ?>
-        <div class="empty-state">No vehicles found. Tap + to add one.</div>
+        <div class="empty-state"><?= $am_tyre ? 'No customer vehicles yet. Tap + when a customer brings a vehicle in.' : 'No vehicles found. Tap + to add one.'; ?></div>
       <?php endif; ?>
     </section>
 

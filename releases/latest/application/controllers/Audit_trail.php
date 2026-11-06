@@ -99,8 +99,17 @@ class Audit_trail extends MY_Controller {
 			$this->db->group_start()
 				->like('username', $q)
 				->or_like('description', $q)
-				->or_like('ref_id', $q)
-			->group_end();
+				->or_like('ref_id', $q);
+			// Searching for a medicine by name has to find the events that
+			// mention it — those live in the label and in the values that moved,
+			// not in the numeric reference.
+			if($this->db->field_exists('ref_label', 'db_audit_trail')){
+				$this->db->or_like('ref_label', $q);
+			}
+			if($this->db->field_exists('changes', 'db_audit_trail')){
+				$this->db->or_like('changes', $q);
+			}
+			$this->db->group_end();
 		}
 	}
 }

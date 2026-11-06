@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Tyre Shop Use Case</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .screen-card h3 { margin-bottom:8px; }
+    .field-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .field { background:#FAFAF9; padding:8px 10px; border-radius:8px; font-size:0.82rem; }
+    .field strong { display:block; color:var(--mp-text); }
+    .field span { color:var(--mp-muted); }
+    .next { display:flex; align-items:center; gap:10px; background:#E0E7FF; padding:10px 14px; border-radius:10px; font-size:0.85rem; color:var(--mp-primary); margin-top:12px; }
+    .do-dont { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+    .do, .dont { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; }
+    .do { background:#F0FDF4; border-color:var(--mp-success); }
+    .dont { background:#FEF2F2; border-color:var(--mp-danger); }
+    .do h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-success); border-radius:var(--radius) var(--radius) 0 0; }
+    .dont h4 { margin:-16px -16px 14px -16px; padding:12px 16px; font-size:1rem; color:#fff; background:var(--mp-danger); border-radius:var(--radius) var(--radius) 0 0; }
+    .do ul, .dont ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .do li, .dont li { margin-bottom:5px; }
+    .readiness-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:16px; background:#fff; }
+    .readiness-card h3 { margin-bottom:10px; font-size:1rem; }
+    .readiness-card ul { margin:0; padding-left:18px; font-size:0.85rem; color:var(--mp-ink); }
+    .readiness-card li { margin-bottom:6px; }
+    .chat { display:flex; gap:14px; margin-bottom:16px; page-break-inside:avoid; }
+    .chat-avatar { width:40px; height:40px; border-radius:50%; background:var(--mp-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+    .chat-bubble { background:#F5F5F4; border-radius:12px; padding:12px 16px; flex:1; }
+    .chat-bubble strong { display:block; color:var(--mp-text); margin-bottom:4px; }
+    .chat-bubble p { margin:0; font-size:0.85rem; color:var(--mp-ink); line-height:1.55; }
+
+    /* Print: exact A4 pages, no overflow */
+    @page { size: A4; margin: 0; }
+    @media print {
+      html, body { background:#fff; margin:0; padding:0; }
+      .document { max-width:100%; padding:0; margin:0; }
+      .page { width:210mm; height:297mm; min-height:auto; margin:0; padding:14mm 16mm; box-shadow:none; page-break-after:always; break-after:page; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page-cover { padding:0; }
+      .page-cover .cover-inner { min-height:auto; height:297mm; padding:14mm 16mm; }
+      .page:last-child { page-break-after:auto; break-after:auto; }
+      .no-break { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Tyre Shop</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>A day at Advance Tyres</h1>
+        <p>See how a tyre business uses MartPoint to stock tyres by size, fit them to the right vehicles, keep distributor accounts straight, and know exactly which stock is ageing on the shelf.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Tyre shop workflow</span>
+    <h2 class="mb-2">What a tyre business does every day</h2>
+    <p class="lead mb-3">Your trade has three moving parts: tyres sold by size, fitting work done on customer vehicles, and supplier accounts that keep the shelves full. MartPoint runs all three as one tyre business — not a general shop with car parts bolted on.</p>
+
+    <div class="screen-flow">
+      <div class="flow-step"><i class="fa fa-cog"></i> Set business type</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-circle-thin"></i> Tyres by size</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-database"></i> Receive stock &amp; DOT</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-car"></i> Customer vehicles</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-wrench"></i> Fit &amp; bill</div>
+      <div class="flow-step"><i class="fa fa-arrow-right" style="color:var(--mp-muted);"></i></div>
+      <div class="flow-step"><i class="fa fa-line-chart"></i> Seasonal picture</div>
+    </div>
+
+    <div class="do-dont">
+      <div class="do">
+        <h4><i class="fa fa-check" style="margin-right:8px;"></i>Always do</h4>
+        <ul>
+          <li>Set the business type to Tyre Shop before stocking anything.</li>
+          <li>Add each tyre size as a size option under its brand — 195/65R15, 205/55R16, and so on.</li>
+          <li>Record the batch or DOT code when you receive stock, so old tyres can be found later.</li>
+          <li>Register a customer&rsquo;s vehicle when they come in for fitting.</li>
+          <li>Pick the vehicle on the bill so fitting history stays with the car.</li>
+        </ul>
+      </div>
+      <div class="dont">
+        <h4><i class="fa fa-times" style="margin-right:8px;"></i>Never do</h4>
+        <ul>
+          <li>Create one product per size (&ldquo;Gondwana 195&rdquo;, &ldquo;Gondwana 205&rdquo;&hellip;) — sizes belong under one tyre.</li>
+          <li>Sell from the oldest stock last. Fit and sell the oldest DOT batch first.</li>
+          <li>Bill a fitting without selecting the customer&rsquo;s vehicle.</li>
+          <li>Leave a vehicle unregistered — next time the customer comes, the history is gone.</li>
+          <li>Reorder only from memory. The Size Alerts card tells you what is actually low.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="gap:16px; margin-bottom:18px;">
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-list-alt" style="color:var(--mp-primary); margin-right:8px;"></i>Before your first sale</h3>
+        <ul>
+          <li><strong>Set the business type</strong> — choose Tyre Shop in Business Profile.</li>
+          <li><strong>Stock brands by size</strong> — every brand carries its own size list.</li>
+          <li><strong>Add fitting services</strong> — fitting, balancing, alignment, puncture repair.</li>
+          <li><strong>Register vehicles</strong> — plate, make and model for each regular customer.</li>
+        </ul>
+      </div>
+      <div class="readiness-card no-break">
+        <h3><i class="fa fa-heart" style="color:var(--mp-primary); margin-right:8px;"></i>Service that keeps cars coming back</h3>
+        <ul>
+          <li><strong>Remember the vehicle</strong> — open their fit history before they explain the problem.</li>
+          <li><strong>Quote before fitting</strong> — bill lines show exactly what the customer agreed to.</li>
+          <li><strong>Watch stock age</strong> — nobody should leave with a tyre that sat five years on the rack.</li>
+          <li><strong>Plan for the rains</strong> — the seasonal trend shows when demand turns.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card no-break" style="padding:16px;">
+      <h3><i class="fa fa-lightbulb-o" style="color:var(--mp-warning); margin-right:8px;"></i>Tyre shop golden rule</h3>
+      <p class="small" style="margin:0;">A tyre is only fully described by its size and its batch. The size tells the customer it fits their car; the batch (DOT code) tells you how old the rubber is. MartPoint tracks both — one by size option, one by Batch/DOT code on the stock — so you never sell either blind.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Morning</span>
+    <h2 class="mb-2">Tell MartPoint you are a tyre shop</h2>
+    <p class="lead mb-3">Bola runs Advance Tyres. Before anything else, she tells the system what the business is, so the whole workspace starts speaking tyre language.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Bola, Owner</strong>
+        <p>&ldquo;We sell tyres and fitting work, not general goods. I want the system to talk about sizes, DOT codes, depots and fitting services &mdash; and I want my staff to see the same thing I do.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Bola does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She opens <strong>More &rarr; Business Profile</strong> on the phone, or <strong>Business Profile</strong> on the desktop.</li>
+        <li>She picks <strong>Tyre Shop</strong> as the industry type and saves.</li>
+        <li>Menus, buttons and reports switch to tyre wording on their own: items become <strong>Tyres</strong>, batches become <strong>Batch/DOT Code</strong>, expiry checks become <strong>Stock Age</strong>, services become <strong>Fitting Services</strong>, and storages become <strong>Depots</strong>.</li>
+        <li>She keeps the extras a tyre shop needs — vehicle records, fitting services, warranty notes and staff commission — all switched on by the Tyre Shop profile.</li>
+      </ol>
+    </div>
+
+    <div class="tip"><strong>Why the profile matters:</strong> the business type decides which tools appear and what everything is called. A tyre shop and a chemist run on the same system but never see the same screens or the same words.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: build the tyre catalogue, size by size.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Late morning</span>
+    <h2 class="mb-2">Stock tyres by brand and size</h2>
+    <p class="lead mb-3">Advance Tyres carries Gondwana, Hallburg and GT Radial. Each brand comes in many sizes, and each size sells out on its own — so the catalogue must track stock per size, not per brand.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Bola, Owner</strong>
+        <p>&ldquo;Last month 195/65R15 flew out and 225/45R17 sat for six weeks. If my stock list only says &lsquo;Gondwana &mdash; 40 pieces&rsquo;, I cannot see that, and I reorder blind.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Bola does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She opens <strong>Tyre List &rarr; Add</strong> and creates one record per tyre line: &ldquo;Gondwana 5Star&rdquo;.</li>
+        <li>Under the tyre, she adds <strong>size options</strong>: 195/65R15, 205/55R16, 225/45R17&hellip; Each size keeps its own price and its own stock count.</li>
+        <li>She sets a <strong>reorder (alert) level per size</strong>, so a low size raises its own alarm.</li>
+        <li>She files tyres under categories that match how customers shop — Passenger Car, SUV &amp; 4x4, Truck &amp; Commercial, Rims &amp; Wheels, Tubes/Flaps/Valves.</li>
+        <li>Rims, tubes, flaps and valves go in as ordinary stock lines next to the tyres.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What one tyre record holds</h3>
+      <div class="field-list">
+        <div class="field"><strong>Brand line</strong><span>Gondwana 5Star — one record, many sizes</span></div>
+        <div class="field"><strong>Size options</strong><span>195/65R15, 205/55R16&hellip; each with stock and price</span></div>
+        <div class="field"><strong>Reorder level</strong><span>Per size — the Size Alerts card reads it</span></div>
+        <div class="field"><strong>Pattern / type</strong><span>Notes and attributes carry tread and use</span></div>
+        <div class="field"><strong>Depot</strong><span>Which storage rack or branch holds it</span></div>
+        <div class="field"><strong>Online</strong><span>Each size is orderable on the public store</span></div>
+      </div>
+    </div>
+
+    <div class="tip warning"><strong>One record per brand line, one size option per size.</strong> Creating a separate product for every size splits your history and doubles your work. Sizes are options under one tyre — the way the trade actually counts stock.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: receive a delivery and record the DOT codes.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Midday</span>
+    <h2 class="mb-2">Receive stock and keep the rubber honest</h2>
+    <p class="lead mb-3">A distributor delivery arrives: twelve Gondwana 195/65R15 from one batch, eight Hallburg 185/65R15 from another. Tyres age even sitting on the shelf, so Bola records which batch each one came from.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Bola, Owner</strong>
+        <p>&ldquo;A five-year-old tyre is a return waiting to happen, no matter how good the tread looks. When stock comes in, I need to know which week of which year it was made — that is what the DOT code stamped on the sidewall tells me.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Bola does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>She raises a <strong>Purchase</strong> against the distributor account so the supplier balance and stock arrival stay in one story.</li>
+        <li>On receiving, she records the stock into her <strong>Depot</strong> and enters the <strong>Batch/DOT Code</strong> on the batch field for each size.</li>
+        <li>The system&rsquo;s <strong>Stock Age Check</strong> watches the batch dates and surfaces ageing batches on the dashboard.</li>
+        <li>When fitting, staff sell the oldest batch first — first-in, first-out — so nothing rots on the rack.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What the batch record gives you</h3>
+      <div class="field-list">
+        <div class="field"><strong>Age at a glance</strong><span>The DOT week/year is the tyre&rsquo;s real birthday</span></div>
+        <div class="field"><strong>Aged Stock card</strong><span>Shows what has been sitting too long, top of the dashboard</span></div>
+        <div class="field"><strong>Recall safety</strong><span>If a distributor recalls a batch, you know who has it</span></div>
+        <div class="field"><strong>Supplier account</strong><span>Purchases and payments per distributor, always current</span></div>
+      </div>
+    </div>
+
+    <div class="tip"><strong>Depots, not &ldquo;warehouses&rdquo;:</strong> in the Tyre Shop profile every storage location is called a Depot — the main shop rack, the back store, or another branch. Stock transfers move sizes between them with a full paper trail.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: register the customer&rsquo;s vehicle.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Afternoon</span>
+    <h2 class="mb-2">Know the car, not just the customer</h2>
+    <p class="lead mb-3">Mr Okafor drives in with a 2015 Toyota Corolla, plate ABC-1234. He is a regular, but last time it was a different fitter who saw him. Bola wants the vehicle — not the memory of one staff member — to hold the history.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Bola, Owner</strong>
+        <p>&ldquo;When he says &lsquo;the usual size&rsquo;, I want the system to say what the usual size is. And when another car comes in for the same size, I want to know which vehicles on file need that size soon.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What the counter staff do in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>They open <strong>Customer Vehicles &rarr; Add Customer Vehicle</strong> (desktop) or <strong>Customer Vehicles</strong> on the phone.</li>
+        <li>They record make, model, year, <strong>license plate</strong> and mileage, plus notes like &ldquo;runs 205/55R16, prefers all-seasons&rdquo;.</li>
+        <li>The status chip shows where the car is: <strong>On file</strong>, <strong>In the workshop</strong>, or <strong>Back with owner</strong>.</li>
+        <li>After any fitting billed to the vehicle, <strong>History</strong> opens the full trail: every visit, what went on it, what was paid.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What the register is — and what it is not</h3>
+      <div class="field-list">
+        <div class="field"><strong>A workshop register</strong><span>Vehicles you service, kept by plate and model</span></div>
+        <div class="field"><strong>Not a sales board</strong><span>No prices, no sell buttons — you are not selling cars</span></div>
+        <div class="field"><strong>Fit history</strong><span>Every fitting follows the vehicle, not the staff member</span></div>
+        <div class="field"><strong>Fleet customers</strong><span>Companies with many vehicles see one file per vehicle</span></div>
+      </div>
+    </div>
+
+    <div class="tip"><strong>Plate first, always.</strong> The quickest way back into a customer&rsquo;s story is their plate: &ldquo;ABC-1234, two Hallburg fittings last March.&rdquo; That is the difference between a tyre shop that remembers and one that starts over every visit.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: fit four tyres and bill the job in one screen.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 6</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Fitting bay</span>
+    <h2 class="mb-2">Sell, fit and bill without double entry</h2>
+    <p class="lead mb-3">Okafor is changing two front tyres and needs balancing. Tunde the fitter works from the till screen while the car is still on the ramp.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Tunde, Tyre Fitter</strong>
+        <p>&ldquo;Two 195/65R15 off the oldest batch, balancing on both, fitted now. I do not want to write it on paper and have the counter key it in again after close.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What Tunde does in MartPoint</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>At the till he picks the <strong>customer</strong>, then the <strong>vehicle</strong> from their vehicles list — the picker shows plate and model.</li>
+        <li>He adds the tyre sizes from search — typing a size like &ldquo;195/65&rdquo; or a brand name finds the line immediately.</li>
+        <li>He adds the <strong>fitting services</strong>: Fitting, Wheel Balancing, whatever the job actually took.</li>
+        <li>He takes payment and finalises. Stock drops per size, the old batch moves out first, and the job is recorded <strong>against the vehicle</strong>.</li>
+        <li>The printed bill shows tyres and services as separate lines — the customer sees what they are paying for.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What one bill updates on its own</h3>
+      <div class="field-list">
+        <div class="field"><strong>Stock per size</strong><span>Each 195/65R15 leaves that size&rsquo;s count</span></div>
+        <div class="field"><strong>Vehicle history</strong><span>The visit appears under the car&rsquo;s fit record</span></div>
+        <div class="field"><strong>Fitments KPI</strong><span>Dashboard counts sales billed to a vehicle</span></div>
+        <div class="field"><strong>Commission &amp; accounts</strong><span>Fitter share and depot totals follow the bill</span></div>
+      </div>
+    </div>
+
+    <div class="tip warning"><strong>Bill to the vehicle.</strong> If the job is not linked to the car, the fitment history and the &ldquo;what size does this customer run&rdquo; answer both go blank. Choosing the vehicle takes two taps and protects the whole record.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: see the year in tyres before you reorder.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 7</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Closing up</span>
+    <h2 class="mb-2">The dashboard that plans the next season</h2>
+    <p class="lead mb-3">Before close, Bola opens the dashboard. The Tyre Shop Overview answers her three nightly questions: what is low, what is old, and what is the year telling her.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Bola, Owner</strong>
+        <p>&ldquo;In our market, demand turns with the rains — potholes and blown tyres follow the first storms, and everyone hunts for the same sizes at once. If I start ordering when the rush starts, I am two weeks late.&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What the Tyre Shop dashboard shows</h3>
+      <ol class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li><strong>Sizes on File</strong> — how many sized tyres you carry, and how many sit below their reorder level.</li>
+        <li><strong>Size Alerts</strong> — the exact sizes to reorder first, lowest stock on top.</li>
+        <li><strong>Vehicles on File &amp; Fitments</strong> — the workshop register and how many bills went to a vehicle in the last 30 days.</li>
+        <li><strong>Aged Stock &amp; DOT Checks</strong> — batches ageing on the shelf, before a customer has to ask about them.</li>
+        <li><strong>Seasonal Tyre Sales</strong> — tyres sold and earned month by month for the last twelve months. Rising bars before the rains are your early warning: that is when customers start hunting, and when your order should already be placed.</li>
+      </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>The reorder habit that pays</h3>
+      <div class="field-list">
+        <div class="field"><strong>Weekly</strong><span>Clear the Size Alerts list against the distributor account</span></div>
+        <div class="field"><strong>Monthly</strong><span>Check the seasonal bars against last year&rsquo;s same month</span></div>
+        <div class="field"><strong>Before the rains</strong><span>Thicken the fast-selling sizes while the depot still has room</span></div>
+        <div class="field"><strong>Quarterly</strong><span>Work through aged batches — discount or refit them before they expire</span></div>
+      </div>
+    </div>
+
+    <div class="tip"><strong>Cash and accounts travel with the stock:</strong> the Tyre Shop profile keeps full accounts on — distributor balances, customer credits and pay-plan terms, and the cash ledger — so purchasing decisions and money decisions are read from the same place.</div>
+
+    <div class="next"><i class="fa fa-arrow-right"></i> Next: keep the shop visible online.</div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 8</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Online</span>
+    <h2 class="mb-2">Your storefront, sizes and all</h2>
+    <p class="lead mb-3">Customers who never see the ramp can still order from it. Advance Tyres&rsquo; public store shows the catalogue with sizes and prices, and every order lands in the same stock and billing flow as a walk-in.</p>
+
+    <div class="chat">
+      <div class="chat-avatar"><i class="fa fa-user"></i></div>
+      <div class="chat-bubble">
+        <strong>Customer (online)</strong>
+        <p>&ldquo;Do you have 205/55R16 in stock? I saw it on your page. Can you hold a pair till Saturday and fit them that afternoon?&rdquo;</p>
+      </div>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>What the public store already does</h3>
+      <ul class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li>Every tyre shows its available <strong>sizes and prices</strong>; orderable sizes only show live stock truth.</li>
+        <li>Orders arrive in the workspace alongside counter sales — one stock count, one ledger.</li>
+        <li>Fitting services and depot details follow your settings; what you turn off is simply not shown.</li>
+        <li>A product without a photo shows your brand plate — never a random stock image.</li>
+      </ul>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Quick fixes</h3>
+      <ul class="small" style="padding-left:18px;color:var(--mp-ink);line-height:1.7;">
+        <li><strong>A size will not sell:</strong> check that size&rsquo;s own stock count — each size keeps its own.</li>
+        <li><strong>Menus still say &ldquo;Product&rdquo;:</strong> confirm the business type saved as Tyre Shop, then reload.</li>
+        <li><strong>No vehicle picker at the till:</strong> the customer must be picked first, and the vehicle registered under their name.</li>
+        <li><strong>Fit history empty:</strong> the bill was finalised without selecting a vehicle — history follows the bill, not the walk-in.</li>
+        <li><strong>Demo content looks wrong:</strong> switch the industry in Business Profile; the shop then seeds only tyre examples.</li>
+      </ul>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Need help? Reach support</h3>
+      <p class="small mb-2">If something is not working, contact MartPoint support and include your store name and the issue.</p>
+      <div class="field-list">
+        <div class="field"><strong>WhatsApp</strong><span>0803 797 8230</span></div>
+        <div class="field"><strong>Email</strong><span>support@martpoint.com.ng</span></div>
+        <div class="field"><strong>Support portal</strong><span>martpoint.com.ng/support</span></div>
+        <div class="field"><strong>Chat in app</strong><span>Tap the Ask MartPoint button on any screen</span></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Tyre Shop Use Case</span><span>Page 9</span></div>
+  </section>
+
+</div>
+</body>
+</html>

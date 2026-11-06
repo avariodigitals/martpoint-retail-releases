@@ -89,6 +89,9 @@
             $parent_id = $parent_id ?? '';
             $opening_balance = $opening_balance ?? '0';
             $note = $note ?? '';
+            $bank_name = $bank_name ?? '';
+            $bank_account_name = $bank_account_name ?? '';
+            $bank_account_number = $bank_account_number ?? '';
           ?>
           <div class="card">
             <div class="form-group">
@@ -98,6 +101,20 @@
             <div class="form-group">
               <label>Account Name <span class="req">*</span></label>
               <input type="text" name="account_name" value="<?= $account_name; ?>" required>
+            </div>
+            <div class="section-title">Invoice payment details</div>
+            <div class="form-group">
+              <label>Bank Name</label>
+              <input type="text" name="bank_name" value="<?= htmlspecialchars($bank_name, ENT_QUOTES, 'UTF-8'); ?>" placeholder="e.g. First Bank">
+            </div>
+            <div class="form-group">
+              <label>Bank Account Name</label>
+              <input type="text" name="bank_account_name" value="<?= htmlspecialchars($bank_account_name, ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+            <div class="form-group">
+              <label>Bank Account Number</label>
+              <input type="text" inputmode="numeric" name="bank_account_number" value="<?= htmlspecialchars($bank_account_number, ENT_QUOTES, 'UTF-8'); ?>">
+              <small>Accounts with a number can be selected on sales invoices.</small>
             </div>
             <div class="form-group">
               <label>Parent Account</label>

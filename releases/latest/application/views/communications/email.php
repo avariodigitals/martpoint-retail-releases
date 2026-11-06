@@ -1,7 +1,7 @@
 <?php
 $workspace_key='email';require __DIR__.'/_context.php';
 $workspace_name='Email Studio';$workspace_symbol='@';
-$workspace_menu=array('dashboard'=>'Dashboard','campaigns'=>'Email campaigns','report'=>'Results','templates'=>'Email designs','compose'=>'Create email','audience'=>'Audience','sender'=>'Sender identity','history'=>'Sending & credit logs','recharge'=>'Buy email credits','subscription'=>'Subscription','requests'=>'Payment requests');
+$workspace_menu=array('dashboard'=>'Dashboard','campaigns'=>'Email campaigns','report'=>'Results','templates'=>'Email designs','compose'=>'Create email','audience'=>'Audience','sender'=>'Sender identity','history'=>'Sending & credit logs','recharge'=>'Buy email credits','subscription'=>'Access & credits','requests'=>'Payment requests');
 $sections=array(
  'dashboard'=>array('Your email dashboard','Design campaigns and keep customer emails moving from one email workspace.'),
  'campaigns'=>array('Email campaigns','Manage drafts and review campaign results.'),
@@ -13,8 +13,8 @@ $sections=array(
  'sender'=>array('Your sender details','Choose the name customers see in their inbox and where their replies reach you.'),
  'history'=>array('Sending & credit logs','Campaigns and transactional emails use the same email credit balance.'),
  'recharge'=>array('Buy email credits','Recharge the balance used by campaigns, invoices and customer updates.'),
- 'subscription'=>array('Email subscription','Manage your email plan, expiry and module preference.'),
- 'requests'=>array('Email payment requests','Follow the status of email subscription and credit payments.'));
+ 'subscription'=>array('Email access & credits','Email access is included with your MartPoint license. Buy credits when you are ready to send.'),
+ 'requests'=>array('Email credit requests','Track bank and card top-ups for email credits.'));
 if(!isset($sections[$workspace_section]))$workspace_section='dashboard';list($section_title,$section_description)=$sections[$workspace_section];
 $section_action=null;
 if(in_array($workspace_section,array('dashboard','campaigns'),true))$section_action=array('templates','+ Browse designs');

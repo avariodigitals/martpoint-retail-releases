@@ -1622,6 +1622,29 @@
                                           </td>
                                         </tr>
 
+                                        <!-- BATCH LEDGER -->
+                                        <tr>
+                                          <td><?= $i++;?></td>
+                                          <td>Batch Ledger</td>
+                                          <td>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="change_me" id="batch_ledger"> <?= $this->lang->line('select_all'); ?>
+                                              </label></div>
+                                          </td>
+                                          <td>
+                                              <input type="hidden" name="module[batch_ledger]" value="on">
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="batch_ledger_all" id='pharmacy_batch_report_view' name="permission[pharmacy_batch_report_view]"> Batch Reports (what each batch holds, sells, ages)
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="batch_ledger_all" id='batch_reconciliation_view' name="permission[batch_reconciliation_view]"> Batch Reconciliation (see where batches and stock figures disagree)
+                                              </label></div>
+                                              <div class="checkbox icheck"><label>
+                                                <input type="checkbox" class="batch_ledger_all" id='batch_reconciliation_manage' name="permission[batch_reconciliation_manage]"> Balance a Medicine (settle a disagreement)
+                                              </label></div>
+                                          </td>
+                                        </tr>
+
                                         <!-- APPROVALS -->
                                         <?php if(mp_feature_enabled('manager_approvals')) { ?>
                                         <tr>

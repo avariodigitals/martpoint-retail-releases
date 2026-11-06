@@ -435,6 +435,39 @@ class Dashboard extends MY_Controller {
 		}
 		
 	}
+
+	/** Full, permission-checked Intelligence Report opened from the dashboard card. */
+	public function intelligence(){
+		if(function_exists('mp_is_central') && mp_is_central()){
+			redirect('dashboard');
+			return;
+		}
+		if(!$this->permissions('dashboard_view')){
+			$this->show_access_denied_page('You do not have permission to view the dashboard intelligence report.');
+			return;
+		}
+		if(is_mobile()){
+			redirect('mobile');
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Intelligence Report';
+		$data['intel'] = array();
+		$data['intel_subtitle'] = (function_exists('mp_is_print_shop') && mp_is_print_shop())
+			? 'What needs attention on the floor, and what your job history is showing.'
+			: 'What your own records are showing — trends, risks and where cash is tied up.';
+		try {
+			$this->load->model('intelligence_model', 'intel');
+			$data['intel'] = (function_exists('mp_is_print_shop') && mp_is_print_shop())
+				? $this->intel->for_printing(get_current_store_id())
+				: $this->intel->for_retail(get_current_store_id());
+		} catch(Throwable $e) {
+			log_message('error', 'Intelligence report failed: '.$e->getMessage());
+		}
+		$data['content'] = $this->load->view('intelligence_report', $data, TRUE);
+		$this->load->view('mp_layout', $data);
+	}
 	/**
 	 * Central-only landing page — SaaS analytics over the fleet registry.
 	 * Everything derives from db_fleet_installs rows written by install

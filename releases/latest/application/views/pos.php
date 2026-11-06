@@ -348,6 +348,18 @@ var mp_service_staff_map = <?= json_encode($service_staff_map ?? []); ?>;
                     </select>
                   </div>
                   <?php endif; ?>
+                  <?php if(!empty($pos_vehicle_picker)): ?>
+                  <div class="input-group" style="margin-top:4px;" data-toggle="tooltip" title="Fit this sale to one of the customer's vehicles">
+                    <span class="input-group-addon"><i class="fa fa-car text-info"></i></span>
+                    <select class="form-control" id="vehicle_id" name="vehicle_id" style="width:100%;">
+                      <?php if(!empty($sale_vehicle)): ?>
+                      <option value="<?= (int)$sale_vehicle['id']; ?>" selected><?= htmlspecialchars($sale_vehicle['label']); ?></option>
+                      <?php else: ?>
+                      <option value="0">No vehicle</option>
+                      <?php endif; ?>
+                    </select>
+                  </div>
+                  <?php endif; ?>
                   <div id="walkin-warning" class="alert alert-warning" style="display:none;margin-top:6px;padding:6px 10px;font-size:12px;">
                     <i class="fa fa-exclamation-triangle"></i> <strong>Walk-in <?= mp_label('customer'); ?>:</strong> Must pay in full — any payment method allowed. Credit is not allowed.
                   </div>
@@ -1471,6 +1483,34 @@ $(document).ready(function(){
     }
     updatePayPlanButtonState();
   });
+
+  // Tyre-shop fitment: reload the vehicle list whenever the customer changes.
+  function loadPosVehicles() {
+    if(!$('#vehicle_id').length) return;
+    var sel = document.getElementById('vehicle_id');
+    var cid = $("#customer_id").val();
+    var keep = <?= !empty($sale_vehicle) ? (int)$sale_vehicle['id'] : 0; ?>;
+    sel.innerHTML = '';
+    var none = document.createElement('option');
+    none.value = '0'; none.textContent = 'No vehicle';
+    sel.appendChild(none);
+    if(!cid || cid == walkin_customer_id) { sel.value = '0'; return; }
+    $.get(base_url + 'automobile/customer_vehicles/' + cid, function(res){
+      var vs = (res && res.vehicles) || [];
+      if(!vs.length){ sel.innerHTML = ''; sel.appendChild(none); return; }
+      vs.forEach(function(v){
+        var o = document.createElement('option');
+        o.value = v.id; o.textContent = v.label;
+        sel.appendChild(o);
+      });
+      if(keep) sel.value = String(keep);
+      if(sel.value !== String(keep)) sel.value = '0';
+    }, 'json').fail(function(){
+      sel.innerHTML = ''; sel.appendChild(none);
+    });
+  }
+  $("#customer_id").on('change', loadPosVehicles);
+  loadPosVehicles();
 
   function loadCustomerMembershipDiscount(customer_id) {
     if(!customer_id || customer_id == walkin_customer_id) return;

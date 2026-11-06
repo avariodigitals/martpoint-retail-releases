@@ -40,6 +40,9 @@ $sidebar_industry_guide = mp_industry_guide($industry);
 $is_car = $industry === 'car_dealership';
 $is_creator = $industry === 'creator';
 $is_oil_processing = ($industry === 'oil_processing_plant') && function_exists('mp_feature_enabled') && mp_feature_enabled('oil_processing_workflow');
+// The Oil & Gas workspace is additive: a station owner keeps the ordinary rail
+// (till, purchases, customers) and gains the multi-location screens on top.
+$is_oil_gas = function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace();
 // A print shop gets its own rail. The workspace lives at /printing (the
 // dashboard redirects there), so the sidebar must offer its screens rather than
 // the retail set — otherwise the module is reachable but unnavigable, which is
@@ -58,6 +61,10 @@ $is_building_workspace = ($industry === 'building_materials')
 // old homes (Operations, Settings).
 $is_restaurant_ws = function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace();
 $restaurant_nav = $is_restaurant_ws ? mp_restaurant_nav_items() : [];
+// Oil & Gas workspace: stations, LPG outlets, depots and supply divisions. The
+// rail only offers screens that exist today; the operating sections (refills,
+// tanks, pumps, shifts, dispatch, jobs) appear here as their screens ship.
+$is_oil_gas = function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace();
 // NOTE on $is_printing: it adds the printing GROUPS (Print Shop, Machine
 // Floor) and reorders the top of the rail. It does NOT hide the shared
 // business groups.
@@ -107,12 +114,41 @@ $mp_icons = [
       <?php elseif($is_printing): ?>
       <a href="<?= base_url('printing'); ?>" class="mp-nav-item printing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Printing Overview</a>
       <?php elseif($is_restaurant_ws): ?>
-      <a href="<?= base_url('restaurantos'); ?>" class="mp-nav-item restaurantos-index-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Restaurant Overview</a>
+      <a href="<?= base_url('restaurantos'); ?>" class="mp-nav-item restaurantos-index-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> <?= htmlspecialchars(mp_workspace_word('Restaurant') . ' Overview'); ?></a>
       <?php elseif($is_oil_processing): ?>
       <a href="<?= base_url('oil_processing'); ?>" class="mp-nav-item oil_processing-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Plant Overview</a>
       <a href="<?= base_url('docs/product-design/customer-guide/oil-processing-plant-zonat.html'); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Plant Guide</a>
+      <?php elseif($is_oil_gas): ?>
+      <a href="<?= base_url('oil_gas'); ?>" class="mp-nav-item oil_gas-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Oil &amp; Gas Overview</a>
+      <?php if($CI->permissions('warehouse_view')): ?><a href="<?= base_url('oil_gas/locations'); ?>" class="mp-nav-item oil_gas-locations-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Location Operations</a><?php endif; ?>
       <?php else: ?>
       <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item active"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Dashboard</a>
+      <?php endif; ?>
+      <?php if($is_oil_gas && $CI->permissions('dashboard_view')): ?>
+      <a href="<?= base_url('oil_gas'); ?>" class="mp-nav-item oil_gas-index-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Oil &amp; Gas Workspace</a>
+      <?php if(!empty($mp_forecourt_sites = mp_forecourt_sites())): ?>
+      <a href="<?= base_url('oil_gas/forecourt'); ?>" class="mp-nav-item oil_gas-forecourt-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Forecourt</a>
+      <a href="<?= base_url('oil_gas/duty'); ?>" class="mp-nav-item oil_gas-duty-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Duty Readings</a>
+      <?php endif; ?>
+      <a href="<?= base_url('oil_gas/locations'); ?>" class="mp-nav-item oil_gas-locations-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars(mp_label('warehouse')); ?> Operations</a>
+      <?php
+        /* LPG is its own half of the workspace: an outlet that only lends and
+           refills cylinders never sees a pump screen, and the other way round. */
+        $mp_lpg_refill_sites = function_exists('mp_lpg_sites') ? mp_lpg_sites() : array();
+        $mp_lpg_register_sites = function_exists('mp_lpg_sites') ? mp_lpg_sites('cylinder_tracking') : array();
+      ?>
+      <?php if(!empty($mp_lpg_refill_sites) || !empty($mp_lpg_register_sites)): ?>
+      <a href="<?= base_url('oil_gas/lpg'); ?>" class="mp-nav-item oil_gas-lpg-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> LPG Board</a>
+        <?php if(!empty($mp_lpg_refill_sites)): ?>
+      <a href="<?= base_url('oil_gas/refill'); ?>" class="mp-nav-item oil_gas-refill-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Weigh a Fill</a>
+        <?php endif; ?>
+        <?php if(!empty($mp_lpg_register_sites)): ?>
+      <a href="<?= base_url('oil_gas/cylinders'); ?>" class="mp-nav-item oil_gas-cylinders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cylinder Register</a>
+        <?php endif; ?>
+        <?php if(function_exists('mp_feature_enabled') && mp_feature_enabled('cylinder_deposits')): ?>
+      <a href="<?= base_url('oil_gas/deposits'); ?>" class="mp-nav-item oil_gas-deposits-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Cylinder Deposits</a>
+        <?php endif; ?>
+      <?php endif; ?>
       <?php endif; ?>
       <?php if($sidebar_industry_guide && !$is_oil_processing): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$sidebar_industry_guide['file']); ?>" target="_blank" rel="noopener" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($sidebar_industry_guide['title'], ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?>
     </div>
@@ -352,16 +388,22 @@ $mp_icons = [
          feature flag and permission — so a link and its gate cannot disagree,
          and the navigation preset (quick service / casual dining / delivery
          only / multi location) decides which destinations exist at all. -->
-    <?php $sec('Restaurant Service'); ?>
+    <?php /* A lounge works the same rails as a restaurant, so the caption follows
+             the word the store uses for itself instead of saying Restaurant. */ ?>
+    <?php $sec(mp_workspace_word('Restaurant') . ' Service'); ?>
 
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['pos']; ?></span> Service <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if(isset($restaurant_nav['pos'])): ?>
-        <a href="<?= base_url('pos'); ?>" class="mp-nav-item pos-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Walk-in POS</a>
+        <a href="<?= base_url('pos'); ?>" class="mp-nav-item pos-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> <?= htmlspecialchars($restaurant_nav['pos']['label']); ?></a>
         <?php endif; ?>
         <?php if(isset($restaurant_nav['orders'])): ?>
         <a href="<?= base_url('restaurantos/orders'); ?>" class="mp-nav-item restaurantos-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['sales']; ?></span> Orders</a>
+        <?php endif; ?>
+        <?php if(isset($restaurant_nav['events'])): ?>
+        <!-- Ticketed nights are planned from the workspace the venue already works in. -->
+        <a href="<?= base_url('events'); ?>" class="mp-nav-item events-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($restaurant_nav['events']['label']); ?></a>
         <?php endif; ?>
       </div>
     </div></div>
@@ -370,7 +412,9 @@ $mp_icons = [
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#DC2626;"><?= $mp_icons['ops']; ?></span> Kitchen <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if(isset($restaurant_nav['kitchen'])): ?>
-        <a href="<?= base_url('operations/kitchen'); ?>" class="mp-nav-item operations-kitchen-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Kitchen Display</a>
+        <!-- The label comes from the nav item so a bar/lounge reads its own board
+             name here instead of a hard-coded restaurant string. -->
+        <a href="<?= base_url('operations/kitchen'); ?>" class="mp-nav-item operations-kitchen-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($restaurant_nav['kitchen']['label']); ?></a>
         <?php endif; ?>
       </div>
     </div></div>
@@ -383,6 +427,16 @@ $mp_icons = [
         <?php endif; ?>
         <?php if(isset($restaurant_nav['tables'])): ?>
         <a href="<?= base_url('operations/table_management'); ?>" class="mp-nav-item operations-table_management-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Tables &amp; Reservations</a>
+        <?php endif; ?>
+        <?php if(isset($restaurant_nav['tabs'])): ?>
+        <!-- The nav list already decided this store runs tabs; without a link the
+             screen would be reachable only by typing its URL. -->
+        <a href="<?= base_url('operations/tabs'); ?>" class="mp-nav-item operations-tabs-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($restaurant_nav['tabs']['label']); ?></a>
+        <?php endif; ?>
+        <?php if(isset($restaurant_nav['waiters'])): ?>
+        <!-- Waiter attribution only earns a place on the rail where a store pays
+             its floor off what they served. -->
+        <a href="<?= base_url('operations/waiter_takings'); ?>" class="mp-nav-item operations-waiter_takings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= htmlspecialchars($restaurant_nav['waiters']['label']); ?></a>
         <?php endif; ?>
       </div>
     </div></div>
@@ -521,13 +575,13 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Vehicles -->
-    <?php if(mp_feature_enabled('automobile_workflow')): ?>
+    <?php if(mp_feature_enabled('automobile_workflow')): $am_tyre = mp_vehicle_register_mode($industry); ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
-      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><i class="fa fa-car"></i></span> Vehicles <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#2563EB;"><i class="fa fa-car"></i></span> <?= $am_tyre ? 'Customer Vehicles' : 'Vehicles'; ?> <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <a href="<?= base_url('automobile/add'); ?>" class="mp-nav-item automobile-add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Add Vehicle</a>
-        <a href="<?= base_url('automobile'); ?>" class="mp-nav-item automobile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle List</a>
-        <a href="<?= base_url('automobile/dashboard'); ?>" class="mp-nav-item automobile-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle Dashboard</a>
+        <a href="<?= base_url('automobile/add'); ?>" class="mp-nav-item automobile-add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> <?= $am_tyre ? 'Add Customer Vehicle' : 'Add Vehicle'; ?></a>
+        <a href="<?= base_url('automobile'); ?>" class="mp-nav-item automobile-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $am_tyre ? 'Vehicle Register' : 'Vehicle List'; ?></a>
+        <a href="<?= base_url('automobile/dashboard'); ?>" class="mp-nav-item automobile-dashboard-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $am_tyre ? 'Fleet Overview' : 'Vehicle Dashboard'; ?></a>
         <?php if (is_admin() || is_store_admin()): ?>
         <a href="<?= base_url('vehicle_data'); ?>" class="mp-nav-item vehicle-data-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Vehicle Data</a>
         <?php endif; ?>
@@ -580,11 +634,12 @@ $mp_icons = [
 
     <!-- Customers -->
     <?php if((!$is_creator) && ($CI->permissions('customers_add') || $CI->permissions('customers_view') || $CI->permissions('suppliers_add') || $CI->permissions('suppliers_view') || $CI->permissions('import_customers') || $CI->permissions('import_suppliers') || $CI->permissions('cust_adv_payments_add') || $CI->permissions('cust_adv_payments_view') || (mp_feature_enabled('leads') && $CI->permissions('leads_view')))): ?>
-    <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
+    <div class="mp-nav-section"><div class="mp-nav-group<?= $mp_open(['customers','customer_groups']) ? ' open' : ''; ?>" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#7C3AED;"><?= $mp_icons['customers']; ?></span> <?= mp_label('customer'); ?>s <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
         <?php if($CI->permissions('customers_add')): ?><a href="<?= base_url('customers/add'); ?>" class="mp-nav-item customers_add-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> New <?= mp_label('customer'); ?></a><?php endif; ?>
         <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= mp_label('customer'); ?> List</a><?php endif; ?>
+        <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customer_groups'); ?>" class="mp-nav-item customer_groups-active-li<?= $mp_open(['customer_groups']) ? ' active' : ''; ?>"><span class="mp-nav-icon"><i class="fa fa-tags"></i></span> Customer Pricing Groups</a><?php endif; ?>
         <?php if(mp_feature_enabled('leads') && ($CI->permissions('leads_view') || is_store_admin() || $this->session->userdata('role_id') == 1)): ?><a href="<?= base_url('leads'); ?>" class="mp-nav-item leads-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Leads</a><?php endif; ?>
         <?php // Suppliers moved to the Purchases group. A supplier is who you
               // BUY from, so it belongs beside purchasing — under Customers it
@@ -689,6 +744,7 @@ $mp_icons = [
         <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales_and_payments'); ?>" class="mp-nav-item report-sales-and-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales & Payments</a><?php endif; ?>
         <?php if($CI->permissions('customer_orders_report')): ?><a href="<?= base_url('reports/customer_orders'); ?>" class="mp-nav-item report-customer-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Customer Orders</a><?php endif; ?>
         <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales'); ?>" class="mp-nav-item report-sales-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Report</a><?php endif; ?>
+        <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/customer_group_sales'); ?>" class="mp-nav-item report-customer-group-sales-active-li"><span class="mp-nav-icon"><i class="fa fa-users"></i></span> Member &amp; Retail Sales</a><?php endif; ?>
         <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/repeat_purchase_trends'); ?>" class="mp-nav-item report-repeat-purchase-active-li"><span class="mp-nav-icon"><i class="fa fa-repeat"></i></span> Repeat-Purchase Trends</a><?php endif; ?>
         <?php if($CI->permissions('sales_return_report')): ?><a href="<?= base_url('reports/sales_return'); ?>" class="mp-nav-item report-sales-return-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Return Report</a><?php endif; ?>
         <?php if($CI->permissions('purchase_report')): ?><a href="<?= base_url('reports/purchase'); ?>" class="mp-nav-item report-purchase-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Purchase Report</a><?php endif; ?>
@@ -796,7 +852,8 @@ $mp_icons = [
         <?php if(mp_feature_enabled('production_workflow')): ?><a href="<?= base_url('operations/production_schedule'); ?>" class="mp-nav-item operations-production_schedule-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Production Schedule</a><?php endif; ?>
         <?php if(mp_feature_enabled('recipe_tracking') && !$is_restaurant_ws): ?><a href="<?= base_url('operations/recipes'); ?>" class="mp-nav-item operations-recipes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Recipe Book</a><?php endif; ?>
         <?php if(mp_feature_enabled('memberships')): ?><a href="<?= base_url('operations/memberships'); ?>" class="mp-nav-item operations-memberships-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Memberships</a><?php endif; ?>
-        <?php if(mp_feature_enabled('event_ticketing')): ?><a href="<?= base_url('events'); ?>" class="mp-nav-item events-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Events &amp; Tickets</a><?php endif; ?>
+        <?php if(mp_feature_enabled('event_ticketing') && !$is_restaurant_ws): ?><a href="<?= base_url('events'); ?>" class="mp-nav-item events-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Events &amp; Tickets</a><?php endif; ?>
+        <?php /* Check-in stays in Operations for a restaurant workspace store: the rail owns the event list, not the door. */ ?>
         <?php if(mp_feature_enabled('event_ticketing')): ?><a href="<?= base_url('events/tickets'); ?>" class="mp-nav-item events-tickets-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Ticket Check-in</a><?php endif; ?>
         <?php if(mp_feature_enabled('treatment_notes')): ?><a href="<?= base_url('operations/treatment_notes'); ?>" class="mp-nav-item operations-treatment_notes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Treatment Notes</a><?php endif; ?>
         <?php if(mp_feature_enabled('medical_notes')): ?><a href="<?= base_url('operations/medical_notes'); ?>" class="mp-nav-item operations-medical_notes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Medical Notes</a><?php endif; ?>

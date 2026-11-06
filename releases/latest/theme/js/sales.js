@@ -9,7 +9,7 @@ function shift_cursor(kevent,target){
 }
 
 
-$('#save,#update').on("click",function (e) {
+$(document).off('click.mpSalesSave','#save,#update').on('click.mpSalesSave','#save,#update',function (e) {
   
 	var base_url=$("#base_url").val();
   var this_id=this.id;
@@ -128,9 +128,10 @@ $('#save,#update').on("click",function (e) {
         
         $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
         $("#"+this_id).attr('disabled',true);  //Enable Save or Update button
+				var salesId = $('#sales_id').val() || '';
 				$.ajax({
 				type: 'POST',
-				url: base_url+'sales/sales_save_and_update?command='+this_id+'&rowcount='+rowcount+'&tot_subtotal_amt='+tot_subtotal_amt+'&tot_discount_to_all_amt='+tot_discount_to_all_amt+'&tot_round_off_amt='+tot_round_off_amt+'&tot_total_amt='+tot_total_amt+"&other_charges_amt="+other_charges_amt+"&coupon_discount_amt="+coupon_discount_amt,
+				url: base_url+'sales/sales_save_and_update?command='+this_id+'&sales_id='+encodeURIComponent(salesId)+'&rowcount='+rowcount+'&tot_subtotal_amt='+tot_subtotal_amt+'&tot_discount_to_all_amt='+tot_discount_to_all_amt+'&tot_round_off_amt='+tot_round_off_amt+'&tot_total_amt='+tot_total_amt+"&other_charges_amt="+other_charges_amt+"&coupon_discount_amt="+coupon_discount_amt,
 				data: data,
 				cache: false,
 				contentType: false,
@@ -162,6 +163,11 @@ $('#save,#update').on("click",function (e) {
 					$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 					$(".overlay").remove();
 
+			   },
+			   error: function(){
+					toastr["error"]("Could not save the invoice. Check your connection and try again.");
+					$("#"+this_id).attr('disabled',false);
+					$(".overlay").remove();
 			   }
 			   });
 		//}

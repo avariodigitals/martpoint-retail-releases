@@ -1,4 +1,5 @@
 <?php $is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'; ?>
+<?php $auto_retail_markup = mp_feature_enabled('auto_retail_markup'); ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,11 +180,11 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Sale Price'; ?> <span class="req">*</span></label>
+              <label><?= $is_plant ? 'Quotation / Selling Unit Price' : ($auto_retail_markup ? 'Wholesale Price' : 'Sale Price'); ?> <span class="req">*</span></label>
               <input type="number" step="0.01" name="sales_price" id="sales_price" value="<?= $sales_price; ?>" required>
             </div>
             <div class="form-group">
-              <label><?= $is_plant ? 'List Price (optional)' : 'MRP'; ?></label>
+              <label><?= $is_plant ? 'List Price (optional)' : ($auto_retail_markup ? 'Retail Price' : 'MRP'); ?></label>
               <input type="number" step="0.01" name="mrp" id="mrp" value="<?= $mrp; ?>">
             </div>
           </div>
@@ -279,10 +280,10 @@
                     </div>
                     <div class="form-row">
                       <div class="form-group"><label>Profit Margin (%)</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_5" value="<?= number_format((float)($child->profit_margin ?? 0), 2, '.', ''); ?>" placeholder="0"></div>
-                      <div class="form-group"><label>Sale Price</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_6" value="<?= number_format((float)$child->sales_price, 2, '.', ''); ?>" placeholder="0.00" required></div>
+                      <div class="form-group"><label><?= $auto_retail_markup ? 'Wholesale Price' : 'Sale Price'; ?></label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_6" value="<?= number_format((float)$child->sales_price, 2, '.', ''); ?>" placeholder="0.00" required></div>
                     </div>
                     <div class="form-row">
-                      <div class="form-group"><label>MRP</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_10" value="<?= number_format((float)$child->mrp, 2, '.', ''); ?>" placeholder="0.00"></div>
+                      <div class="form-group"><label><?= $auto_retail_markup ? 'Retail Price' : 'MRP'; ?></label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_10" value="<?= number_format((float)$child->mrp, 2, '.', ''); ?>" placeholder="0.00"></div>
                       <div class="form-group"><label>Opening Stock</label><input type="number" step="0.01" name="td_data_<?= $idx; ?>_11" placeholder="0" min="0"></div>
                     </div>
                     <div class="form-row">
@@ -793,5 +794,6 @@
   <?php $this->load->view('mobile/bottom_nav', ['active' => 'more']); ?>
   <?php $this->load->view('mobile/mp_alert'); ?>
   <?php $this->load->view('mobile/chat'); ?>
+  <?php $this->load->view('inventory/retail_markup_script'); ?>
 </body>
 </html>

@@ -59,7 +59,18 @@
 <body>
   <div id='app'>
     <section class='screen'>
-      <?php $mobileKitchenBranch = (string)($branch ?? ''); $mobileKitchenNames = (array)($branch_names ?? []); $mobileKitchenOpts = (array)($branch_opts ?? []); $mobileKitchenAll = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches'; ?>
+      <?php $mobileKitchenBranch = (string)($branch ?? ''); $mobileKitchenNames = (array)($branch_names ?? []); $mobileKitchenOpts = (array)($branch_opts ?? []); $mobileKitchenAll = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches';
+      $mobileKitchenStation = (string)($station ?? 'all'); $mobileKitchenBar = !empty($bar_lane);
+      // Outlet, status and station are all one URL apart; each link has to carry
+      // the others or tapping one silently drops the filter already applied.
+      $mkUrl = function($overrides = []) use ($mobileKitchenBranch, $mobileKitchenStation) {
+        $params = array_filter([
+          'branch_id' => $mobileKitchenBranch,
+          'station'   => $mobileKitchenStation === 'all' ? '' : $mobileKitchenStation,
+        ], function($v){ return $v !== ''; });
+        $params = array_merge($params, array_filter($overrides, function($v){ return $v !== '' && $v !== 'all'; }));
+        return base_url('mobile/kitchen' . ($params ? '?' . http_build_query($params) : ''));
+      }; ?>
       <div class='topbar'>
         <a href='<?= base_url('mobile/operations'); ?>' class='back'><i class='fa fa-chevron-left'></i></a>
         <div class='topbar-titles'>
@@ -68,25 +79,31 @@
         </div>
       </div>
 
-      <?php if(!empty($mobileKitchenOpts)): ?>
-      <nav class='outlet-tabs' aria-label='Kitchen outlet'>
-        <a class='outlet-tab <?= $mobileKitchenBranch === '' ? 'active' : ''; ?>' href='<?= base_url('mobile/kitchen'); ?>'><?= htmlspecialchars($mobileKitchenAll); ?></a>
-        <?php foreach($mobileKitchenOpts as $outlet): ?>
-          <a class='outlet-tab <?= (string)$mobileKitchenBranch === (string)$outlet['id'] ? 'active' : ''; ?>' href='<?= base_url('mobile/kitchen?branch_id=' . (int)$outlet['id']); ?>'><?= htmlspecialchars($outlet['name']); ?></a>
-        <?php endforeach; ?>
+      <?php $this->load->view('components/outlet_picker', [
+          'opts'      => $mobileKitchenOpts,
+          'current'   => $mobileKitchenBranch,
+          'all_label' => $mobileKitchenAll,
+          'url_for'   => function ($id) use ($mkUrl) { return $mkUrl(['branch_id' => $id]); },
+      ]); ?>
+
+      <?php if($mobileKitchenBar): ?>
+      <nav class='outlet-tabs' aria-label='Which station to show'>
+        <a class='outlet-tab <?= $mobileKitchenStation === 'all' ? 'active' : ''; ?>' href='<?= $mkUrl(['station' => 'all']); ?>'>Everything</a>
+        <a class='outlet-tab <?= $mobileKitchenStation === 'kitchen' ? 'active' : ''; ?>' href='<?= $mkUrl(['station' => 'kitchen']); ?>'>Kitchen</a>
+        <a class='outlet-tab <?= $mobileKitchenStation === 'bar' ? 'active' : ''; ?>' href='<?= $mkUrl(['station' => 'bar']); ?>'>Bar</a>
       </nav>
       <?php endif; ?>
 
       <div class='status-tabs'>
-        <a href='?status=new' class='tab-btn new <?= ($active_status === 'new') ? 'active' : ''; ?>'>
+        <a href='<?= $mkUrl(['status' => 'new']); ?>' class='tab-btn new <?= ($active_status === 'new') ? 'active' : ''; ?>'>
           <span class='count' id='count_new'><?= (int)$status_counts['new']; ?></span>
           New
         </a>
-        <a href='?status=preparing' class='tab-btn preparing <?= ($active_status === 'preparing') ? 'active' : ''; ?>'>
+        <a href='<?= $mkUrl(['status' => 'preparing']); ?>' class='tab-btn preparing <?= ($active_status === 'preparing') ? 'active' : ''; ?>'>
           <span class='count' id='count_preparing'><?= (int)$status_counts['preparing']; ?></span>
           Preparing
         </a>
-        <a href='?status=ready' class='tab-btn ready <?= ($active_status === 'ready') ? 'active' : ''; ?>'>
+        <a href='<?= $mkUrl(['status' => 'ready']); ?>' class='tab-btn ready <?= ($active_status === 'ready') ? 'active' : ''; ?>'>
           <span class='count' id='count_ready'><?= (int)$status_counts['ready']; ?></span>
           Ready
         </a>
@@ -150,6 +167,7 @@
   <script>
     var base_url = '<?= base_url(); ?>';
     var kitchenBranch = <?= json_encode($mobileKitchenBranch); ?>;
+    var kitchenStation = <?= json_encode($mobileKitchenStation); ?>;
     var csrf_token = '<?= $this->security->get_csrf_token_name(); ?>';
     var csrf_hash = '<?= $this->security->get_csrf_hash(); ?>';
 
@@ -202,7 +220,8 @@
     });
 
     setInterval(function(){
-      mpFetchJson(base_url + 'mobile/kitchen?ajax=1' + (kitchenBranch ? '&branch_id=' + encodeURIComponent(kitchenBranch) : ''))
+      mpFetchJson(base_url + 'mobile/kitchen?ajax=1' + (kitchenBranch ? '&branch_id=' + encodeURIComponent(kitchenBranch) : '')
+          + (kitchenStation && kitchenStation !== 'all' ? '&station=' + encodeURIComponent(kitchenStation) : ''))
         .then(function(data){
           if(data && data.status_counts){
             document.getElementById('count_new').textContent = data.status_counts.new || 0;

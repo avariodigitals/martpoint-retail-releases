@@ -309,6 +309,13 @@ class MY_Controller extends CI_Controller{
                     $this->default_data->sync_store_owner_permissions($store_id);
                     $this->default_data->sync_physio_role_permissions($store_id);
                 }
+                // A pharmacy always needs a named dispenser on the role list.
+                $pharmacy_store_id = get_current_store_id();
+                if (function_exists('mp_pharmacy_industry')
+                    && mp_pharmacy_industry(mp_get_store_profile($pharmacy_store_id)['industry_type'] ?? '')) {
+                    $this->default_data->create_pharmacy_roles($pharmacy_store_id);
+                    $this->default_data->sync_pharmacy_feature_flags($pharmacy_store_id);
+                }
                 $this->session->set_userdata($flag, 1);
             } catch (Throwable $e) {
                 log_message('error', 'reseed_role_permissions failed: ' . $e->getMessage());

@@ -133,7 +133,7 @@ $waiverApplied = $waiver && $waiver->status === 'applied';
     <tr><th>Code</th><th>Date</th><th>Type</th><th>Amount</th><th>Receipt</th></tr>
     <?php foreach($payments as $p): ?>
     <tr><td><?= htmlspecialchars($p->payment_code); ?></td><td><?= htmlspecialchars($p->payment_date); ?></td>
-      <td><?= htmlspecialchars($p->payment_type); ?></td><td class="pb-ok"><?= $CI->currency($p->payment); ?></td>
+      <td><?= htmlspecialchars(payment_mode_label($p->payment_type), ENT_QUOTES, 'UTF-8'); ?></td><td class="pb-ok"><?= $CI->currency($p->payment); ?></td>
       <td><a class="mp-qa-btn" href="<?= base_url('patient_billing/receipt/' . $p->id); ?>" target="_blank"><i class="fa fa-print"></i></a></td></tr>
     <?php endforeach; ?>
     <?php if(empty($payments)): ?><tr><td colspan="5" style="color:var(--mp-muted);">No payments yet.</td></tr><?php endif; ?>

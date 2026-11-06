@@ -57,7 +57,7 @@ class Sms_model extends CI_Model {
 		// Stored in the structured notification settings table; db_store.sms_status
 		// is kept in sync as a fallback for installs that predate that table.
 		$sms_status = (int)$this->input->post('sms_status', TRUE);
-		if($sms_status < 0 || $sms_status > 7){ $sms_status = 0; }
+		if($sms_status < 0 || $sms_status > 8){ $sms_status = 0; }
 		if($this->db->table_exists('db_store_notification_settings')){
 			if(!mp_set_store_notification_setting($store_id, 'sms_status', $sms_status)){
 				$this->db->trans_rollback();
@@ -111,6 +111,23 @@ class Sms_model extends CI_Model {
 				'sender_id' => (string)($this->input->post('bulksmsng_sender_id', TRUE) ?: 'BulkSMS'),
 				'base_url'  => rtrim((string)($this->input->post('bulksmsng_base_url', TRUE) ?: 'https://www.bulksmsnigeria.com/api/v2'), '/'),
 				'gateway'   => (string)$this->input->post('bulksmsng_gateway', TRUE),
+			], $store_id);
+			if(!$ok){ $this->db->trans_rollback(); return "failed"; }
+		}
+
+		// ---- Nigeria Bulk SMS HTTP API (portal.nigeriabulksms.com) ----
+		if($this->db->table_exists('db_nigeriabulksms')){
+			// Password fields are intentionally blank in the settings form. Keep the
+			// stored credential when the operator leaves it blank.
+			$nb_password = (string)$this->input->post('nigeriabulksms_password', TRUE);
+			if($nb_password === ''){
+				$nb_existing = $this->db->select('password')->where('store_id', $store_id)->get('db_nigeriabulksms')->row();
+				$nb_password = $nb_existing ? (string)$nb_existing->password : '';
+			}
+			$ok = $this->_provider_upsert('db_nigeriabulksms', [
+				'username' => (string)$this->input->post('nigeriabulksms_username', TRUE),
+				'password' => $nb_password,
+				'sender_id' => (string)($this->input->post('nigeriabulksms_sender_id', TRUE) ?: 'MartPoint'),
 			], $store_id);
 			if(!$ok){ $this->db->trans_rollback(); return "failed"; }
 		}
@@ -213,6 +230,10 @@ class Sms_model extends CI_Model {
 			//BulkSMSNigeria SMS API
 			$this->load->model('bulksmsng_model');
 			return $this->bulksmsng_model->index($mobile, $message, $store_id);
+		}
+		if($sms_status==8){
+			$this->load->model('nigeriabulksms_model');
+			return $this->nigeriabulksms_model->send($mobile, $message, $store_id) ? 'success' : 'failed';
 		}
 		
 

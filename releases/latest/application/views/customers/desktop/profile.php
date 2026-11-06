@@ -181,6 +181,23 @@
   <!-- Right Main -->
   <div class="customer-profile-main">
     <?php $this->load->view('customer_history/profile_links', array('history_mobile'=>false)); ?>
+    <?php if(!empty($customer->pricing_group_id)): ?>
+      <div class="mp-card" style="margin-bottom:16px;">
+        <div class="mp-card-head"><h3><i class="fa fa-users"></i> Customer pricing group</h3></div>
+        <div class="mp-card-body" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <?php if(!empty($pricing_group)): ?>
+            <strong><?= htmlspecialchars($pricing_group->name, ENT_QUOTES, 'UTF-8'); ?></strong>
+            <span class="mp-pill <?= !empty($pricing_group->active) ? 'paid' : 'unpaid'; ?>"><?= !empty($pricing_group->active) ? 'Active' : 'Inactive'; ?></span>
+            <span class="text-muted">Wholesale <?= $pricing_group->direction === 'Decrease' ? '−' : '+'; ?><?= number_format((float)$pricing_group->percent, 2); ?>%</span>
+            <?php if(($customer->pricing_rule_mode ?? 'inherit') === 'custom'): ?>
+              <span class="text-muted">An individual customer adjustment currently takes priority.</span>
+            <?php endif; ?>
+          <?php else: ?>
+            <span class="text-muted">This customer has an assigned group that is unavailable in the current pricing setup.</span>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
     <?php
       // Printing changes tab labels/order; feature checks apply to every industry.
       $cust_ind = function_exists('mp_get_store_profile')
@@ -1213,93 +1230,4 @@
 
 <script src="<?= $theme_link; ?>js/customers.js"></script>
 <script src="<?= $theme_link; ?>plugins/tableExporter/libs/html2canvas/html2canvas.min.js"></script>
-<script>
-function fitIdCards(){
-  $('.id-card-fit').each(function(){
-    var card = this.querySelector('.id-card-preview');
-    if (!card) return;
-    var scale = Math.min(1, this.clientWidth / 324);
-    card.style.transform = 'translateX(-50%) scale(' + scale + ')';
-    this.style.height = (204 * scale) + 'px';
-  });
-}
-$(window).on('resize', fitIdCards);
-$(document).on('shown.bs.tab', 'a[data-toggle="tab"]', fitIdCards);
-$(fitIdCards);
-
-function printCard(elId){
-  var el = document.getElementById(elId);
-  if (!el) return;
-  var clone = el.cloneNode(true);
-  clone.removeAttribute('style');
-  clone.removeAttribute('id');
-  var win = window.open('', '_blank');
-  win.document.write('<html><head><title>ID Card</title>');
-  win.document.write('<style>');
-  win.document.write('body{margin:0;padding:20px;background:#f5f5f5;text-align:center;}');
-  win.document.write('.id-card-preview{width:324px;height:204px;border-radius:12px;position:relative;overflow:hidden;background:linear-gradient(135deg,#fdfbf7 0%,#f5f0e8 100%);border:1px solid #e0d5c5;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
-  win.document.write('.id-card-brand{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:42px;font-weight:900;color:#8b7355;opacity:0.06;letter-spacing:2px;text-transform:uppercase;white-space:nowrap;pointer-events:none;user-select:none;}');
-  win.document.write('.id-card-barcode{text-align:center;margin-top:8px;}');
-  win.document.write('.id-card-barcode img{height:42px;}');
-  win.document.write('.id-card-body{padding:20px 16px 16px 16px;text-align:center;}');
-  win.document.write('.id-card-name{font-size:18px;font-weight:700;color:#3d3229;margin-bottom:4px;}');
-  win.document.write('.id-card-phone{font-size:14px;color:#6b5b4f;margin-bottom:8px;}');
-  win.document.write('.id-card-id{font-size:11px;color:#9e8e7e;letter-spacing:2px;font-family:monospace;}');
-  win.document.write('.id-card-footer{position:absolute;bottom:0;left:0;right:0;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.5);border-top:1px solid rgba(0,0,0,0.05);}');
-  win.document.write('.id-card-signature{font-size:10px;color:#8b7355;font-style:italic;}');
-  win.document.write('.id-card-expiry{font-size:10px;color:#3d3229;font-weight:600;}');
-  win.document.write('</style></head><body>');
-  win.document.write(clone.outerHTML);
-  win.document.write('</body></html>');
-  win.document.close();
-  setTimeout(function(){ win.print(); win.close(); }, 300);
-}
-
-function downloadCard(elementId, filename){
-  var el = document.getElementById(elementId);
-  if (!el) return;
-  var prevTransform = el.style.transform;
-  el.style.transform = 'none';
-  html2canvas(el, {scale: 2, useCORS: true, backgroundColor: null}).then(function(canvas){
-    el.style.transform = prevTransform;
-    var link = document.createElement('a');
-    link.download = filename;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }).catch(function(){
-    el.style.transform = prevTransform;
-  });
-}
-
-$(function(){
-  var purchaseTable = $('#purchaseTable').DataTable({
-    "paging": true,
-    "lengthChange": false,
-    "searching": true,
-    "ordering": true,
-    "info": true,
-    "autoWidth": false
-  });
-  $(document).on('shown.bs.tab', 'a[href="#purchases"]', function(){
-    purchaseTable.columns.adjust();
-  });
-});
-</script>
-<script>
-  $('.mp-nav-item').removeClass('active');
-  $('.customers_list-active-li').addClass('active');
-  $('.customers_list-active-li').closest('.mp-nav-group').addClass('open');
-
-  // Open the tab referenced by the URL hash (e.g. #notes after add/edit)
-  if (window.location.hash) {
-    var $tabLink = $('a[href="' + window.location.hash + '"][data-toggle="tab"]');
-    if ($tabLink.length) { $tabLink.tab('show'); }
-  }
-
-  // Toggle inline edit form for creator-owned notes
-  $(document).on('click', '.note-edit-toggle', function(){
-    var $form = $(this).closest('tr').find('.note-edit-form');
-    $form.toggle();
-    if ($form.is(':visible')) { $form.find('textarea').focus(); }
-  });
-</script>
+<script src="<?= $theme_link; ?>js/customer_profile.js"></script>

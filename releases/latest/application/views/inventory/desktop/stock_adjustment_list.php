@@ -16,6 +16,25 @@
 <?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
 <input type="hidden" id="base_url" value="<?= $base_url; ?>">
 
+<?php $wastage_rows = (array) ($wastage_rows ?? []); ?>
+<?php if(!empty($wastage_rows)): ?>
+<?php $wastage_total = array_sum(array_column($wastage_rows, 'qty')); ?>
+<div class="mp-card-head" style="margin-bottom:12px;">
+  <h3 style="font-size:15px;">Written off this month</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <?php foreach(array_slice($wastage_rows, 0, 4) as $w): ?>
+    <span class="label label-danger" title="<?= htmlspecialchars($w['lines']); ?> line(s)">
+      <?= htmlspecialchars($w['reason']); ?>: <?= format_qty($w['qty']); ?>
+    </span>
+    <?php endforeach; ?>
+    <?php if(count($wastage_rows) > 4): ?>
+    <span class="label label-default">+<?= count($wastage_rows) - 4; ?> more</span>
+    <?php endif; ?>
+    <span class="label label-default">Total <?= format_qty($wastage_total); ?></span>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="mp-table-wrap">
   <div class="mp-card-head">
     <h3><?= htmlspecialchars($page_title); ?></h3>

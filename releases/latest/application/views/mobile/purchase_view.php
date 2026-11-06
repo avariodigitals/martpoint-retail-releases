@@ -158,7 +158,7 @@
         <?php if(!empty($payments)): ?>
           <?php foreach($payments as $pay): ?>
             <div class="payment-row">
-              <div class="row"><span class="label"><?= $pay->payment_type; ?></span><span class="value"><?= store_number_format($pay->payment); ?></span></div>
+              <div class="row"><span class="label"><?= htmlspecialchars(payment_mode_label($pay->payment_type), ENT_QUOTES, 'UTF-8'); ?></span><span class="value"><?= store_number_format($pay->payment); ?></span></div>
               <?php if(!empty($pay->payment_note)): ?><div class="item-detail"><?= $pay->payment_note; ?></div><?php endif; ?>
             </div>
           <?php endforeach; ?>

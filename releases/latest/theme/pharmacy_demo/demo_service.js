@@ -129,14 +129,14 @@
       var offer = availableOffers[0];
       return { qty: Number(offer.stock || 0), price: Number(offer.price || product(productId).price), offerId: offer.id, sellerType: 'partner', sellerName: offer.partnerName, available: Number(offer.stock || 0) > 0, reason: Number(offer.stock || 0) > 0 ? 'Available from ' + offer.partnerName : 'Partner offer is out of stock' };
     }
-    var stockLocationId = loc && loc.pickupOnly ? loc.sourceLocationId : locationId;
+    var stockLocationId = (loc && loc.sourceLocationId) || locationId;
     var qty = (seed.stock[stockLocationId] || {})[productId] || 0;
     if (loc && loc.pickupOnly) return { qty: qty, price: product(productId).price, offerId: null, sellerType: 'client', sellerName: seed.brand.name, available: qty > 0, reason: qty > 0 ? 'Available · prepared by the linked pharmacy source' : 'Unavailable from the preparing pharmacy' };
     if (loc && loc.kind === 'partner') return { qty: qty, price: product(productId).price, offerId: null, sellerType: 'partner', sellerName: loc.name, available: qty > 0, reason: qty > 0 ? 'Available from the controlled partner hub' : 'Unavailable at this partner hub' };
     return { qty: qty, price: product(productId).price, offerId: null, sellerType: 'client', sellerName: seed.brand.name, available: qty > 0, reason: qty > 0 ? 'Available here' : 'Unavailable at this location' };
   }
   function cartLines() {
-    return state.cart.map(function (line) { return { line: line, product: product(line.productId), availability: itemAvailability(line.productId, state.locationId, line.offerId), unitPrice: Number(line.unitPrice || itemAvailability(line.productId, state.locationId, line.offerId).price || product(line.productId).price) }; }).filter(function (x) { return x.product; });
+    return state.cart.map(function (line) { return { line: line, product: product(line.productId), availability: itemAvailability(line.productId, state.locationId, line.offerId), unitPrice: Number(line.unitPrice != null ? line.unitPrice : itemAvailability(line.productId, state.locationId, line.offerId).price) }; }).filter(function (x) { return x.product; });
   }
   function subtotal() { return cartLines().reduce(function (sum, x) { return sum + x.unitPrice * x.line.qty; }, 0); }
   function orderTotal(order) {
@@ -212,6 +212,24 @@
         line.qty = qty;
       }
       save(); return { ok: true };
+    },
+    refreshCart: async function () {
+      var config = window.PHARMACY_DEMO_CONFIG || {};
+      if (!config.storeId || !state.cart.length) return false;
+      var client = new window.MPCommerceClient(config);
+      var before = JSON.stringify(state.cart), locationId = state.locationId;
+      var lines = cartLines().map(function (x) { return {id: Number(x.line.productId), type: 'product', qty: x.line.qty, price: x.unitPrice, pricing_version: x.line.pricingVersion}; });
+      var result = await client.quote(lines, location(locationId).warehouseId);
+      if (before !== JSON.stringify(state.cart) || locationId !== state.locationId) throw new Error('Your cart changed. Please review it again.');
+      var changed = client.changed(lines, result.items);
+      result.items.forEach(function (item, index) {
+        state.cart[index].unitPrice = item.price; state.cart[index].pricingVersion = item.pricing_version;
+        var p = product(String(item.id)); if(p) p.price = item.price;
+        var source = location(locationId).sourceLocationId || locationId;
+        if(!seed.stock[source]) seed.stock[source] = {};
+        seed.stock[source][String(item.id)] = item.stock;
+      });
+      save(); return changed;
     },
     clearCart: function () { state.cart = []; save(); },
     createPrescription: function (payload) {
@@ -296,7 +314,7 @@
       form.append('payment_method', payload.paymentMethod === 'online' ? 'paystack' : 'pay_on_delivery');
       form.append('shipping_method', payload.fulfilment === 'pickup' ? 'Pickup' : 'Delivery');
       form.append('warehouse_id', String(loc.warehouseId || 0));
-      form.append('cart', JSON.stringify(lines.map(function (x) { return { type: 'product', id: Number(x.line.productId), qty: Number(x.line.qty) }; })));
+      form.append('cart', JSON.stringify(lines.map(function (x) { return { type: 'product', id: Number(x.line.productId), qty: Number(x.line.qty), price: x.unitPrice, pricing_version: x.line.pricingVersion }; })));
       form.append('idempotency_key', payload.idempotencyKey || ('pharmacy-' + Date.now()));
       if (config.csrfName && config.csrfHash) form.append(config.csrfName, config.csrfHash);
       return fetch(config.placeOrderUrl, { method: 'POST', body: form, credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }).then(function (response) {

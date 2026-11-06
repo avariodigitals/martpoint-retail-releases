@@ -102,6 +102,32 @@
     .cs-variance { text-align: left; }
   }
 </style>
+<style>
+  .cs-shift-modal .modal-dialog { max-width:920px; width:calc(100% - 32px); }
+  .cs-shift-modal .modal-body { max-height:calc(100vh - 190px); overflow-y:auto; }
+  .cs-shift-modal.close-shift .modal-header { border-left:5px solid #B42318; }
+  .cs-shift-modal .cs-info-note { display:flex; align-items:flex-start; gap:9px; padding:12px 14px; border:1px solid #DBEAFE; border-radius:10px; background:#F5F9FF; color:#475569; line-height:1.5; }
+  .cs-shift-modal .cs-info-note > i { margin-top:2px; color:#2563EB; }
+  .cs-shift-modal .cs-shift-close-grid { border-color:#DCE3EC; }
+  .cs-shift-modal .cs-totals { border:1px solid #DCE3EC; background:#F8FAFC; }
+  .cs-shift-modal .cs-method-row input { min-height:44px; border:1px solid #CBD5E1; font-weight:650; box-shadow:none; }
+  .cs-shift-modal .cs-method-row input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+  .cs-shift-modal #posCloseShiftBtn { margin-top:18px; }
+  @media(max-width:768px){
+    .cs-shift-modal .modal-dialog { width:calc(100% - 16px); margin:8px auto; }
+    .cs-shift-modal .modal-body { max-height:calc(100vh - 110px); padding:16px; }
+    .cs-shift-modal .cs-method-row { grid-template-columns:1fr 1fr; gap:10px 12px; padding:13px; }
+    .cs-shift-modal .cs-method-row .lbl-col { grid-column:1/-1; }
+    .cs-shift-modal .cs-method-row .exp { text-align:left; }
+    .cs-shift-modal .cs-method-row .exp:before { content:'Expected'; display:block; margin-bottom:4px; color:#6B7280; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .cs-shift-modal .cs-method-row input { text-align:right; }
+    .cs-shift-modal .cs-method-row > div:nth-child(3):before { content:'Counted'; display:block; margin-bottom:4px; color:#6B7280; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .cs-shift-modal .cs-method-row .cs-variance { grid-column:1/-1; text-align:right; }
+    .cs-shift-modal .cs-method-row .cs-variance:before { content:'Variance'; margin-right:8px; color:#6B7280; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .cs-shift-modal .cs-totals { padding:14px; }
+    .cs-shift-modal .cs-totals .row-line.big { font-size:15px; }
+  }
+</style>
 
 <div class="modal fade cs-shift-modal open-shift" id="openShiftModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">

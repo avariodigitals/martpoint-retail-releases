@@ -13,6 +13,11 @@ class Stock_adjustment extends MY_Controller {
 		$this->permission_check('stock_adjustment_view');
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('stock_adjustment_list') ?: 'Stock Adjustment List';
+		// A lounge that pours away six bottles a week needs the number in front of
+		// it; everywhere else the list stays exactly as it was.
+		$data['wastage_rows'] = mp_feature_enabled('wastage_reasons')
+			? $this->stock_adjustment->wastage_by_reason(get_current_store_id(), date('Y-m-01'), date('Y-m-d'))
+			: array();
 		$data['content']=$this->load->view('inventory/desktop/stock_adjustment_list',$data,TRUE);
 		$this->load->view('mp_layout',$data);
 	}

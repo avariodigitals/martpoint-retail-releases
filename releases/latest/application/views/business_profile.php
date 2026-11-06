@@ -17,9 +17,27 @@
   .bp-flag-group-title.collapsed .fa { transform:rotate(-90deg); }
   .bp-flag-group-content { margin-bottom:16px; }
   .bp-flag-group-content.collapsed { display:none; }
+  .bp-flag-group-blurb { font-size:12px; color:var(--mp-muted); margin:0 0 12px; }
+  .bp-flag-group-note { font-weight:600; font-size:11px; color:var(--mp-muted); text-transform:none; letter-spacing:0; }
+  .bp-flag-hint { font-size:11px; color:var(--mp-muted); padding:4px 2px 0; }
+  .bp-rotation { margin-top:14px; padding:14px 16px; background:var(--mp-surface); border:1px solid var(--mp-border); border-radius:12px; }
+  .bp-rotation-title { font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; color:var(--mp-ink); }
+  .bp-rotation-option { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; align-items:baseline; padding:8px 0; border-bottom:1px dashed var(--mp-border); cursor:pointer; }
+  .bp-rotation-option:last-of-type { border-bottom:none; }
+  .bp-rotation-label { font-weight:600; font-size:14px; color:var(--mp-text); }
+  .bp-rotation-blurb { grid-column:2; font-size:12px; color:var(--mp-muted); }
+  .bp-rotation-foot { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-size:12px; color:var(--mp-muted); }
+  .bp-rotation-active strong { color:var(--mp-success); }
+  .bp-rotation-locked { font-size:13px; color:#b45309; background:rgba(249,115,22,.08); border:1px solid rgba(249,115,22,.3); border-radius:8px; padding:10px 12px; }
+  .bp-rotation-warn { margin-top:10px; font-size:13px; color:#92400e; background:rgba(217,119,6,.07); border:1px solid rgba(217,119,6,.28); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .bp-rotation-warn a { color:#92400e; font-weight:600; }
+  .bp-rotation-warn label { display:flex; align-items:flex-start; gap:8px; font-weight:500; cursor:pointer; }
+  .bp-rotation-warn input[type=checkbox] { margin-top:2px; width:16px; height:16px; accent-color:var(--mp-warning); }
   /* Keep the toggle-card layout independent of each shell's Bootstrap overrides. */
   .bp-flag-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
   .bp-flag-col { min-width:0; }
+  .bp-flag-col[data-feature-key="auto_retail_markup"] { grid-column:1 / -1; }
+  .bp-flag-grid .bp-flag-col[data-feature-key="auto_retail_markup"] > .bp-flag-item { height:auto; }
   .bp-flag-grid .bp-flag-item { height:100%; margin-bottom:0; }
   .bp-flag-grid .bp-flag-item label { min-width:0; overflow-wrap:anywhere; }
   @media (max-width:1199px) { .bp-flag-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
@@ -37,6 +55,13 @@
   .bp-flag-status.off { background:var(--mp-bg); color:var(--mp-muted); }
   .bp-label-item { margin-bottom:12px; }
   .bp-label-item label { font-size:12px; color:var(--mp-muted); margin-bottom:2px; display:block; }
+
+  /* Recommended-but-off notice */
+  .bp-gap { background:rgba(249,115,22,.08); border:1px solid rgba(249,115,22,.35); border-radius:12px; padding:14px 16px; margin-bottom:18px; }
+  .bp-gap-title { font-weight:700; font-size:14px; color:var(--mp-text); margin-bottom:10px; }
+  .bp-gap-list { display:flex; flex-wrap:wrap; gap:6px; max-height:132px; overflow-y:auto; margin-bottom:12px; }
+  .bp-gap-item { background:var(--mp-surface); border:1px solid var(--mp-border); color:var(--mp-ink); font-size:12px; padding:4px 10px; border-radius:14px; }
+  .bp-gap-hint { font-size:12px; color:var(--mp-muted); margin-left:10px; }
 
   /* Preset preview */
   .bp-preset-preview { background:var(--mp-bg); border:1px solid var(--mp-border); border-radius:12px; padding:16px; margin-bottom:20px; display:none; }
@@ -219,106 +244,142 @@
                   if (!empty($current_preset_key) && isset($presets[$current_preset_key]['features'])) {
                     $recommended_features = $presets[$current_preset_key]['features'];
                   }
-                  $feature_groups = [
-                    'Core Modules' => [
-                      'accounts','warehouse','multi_store'
-                    ],
-                    'Sales & Storefront' => [
-                      'online_store','qr_ordering','loyalty','gift_cards','store_credit','public_catalogue','price_catalogue','leads'
-                    ],
-                    'POS' => [
-                      'pos_retail_button','pos_wholesale_button','manual_shipping','pos_receipt_reprint'
-                    ],
-                    'Products & Inventory' => [
-                      'multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','serial_number_tracking','imei_tracking','warranty_tracking','item_variants','fashion_variants_default','auto_parts','meat_butchery_workflow','frozen_food_cold_chain','perfumery_workflow','digital_products','courses'
-                    ],
-                    'Services & Appointments' => [
-                      'appointments','service_workflow','custom_orders','packages','memberships'
-                    ],
-                    'Workflows & Operations' => [
-                      'automobile_workflow','restaurant_workspace','kitchen_workflow','table_management','laundry_workflow','treatment_notes','medical_notes','staff_assignment','staff_commission','delivery_scheduling','production_workflow','recipe_tracking'
-                    ],
-                    'Nylon & Polythene' => [
-                      'nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'
-                    ],
-                    'Oil Processing' => [
-                      'oil_processing_workflow'
-                    ],
-                    'Management' => [
-                      'payplan','customer_notes','manager_approvals','cashier_shifts'
-                    ],
-                    /*
-                     * Customer / service register flags. These were declared in
-                     * mp_get_feature_flags() and are enforced by controllers, but
-                     * were never listed here — so the only way to turn them on was
-                     * a manual DB edit, and the gate page told the operator to
-                     * "Enable it in Business Profile settings" pointing at a screen
-                     * with no such toggle.
-                     */
-                    'Customers & Service' => [
-                      'customer_contacts','customer_sites','equipment_register','service_jobs'
-                    ],
-                    /*
-                     * Clinical flags — the same problem, and worse: this is the
-                     * whole physiotherapy set. 'patient_registry' gates Patients,
-                     * Care queue, Assessments, Investigations, Consents and the
-                     * mobile clinical screens, so a clinic whose flag was off had
-                     * no way to enable it from the UI at all.
-                     */
-                    'Clinical (Physiotherapy & Rehab)' => [
-                      'patient_registry','clinical_encounters','clinical_assessments','treatment_plans',
-                      'patient_wallet','patient_documents','inpatient_care','patient_portal','patient_experience'
-                    ],
-                  ];
-                  foreach ($feature_groups as $group_name => $keys): 
-                    // Show all feature flags regardless of preset
-                    $visible_keys = [];
-                    foreach ($keys as $k) {
-                      if (!isset($feature_flags[$k])) continue;
-                      $visible_keys[] = $k;
+                  /*
+                   * Sections and relevance come from the feature-flag registry in
+                   * business_profile_helper, so this screen cannot drift away from
+                   * the flags the code actually reads — the bug that left three
+                   * enforced capabilities (patient_registry above all) with no
+                   * switch the "enable it in Business Profile" message could point
+                   * at. Anything this business type does not normally use is
+                   * folded away below, still rendered and still saved.
+                   */
+                  $flag_layout = mp_store_feature_layout(
+                      $current_preset_key,
+                      $recommended_features ?: null,
+                      $saved_flags,
+                      ['rotation_method' => $rotation_method ?? 'MANUAL']
+                  );
+                  $rotation_methods = mp_get_rotation_methods();
+                  $current_rotation = strtoupper((string)($rotation_method ?? 'MANUAL'));
+                  // One rule for "is this capability on for this store", so the
+                  // switch below and the notice above can never disagree.
+                  $flag_is_on = function ($key) use ($saved_flags, $recommended_features) {
+                    if (isset($saved_flags[$key])) {
+                      return filter_var($saved_flags[$key], FILTER_VALIDATE_BOOLEAN);
                     }
-                    if (empty($visible_keys)) continue; // skip empty groups
+                    if ($key === 'mfg_tracking') return mp_feature_enabled('expiry_tracking');
+                    if ($key === 'accounts')     return accounts_module();
+                    if ($key === 'warehouse')    return warehouse_module();
+                    return in_array($key, $recommended_features, true);
+                  };
+                  // Saved before the business type asked for it: the flag reads as
+                  // an explicit OFF, so a lounge converted from retail does not see
+                  // Event Ticketing, Running Tabs or Wastage Reasons until it is
+                  // ticked here. Say so, and offer the ticks.
+                  $preset_gap = array_values(array_filter($recommended_features, function ($k) use ($flag_is_on, $feature_flags) {
+                    return isset($feature_flags[$k]) && !$flag_is_on($k);
+                  }));
                   ?>
-                  <div class="bp-flag-group-title" data-group="<?= htmlspecialchars($group_name); ?>"><i class="fa fa-folder-o"></i> <?= $group_name; ?></div>
-                  <div class="bp-flag-group-content" data-group-content="<?= htmlspecialchars($group_name); ?>">
-                  <div class="bp-flag-grid">
-                    <?php foreach ($visible_keys as $key):
-                      $label = $feature_flags[$key];
-                      // Defaults when the flag has never been saved: use the current business-type preset
-                      if (!isset($saved_flags[$key])) {
-                        if ($key === 'mfg_tracking') {
-                          $is_checked = mp_feature_enabled('expiry_tracking');
-                        } elseif ($key === 'accounts') {
-                          $is_checked = accounts_module();
-                        } elseif ($key === 'warehouse') {
-                          $is_checked = warehouse_module();
-                        } else {
-                          $is_checked = in_array($key, $recommended_features);
-                        }
-                      } else {
-                        $is_checked = filter_var($saved_flags[$key], FILTER_VALIDATE_BOOLEAN);
-                      }
-                      $checked = $is_checked ? 'checked' : '';
-                    ?>
-                      <div class="bp-flag-col" data-feature-key="<?= $key; ?>">
-                        <div class="bp-flag-item">
-                          <?php /*
-                            Marker: an unchecked checkbox posts NOTHING, so
-                            without this the server cannot tell "the admin
-                            switched this off" from "the form never rendered
-                            it" — and used to zero every unrendered flag.
-                          */ ?>
-                          <input type="hidden" name="feature_flags_seen[<?= $key; ?>]" value="1">
-                          <input type="checkbox" name="feature_flags[<?= $key; ?>]" id="ff_<?= $key; ?>" value="1" <?= $checked; ?>>
-                          <span class="bp-flag-switch <?= $is_checked ? 'on' : ''; ?>" onclick="bpToggle('ff_<?= $key; ?>', this)"></span>
-                          <label for="ff_<?= $key; ?>" onclick="bpToggle('ff_<?= $key; ?>', document.getElementById('ff_<?= $key; ?>').nextElementSibling); return false;"><?= $label; ?></label>
-                          <span class="bp-flag-status <?= $is_checked ? 'on' : 'off'; ?>" id="ff_status_<?= $key; ?>"><?= $is_checked ? 'ON' : 'OFF'; ?></span>
-                        </div>
-                      </div>
-                    <?php endforeach; ?>
+                  <?php if (!empty($preset_gap)): ?>
+                  <div class="bp-gap" id="bpCapabilityGap">
+                    <div class="bp-gap-title"><i class="fa fa-lightbulb-o"></i> Switched off, though <?= htmlspecialchars($business_types[$current_preset_key] ?? 'this business type'); ?> normally runs them</div>
+                    <div class="bp-gap-list">
+                      <?php foreach ($preset_gap as $k): ?>
+                        <span class="bp-gap-item" data-feature-key="<?= htmlspecialchars($k); ?>"><?= htmlspecialchars($feature_flags[$k]); ?></span>
+                      <?php endforeach; ?>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="bpTurnOnRecommended()">Turn these on</button>
+                    <span class="bp-gap-hint">Saves nothing until you click <strong>Save Business Profile</strong>.</span>
                   </div>
+                  <?php endif; ?>
+                  <?php foreach ($flag_layout['sections'] as $section): ?>
+                  <div class="bp-flag-group-title" data-group="<?= htmlspecialchars($section['label']); ?>"><i class="fa fa-folder-o"></i> <?= htmlspecialchars($section['label']); ?></div>
+                  <div class="bp-flag-group-content" data-group-content="<?= htmlspecialchars($section['label']); ?>">
+                    <p class="bp-flag-group-blurb"><?= htmlspecialchars($section['blurb']); ?></p>
+                    <?php if (!empty($section['flags'])): ?>
+                    <div class="bp-flag-grid">
+                      <?php foreach ($section['flags'] as $flag):
+                        $key = $flag['key'];
+                        $is_checked = $flag_is_on($key);
+                        $checked = $is_checked ? 'checked' : '';
+                      ?>
+                        <div class="bp-flag-col" data-feature-key="<?= htmlspecialchars($key); ?>">
+                          <div class="bp-flag-item">
+                            <?php /*
+                              Marker: an unchecked checkbox posts NOTHING, so
+                              without this the server cannot tell "the admin
+                              switched this off" from "the form never rendered
+                              it" — and used to zero every unrendered flag.
+                            */ ?>
+                            <input type="hidden" name="feature_flags_seen[<?= htmlspecialchars($key); ?>]" value="1">
+                            <input type="checkbox" name="feature_flags[<?= htmlspecialchars($key); ?>]" id="ff_<?= htmlspecialchars($key); ?>" value="1" <?= $checked; ?>>
+                            <span class="bp-flag-switch <?= $is_checked ? 'on' : ''; ?>" onclick="bpToggle('ff_<?= htmlspecialchars($key); ?>', this)"></span>
+                            <label for="ff_<?= htmlspecialchars($key); ?>" onclick="bpToggle('ff_<?= htmlspecialchars($key); ?>', document.getElementById('ff_<?= htmlspecialchars($key); ?>').nextElementSibling); return false;"><?= htmlspecialchars($flag['label']); ?></label>
+                            <span class="bp-flag-status <?= $is_checked ? 'on' : 'off'; ?>" id="ff_status_<?= htmlspecialchars($key); ?>"><?= $is_checked ? 'ON' : 'OFF'; ?></span>
+                          </div>
+                          <?php if ($key === 'auto_retail_markup') $this->load->view('inventory/retail_markup_setting'); ?>
+                          <?php if (!empty($flag['hint'])): ?><div class="bp-flag-hint"><?= htmlspecialchars($flag['hint']); ?></div><?php endif; ?>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (in_array('rotation_method', $section['controls'], true)): ?>
+                    <div class="bp-rotation">
+                      <div class="bp-rotation-title">Batch rotation</div>
+                      <p class="bp-flag-group-blurb">Choose which recorded batch is used when a product sells. This rule applies to this store’s batch stock.</p>
+                      <?php if (empty($rotation_available)): ?>
+                        <div class="bp-rotation-locked"><i class="fa fa-exclamation-triangle"></i> Batch rotation is not installed on this store yet, so sales stay on Manual until the update is applied.</div>
+                      <?php else: ?>
+                        <?php foreach ($rotation_methods as $method_key => $method): ?>
+                        <label class="bp-rotation-option">
+                          <input type="radio" name="rotation_method" value="<?= $method_key; ?>" <?= $current_rotation === $method_key ? 'checked' : ''; ?>>
+                          <span class="bp-rotation-label"><?= htmlspecialchars($method['label']); ?></span>
+                          <span class="bp-rotation-blurb"><?= htmlspecialchars($method['blurb']); ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                        <?php $rotation_gaps = (int)($rotation_gaps ?? mp_rotation_gap_count()); ?>
+                        <?php if ($current_rotation === 'MANUAL' && $rotation_gaps > 0): ?>
+                        <div class="bp-rotation-warn">
+                          <span><i class="fa fa-exclamation-triangle"></i>
+                            <strong><?= $rotation_gaps; ?> <?= $rotation_gaps === 1 ? 'product has' : 'products have'; ?></strong>
+                            held in batches that do not match their stock figures. Under automatic rotation each one stops at the till
+                            until it is balanced. <a href="<?= base_url('batch_reconciliation'); ?>">Review them in Batch reconciliation</a>.</span>
+                          <label><input type="checkbox" name="rotation_ack" value="1"> Switch anyway — I will balance each one when the till flags it</label>
+                        </div>
+                        <?php endif; ?>
+                        <div class="bp-rotation-foot">
+                          <span>Expiry alerts, and the rule for selling near-expiry stock, stay in <a href="<?= base_url('inventory/expiry_settings'); ?>">Settings → Expiry</a>.</span>
+                          <?php if ($current_rotation !== 'MANUAL'): ?>
+                          <span class="bp-rotation-active">Currently rotating: <strong><?= htmlspecialchars($rotation_methods[$current_rotation]['label'] ?? $current_rotation); ?></strong></span>
+                          <?php endif; ?>
+                        </div>
+                      <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                   </div><!-- /.bp-flag-group-content -->
                 <?php endforeach; ?>
+                <?php if (!empty($flag_layout['other'])): ?>
+                  <div class="bp-flag-group-title collapsed" data-group="Other capabilities"><i class="fa fa-folder-o"></i> Other capabilities (<?= count($flag_layout['other']); ?>)<span class="bp-flag-group-note"> — not usually used by <?= htmlspecialchars($business_types[$current_preset_key] ?? 'this business type'); ?></span></div>
+                  <div class="bp-flag-group-content collapsed" data-group-content="Other capabilities">
+                    <p class="bp-flag-group-blurb">Kept for businesses that run more than one model — a shop that also manufactures, sells on account, or holds stock for a vendor. Opening this changes nothing until you save.</p>
+                    <div class="bp-flag-grid">
+                      <?php foreach ($flag_layout['other'] as $key => $label):
+                        $is_checked = $flag_is_on($key);
+                      ?>
+                        <div class="bp-flag-col" data-feature-key="<?= htmlspecialchars($key); ?>">
+                          <div class="bp-flag-item">
+                            <input type="hidden" name="feature_flags_seen[<?= htmlspecialchars($key); ?>]" value="1">
+                            <input type="checkbox" name="feature_flags[<?= htmlspecialchars($key); ?>]" id="ff_<?= htmlspecialchars($key); ?>" value="1" <?= $is_checked ? 'checked' : ''; ?>>
+                            <span class="bp-flag-switch <?= $is_checked ? 'on' : ''; ?>" onclick="bpToggle('ff_<?= htmlspecialchars($key); ?>', this)"></span>
+                            <label for="ff_<?= htmlspecialchars($key); ?>" onclick="bpToggle('ff_<?= htmlspecialchars($key); ?>', document.getElementById('ff_<?= htmlspecialchars($key); ?>').nextElementSibling); return false;"><?= htmlspecialchars($label); ?></label>
+                            <span class="bp-flag-status <?= $is_checked ? 'on' : 'off'; ?>" id="ff_status_<?= htmlspecialchars($key); ?>"><?= $is_checked ? 'ON' : 'OFF'; ?></span>
+                          </div>
+                          <?php if ($key === 'auto_retail_markup') $this->load->view('inventory/retail_markup_setting'); ?>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                <?php endif; ?>
               </div>
             </div>
 
@@ -659,6 +720,24 @@
     }
     // Fire jQuery change event so any listeners pick it up
     $(cb).trigger('change');
+  }
+
+  // Tick every switch the notice lists, through the same code a click uses, so
+  // the switch, its ON/OFF badge and the form value always move together.
+  function bpTurnOnRecommended() {
+    var $chips = $('#bpCapabilityGap .bp-gap-item');
+    $chips.each(function () {
+      var $chip = $(this);
+      var key = $chip.attr('data-feature-key');
+      var $col = $('.bp-flag-col[data-feature-key="' + key + '"]');
+      var $cb = $col.find('input[type="checkbox"]');
+      if ($cb.length && !$cb.prop('checked')) {
+        $col.show();
+        bpToggle($cb.attr('id'), $col.find('.bp-flag-switch').get(0));
+      }
+      $chip.remove();
+    });
+    if (!$('#bpCapabilityGap .bp-gap-item').length) $('#bpCapabilityGap').remove();
   }
 </script>
 <script>$(".business-profile-active-li").addClass("active"); $(".business-profile-active-li").closest(".mp-nav-group").addClass("open");</script>

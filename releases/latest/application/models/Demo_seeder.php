@@ -117,6 +117,21 @@ class Demo_seeder extends CI_Model {
             'suppliers' => array('FreshFarm Produce', 'DairyDirect', 'Oceanic Seafoods'),
             'posts' => array('The Art of Plating', 'Farm to Table Journey', 'The Perfect Brunch'),
         ),
+        'bar_lounge' => array(
+            'store_name' => 'Zonat Barrel & Lounge', 'theme' => array('#78350F', '#F59E0B'),
+            'units' => array('Glass' => 'GLS', 'Bottle' => 'BTL', 'Shot' => 'SHT', 'Crate' => 'CRT', 'Can' => 'CAN'),
+            'categories' => array('Cocktails', 'Spirits', 'Beer & Cider', 'Soft Drinks', 'Snacks'),
+            'products' => array(
+                array('Mojito', 'Cocktails', 3500, 900, 999, 'bar'), array('Piña Colada', 'Cocktails', 3500, 950, 999, 'bar'),
+                array('Whiskey & Soda', 'Cocktails', 4000, 1200, 999, 'bar'), array('House Gin (Glass)', 'Spirits', 3000, 900, 999, 'bar'),
+                array('Draft Beer', 'Beer & Cider', 1500, 500, 999, 'bar'), array('Imported Beer (Bottle)', 'Beer & Cider', 2000, 800, 999, 'bar'),
+                array('Soft Drink (Can)', 'Soft Drinks', 800, 400, 999, 'bar'), array('Fresh Juice', 'Soft Drinks', 1500, 600, 999, 'bar'),
+                array('Peppered Meat', 'Snacks', 3500, 1800, 999, 'kitchen'), array('Fried Plantain', 'Snacks', 1200, 500, 999, 'kitchen'),
+            ),
+            'services' => array('Table Service', 'Bottle Keeping', 'Event Hosting'),
+            'suppliers' => array('Grand Beverage Imports', 'Craft Distillery Co.', 'CoolChain Drinks Ltd'),
+            'posts' => array('Responsible Service Guide', 'Signature Cocktails of the Season', 'Building a Balanced Bar List'),
+        ),
         'skincare' => array(
             'store_name' => 'Zonat Glow Skincare', 'theme' => array('#86198F', '#E879F9'),
             'units' => array('Piece' => 'PCS', 'Millilitre' => 'ML', 'Gram' => 'G', 'Bottle' => 'BTL'),
@@ -156,6 +171,28 @@ class Demo_seeder extends CI_Model {
             'suppliers' => array('Zonat Wholesale Partners', 'Everyday Distribution', 'MarketLink Supplies'),
             'posts' => array('Welcome to Zonat Retail', 'How to Shop Smarter', 'New Arrivals This Month'),
         ),
+        'tyre_shop' => array(
+            'store_name' => 'Zonat Tyres & Auto Works', 'theme' => array('#1F2937', '#F97316'),
+            'units' => array('Piece' => 'PCS', 'Set' => 'SET', 'Pair' => 'PAIR'),
+            'categories' => array('Passenger Car Tyres', 'SUV & 4x4 Tyres', 'Truck & Commercial Tyres', 'Rims & Wheels', 'Tubes, Flaps & Valves'),
+            'products' => array(
+                array('Gondwana 195/65R15 Tyre', 'Passenger Car Tyres', 52000, 38000, 24),
+                array('Hallburg 185/65R15 Tyre', 'Passenger Car Tyres', 45000, 32000, 30),
+                array('GT Radial 205/55R16 Tyre', 'Passenger Car Tyres', 61000, 45000, 18),
+                array('Michelin 225/45R17 Tyre', 'Passenger Car Tyres', 98000, 74000, 10),
+                array('Fortune 245/70R16 SUV Tyre', 'SUV & 4x4 Tyres', 88000, 64000, 14),
+                array('Continental 235/60R18 SUV Tyre', 'SUV & 4x4 Tyres', 124000, 96000, 8),
+                array('Double Coin 9.00R20 Truck Tyre', 'Truck & Commercial Tyres', 165000, 121000, 12),
+                array('GT Radial 7.50R16 Truck Tyre', 'Truck & Commercial Tyres', 96000, 70000, 16),
+                array('Alloy Rim 17-inch (Single)', 'Rims & Wheels', 45000, 30000, 20),
+                array('Steel Rim 15-inch (Single)', 'Rims & Wheels', 21000, 14000, 26),
+                array('Tyre Tube R15', 'Tubes, Flaps & Valves', 3500, 2000, 60),
+                array('Flap & Valve Kit', 'Tubes, Flaps & Valves', 1500, 800, 80),
+            ),
+            'services' => array('Tyre Fitting', 'Wheel Balancing', 'Wheel Alignment', 'Puncture Repair'),
+            'suppliers' => array('Gondwana Tyre Distribution', 'Hallburg Wholesale Nigeria', 'Double Coin Depot'),
+            'posts' => array('Rainy Season Tyre Checklist', 'How Old Is Your Spare?', 'Knowing Your Tyre Size'),
+        ),
     );
 
     /** Add labelled examples alongside live records. Repeats never update rows. */
@@ -176,6 +213,9 @@ class Demo_seeder extends CI_Model {
         $this->db->db_debug = false;
         $this->db->trans_begin();
         try {
+            // One store shows one industry's demo at a time: retire the other
+            // industries' examples before adding this one's.
+            $this->_retire_other_industry_examples($store_id, $key);
             $units = array();
             foreach ($data['units'] as $name => $shortcode) {
                 $unitName = '[Demo] '.$name;
@@ -350,8 +390,81 @@ class Demo_seeder extends CI_Model {
             'restaurant' => 'restaurant', 'fast_food' => 'restaurant', 'cafe' => 'restaurant',
             'pizza_shop' => 'restaurant', 'shawarma' => 'restaurant', 'juice_bar' => 'restaurant',
             'buka' => 'restaurant', 'canteen' => 'restaurant', 'food_delivery' => 'restaurant',
+            'bar_lounge' => 'bar_lounge',
+            // Tyre shops run their own catalogue; never fall back to retail.
+            'tyre_shop' => 'tyre_shop',
         );
         return isset($map[$industry]) ? $map[$industry] : 'general_retail';
+    }
+
+    /**
+     * One store shows one industry's demo at a time. When examples are seeded
+     * for a new industry, every OTHER industry's demo rows are retired —
+     * MP-DEMO skus, [Demo]-named catalogue rows, mp-demo.* contacts and
+     * demo posts only. Live (non-demo) stock is never touched.
+     */
+    private function _retire_other_industry_examples($store_id, $key) {
+        $current = isset($this->blueprints[$key]) ? $this->blueprints[$key] : array();
+        $keepUnits = array_keys($current['units'] ?? array());
+        $keepCats  = $current['categories'] ?? array();
+        $keepSrv   = $current['services'] ?? array();
+        $otherUnits = array(); $otherCats = array(); $otherSrv = array();
+        foreach ($this->blueprints as $bkey => $bp) {
+            if ($bkey === $key) continue;
+            foreach (array_keys($bp['units'] ?? array()) as $n) { $otherUnits[$n] = 1; }
+            foreach (($bp['categories'] ?? array()) as $n) { $otherCats[$n] = 1; }
+            foreach (($bp['services'] ?? array()) as $n) { $otherSrv[$n] = 1; }
+        }
+
+        if ($this->db->table_exists('db_items') && $this->db->field_exists('sku', 'db_items')) {
+            $keepPrefix = 'MP-DEMO-'.$store_id.'-'.strtoupper($key).'%';
+            $this->db->where('store_id', $store_id)
+                ->like('sku', 'MP-DEMO-'.$store_id.'-', 'after')
+                ->where('sku NOT LIKE '.$this->db->escape($keepPrefix), null, false)
+                ->update('db_items', $this->_filter('db_items', array('status' => 0, 'publish_online' => 0, 'online_excluded' => 1)));
+        }
+        $diffNames = function ($pool, $keep) {
+            $out = array();
+            foreach (array_keys($pool) as $n) {
+                if (!in_array($n, $keep, true)) $out[] = '[Demo] '.$n;
+            }
+            return $out;
+        };
+        $unitNames = $diffNames($otherUnits, $keepUnits);
+        if ($unitNames && $this->db->table_exists('db_units')) {
+            $this->db->where('store_id', $store_id)->where_in('unit_name', $unitNames)
+                ->update('db_units', $this->_filter('db_units', array('status' => 0)));
+        }
+        $catNames = $diffNames($otherCats, $keepCats);
+        if ($catNames && $this->db->table_exists('db_category')) {
+            $this->db->where('store_id', $store_id)->where_in('category_name', $catNames)
+                ->update('db_category', $this->_filter('db_category', array('status' => 0)));
+        }
+        $srvNames = $diffNames($otherSrv, $keepSrv);
+        if ($srvNames && $this->db->table_exists('db_services')) {
+            $this->db->where('store_id', $store_id)->where_in('service_name', $srvNames)
+                ->update('db_services', $this->_filter('db_services', array('status' => 0, 'available_online' => 0)));
+        }
+        foreach (array('db_suppliers' => 'supplier_name', 'db_customers' => 'customer_name') as $table => $label) {
+            if (!$this->db->table_exists($table) || !$this->db->field_exists('email', $table)) continue;
+            $this->db->where('store_id', $store_id)
+                ->like('email', 'mp-demo.', 'after')
+                ->not_like('email', 'mp-demo.'.$key.'.', 'after')
+                ->update($table, $this->_filter($table, array('status' => 0)));
+        }
+        if ($this->db->table_exists('db_leads') && $this->db->field_exists('status', 'db_leads')) {
+            $this->db->where('store_id', $store_id)
+                ->like('email', 'mp-demo.', 'after')
+                ->not_like('email', 'mp-demo.'.$key.'.', 'after')
+                ->update('db_leads', $this->_filter('db_leads', array('status' => 'archived')));
+        }
+        if ($this->db->table_exists('db_storefront_posts') && $this->db->field_exists('slug', 'db_storefront_posts')) {
+            foreach (array_keys($this->blueprints) as $bkey) {
+                if ($bkey === $key) continue;
+                $this->db->where('store_id', $store_id)->like('slug', $bkey.'-', 'after')
+                    ->update('db_storefront_posts', $this->_filter('db_storefront_posts', array('status' => 'archived')));
+            }
+        }
     }
 
     private function _retire_previous_demo_content($store_id, $industry, $currentSuppliers = array()) {

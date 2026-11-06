@@ -142,7 +142,7 @@ $this->load->view('admin/desktop/_styles');
       <div class="mp-section">
         <div class="mp-page-head">
           <div>
-            <h2><?= ($dashboard_template === 'restaurant') ? 'Restaurant Overview' : 'Business Overview'; ?></h2>
+            <h2><?= ($dashboard_template === 'restaurant') ? htmlspecialchars(mp_workspace_word('Restaurant') . ' Overview') : 'Business Overview'; ?></h2>
             <div class="mp-page-sub"><?= $range_label; ?> · <?= htmlspecialchars($this->session->userdata('store_name') ?? 'MartPoint'); ?><?php if(!empty($dashboard_template_label)): ?> · <span style="color:var(--mp-primary);font-weight:600;"><?= htmlspecialchars($dashboard_template_label); ?></span><?php endif; ?></div>
           </div>
           <div class="mp-range-tabs">
@@ -191,7 +191,7 @@ $this->load->view('admin/desktop/_styles');
             <div class="mp-kpi-value"><?= $CI->currency($outstanding['total']); ?></div>
             <div class="mp-kpi-sub down"><?= number_format($outstanding['count']) ?> <?= $customer_label; ?><?= $outstanding['count'] != 1 ? 's' : '' ?> Owing</div>
           </div>
-          <?php if($is_product_business): ?>
+          <?php if($is_product_business && $dashboard_template !== 'tyre_shop'): ?>
           <div class="mp-kpi-card stock">
             <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'stock','card_dates'=>$range_info ?? array(),'card_link_label'=>'View stock details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
@@ -200,6 +200,7 @@ $this->load->view('admin/desktop/_styles');
             <div class="mp-kpi-sub <?= $low_stock_count > 0 ? 'down' : 'up' ?>"><?= $low_stock_count > 0 ? 'Need Attention' : 'Stock is Healthy' ?></div>
           </div>
           <?php endif; ?>
+          <?php if($dashboard_template !== 'tyre_shop'): ?>
           <div class="mp-kpi-card sales">
             <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'invoices','card_dates'=>$range_info ?? array(),'card_link_label'=>'View invoices details')); ?>
             <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg></div>
@@ -214,6 +215,7 @@ $this->load->view('admin/desktop/_styles');
             <div class="mp-kpi-value"><?= number_format($new_customers_range['count']); ?></div>
             <div class="mp-kpi-sub <?= $new_customers_range['change'] >= 0 ? 'up' : 'down' ?>"><?= $new_customers_range['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($new_customers_range['change']) ?>% vs Previous</div>
           </div>
+          <?php endif; ?>
         </div>
       </div>
 
@@ -260,6 +262,195 @@ $this->load->view('admin/desktop/_styles');
             <div class="mp-kpi-label">Ready to Serve</div>
             <div class="mp-kpi-value"><?= (int)($kds_counts['ready'] ?? 0); ?></div>
           </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php if($dashboard_template === 'tyre_shop'): ?>
+      <!-- Tyre shop snapshot: size alerts, fleet vehicles, fitments and the
+           seasonal (last-12-months) trend the industry page promises. -->
+      <div class="mp-section">
+        <div class="mp-page-head">
+          <div>
+            <h2>Tyre Shop Overview</h2>
+            <div class="mp-page-sub">Stock by size, the workshop queue, and tyre sales through the year</div>
+          </div>
+          <a href="<?= base_url('automobile/list'); ?>" class="mp-card-link">Customer vehicles &rarr;</a>
+        </div>
+        <?php
+        $tyre_size_low_items = [];
+        $fleet_count = 0;
+        $fitments_30d = 0;
+        $sizes_on_file = 0;
+        $seasonal_rows = [];
+        try {
+          // Sizes low on stock: variant child items (one per tyre size) whose
+          // own stock has fallen to or under their alert level.
+          if ($CI->db->field_exists('variant_id', 'db_items')) {
+            $sizes_on_file = (int)$CI->db->where('store_id', $store_id)
+              ->where('status', 1)->where('variant_id >', 0)->count_all_results('db_items');
+            $sizes_q = $CI->db->select('item_name, sku, stock, alert_qty')
+              ->where('store_id', $store_id)
+              ->where('status', 1)
+              ->where('variant_id >', 0)
+              ->where('alert_qty >', 0)
+              ->limit(400)
+              ->get('db_items');
+            foreach ($sizes_q->result() as $it) {
+              $stock = (float)($it->stock ?? 0);
+              $alert = (float)($it->alert_qty ?? 0);
+              if ($alert > 0 && $stock <= $alert) { $tyre_size_low_items[] = $it; }
+            }
+            usort($tyre_size_low_items, function ($a, $b) {
+              return (float)($a->stock ?? 0) <=> (float)($b->stock ?? 0);
+            });
+          }
+          if ($CI->db->table_exists('db_vehicles')) {
+            $fleet_count = (int)$CI->db->where('store_id', $store_id)
+              ->where('is_deleted', 0)->count_all_results('db_vehicles');
+          }
+          if ($CI->db->field_exists('vehicle_id', 'db_sales')) {
+            $fitments_30d = (int)$CI->db->where('store_id', $store_id)
+              ->where('vehicle_id >', 0)
+              ->where('sales_date >=', date('Y-m-d', strtotime('-30 days')))
+              ->count_all_results('db_sales');
+          }
+          // Seasonal analytics: monthly tyre (size-variant) quantity and revenue.
+          $season_from = date('Y-m-01', strtotime('-11 months'));
+          $seasonal_q = $CI->db->select("DATE_FORMAT(s.sales_date, '%Y-%m') AS ym, SUM(si.sales_qty) AS qty, SUM(si.sales_qty * si.price_per_unit) AS amt")
+            ->from('db_salesitems si')
+            ->join('db_sales s', 's.id = si.sales_id')
+            ->join('db_items i', 'i.id = si.item_id')
+            ->where('s.store_id', $store_id)
+            ->where('s.sales_status', 'Final')
+            ->where('s.sales_date >=', $season_from)
+            ->where('i.variant_id >', 0)
+            ->group_by('ym')
+            ->order_by('ym', 'asc')
+            ->get();
+          foreach ($seasonal_q->result() as $row) {
+            $seasonal_rows[(string)$row->ym] = ['qty' => (float)($row->qty ?? 0), 'amt' => (float)($row->amt ?? 0)];
+          }
+        } catch (Exception $e) { /* tyre tables not ready yet */ }
+        ?>
+        <div class="mp-kpi-grid">
+          <div class="mp-kpi-card stock">
+            <div class="mp-kpi-icon"><i class="fa fa-circle-thin"></i></div>
+            <div class="mp-kpi-label">Sizes on File</div>
+            <div class="mp-kpi-value"><?= $sizes_on_file; ?></div>
+            <div class="mp-kpi-sub <?= count($tyre_size_low_items) > 0 ? 'down' : 'up' ?>"><?= count($tyre_size_low_items) > 0 ? count($tyre_size_low_items).' low — reorder' : 'All sizes above alert level' ?></div>
+          </div>
+          <div class="mp-kpi-card debt">
+            <div class="mp-kpi-icon"><i class="fa fa-car"></i></div>
+            <div class="mp-kpi-label">Vehicles on File</div>
+            <div class="mp-kpi-value"><?= $fleet_count; ?></div>
+            <div class="mp-kpi-sub"><?= $fleet_count > 0 ? 'Customer & fleet vehicles' : 'Add vehicles to offer fit history' ?></div>
+          </div>
+          <div class="mp-kpi-card sales">
+            <div class="mp-kpi-icon"><i class="fa fa-wrench"></i></div>
+            <div class="mp-kpi-label">Fitments (Last 30 Days)</div>
+            <div class="mp-kpi-value"><?= $fitments_30d; ?></div>
+            <div class="mp-kpi-sub">Sales billed to a vehicle</div>
+          </div>
+          <div class="mp-kpi-card warn">
+            <div class="mp-kpi-icon"><i class="fa fa-exchange"></i></div>
+            <div class="mp-kpi-label">Tyres Sold</div>
+            <div class="mp-kpi-value"><?= (int) array_sum(array_map(function ($m) { return $m['qty']; }, $seasonal_rows ?: [])); ?></div>
+            <div class="mp-kpi-sub">Counted over the last 12 months</div>
+          </div>
+        </div>
+        <div class="mp-row r-equal" style="margin-top:12px;">
+        <div class="mp-card">
+          <div class="mp-card-head"><h3>Size Alerts</h3><a href="<?= base_url('items'); ?>" class="mp-card-link">All stock &rarr;</a></div>
+          <div class="mp-card-body" style="padding:0;">
+            <?php if (!empty($tyre_size_low_items)): ?>
+            <?php foreach (array_slice($tyre_size_low_items, 0, 6) as $it): ?>
+            <div class="mp-top-prod" style="padding:12px 20px;">
+              <div class="mp-top-prod-info">
+                <div class="mp-top-prod-name"><?= htmlspecialchars($it->item_name ?? ''); ?></div>
+                <?php if (!empty($it->sku)): ?><div class="mp-top-prod-meta"><?= htmlspecialchars($it->sku); ?></div><?php endif; ?>
+              </div>
+              <div class="mp-top-prod-amt" style="color:var(--mp-danger);"><?= rtrim(rtrim(number_format((float)($it->stock ?? 0), 2, '.', ''), '0'), '.'); ?></div>
+            </div>
+            <?php endforeach; ?>
+            <?php else: ?>
+            <div class="text-muted" style="padding:14px 20px;">Every size is above its reorder level.</div>
+            <?php endif; ?>
+          </div>
+        </div>
+        <div class="mp-card">
+          <div class="mp-card-head"><h3>Seasonal Tyre Sales</h3><span class="mp-card-link" style="cursor:default;">Last 12 months</span></div>
+          <div class="text-muted" style="padding:10px 20px 0; font-size:13px;">How many sized tyres you sell each month — the rising bars before the rains are when customers start hunting for tyres, so it shows what to reorder early.</div>
+          <div class="mp-card-body" style="padding:6px 0;">
+            <?php
+            $season_max = 0.0;
+            $season_months = [];
+            for ($sm = 11; $sm >= 0; $sm--) {
+              $key = date('Y-m', strtotime("-{$sm} months"));
+              $season_months[$key] = $seasonal_rows[$key] ?? ['qty' => 0.0, 'amt' => 0.0];
+              if ($season_months[$key]['qty'] > $season_max) { $season_max = (float)$season_months[$key]['qty']; }
+            }
+            $any_season = $season_max > 0;
+            if (!$any_season): ?>
+            <div class="text-muted" style="padding:14px 20px;">No tyre sales recorded in the last 12 months yet. Sales of sized tyres will draw this trend automatically.</div>
+            <?php endif; ?>
+            <?php foreach ($season_months as $key => $mv): if (!$any_season) break; ?>
+            <?php $pct = $season_max > 0 ? round(($mv['qty'] / $season_max) * 100) : 0; ?>
+            <div class="mp-top-prod" style="padding:8px 20px;">
+              <div class="mp-top-prod-info" style="min-width:90px;"><div class="mp-top-prod-name" style="font-weight:600; font-size:13px;"><?= date('M Y', strtotime($key . '-01')); ?></div></div>
+              <div style="flex:1; margin:0 12px; background:rgba(0,0,0,0.06); border-radius:6px; overflow:hidden;">
+                <div style="height:10px; width:<?= $pct; ?>%; background:var(--mp-primary, #2563eb); border-radius:6px;"></div>
+              </div>
+              <div class="mp-top-prod-info" style="min-width:70px; text-align:right;"><div style="font-size:12px; color:var(--mp-muted, #666);"><?= rtrim(rtrim(number_format($mv['qty'], 2, '.', ''), '0'), '.'); ?> sold</div></div>
+              <div class="mp-top-prod-amt" style="min-width:110px; text-align:right; font-size:14px;"><?= $CI->currency($mv['amt']); ?></div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php if($dashboard_template === 'tyre_shop' && !$expiry_rendered):
+        // Tyre shops read stock age and best sellers side by side: one tells
+        // what to move, the other what to reorder. The row always renders.
+        $expiry_rendered = true;
+        $aged_available = false; $expired_count = 0; $expiring_count = 0;
+        try {
+          if(mp_feature_enabled('expiry_tracking')){
+            $CI->load->model('expiry_settings_model');
+            $expired_count = $CI->expiry_settings_model->count_expired();
+            $expiring_count = $CI->expiry_settings_model->count_expiring();
+            $aged_available = true;
+          }
+        } catch (Exception $e) { /* Expiry table not ready yet */ }
+      ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Aged Stock &amp; DOT Checks</h3><a href="<?= base_url('expired_items_report'); ?>" class="mp-card-link">View Report</a></div>
+            <div class="mp-card-body" style="padding:0;">
+              <?php if(!$aged_available): ?>
+                <div class="mp-empty-state" style="padding:24px;">Stock-age checks are not switched on for this store.</div>
+              <?php elseif(($expired_count + $expiring_count) > 0): ?>
+                <div class="mp-top-prod" style="padding:14px 20px;">
+                  <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-danger);">Expired Items</div></div>
+                  <div class="mp-top-prod-amt" style="color:var(--mp-danger);font-size:20px;"><?= $expired_count; ?></div>
+                </div>
+                <div class="mp-top-prod" style="padding:14px 20px;">
+                  <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-warning);">Expiring Soon</div></div>
+                  <div class="mp-top-prod-amt" style="color:var(--mp-warning);font-size:20px;"><?= $expiring_count; ?></div>
+                </div>
+              <?php else: ?>
+                <div class="mp-empty-state" style="padding:24px;">Every tyre is inside its stock-age window.</div>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php $this->load->view('comman/dashboard_top_products_card', [
+            'top_products' => $top_products ?? [],
+            'card_title'   => 'Top Selling ' . $item_label . 's',
+            'range_label'  => $range_label,
+          ]); ?>
         </div>
       </div>
       <?php endif; ?>
@@ -321,6 +512,7 @@ $this->load->view('admin/desktop/_styles');
         $this->load->view('comman/intelligence_card', [
           'intel'          => $intel ?? [],
           'intel_title'    => 'Intelligence Report',
+          'intel_report_url' => base_url('dashboard/intelligence'),
           'intel_subtitle' => $intel_is_print
             ? 'What needs attention on the floor, and what your job history is showing.'
             : 'What your own records are showing — trends, risks and where cash is tied up.',
@@ -547,12 +739,14 @@ $this->load->view('admin/desktop/_styles');
                   <div class="mp-target-eta"><?= $range_progress >= 100 ? 'Target reached!' : 'On track'; ?></div>
                 </div>
               </div>
+              <?php if($dashboard_template !== 'tyre_shop'): ?>
               <div style="margin-top:20px;border-top:1px solid var(--mp-border);padding-top:16px;">
                 <div style="font-size:12px;color:var(--mp-muted);font-weight:600;margin-bottom:10px;"><?= $range_label; ?> Stats</div>
                 <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--mp-muted);">Profit</span><span style="font-weight:700;"><?= $CI->currency($today_profit['profit']); ?></span></div>
                 <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--mp-muted);">Expenses</span><span style="font-weight:700;"><?= $CI->currency($today_expenses); ?></span></div>
                 <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--mp-muted);">Cash</span><span style="font-weight:700;"><?= $CI->currency($cash_in_hand); ?></span></div>
               </div>
+              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -634,27 +828,17 @@ $this->load->view('admin/desktop/_styles');
         </div>
       </div>
 
-      <!-- SECTION 4: TOP PRODUCTS + LOW STOCK (equal) -->
+      <!-- SECTION 4: TOP PRODUCTS + LOW STOCK (equal) — tyre shops render
+           Top Selling beside Aged Stock in the promoted row instead. -->
+      <?php if($dashboard_template !== 'tyre_shop'): ?>
       <div class="mp-section">
         <div class="mp-row r-equal">
           <?php if($is_product_business || $is_service_business): ?>
-          <div class="mp-card">
-            <div class="mp-card-head">
-              <h3>Top Selling <?= $is_service_business && !$is_product_business ? 'Services' : $item_label . 's'; ?></h3>
-              <a href="<?=base_url('reports/item_sales');?>" class="mp-card-link"><?= $range_label; ?></a>
-            </div>
-            <div class="mp-card-body">
-              <?php if(!empty($top_products)){ ?>
-              <?php $i=1; foreach(array_slice($top_products, 0, 5) as $prod){ ?>
-              <div class="mp-top-prod">
-                <div class="mp-top-prod-rank <?= $i <= 3 ? 'r'.$i : '' ?>"><?= $i ?></div>
-                <div class="mp-top-prod-info"><div class="mp-top-prod-name"><?= $prod['name'] ?></div><div class="mp-top-prod-meta"><?= number_format($prod['qty'] ?? 0); ?> sold</div></div>
-                <div class="mp-top-prod-amt"><?= $CI->currency($prod['revenue']) ?></div>
-              </div>
-              <?php $i++; } ?>
-              <?php } else { ?><div class="mp-empty-state">Not Enough Data Yet</div><?php } ?>
-            </div>
-          </div>
+          <?php $this->load->view('comman/dashboard_top_products_card', [
+            'top_products' => $top_products ?? [],
+            'card_title'   => 'Top Selling ' . ($is_service_business && !$is_product_business ? 'Services' : $item_label . 's'),
+            'range_label'  => $range_label,
+          ]); ?>
           <?php endif; ?>
           <?php if($is_product_business): ?>
           <div class="mp-card">
@@ -682,6 +866,7 @@ $this->load->view('admin/desktop/_styles');
           <?php endif; ?>
         </div>
       </div>
+      <?php endif; ?>
 
       <!-- SECTION 5: BRANCH PERFORMANCE + TOP DEBTORS (equal) -->
       <div class="mp-section">

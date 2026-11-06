@@ -11,12 +11,14 @@ class Expiry_settings extends MY_Controller {
 			return;
 		}
 		$this->load->model('expiry_settings_model','expiry');
+		$this->load->model('pharmacy_expiry_alert_model','expiry_alerts');
 	}
 
 	public function index(){
 		$this->permission_check('expiry_settings');
 		$data = $this->data;
 		$data['settings'] = $this->expiry->get_settings();
+		$data['alerting'] = $this->expiry_alerts->stats((int)get_current_store_id());
 		$data['page_title'] = 'Expiry Settings';
 		$mobile = $this->input->get('screen') === 'mobile' || is_mobile();
 		if($mobile){
@@ -39,8 +41,39 @@ class Expiry_settings extends MY_Controller {
 		echo $result;
 	}
 
+	/**
+	 * "Send today's list now" — the manual half of the daily expiry list.
+	 *
+	 * On a pharmacy this runs the very same composer the nightly job uses, so
+	 * the button, the report screen and the message can never disagree, and the
+	 * day is stamped so a cron that runs afterwards does not send the shop the
+	 * same list a second time.
+	 */
 	public function send_email_alert(){
 		$this->permission_check('expiry_settings');
+		$storeId = (int)get_current_store_id();
+
+		if($this->expiry_alerts->available($storeId)){
+			$composed = $this->expiry_alerts->compose($storeId);
+			if(!empty($composed['skip'])){ echo $composed['skip']; return; }
+			$result = $this->expiry_alerts->deliver($storeId, $composed);
+			if($result['sent'] > 0){
+				$this->expiry_alerts->mark_sent($storeId, $composed['date']);
+				echo $result['status'] === 'success' ? 'success' : 'success: ' . implode('; ', $result['messages']);
+				return;
+			}
+			echo 'Failed: ' . (empty($result['messages']) ? 'nothing was sent.' : implode('; ', $result['messages']));
+			return;
+		}
+
+		$this->_sendItemLevelAlert();
+	}
+
+	/**
+	 * Shops outside the pharmacy workspace have no batch ledger to read, so
+	 * their warning stays what it always was: the item-level list, email only.
+	 */
+	private function _sendItemLevelAlert(){
 		$settings = $this->expiry->get_settings();
 
 		if($settings->email_alerts_enabled != 1 || empty($settings->alert_email)){

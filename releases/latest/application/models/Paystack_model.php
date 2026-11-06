@@ -184,6 +184,50 @@ class Paystack_model extends CI_Model {
 		}
 	}
 
+	/**
+	 * Hosted checkout for an online order that is being paid later, from a link
+	 * in an SMS or email. Unlike generate_payment_link (which invents its own
+	 * reference and settles through db_paystack_payments for the counter), this
+	 * keeps the storefront contract: reference = order_code and the callback is
+	 * the online-order verifier, so the existing verify path, the webhook and the
+	 * amount check all recognise the payment without a new code path.
+	 */
+	public function initialize_online_order_checkout($order, $callback_url)
+	{
+		$store_id = (int)$order->store_id;
+		$settings = $this->get_settings($store_id);
+		if(!$settings || empty($settings->public_key)){
+			return array('status'=>false, 'message'=>'This store has no card payment set up yet.');
+		}
+		$amount = (float)$order->grand_total;
+		if($amount <= 0){
+			return array('status'=>false, 'message'=>'There is nothing left to pay on this order.');
+		}
+		$split = $this->get_split_config($amount, $store_id);
+		if(!$split['status']){ return $split; }
+		$email = filter_var((string)($order->customer_email ?? ''), FILTER_VALIDATE_EMAIL)
+			? $order->customer_email
+			: 'customer@' . preg_replace('/[^a-z0-9-]/', '', strtolower((string)($order->order_code ?: 'store'))) . '.martpoint.app';
+		$post_data = array(
+			'email' => $email,
+			'amount' => (int)round($amount * 100),
+			'reference' => $order->order_code,
+			'callback_url' => $callback_url,
+			'metadata' => array('order_id' => (int)$order->id, 'store_id' => $store_id, 'source' => 'rx_invoice_link'),
+		);
+		foreach(array('subaccount','transaction_charge','bearer') as $key){
+			if(array_key_exists($key, $split['config'])){ $post_data[$key] = $split['config'][$key]; }
+		}
+		$result = $this->api_request('POST', '/transaction/initialize', $post_data, $store_id);
+		if(!$result['status']){
+			return array('status'=>false, 'message'=>$result['message'] ?? 'The card payment page could not be opened.');
+		}
+		return array('status'=>true,
+			'authorization_url' => (string)($result['data']['authorization_url'] ?? ''),
+			'reference' => $order->order_code,
+			'platform_fee' => $split['platform_fee']);
+	}
+
 	/** Return the safe split fields for server- or InlineJS-initialized checkout. */
 	public function get_split_config($amount, $store_id = null)
 	{

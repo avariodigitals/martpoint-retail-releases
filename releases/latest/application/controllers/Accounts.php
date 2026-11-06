@@ -131,6 +131,7 @@ class Accounts extends MY_Controller {
 		$this->load->view('mp_layout',$data);
 	}
 	public function update_accounts(){
+		$this->permission_check_with_msg('accounts_edit');
 		$this->form_validation->set_rules('account_code', 'Account Code', 'trim|required');
 		$this->form_validation->set_rules('account_name', 'Account Name', 'trim|required');
 		//$this->form_validation->set_rules('opening_balance', 'Oprning Balance', 'trim|required');

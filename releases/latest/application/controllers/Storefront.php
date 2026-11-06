@@ -110,7 +110,10 @@ class Storefront extends CI_Controller {
 				$p->is_on_sale = $p->original_price > $p->effective_price;
 				$p->sold_count = $soldCounts[$p->id] ?? 0;
 			}
+			unset($p);
+			$this->storefront_model->attachUnitNames($data[$key], $storeId);
 		}
+		$this->storefront_model->attachUnitNames($data['all_products'], $storeId);
 		foreach($data['featured_services'] as &$service){
 			$service->effective_price = $this->storefront_model->getServiceEffectivePrice($service);
 		}
@@ -349,15 +352,20 @@ class Storefront extends CI_Controller {
 		$categoryId = (int)$this->input->get('category');
 		$search = trim($this->input->get('search'));
 		$page = max(1, (int)$this->input->get('page'));
+		$sort = (string)$this->input->get('sort');
+		if(!in_array($sort, ['price_asc','price_desc','name_asc','name_desc','newest'], true)) $sort = '';
 		$limit = 24;
 		$offset = ($page - 1) * $limit;
 
 		$total = $this->storefront_model->countOnlineProducts($storeId, $categoryId, $search);
-		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+		$themeKey = (string)($this->theme_engine->currentTheme()->theme_key ?? '');
+		if(in_array($themeKey, ['botanical_elegance','market_fresh'], true)){
+			// A page number past the last one would otherwise render an empty grid
+			// with a pager that still offers that page.
 			$page = min($page, max(1, (int)ceil($total / $limit)));
 			$offset = ($page - 1) * $limit;
 		}
-		$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset);
+		$products = $this->storefront_model->getOnlineProducts($storeId, $categoryId, $search, $limit, $offset, $sort);
 		$soldCounts = $this->storefront_model->getProductSoldCounts($storeId);
 
 		foreach($products as &$p){
@@ -366,6 +374,8 @@ class Storefront extends CI_Controller {
 			$p->is_on_sale = $p->original_price > $p->effective_price;
 			$p->sold_count = $soldCounts[$p->id] ?? 0;
 		}
+		unset($p);
+		$this->storefront_model->attachUnitNames($products, $storeId);
 
 		$categories = $this->storefront_model->getCategoriesWithItems($storeId);
 		$catName = '';
@@ -381,6 +391,7 @@ class Storefront extends CI_Controller {
 			'categories' => $categories,
 			'category_id' => $categoryId,
 			'search' => $search,
+			'sort' => $sort,
 			'page' => $page,
 			'limit' => $limit,
 			'total' => $total,
@@ -523,6 +534,8 @@ class Storefront extends CI_Controller {
 				$rp->is_on_sale = $rp->original_price > $rp->effective_price;
 			$rp->sold_count = $soldCounts[$rp->id] ?? 0;
 		}
+		unset($rp);
+		$this->storefront_model->attachUnitNames(array_merge([$product], $product_variants, $relatedProducts), $storeId);
 
 		$data = [
 			'settings' => $settings,
@@ -865,14 +878,18 @@ class Storefront extends CI_Controller {
 		return $this->storefront_model->getOrderableOutlets($storeId, $context);
 	}
 
-	private function _trackStatusMap($industryType = '', $shippingMethod = ''){
+	private function _trackStatusMap($industryType = '', $shippingMethod = '', $isCollection = null){
 		$industry = strtolower(trim($industryType ?: 'general_retail'));
 		$method = strtolower(trim($shippingMethod ?: ''));
-		$isPickup = in_array($method, ['pickup', 'pick up', 'self pick up', 'self pickup', 'collect', 'collection']);
+		// The order itself decides whether it is being collected — a delivery fee
+		// or a 'pickup' fulfilment type says more than the free-text method did.
+		$isPickup = $isCollection === null
+			? in_array($method, ['pickup', 'pick up', 'self pick up', 'self pickup', 'collect', 'collection'])
+			: (bool)$isCollection;
 
 		$readyLabel = $isPickup ? 'Ready for pickup' : 'Ready for delivery';
 		$completedLabel = $isPickup ? 'Picked up' : 'Delivered';
-		$readyDesc = $isPickup ? 'Your order is ready for collection.' : 'Your order is on its way.';
+		$readyDesc = $isPickup ? 'Your order is ready for collection.' : 'Your order is packed and ready to go out.';
 		$completedDesc = $isPickup ? 'You have collected your order.' : 'Your order has been delivered.';
 		// Laundry / dry cleaning
 		if(in_array($industry, ['laundry', 'dry_cleaning', 'cleaning'])){
@@ -958,6 +975,140 @@ class Storefront extends CI_Controller {
 	}
 
 	/**
+	 * What the customer sees when they look their order up: the shop's own stages
+	 * in this business's words, and for a delivered order the leg that carries it
+	 * to their door. Both live and dead steps are returned, each marked done, so
+	 * the page can show how far the order has got rather than only where it is.
+	 * The times come from the order's written history — the same trail the shop
+	 * works from — so nothing here is inferred from the current status.
+	 *
+	 * @return array of ['code','label','desc','when','done']
+	 */
+	private function _trackTimeline($storeId, $order, $statusMap, $isCollection){
+		$stageOrder = ['pending','paid','processing','ready','completed'];
+		$stageIndex = array_search((string)($order->order_status ?? 'pending'), $stageOrder);
+		if($stageIndex === false) $stageIndex = 0;
+
+		$delivery = trim((string)($order->delivery_status ?? ''));
+		// A collection order has no delivery leg to show; its "collected" step is
+		// the shop's own Completed stage, which _trackStatusMap already words.
+		$showDelivery = $this->_trackHasDeliveryLeg($order, $isCollection);
+
+		$times = [];
+		$rider = '';
+		foreach($this->storefront_model->orderTrail($storeId, (int)($order->id ?? 0)) as $row){
+			$code = (string)($row['code'] ?? '');
+			if($code !== '' && !isset($times[$code])) $times[$code] = (string)($row['when'] ?? '');
+			if($rider === '' && $code === 'out_for_delivery'
+				&& preg_match('/^With\s+(.+?)(?:\s+—|$)/u', (string)($row['reason'] ?? ''), $m)){
+				$rider = trim($m[1]);
+			}
+		}
+
+		$steps = [];
+		$stageLimit = $showDelivery ? 4 : 5; // 'completed' becomes the delivery leg
+		$rxStep = $this->_trackRxStep($storeId, (int)($order->id ?? 0));
+		for($i = 0; $i < $stageLimit; $i++){
+			$code = $stageOrder[$i];
+			$info = $statusMap[$code] ?? ['label' => ucfirst($code), 'desc' => ''];
+			$steps[] = [
+				'code' => $code,
+				'label' => $info['label'],
+				'desc' => $info['desc'],
+				'when' => $times[$code] ?? '',
+				'done' => $i <= $stageIndex || ($code === 'ready' && $this->_trackHasLeftShop($delivery)),
+			];
+			if($code === 'paid' && $rxStep !== null) $steps[] = $rxStep;
+		}
+
+		if($showDelivery){
+			$closedStage = (string)($order->order_status ?? '') === 'completed';
+			$failed = $delivery === 'failed';
+			$cancelledLeg = $delivery === 'cancelled';
+			// A shop that closes the stage without using the delivery leg still
+			// delivered the order as far as the customer is concerned.
+			$neverRecorded = $delivery === '' && $closedStage;
+			$left = $this->_trackHasLeftShop($delivery) || $neverRecorded;
+			$arrived = $delivery === 'delivered' || $neverRecorded;
+			$steps[] = [
+				'code' => 'out_for_delivery',
+				'label' => 'Out for delivery',
+				'desc' => $cancelledLeg
+					? 'This delivery was cancelled. Please contact the shop about it.'
+					: ($failed
+						? 'The delivery could not be completed. The shop will be in touch about it.'
+						: ($left
+							? ($rider !== '' ? 'It is on its way to you with ' . $rider . '.' : 'It is on its way to you.')
+							: 'Not sent out yet.')),
+				'when' => $times['out_for_delivery'] ?? '',
+				'done' => $left && !$cancelledLeg,
+			];
+			$steps[] = [
+				'code' => 'delivered',
+				'label' => 'Delivered',
+				'desc' => $arrived
+					? 'It has reached you. Thank you.'
+					: ($failed ? 'Awaiting another attempt.' : 'Not with you yet.'),
+				'when' => $times['delivered'] ?? '',
+				'done' => $arrived,
+			];
+		}
+
+		// The newest completed step is where the customer actually is.
+		$current = 0;
+		foreach($steps as $i => $s){
+			if($s['done']) $current = $i;
+		}
+		return ['steps' => $steps, 'current' => $current];
+	}
+
+	/** Once a parcel has gone out, the shop's "ready" stage is behind it. */
+	private function _trackHasLeftShop($delivery){
+		return in_array((string)$delivery, ['out_for_delivery', 'delivered', 'failed'], true);
+	}
+
+	/**
+	 * Whether this order has a leg to the customer's door at all. A counter sale
+	 * with no delivery charge and no recorded send-out has none, and the customer
+	 * should not be shown a "not sent out yet" step for something they were always
+	 * going to pick up.
+	 */
+	private function _trackHasDeliveryLeg($order, $isCollection){
+		if($isCollection) return false;
+		if(trim((string)($order->delivery_status ?? '')) !== '') return true;
+		return (float)($order->delivery_fee ?? 0) > 0;
+	}
+
+	/**
+	 * Whether a pharmacist has cleared the prescription behind an order. That
+	 * answer lives on the review record rather than the order's stage, so the
+	 * customer is told what the pharmacist actually recorded — including that
+	 * nothing has been checked yet, which is not the same as "being prepared".
+	 *
+	 * @return array|null a step for the customer's timeline
+	 */
+	private function _trackRxStep($storeId, $orderId){
+		if(!$orderId || !$this->db->table_exists('db_medical_notes')) return null;
+		if(empty($this->storefront_model->rxItemNames($orderId, (int)$storeId)['ids'])) return null;
+		$note = $this->storefront_model->findRxNote($orderId, (int)$storeId);
+		$decision = $note ? (string)($note->review_status ?? '') : '';
+		$approved = $decision === 'approved';
+		$rejected = $decision === 'rejected';
+		$who = $note ? trim((string)($note->reviewed_by_name ?? '')) : '';
+		return [
+			'code' => 'prescription_review',
+			'label' => $approved ? 'Prescription approved' : ($rejected ? 'Prescription not approved' : 'Prescription check'),
+			'desc' => $approved
+				? 'A pharmacist' . ($who !== '' ? ' (' . $who . ')' : '') . ' has checked your prescription.'
+				: ($rejected
+					? 'The pharmacist could not approve this prescription.'
+					: 'A pharmacist is checking your prescription before your medicine can be prepared.'),
+			'when' => ($approved && $note) ? (string)($note->reviewed_at ?? '') : '',
+			'done' => $approved,
+		];
+	}
+
+	/**
 	 * Track Order
 	 * URL: /store/{store_slug}/track
 	 */
@@ -985,17 +1136,44 @@ class Storefront extends CI_Controller {
 		}
 
 		$shippingMethod = $order->shipping_method ?? '';
-		$statusMap = $this->_trackStatusMap($store->industry_type ?? '', $shippingMethod);
+		$isCollection = !empty($order) && $this->storefront_model->orderIsCollection($order);
+		$hasDeliveryLeg = !empty($order) && $this->_trackHasDeliveryLeg($order, $isCollection);
+		$statusMap = $this->_trackStatusMap($store->industry_type ?? '', $shippingMethod,
+			!empty($order) ? $isCollection : null);
+		if(!empty($order) && !$isCollection && !$hasDeliveryLeg){
+			// Nothing about this order says where it goes — no pickup mark, no charge,
+			// no recorded send-out. Say neither 'delivered' nor 'collect it'; say the
+			// shop has finished with it.
+			$statusMap['ready'] = ['label' => 'Ready', 'desc' => 'Your order is ready.'];
+			$statusMap['completed'] = ['label' => 'Completed', 'desc' => 'Your order is complete.'];
+		}
 		$currentStatus = $statusMap[$order->order_status ?? 'pending'] ?? $statusMap['pending'];
-		$allStatuses = ['pending','paid','processing','ready','completed'];
-		$currentIndex = array_search($order->order_status ?? 'pending', $allStatuses);
-		if($currentIndex === false) $currentIndex = 0;
-		$visibleStatuses = ($order->order_status ?? 'pending') === 'completed' ? $allStatuses : array_slice($allStatuses, 0, $currentIndex + 1);
+
+		$timeline = ['steps' => [], 'current' => 0];
+		$fulfilment = null;
+		if(!empty($order) && $order->order_status !== 'cancelled'){
+			$timeline = $this->_trackTimeline($storeId, $order, $statusMap, $isCollection);
+			// Only say something about where the order goes when the order actually
+			// says so: a pickup, or a leg to the door. A plain counter sale gets
+			// nothing invented for it.
+			if($isCollection || $hasDeliveryLeg){
+				$fulfilment = [
+					'collection' => $isCollection,
+					'address' => trim((string)($order->customer_address ?? '')),
+					'fee' => (float)($order->delivery_fee ?? 0),
+					'quote_pending' => !empty($order->delivery_quote_pending),
+				];
+			}
+		}
 
 		$testimonialSubmitted = false;
 		if(!empty($order->customer_name)){
 			$testimonialSubmitted = $this->db->where('store_id', $storeId)->where('customer_name', $order->customer_name)->where('is_enabled', 0)->get('db_storefront_testimonials')->num_rows() > 0;
 		}
+
+		// The confirmation page hands the customer /track?code=…; nothing about the
+		// order is revealed by that, because the phone number is still the key.
+		$prefillCode = trim((string)$this->input->get('code'));
 
 		$data = [
 			'settings' => $settings,
@@ -1005,8 +1183,9 @@ class Storefront extends CI_Controller {
 			'error' => $error,
 			'current_status' => $currentStatus,
 			'status_map' => $statusMap,
-			'visible_statuses' => $visibleStatuses,
-			'all_statuses' => $allStatuses,
+			'timeline' => $timeline,
+			'fulfilment' => $fulfilment,
+			'prefill_code' => $prefillCode,
 			'can_testimonial' => !empty($order) && ($order->order_status ?? '') === 'completed',
 			'testimonial_submitted' => $testimonialSubmitted,
 			'logo_url' => $this->theme_engine->logoUrl(),
@@ -1288,6 +1467,22 @@ class Storefront extends CI_Controller {
 	}
 
 	/**
+	 * Checkout hint (AJAX): which cart items are prescription-only. The
+	 * authoritative refusal still happens inside place_order.
+	 */
+	public function rx_check(){
+		$storeId = (int)$this->input->post('store_id');
+		$ids = json_decode((string)$this->input->post('ids', TRUE), true);
+		if(!$storeId || !is_array($ids)){
+			echo json_encode(['status' => false, 'rx_required' => []]);
+			return;
+		}
+		$ids = array_slice(array_filter(array_map('intval', $ids)), 0, 200);
+		$names = function_exists('mp_prescription_gate') ? mp_prescription_gate($storeId, $ids, 0, 0, true) : [];
+		echo json_encode(['status' => true, 'rx_required' => $names]);
+	}
+
+	/**
 	 * Place order (AJAX)
 	 */
 	public function place_order(){
@@ -1375,56 +1570,31 @@ class Storefront extends CI_Controller {
 			$prescriptionFile = 'uploads/prescriptions/' . $uploadData['file_name'];
 		}
 
-		// Which outlet is this order for? The accepted set is the published
-		// branches, so a crafted post cannot route stock or work into a
-		// back-office warehouse. Restaurant orders with several public outlets
-		// must name the outlet explicitly; silently choosing today's default
-		// would make HQ reporting and kitchen routing unreliable.
-		$orderWarehouseId = (int)$this->input->post('warehouse_id');
-		$sourceWarehouseId = 0;
-		$selectedOutlet = null;
-		$orderableOutlets = $this->_publicOrderableOutlets($storeId);
-		if ($isStandardPharmacy) {
-			$ownIds = mp_pharmacy_own_warehouse_ids($storeId);
-			$preferred = (int)get_pos_default_warehouse_id($storeId);
-			$orderWarehouseId = in_array($preferred, $ownIds, true) ? $preferred : (int)($ownIds[0] ?? 0);
-			$sourceWarehouseId = $orderWarehouseId;
-			if (!$orderWarehouseId) {
-				echo json_encode(['status' => false, 'message' => 'This pharmacy is not ready to accept orders. Please contact the store.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		// Rx-only medicine in the cart is a server-side rule: the customer must
+		// attach the prescription, and the pharmacy gets a pending review record
+		// instead of an order that quietly reaches fulfilment.
+		$rxRequiredItems = [];
+		if($isPharmacyOrder && function_exists('mp_prescription_gate')){
+			$rxRequiredItems = mp_prescription_gate($storeId, array_column($cart, 'id'), 0, 0, true);
+			if($rxRequiredItems && $prescriptionFile === null){
+				echo json_encode(['status' => false, 'prescription_required' => true,
+					'message' => 'These items need a valid prescription before the pharmacy can dispense them: '
+						. implode(', ', $rxRequiredItems) . '. Please attach a clear photo or PDF of the prescription.',
+					'csrf_hash' => $this->security->get_csrf_hash()]);
 				return;
 			}
 		}
-		$restaurantProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
-		$restaurantIndustries = ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'];
-		$requiresExplicitRestaurantOutlet = in_array(strtolower(trim((string)($restaurantProfile['industry_type'] ?? ''))), $restaurantIndustries, true)
-			&& count($orderableOutlets) > 1;
-		if(!$isStandardPharmacy && $orderWarehouseId > 0){
-			$allowed = array_map('intval', array_column($orderableOutlets, 'id'));
-			if(!in_array($orderWarehouseId, $allowed, true)){
-				$orderWarehouseId = 0;
-			} else {
-				foreach($orderableOutlets as $outlet){
-					if((int)$outlet->id === $orderWarehouseId){
-						$selectedOutlet = $outlet;
-						$sourceWarehouseId = !empty($outlet->stock_source_id) ? (int)$outlet->stock_source_id : $orderWarehouseId;
-						break;
-					}
-				}
-			}
+
+		try {
+			$location = $this->storefront_model->checkoutLocation($storeId, $settings,
+				(int)$this->input->post('warehouse_id'), $this->_publicOrderableOutlets($storeId));
+		} catch(RuntimeException $e){
+			echo json_encode(['status'=>false, 'message'=>$e->getMessage(), 'csrf_hash'=>$this->security->get_csrf_hash()]); return;
 		}
-		if(!$requiresExplicitRestaurantOutlet && $orderWarehouseId <= 0 && !empty($settings->default_branch_id)){
-			$defaultBranch = (int)$settings->default_branch_id;
-			// The default is the merchant's own setting, so it may legitimately be
-			// their single System warehouse — only its ownership is verified.
-			if($this->db->where('id', $defaultBranch)->where('store_id', $storeId)->count_all_results('db_warehouse')){
-				$orderWarehouseId = $defaultBranch;
-				$sourceWarehouseId = $defaultBranch;
-			}
-		}
-		if($requiresExplicitRestaurantOutlet && $orderWarehouseId <= 0){
-			echo json_encode(['status' => false, 'message' => 'Please choose the outlet that will prepare this order.', 'csrf_hash' => $this->security->get_csrf_hash()]);
-			return;
-		}
+		$orderWarehouseId = $location['warehouse_id'];
+		$sourceWarehouseId = $location['source_warehouse_id'];
+		$selectedOutlet = $location['outlet'];
+		$verifiedCustomer = $this->storefront_model->verifiedCustomer($storeId);
 
 		if(!$customerName || !$customerPhone){
 			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -1502,13 +1672,16 @@ class Storefront extends CI_Controller {
 		};
 
 		foreach($cart as $item){
-			$type = (string)($item['type'] ?? '');
+			$type = (string)($item['type'] ?? 'product');
+			if(in_array($type, ['physical','digital','course','membership','event','bundle'], true)) $type = 'product';
 			$id = (int)$item['id'];
 			$qty = max(1, (int)($item['qty'] ?? 1));
 
 			if($type == 'product'){
-				$product = $this->storefront_model->getOnlineProduct($id, $storeId);
-				if(!$product) continue;
+				$product = $this->storefront_model->getOnlineProduct($id, $storeId, (int)($sourceWarehouseId ?: $orderWarehouseId));
+				if(!$product){
+					echo json_encode(['status'=>false, 'message'=>'An item is no longer available. Please refresh your cart.', 'csrf_hash'=>$this->security->get_csrf_hash()]); return;
+				}
 				if (!empty($product->requires_quote)) {
 					echo json_encode(['status'=>false,'message'=>'Please request a quotation for this offering.','csrf_hash'=>$this->security->get_csrf_hash()]); return;
 				}
@@ -1539,7 +1712,14 @@ class Storefront extends CI_Controller {
 					} else {
 						$hasPhysical = true;
 						if($product->stock < $qty && !$settings->allow_backorder){
-							echo json_encode(['status' => false, 'message' => $product->item_name . ' is out of stock', 'csrf_hash' => $this->security->get_csrf_hash()]);
+							// The figure comes off the shelf itself, so this says
+							// the same thing the counter would say if the order
+							// had been walked up to it.
+							$left = (float)($product->sellable_qty ?? $product->stock);
+							$message = $left <= 0
+								? $product->item_name . ' is out of stock'
+								: $product->item_name . ' has only ' . format_qty($left) . ' left — please reduce the quantity';
+							echo json_encode(['status' => false, 'message' => $message, 'csrf_hash' => $this->security->get_csrf_hash()]);
 							return;
 						}
 					}
@@ -1575,9 +1755,12 @@ class Storefront extends CI_Controller {
 					}
 					$hasEvents = true;
 				}
-				$price = $isBundle
-					? $this->extras_model->bundleUnitPrice($product, $storeId)
-					: $this->storefront_model->getProductEffectivePrice($product);
+				try {
+					$priceQuote = $this->storefront_model->validateProductQuote($product, $item);
+				} catch(RuntimeException $e){
+					echo json_encode(['status'=>false, 'price_changed'=>true, 'message'=>$e->getMessage(), 'csrf_hash'=>$this->security->get_csrf_hash()]); return;
+				}
+				$price = $priceQuote['price'];
 				$lineIndex = count($itemsToInsert);
 				$mealNote = '';
 				if (($this->theme_engine->currentTheme()->theme_key ?? '') === 'food_express') {
@@ -1607,6 +1790,9 @@ class Storefront extends CI_Controller {
 					'total_price' => $price * $qty,
 					'service_note' => $evNote,
 				];
+				if($this->db->field_exists('pricing_snapshot', 'db_online_order_items')){
+					$itemsToInsert[count($itemsToInsert) - 1]['pricing_snapshot'] = json_encode($priceQuote);
+				}
 				// Column arrives with 4.0.9.221 — omit on older schemas.
 				if($evSession && $this->db->field_exists('event_session_id', 'db_online_order_items')){
 					$itemsToInsert[count($itemsToInsert) - 1]['event_session_id'] = (int)$evSession->id;
@@ -1794,6 +1980,10 @@ class Storefront extends CI_Controller {
 		$couponCode = strtoupper(trim((string)$this->input->post('coupon_code', TRUE)));
 		$promo = null;
 		$couponDiscount = 0;
+		if($couponCode !== '' && ($this->storefront_model->verifiedHasGroup($storeId)
+			|| $this->storefront_model->hasGroupPrice($itemsToInsert))){
+			echo json_encode(['status'=>false, 'message'=>'Coupons do not stack with member group prices. Remove the coupon to continue.', 'csrf_hash'=>$this->security->get_csrf_hash()]); return;
+		}
 		if($couponCode !== ''){
 			$promo = $this->db->where('store_id', $storeId)
 				->where('status', 1)
@@ -1803,6 +1993,10 @@ class Storefront extends CI_Controller {
 				->get('db_promotions')->row();
 			if(!$promo){
 				echo json_encode(['status' => false, 'message' => 'Coupon code is invalid or expired', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				return;
+			}
+			if(!empty($promo->min_spend) && $subtotal < (float)$promo->min_spend){
+				echo json_encode(['status'=>false, 'message'=>'This coupon requires a minimum item total of ' . store_number_format($promo->min_spend) . '.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
 				return;
 			}
 			$couponDiscount = ($promo->discount_type == 'Percentage')
@@ -1886,20 +2080,39 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
-		// Link or create customer record
+		// Contact details identify the recipient, never grant membership or access
+		// to another customer's history. Only the verified session links history.
 		$checkoutProfile = mp_get_store_profile($storeId);
-		if (($checkoutProfile['industry_type'] ?? '') === 'garden_centre_landscaping') {
-			// A guest's typed phone/email is not verified identity. Only a valid
-			// customer portal session may link this order to an existing history.
-			$portalToken = $this->input->cookie('customer_token',true);
-			$portalSession = $portalToken ? $this->storefront_model->getCustomerPortalSession($portalToken,$storeId) : null;
-			$verifiedCustomer = $portalSession ? $this->db->where('id',(int)$portalSession->customer_id)->where('store_id',$storeId)->where('status',1)->get('db_customers')->row() : null;
-			$customerId = $verifiedCustomer ? $verifiedCustomer->id : $this->customers_model->getOrCreateStorefrontCustomer($storeId,$customerName,$customerPhone,$customerEmail,false);
-		} else {
-			$customerId = $this->customers_model->getOrCreateStorefrontCustomer($storeId, $customerName, $customerPhone, $customerEmail);
-		}
+		$customerId = $verifiedCustomer ? (int)$verifiedCustomer->id
+			: $this->customers_model->getOrCreateStorefrontCustomer($storeId, $customerName, $customerPhone, $customerEmail, false);
+
 		if($customerId){
 			$this->db->where('id', $orderId)->update('db_online_orders', ['customer_id' => $customerId]);
+		}
+
+		// Rx-only cart -> a pending prescription review record the pharmacist
+		// opens from the orders screen. Fulfilment stays blocked until approved.
+		if($rxRequiredItems && $prescriptionFile !== null && $this->db->table_exists('db_medical_notes')){
+			$rxNote = [
+				'store_id' => $storeId,
+				'customer_id' => (int)$customerId,
+				'note_date' => date('Y-m-d'),
+				'diagnosis' => 'Online prescription request — order ' . ($orderId ? '#'.$orderId : '') . ': ' . implode(', ', $rxRequiredItems),
+				'prescription_ref' => 'ONLINE-'.$orderId,
+				'prescription_file' => $prescriptionFile,
+				'status' => 'active',
+				'created_by' => 'online-store',
+				'created_date' => date('Y-m-d'),
+				'created_time' => date('H:i:s'),
+			];
+			if($this->db->field_exists('review_status', 'db_medical_notes')){
+				$rxNote['review_status'] = 'pending';
+				$rxNote['review_requested_at'] = date('Y-m-d H:i:s');
+			}
+			if($this->db->field_exists('online_order_id', 'db_medical_notes')){
+				$rxNote['online_order_id'] = (int)$orderId;
+			}
+			$this->db->insert('db_medical_notes', $rxNote);
 		}
 
 		// Atomic coupon claim — promotion row is locked FOR UPDATE inside this
@@ -1978,7 +2191,10 @@ class Storefront extends CI_Controller {
 		// order is paid/confirmed (commit) or cancelled/failed (release).
 		if(!$this->storefront_model->reserveOrderItems($orderId, $reservationItems, !empty($settings->allow_backorder))){
 			$this->db->trans_rollback();
-			echo json_encode(['status' => false, 'message' => 'An item in your cart just sold out. Please review your cart and try again.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			$reason = trim((string)$this->storefront_model->last_reservation_error);
+			echo json_encode(['status' => false, 'message' => ($reason !== ''
+				? $reason . ' Nothing was ordered.'
+				: 'An item in your cart just sold out. Please review your cart and try again.'), 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
 		if(!empty($bundleDraws)){
@@ -2025,6 +2241,14 @@ class Storefront extends CI_Controller {
 		// Send email notifications (store owner + customer if email provided)
 		$store = get_store_details($storeId);
 		$this->_send_order_emails($order, $itemsToInsert, $store, $settings);
+		if ($order && !empty($order->customer_phone)) {
+			$currencyCode = $this->_storeCurrencyCode($storeId) ?: 'NGN';
+			$paymentNotice = $order->payment_status === 'paid' ? 'Payment is confirmed.' : 'Payment is not yet confirmed.';
+			$sms = trim((string)($store->store_name ?? 'MartPoint')) . ': we received order ' . $order->order_code
+				. '. Total ' . $currencyCode . ' ' . number_format((float)$order->grand_total, 2) . '. ' . $paymentNotice;
+			$this->load->library('transactional_sms');
+			$this->transactional_sms->send($storeId, $order->customer_phone, $sms, 'online_order_confirmation', 'online-order:' . $storeId . ':' . (int)$order->id . ':placed');
+		}
 
 		// If Paystack, return payment initialization data
 		if($paymentMethod == 'paystack' && $settings->allow_paystack){
@@ -2062,6 +2286,24 @@ class Storefront extends CI_Controller {
 			'message' => $appointmentRequest ? 'Appointment request received.' : 'Order placed successfully!',
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		]);
+	}
+
+	/** Current, verified customer prices and location stock for every storefront. */
+	public function cart_quote(){
+		$storeId = (int)$this->input->post('store_id');
+		$out = function($data){ $data['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($data); };
+		$settings = $storeId ? $this->storefront_model->getSettings($storeId) : null;
+		if(!$settings || $settings->store_status !== 'active'){ $out(['status'=>false, 'message'=>'Store unavailable.']); return; }
+		try {
+			$location = $this->storefront_model->checkoutLocation($storeId, $settings,
+				(int)$this->input->post('warehouse_id'), $this->_publicOrderableOutlets($storeId), false);
+			$items = $this->storefront_model->quoteCart($storeId, json_decode((string)$this->input->post('cart'), true), $location['source_warehouse_id']);
+			$customer = $this->storefront_model->verifiedCustomer($storeId);
+			$out(['status'=>true, 'items'=>$items, 'member'=>!empty($customer),
+				'customer_name'=>$customer ? $customer->customer_name : '',
+				'has_group_price'=>$this->storefront_model->hasGroupPrice($items),
+				'warehouse_id'=>$location['warehouse_id'], 'needs_location'=>!empty($location['needs_location'])]);
+		} catch(RuntimeException $e){ $out(['status'=>false, 'message'=>$e->getMessage()]); }
 	}
 
 	public function cart_upsells(){
@@ -2103,6 +2345,10 @@ class Storefront extends CI_Controller {
 		if(!$storeId || $code === ''){ $out(['status'=>false,'message'=>'Enter a coupon code']); return; }
 		$settings = $this->storefront_model->getSettings($storeId);
 		if(!$settings || $settings->store_status != 'active'){ $out(['status'=>false,'message'=>'Store not active']); return; }
+
+		if($this->storefront_model->verifiedHasGroup($storeId)){
+			$out(['status'=>false,'message'=>'Coupons do not stack with member group prices.']); return;
+		}
 
 		$promo = $this->db->where('store_id', $storeId)
 			->where('status', 1)
@@ -2224,7 +2470,7 @@ class Storefront extends CI_Controller {
 		// Saved coupon code is revalidated live before the response.
 		$coupon = null;
 		$savedCart = $this->storefront_model->getCartByToken($storeId, $token);
-		if($savedCart && !empty($savedCart->coupon_code)){
+		if($savedCart && !empty($savedCart->coupon_code) && !$this->storefront_model->verifiedHasGroup($storeId)){
 			$subtotal = 0; foreach($cart['items'] as $i){ $subtotal += $i['price'] * $i['qty']; }
 			$promo = $this->db->where('store_id', $storeId)
 				->where('status', 1)
@@ -2479,6 +2725,7 @@ class Storefront extends CI_Controller {
 		// this order + amount matches the order total + currency matches the
 		// store currency (when a code can be derived).
 		$verified = false;
+		$wrongCurrency = false;
 		if($verify['status'] && $verify['payment_status'] === 'success'
 			&& $verify['reference'] === $order->order_code
 			&& abs((float)$verify['amount'] - (float)$order->grand_total) < 0.01){
@@ -2487,6 +2734,7 @@ class Storefront extends CI_Controller {
 			$storeCur = $this->_storeCurrencyCode($order->store_id);
 			if($storeCur && strtoupper($verify['currency']) !== $storeCur){
 				$verified = false;
+				$wrongCurrency = true;
 				log_message('error', "Paystack currency mismatch on order {$order->id}: gateway {$verify['currency']} vs store {$storeCur}");
 			}
 		} else if(!empty($verify['status'])){
@@ -2494,10 +2742,44 @@ class Storefront extends CI_Controller {
 		}
 
 		if(!$verified){
+			// A charge the gateway confirms for this order but whose amount does not
+			// match the invoice is still money. Record it, let the ledger decide what
+			// the order now looks like, and hand the difference to the reconciliation
+			// queue instead of dropping it in a log file. Money in the wrong currency
+			// is not the invoiced money, so it stays out of the order's ledger.
+			$this->load->model('online_payments_model', 'onlinepay');
+			if($verify['status'] && !$wrongCurrency && (string)($verify['reference'] ?? '') === (string)$order->order_code
+				&& (string)($verify['payment_status'] ?? '') === 'success'){
+				$ledger = $this->onlinepay->recordGatewayMoney($order, [
+					'provider'  => 'paystack',
+					'reference' => $reference,
+					'amount'    => $verify['amount'] ?? 0,
+					'currency'  => $verify['currency'] ?? null,
+				], 'the card payment page');
+				if($ledger['recorded'] || $ledger['duplicate']){
+					$settle = $this->onlinepay->settleOrder((int)$order->store_id, (int)$order->id, null, 'card payment');
+					if(!empty($ledger['covered']) || ($settle['state'] ?? '') === 'paid'){
+						$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_verify');
+						$this->storefront_model->fulfilPaidOrder($order->id);
+						return $verify;
+					}
+					log_message('error', 'Paystack amount does not match online order ' . $order->id
+						. ' (settled ' . ($verify['amount'] ?? '?') . ' of ' . $order->grand_total . '); recorded and queued.');
+				}
+			}
 			return false;
 		}
 
 		// Atomically claim the transition; only the winning request fulfils.
+		// The charge itself is recorded first, so the amount the customer actually
+		// sent is a fact next to the order rather than only a status word.
+		$this->load->model('online_payments_model', 'onlinepay');
+		$ledger = $this->onlinepay->recordGatewayMoney($order, [
+			'provider'  => 'paystack',
+			'reference' => $reference,
+			'amount'    => $verify['amount'],
+			'currency'  => $verify['currency'] ?? null,
+		], 'the card payment page');
 		$claimed = $this->storefront_model->claimPaidOrder($order->id, [
 			'paystack_reference' => $reference,
 			'paystack_amount' => $verify['amount'],
@@ -2507,7 +2789,10 @@ class Storefront extends CI_Controller {
 			// Commit the stock reservation (reserved -> committed; no second
 			// decrement — units already moved at order time).
 			$this->storefront_model->adjustStock($order->id);
-			$this->storefront_model->ensureSalesLedger($order->id);
+			$salesId = (int)$this->storefront_model->ensureSalesLedger($order->id);
+			// Post the confirmed money onto the counter's own payment lines. Also
+			// covers an order whose sales record existed before this charge landed.
+			$this->onlinepay->postVerifiedLines((int)$order->store_id, (int)$order->id, $salesId);
 			// Paid conversion — recorded only on the verified transition;
 			// deduped by event_id across callback/webhook/browser retries.
 			$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_verify');
@@ -2515,30 +2800,114 @@ class Storefront extends CI_Controller {
 			$settings = $this->storefront_model->getSettings($order->store_id);
 			$store = get_store_details($order->store_id);
 			$this->_send_digital_delivery_email($order, $items, $store, $settings);
+			if (!empty($order->customer_phone)) {
+				$currencyCode = $this->_storeCurrencyCode($order->store_id) ?: 'NGN';
+				$sms = trim((string)($store->store_name ?? 'MartPoint')) . ': payment received for order ' . $order->order_code
+					. '. Amount ' . $currencyCode . ' ' . number_format((float)$order->grand_total, 2) . '.';
+				$this->load->library('transactional_sms');
+				$this->transactional_sms->send((int)$order->store_id, $order->customer_phone, $sms, 'online_order_payment_received', 'online-order:' . (int)$order->store_id . ':' . (int)$order->id . ':payment-paid');
+			}
 		} else {
 			// Payment verified but the order can no longer be claimed — e.g.
 			// the reservation was already released and the order cancelled.
-			// The money is real, so record a visible reconciliation exception
-			// rather than letting a late payment disappear.
-			$this->load->model('payment_reconcile_model','recon');
-			$this->recon->queue_late_payment($order->store_id, array(
-				'provider'        => 'paystack',
-				'reference'       => $reference,
-				'order_id'        => $order->id,
-				'amount'          => $verify['amount'],
-				'expected_amount' => $order->grand_total,
-				'currency'        => $verify['currency'] ?? null,
-				'detail'          => 'Verified payment received for order ' . $order->order_code
-					. ' which is already ' . $order->order_status . '/' . $order->payment_status
-					. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
-				'detected_by'     => 'storefront_verify',
-			));
+			// A replay of a charge already credited to this order (the browser
+			// popup or webhook won the claim moments ago) is not news; anything
+			// else is real money that landed where it cannot be applied, and the
+			// merchant has to see it rather than a line in a log file.
+			if(empty($ledger['duplicate'])){
+				$this->load->model('payment_reconcile_model','recon');
+				$this->recon->queue_late_payment($order->store_id, array(
+					'provider'        => 'paystack',
+					'reference'       => $reference,
+					'order_id'        => $order->id,
+					'amount'          => $verify['amount'],
+					'expected_amount' => $order->grand_total,
+					'currency'        => $verify['currency'] ?? null,
+					'detail'          => 'Verified payment received for order ' . $order->order_code
+						. ' which is already ' . $order->order_status . '/' . $order->payment_status
+						. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
+					'detected_by'     => 'storefront_verify',
+				));
+			}
 		}
 		// Fulfilment is separate from the claim and idempotent: it runs for
 		// the winner now, and self-heals here on any later verify/callback
 		// if the winning request died mid-fulfilment (fulfilled_at gates it).
 		$this->storefront_model->fulfilPaidOrder($order->id);
 		return $verify;
+	}
+
+	/**
+	 * Public "pay this order" page, reached from the invoice link a customer is
+	 * sent after a pharmacist approves their prescription. There is no login, no
+	 * cart and no session here: the 32-character secret in the URL is the whole
+	 * authorisation, which is why it is stored hashed and carries an expiry.
+	 */
+	public function pay_link($token = ''){
+		$this->_renderPayLink($token, '');
+	}
+
+	/**
+	 * The "Pay now" click. The card session is opened server-side against the
+	 * order's own total, so the amount a customer can pay is the amount the
+	 * pharmacy invoiced — including the delivery charge — and never a number the
+	 * browser supplied.
+	 */
+	public function pay_link_start($token = ''){
+		$order = $this->storefront_model->payLinkOrder($token);
+		$state = $this->storefront_model->payLinkState($order);
+		if($state !== 'payable'){
+			$this->_renderPayLink($token, 'This link can no longer be used to pay.');
+			return;
+		}
+		$settings = $this->storefront_model->getSettings((int)$order->store_id);
+		if(empty($settings->allow_paystack)){
+			$this->_renderPayLink($token, 'Card payment is not switched on for this store. Please pay at collection, or ask the store to send you transfer details.');
+			return;
+		}
+		$init = $this->paystack->initialize_online_order_checkout($order, base_url('storefront/paystack_callback'));
+		if(!empty($init['status']) && !empty($init['authorization_url'])){
+			redirect($init['authorization_url'], 'location');
+			return;
+		}
+		$this->_renderPayLink($token, $init['message'] ?? 'The card payment page could not be opened just now. Please try again.');
+	}
+
+	private function _renderPayLink($token, $payError){
+		$order = $this->storefront_model->payLinkOrder($token);
+		$state = $this->storefront_model->payLinkState($order);
+		if($state === 'missing'){
+			show_404();
+			return;
+		}
+		$storeId = (int)$order->store_id;
+		$settings = $this->storefront_model->getSettings($storeId);
+		$store = get_store_details($storeId);
+		$rx = $this->storefront_model->rxItemNames((int)$order->id, $storeId);
+		$this->load->model('online_payments_model', 'onlinepay');
+		$paidIn = $this->onlinepay->available() ? $this->onlinepay->verifiedTotal($storeId, (int)$order->id) : 0.0;
+		$this->load->view('storefront/pay_link', [
+			'state'        => $state,
+			'order'        => $order,
+			'paid_in'      => $paidIn,
+			'items'        => $state === 'payable' ? $this->storefront_model->getOrderItems((int)$order->id) : [],
+			'store_name'   => trim((string)($store->store_name ?? '')) ?: 'the store',
+			'branch_name'  => $this->_payLinkBranchName($order),
+			'store_currency' => $this->theme_engine->getStoreCurrency($storeId),
+			'pay_error'    => $payError,
+			'pay_url'      => base_url('pay/' . $token . '/start'),
+			'allow_paystack' => !empty($settings->allow_paystack),
+			'csrf'         => $this->security->get_csrf_hash(),
+			'csrf_name'    => $this->security->get_csrf_token_name(),
+			'rx_names'     => $rx['names'],
+		]);
+	}
+
+	private function _payLinkBranchName($order){
+		if(empty($order->warehouse_id) || !$this->db->table_exists('db_warehouse')) return '';
+		$branch = $this->db->select('warehouse_name')->where('id', (int)$order->warehouse_id)
+			->where('store_id', (int)$order->store_id)->get('db_warehouse')->row();
+		return $branch ? trim((string)$branch->warehouse_name) : '';
 	}
 
 	/**
@@ -2928,7 +3297,7 @@ class Storefront extends CI_Controller {
 			'expire' => 7 * 24 * 60 * 60,
 			'path' => '/',
 			'prefix' => '',
-			'secure' => FALSE,
+			'secure' => is_https(),
 			'httponly' => TRUE
 		]);
 

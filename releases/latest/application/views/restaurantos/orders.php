@@ -75,16 +75,12 @@ foreach ((array) $branch_opts as $o) {
       </div>
     </div>
     <div class="ro-head-tools">
-      <?php if (!empty($branch_opts)): ?>
-        <div class="ro-seg">
-          <span class="ro-seg-label">Outlet</span>
-          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $q_url(['branch_id' => '']); ?>"><?= htmlspecialchars($branch_all_label); ?></a>
-          <?php foreach ($branch_opts as $o): ?>
-            <a class="<?= (string) $branch === (string) $o['id'] ? 'active' : ''; ?>"
-               href="<?= $q_url(['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
+      <?php $this->load->view('components/outlet_picker', [
+          'opts'      => (array) $branch_opts,
+          'current'   => (string) $branch,
+          'all_label' => $branch_all_label,
+          'url_for'   => function ($id) use ($q_url) { return $q_url(['branch_id' => $id]); },
+      ]); ?>
       <div class="ro-seg">
         <span class="ro-seg-label">Period</span>
         <?php foreach ($ranges as $key => $label): ?>
@@ -124,20 +120,22 @@ foreach ((array) $branch_opts as $o) {
   <!-- Filters: chips for the narrowings staff actually use, plus a search -->
   <div class="ro-panel">
     <div class="ro-panel-body">
-      <div class="ro-filters" style="margin-bottom:10px;">
+      <div class="ro-filters">
         <span class="ro-flabel">Channel</span>
         <a class="ro-fchip <?= $source === '' ? 'active' : ''; ?>" href="<?= $q_url(['source' => '']); ?>">All channels</a>
         <a class="ro-fchip <?= $source === 'counter' ? 'active' : ''; ?>" href="<?= $q_url(['source' => 'counter']); ?>">Walk In</a>
         <a class="ro-fchip <?= $source === 'online' ? 'active' : ''; ?>" href="<?= $q_url(['source' => 'online']); ?>">Online &amp; QR</a>
+      </div>
 
-        <span class="ro-flabel" style="margin-left:10px;">Payment</span>
+      <div class="ro-filters">
+        <span class="ro-flabel">Payment</span>
         <a class="ro-fchip <?= $pay === '' ? 'active' : ''; ?>" href="<?= $q_url(['pay' => '']); ?>">Any</a>
         <a class="ro-fchip <?= $pay === 'settled' ? 'active' : ''; ?>" href="<?= $q_url(['pay' => 'settled']); ?>">Settled</a>
         <a class="ro-fchip <?= $pay === 'open' ? 'active' : ''; ?>" href="<?= $q_url(['pay' => 'open']); ?>">Not settled</a>
       </div>
 
       <?php if (!empty($fulfil_options)): ?>
-        <div class="ro-filters" style="margin-bottom:12px;">
+        <div class="ro-filters">
           <span class="ro-flabel">Service</span>
           <a class="ro-fchip <?= $fulfil === '' || $fulfil === 'all' ? 'active' : ''; ?>" href="<?= $q_url(['fulfilment' => '']); ?>">All</a>
           <?php foreach ($fulfil_options as $label => $cnt): ?>

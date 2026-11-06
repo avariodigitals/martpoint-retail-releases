@@ -64,6 +64,7 @@ class Item_selling_units_model extends CI_Model {
 		}
 		$this->db->update('db_item_selling_units', ['status' => 0]);
 
+        $retail_markup = mp_retail_markup_config($store_id);
 		foreach($unit_ids as $i => $unit_id){
 			$unit_id = (int)$unit_id;
 			if($unit_id <= 0) continue;
@@ -74,6 +75,7 @@ class Item_selling_units_model extends CI_Model {
 			$selling_price = !empty($selling_prices[$i]) ? str_replace(',','',$selling_prices[$i]) : 0;
 			$wholesale_price = !empty($wholesale_prices[$i]) ? str_replace(',','',$wholesale_prices[$i]) : null;
 			$purchase_price = !empty($purchase_prices[$i]) ? str_replace(',','',$purchase_prices[$i]) : null;
+            $selling_price = mp_retail_price_from_wholesale($wholesale_price, $selling_price, $retail_markup);
 			$sku = trim($skus[$i] ?? '');
 			$barcode = trim($barcodes[$i] ?? '');
 			$is_default = ($i === $default_index) ? 1 : 0;
@@ -133,6 +135,7 @@ class Item_selling_units_model extends CI_Model {
 		$this->db->where('item_id', $child_id)->where('store_id', $store_id)->where('is_template', 0);
 		$this->db->update('db_item_selling_units', ['status' => 0]);
 
+        $retail_markup = mp_retail_markup_config($store_id);
 		foreach($templates as $t){
 			// Barcodes and SKUs are variant-specific; leave them blank so the user sets per child
 			$clone = [
@@ -141,7 +144,7 @@ class Item_selling_units_model extends CI_Model {
 				'unit_id'           => $t->unit_id,
 				'unit_shortcode'    => $t->unit_shortcode,
 				'conversion_factor' => $t->conversion_factor,
-				'selling_price'     => $t->selling_price,
+				'selling_price'     => mp_retail_price_from_wholesale($t->wholesale_price, $t->selling_price, $retail_markup),
 				'wholesale_price'   => $t->wholesale_price,
 				'purchase_price'    => $t->purchase_price,
 				'sku'               => '',

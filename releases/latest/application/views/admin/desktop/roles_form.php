@@ -316,6 +316,18 @@
           ['receivables_aging_report','Receivables Aging'],
           ['show_purchase_price','Show Purchase Price'],
         ]],
+        // Batch ledger. Roles_model::set_persmissions() keeps only keys that are
+        // both whitelisted and posted, and records an absent one as a deliberate
+        // revocation — so a key with no box on this screen is deleted from the
+        // role the next time anyone saves it, even when it was granted by a
+        // migration. Not gated on the batch_tracking flag: a shop that switches
+        // the capability off must be able to keep (or revoke) the grant on
+        // purpose rather than lose it silently on the next role save.
+        ['Batch Ledger', 'batch_ledger', [
+          ['pharmacy_batch_report_view','Batch Reports'],
+          ['batch_reconciliation_view','Reconciliation'],
+          ['batch_reconciliation_manage','Balance a Batch'],
+        ]],
         ['Cross-User Visibility', 'cross_user', [
           ['show_all_users_sales_invoices','Sales'], ['show_all_users_sales_return_invoices','Sales Return'],
           ['show_all_users_purchase_invoices','Purchase'], ['show_all_users_purchase_return_invoices','Purchase Return'],

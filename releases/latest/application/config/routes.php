@@ -162,6 +162,12 @@ $route['online_store/update_domain_status'] = 'online_store/update_domain_status
 $route['online_store/delete_domain/(:num)'] = 'online_store/delete_domain/$1';
 $route['online_store/orders'] = 'online_store/orders';
 $route['online_store/order/(:num)'] = 'online_store/order_detail/$1';
+$route['online_store/send_payment_link/(:num)'] = 'online_store/send_payment_link/$1';
+// Public invoice link a customer opens from an SMS or email — the 32-character
+// secret in the path is the whole authorisation, so it is validated by shape
+// here before the controller looks it up by hash.
+$route['pay/([a-f0-9]{32})/start'] = 'storefront/pay_link_start/$1';
+$route['pay/([a-f0-9]{32})'] = 'storefront/pay_link/$1';
 $route['online_store/abandoned_carts'] = 'online_store/abandoned_carts';
 $route['online_store/mark_cart_reminded'] = 'online_store/mark_cart_reminded';
 $route['online_store/services'] = 'online_store/services';

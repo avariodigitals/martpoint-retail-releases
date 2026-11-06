@@ -180,6 +180,21 @@ class Pos extends MY_Controller {
 			$weightIncrement = $itemColumn('weight_pricing_increment_kg', '0.05');
 			$weightCharge = $itemColumn('weight_pricing_increment_charge', '0');
 			$categoryImage = isset($categoryFields['category_image']) ? 'c.category_image' : "''";
+			// Tyre shops search the till by brand ("Gondwana") and size
+			// ("195/65R15"), so carry those names into the catalogue payload.
+			$hasBrands = $this->db->table_exists('db_brands') && isset($itemFields['brand_id']);
+			$brandName = $hasBrands ? 'br.brand_name' : "''";
+			$hasVariants = $this->db->table_exists('db_variants') && isset($itemFields['variant_id']);
+			$variantName = $hasVariants ? 'COALESCE(v.variant_name, v.attribute_value)' : "''";
+			$joinBrand = $hasBrands ? 'LEFT JOIN db_brands br ON br.id = a.brand_id AND br.store_id = a.store_id' : '';
+			$joinVariant = $hasVariants ? 'LEFT JOIN db_variants v ON v.id = a.variant_id AND v.store_id = a.store_id' : '';
+			$variantSelect = $hasVariants ? ", a.variant_id, $variantName AS variant_name" : '';
+			$brandSelect = $hasBrands ? ', br.brand_name AS brand' : '';
+			// Parts are requested by the number stamped on the box, not by the
+			// catalogue name, so the till needs the part references too.
+			$partRefSelect = ', '.$itemColumn('manufacturer_part_no', "''").' AS part_no'
+				.', '.$itemColumn('oem_reference', "''").' AS oem_ref'
+				.', '.$itemColumn('cross_reference', "''").' AS xref';
 			$variantCondition = isset($itemFields['parent_id'])
 				? "($childBit = 1 OR (($childBit = 0 OR $childBit IS NULL) AND ($parentId IS NULL OR $parentId = 0) AND NOT EXISTS (SELECT 1 FROM db_items c WHERE c.parent_id = a.id)))"
 				: "($childBit = 1 OR $childBit IS NULL OR $childBit = 0)";
@@ -192,20 +207,23 @@ class Pos extends MY_Controller {
 			       a.tax_id, a.tax_type, $weightEnabled AS weight_pricing_enabled, $weightBase AS weight_pricing_base_kg,
 			       $weightIncrement AS weight_pricing_increment_kg, $weightCharge AS weight_pricing_increment_charge,
 			       IF(a.tax_id > 0, 1, 0) AS tax,
+			       $serviceBit AS service_bit,
 			       a.item_image AS image,
 			       a.item_group,
 			       $parentId AS parent_id,
 			       $expireDate AS expire_date,
 			       $batchLot AS batch_lot,
-			       b.tax AS tax_value
+			       b.tax AS tax_value$brandSelect$variantSelect$partRefSelect
 			FROM db_items a
 			LEFT JOIN db_tax b ON b.id = a.tax_id
 			LEFT JOIN db_category c ON c.id = a.category_id
 			LEFT JOIN db_units u ON u.id = a.unit_id
+			$joinBrand
+			$joinVariant
 			WHERE a.store_id = ?
 			  AND a.status = 1
-			  -- Legacy ordinary products may have a NULL service_bit; keep them sellable.
-			  AND ($serviceBit IS NULL OR $serviceBit != 1)
+			  -- Services are sold from the counter like anything else; the sale
+			  -- path already skips stock for them, so they must reach the grid.
 			  AND ($notForSale IS NULL OR $notForSale = 0)
 			  AND $variantCondition
 			ORDER BY a.item_name
@@ -297,6 +315,7 @@ class Pos extends MY_Controller {
 
 		$this->load->model('item_selling_units_model', 'selling_units');
 		foreach ($products as &$p) {
+            $p['is_bundle'] = !empty(get_item_details($p['id'])->is_bundle);
 			$p['id'] = (int) $p['id'];
 			$p['price'] = (float) $p['price'];
 			$p['wholesale'] = (float) $p['wholesale'];
@@ -339,9 +358,11 @@ class Pos extends MY_Controller {
 			$p['weight_pricing_increment_kg'] = (float)($p['weight_pricing_increment_kg'] ?? 0.05);
 			$p['weight_pricing_increment_charge'] = (float)($p['weight_pricing_increment_charge'] ?? 0);
 			$p['parent_id'] = isset($p['parent_id']) ? (int) $p['parent_id'] : null;
+			$p['service_bit'] = (int) ($p['service_bit'] ?? 0) === 1;
 			// Add stock information
 				$p['stock'] = (int) ($stock_map[$p['id']] ?? 0);
-			$p['outOfStock'] = $p['stock'] <= 0;
+			// A service has no shelf quantity; 0 on hand must not read as sold out.
+			$p['outOfStock'] = !$p['service_bit'] && $p['stock'] <= 0;
 			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
 			// Prefer barcode/batch expiry over item-level expiry
 			if (isset($batch_map[$p['id']])) {
@@ -458,6 +479,11 @@ class Pos extends MY_Controller {
 		$data['service_staff_map'] = $service_staff_map;
 		$data['shipping_fees'] = $this->_get_shipping_fees();
 		$data['sale_shipping'] = null;
+		// Tyre-shop "fit to vehicle" picker (needs the vehicle module and the
+		// fitment column; older installs without .232 simply skip the picker).
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
 		$this->load->view('pos_desktop',$data);
 	}
 
@@ -577,6 +603,24 @@ class Pos extends MY_Controller {
 		$data['sale_shipping'] = ($this->db->field_exists('shipping_fee', 'db_sales') && !empty($sales_details->shipping_fee_id))
 			? ['id' => (int)$sales_details->shipping_fee_id, 'fee' => (float)$sales_details->shipping_fee, 'label' => (string)($sales_details->shipping_label ?? '')]
 			: null;
+		// Tyre-shop fitment: preselect the vehicle this sale was billed to.
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
+		$data['sale_vehicle'] = null;
+		if ($data['pos_vehicle_picker'] && !empty($sales_details->vehicle_id)) {
+			$vehicle_row = $this->db->select('id, make, model, license_plate')
+				->where('id', (int)$sales_details->vehicle_id)
+				->where('store_id', get_current_store_id())
+				->where('is_deleted', 0)
+				->limit(1)->get('db_vehicles')->row();
+			if ($vehicle_row) {
+				$label = trim($vehicle_row->make . ' ' . $vehicle_row->model);
+				if ($label === '') $label = 'Vehicle';
+				if (!empty($vehicle_row->license_plate)) $label .= ' · ' . $vehicle_row->license_plate;
+				$data['sale_vehicle'] = ['id' => (int)$vehicle_row->id, 'label' => $label];
+			}
+		}
 		$this->load->view('pos',$data);
 	}
 

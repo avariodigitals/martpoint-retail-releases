@@ -55,7 +55,6 @@
             <h3 class="box-title"><i class="fa fa-list-alt"></i> Item Details</h3>
             <div class="box-tools pull-right">
               <a href="<?= base_url('expiry_settings'); ?>" class="btn btn-sm btn-info"><i class="fa fa-cog"></i> Settings</a>
-              <a href="<?= base_url('expiry_settings/send_email_alert'); ?>" class="btn btn-sm btn-warning" onclick="toastr.success('Email alert triggered!');"><i class="fa fa-envelope"></i> Send Alert</a>
             </div>
           </div>
           <div class="box-body table-responsive no-padding">

@@ -376,14 +376,14 @@ class Purchase extends MY_Controller {
 	}
 
 	public function show_change_status_modal(){
-		// $this->permission_check_with_msg('purchase_edit');
+		$this->permission_check_with_msg('purchase_view');
 		$purchase_id=$this->input->post('purchase_id');
 		if (!$this->_purchase_is_visible($purchase_id)) return;
 		echo $this->purchase->show_change_status_modal($purchase_id);
 	}
 
 	public function change_status(){
-		// $this->permission_check_with_msg('purchase_edit');
+		$this->permission_check_with_msg('purchase_edit');
 		if (!$this->_purchase_is_visible($this->input->post('purchase_id'))) return;
 		echo $this->purchase->change_status();
 	}

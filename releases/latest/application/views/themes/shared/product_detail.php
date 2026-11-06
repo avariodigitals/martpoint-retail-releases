@@ -115,7 +115,7 @@ $badgeLabel = [
       <?php endif; ?>
       <div class="mp-card-body">
         <div class="mp-card-name"><?= htmlspecialchars($p->item_name); ?></div>
-        <div class="mp-card-price"><?= sf_currency($p->sales_price, $store_currency ?? null); ?></div>
+        <div class="mp-card-price"><?= sf_currency($p->effective_price ?? $p->sales_price, $store_currency ?? null); ?></div>
       </div>
     </a>
     <?php endforeach; ?>

@@ -42,6 +42,7 @@ if (!function_exists('mp_get_business_types')) {
             'juice_bar'             => 'Juice Bar',
             'buka'                  => 'Buka / Mama Put',
             'canteen'               => 'Canteen / Food Court',
+            'bar_lounge'            => 'Bar / Lounge',
             'butcher'               => 'Butcher / Meat Shop',
             'frozen_foods_retailer' => 'Frozen Foods Retailer',
             'medical_store'         => 'Medical Store',
@@ -62,13 +63,18 @@ if (!function_exists('mp_get_business_types')) {
             'agro_dealer'           => 'Agro Dealer',
             'garden_centre_landscaping' => 'Garden Centre & Landscaping',
             'feed_store'            => 'Feed Store',
-            'auto_parts'            => 'Auto Parts',
+            'auto_parts'            => 'Automotive Parts & Accessories',
             'tyre_shop'             => 'Tyre Shop',
             'car_dealership'        => 'Car Dealership',
             'printing'              => 'Printing',
             'tailoring'             => 'Tailoring',
             'manufacturer'          => 'Manufacturer',
             'oil_processing_plant'  => 'Processing Plant (Palm / Vegetable Oil)',
+            'lpg_gas_business'      => 'LPG / Cooking Gas Business',
+            'fuel_station'          => 'Filling Station',
+            'bulk_fuel_depot'       => 'Bulk Fuel Depot',
+            'lubricants_distributor'=> 'Lubricants & Petroleum Products',
+            'oil_gas_supply_services' => 'Oil & Gas Supplies / Services',
             'nylon_polythene'       => 'Nylon & Polythene Manufacturing',
             'scientific_equipment'  => 'Scientific Equipment & Laboratory Supplies',
             'multi_branch_retail'   => 'Multi-Branch Retail',
@@ -119,11 +125,27 @@ if (!function_exists('mp_get_feature_flags')) {
             'restaurant_workspace'      => 'RestaurantOS Workspace',
             'event_ticketing'           => 'Event Ticketing (Dated Sessions & Door Codes)',
             'table_management'          => 'Table Management',
+            'running_tabs'              => 'Running Tabs (Rounds on One Bill)',
+            'wastage_reasons'           => 'Wastage & Breakage Reasons',
+            'sale_voids'                => 'Voids (Take a Round off the Bill, Stock Back)',
+            'complimentary_items'       => 'Complimentary Items (Rounds on the House)',
+            'waiter_assignment'         => 'Waiter Attribution (Who Served Each Round)',
+            'tips_gratuity'             => 'Tips (Keyed In, Recorded for the Waiter)',
+            'service_charge'            => 'Service Charge (Optional, Added Per Bill)',
             'laundry_workflow'          => 'Laundry Workflow',
             'meat_butchery_workflow'    => 'Meat / Butchery Workflow',
             'frozen_food_cold_chain'    => 'Frozen Food Cold Chain',
             'perfumery_workflow'        => 'Perfumery / Blending Workflow',
             'oil_processing_workflow'   => 'Palm / Vegetable Oil Processing Workspace',
+            'oil_gas_workspace'         => 'Oil & Gas Workspace (stations, LPG, depots)',
+            'transfer_receipt'          => 'Stock Transfer Arrival Receipt',
+            'pump_metering'             => 'Fuel Pumps, Nozzles & Tank Dip Readings',
+            'fuel_shift_reconciliation' => 'Forecourt Duty Reconciliation (pump meters vs till vs tank)',
+            'bulk_dispatch'             => 'Bulk Fuel Dispatch & Tank Filling',
+            'lpg_refills'               => 'LPG Cylinder Refills (sold by net weight)',
+            'cylinder_tracking'         => 'Cylinder Register, Custody & Exchange',
+            'cylinder_deposits'         => 'Refundable Cylinder Deposits',
+            'oil_gas_service_jobs'      => 'Equipment Service Work (install / maintain / repair)',
             'nylon_workflow'            => 'Nylon / Polythene Production Module',
             'nylon_extrusion'           => 'Nylon: In-house Film Extrusion',
             'nylon_conversion'          => 'Nylon: Film-to-Bag Conversion',
@@ -147,6 +169,7 @@ if (!function_exists('mp_get_feature_flags')) {
             'leads'                     => 'Leads / CRM',
             'manual_shipping'           => 'Manual Shipping (POS Delivery Fee)',
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
+            'auto_retail_markup'        => 'Automatic Retail Pricing (Wholesale + Markup)',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
             'pos_receipt_reprint'       => 'Reprint Receipts from POS Sales List',
@@ -163,7 +186,412 @@ if (!function_exists('mp_get_feature_flags')) {
             'inpatient_care'            => 'Inpatient Care (Admissions & Beds)',
             'patient_portal'            => 'Patient Portal',
             'patient_experience'        => 'Patient Feedback & Testimonials',
+            /*
+             * Operating-model switches. These are the shapes of business that
+             * used to collide, because there was no per-store switch for them:
+             * a pharmacy that dispenses, a pharmacy that only shelves, a
+             * multi-branch chain, a shop selling a vendor's stock, and a
+             * business that sells to approved trade accounts. Each is OFF by
+             * default except where a preset below declares it, and every gate
+             * reads it store-scoped.
+             */
+            'prescription_required'     => 'Prescription check before dispensing',
+            'recall_management'         => 'Recalls & batch quarantine',
+            'b2b_trade_accounts'        => 'Trade accounts (approved businesses ordering)',
+            'vendor_owned_stock'        => 'Vendor-owned stock (sell stock we do not own)',
+            'id_card'                   => 'Customer ID cards',
         ];
+    }
+}
+
+/* ================================================================
+   FEATURE FLAG ARCHITECTURE
+   ----------------------------------------------------------------
+   One registry describes every capability switch: which clean-labelled
+   section it belongs to, which kinds of business it is relevant to, and
+   whether every store should see it. Business Profile draws its tabs
+   from this, so a section can no longer be a hand-maintained list that
+   drifts away from the flags the code actually reads.
+
+   Why relevance-based display: a single flat wall of 80 switches means
+   a pharmacy operator hunting for the dispensing check, and a print
+   shop seeing "Inpatient Care". Worse, the switches that were NOT
+   listed here turned out to be the ones controllers enforced — so the
+   "enable it in Business Profile" message pointed at a switch that did
+   not exist. Both failure modes are guarded now: this registry covers
+   every flag, and anything the store actually uses is always shown.
+   ================================================================ */
+
+if (!function_exists('mp_get_business_families')) {
+    /**
+     * Which kinds of business each family covers. A business type can belong
+     * to several (a supermarket sells food and retail stock; a physio clinic
+     * runs a services desk and keeps patient records).
+     */
+    function mp_get_business_families() {
+        return [
+            'retail'   => ['general_retail','supermarket','mini_mart','grocery_store','provision_store','convenience_store','fashion','boutique','shoe_store','jewellery_store','bookshop','electronics','computer_store','gadget_store','appliance_store','phone_accessories','furniture','building_materials','paint_store','plumbing_store','perfume_shop','skincare','beauty_cosmetics','makeup_studio','multi_branch_retail','online_store','agro_dealer','feed_store','medical_store','pharmacy'],
+            'food'     => ['restaurant','fast_food','cafe','pizza_shop','shawarma','juice_bar','buka','canteen','bar_lounge','bakery_cake_studio','butcher','frozen_foods_retailer','supermarket','mini_mart','grocery_store','provision_store','convenience_store'],
+            'pharmacy' => ['pharmacy','medical_store'],
+            'clinical' => ['clinic','hospital','diagnostic_centre','physiotherapy_rehabilitation'],
+            'beauty'   => ['beauty_cosmetics','makeup_studio','makeup_artist','skincare','perfume_shop','salon_barbershop','beauty_spa'],
+            'services' => ['laundry','service_business','salon_barbershop','beauty_spa','makeup_artist','garden_centre_landscaping','scientific_equipment','car_dealership','physiotherapy_rehabilitation','clinic','hospital','diagnostic_centre'],
+            'production'=>['manufacturer','nylon_polythene','oil_processing_plant','printing','bakery_cake_studio','butcher','tailoring','agro_dealer','feed_store'],
+            'trade'    => ['distributor','wholesaler','manufacturer','multi_branch_retail','building_materials','agro_dealer','feed_store','scientific_equipment','oil_processing_plant','nylon_polythene','printing'],
+            'auto'     => ['auto_parts','tyre_shop','car_dealership'],
+            'digital'  => ['creator','online_store'],
+            'fuel'     => ['lpg_gas_business','fuel_station','bulk_fuel_depot','lubricants_distributor','oil_gas_supply_services'],
+        ];
+    }
+}
+
+if (!function_exists('mp_business_families')) {
+    /** The families a business type belongs to (empty for an unknown type). */
+    function mp_business_families($industry_type) {
+        $industry_type = strtolower(trim((string)$industry_type));
+        if ($industry_type === '') return [];
+        $families = [];
+        foreach (mp_get_business_families() as $family => $industries) {
+            if (in_array($industry_type, $industries, true)) $families[] = $family;
+        }
+        return $families;
+    }
+}
+
+if (!function_exists('mp_vehicle_register_mode')) {
+    /**
+     * True for auto trades that run db_vehicles as a CUSTOMER-vehicle register
+     * (fitments, service history, POS "fit to vehicle") rather than as
+     * cars-for-sale. Dealership furniture (price, sell, status) is hidden for
+     * these industries; car_dealership keeps it.
+     */
+    function mp_vehicle_register_mode($industry_type = null) {
+        if ($industry_type === null) {
+            $industry_type = mp_get_store_profile()['industry_type'] ?? '';
+        }
+        return in_array(strtolower(trim((string)$industry_type)), ['tyre_shop', 'auto_parts'], true);
+    }
+}
+
+if (!function_exists('mp_get_feature_sections')) {
+    /**
+     * The labelled sections the Capabilities screen renders, in order.
+     * 'families' is the whole section's relevance; a flag can narrow it further.
+     * 'controls' names non-checkbox controls that live in this section (they
+     * save somewhere other than feature_flags_json, so they are not flags).
+     */
+    function mp_get_feature_sections() {
+        return [
+            'core'       => ['label'=>'Core modules', 'blurb'=>'The parts of MartPoint this business runs on.', 'always'=>true],
+            'selling'    => ['label'=>'Selling & online store', 'blurb'=>'How customers buy from you, in person or online.'],
+            'counter'    => ['label'=>'Counter (POS)', 'blurb'=>'Switches that change what the till offers.'],
+            'inventory'  => ['label'=>'Products & inventory', 'blurb'=>'How stock is recorded, packed and tracked.'],
+            'pharmacy'   => ['label'=>'Pharmacy & dispensing', 'blurb'=>'Prescription checks and medicine safety.', 'families'=>['pharmacy']],
+            'rotation'   => ['label'=>'Stock rotation', 'blurb'=>'Choose which recorded batch is used when stock sells.', 'families'=>['pharmacy'], 'industries'=>['frozen_foods_retailer'], 'controls'=>['rotation_method']],
+            'clinical'   => ['label'=>'Clinic & patient care', 'blurb'=>'Patient records, episodes, plans and beds.', 'families'=>['clinical']],
+            'services'   => ['label'=>'Services & appointments', 'blurb'=>'Work you book, quote and carry out for customers.', 'families'=>['services','clinical','beauty','auto']],
+            'food'       => ['label'=>'Food & drink operations', 'blurb'=>'Kitchen, tables, tabs and service rounds.', 'families'=>['food']],
+            'fuel'       => ['label'=>'Oil & gas operations', 'blurb'=>'Gas refills, cylinders, tanks, pumps, shifts and bulk dispatch.', 'families'=>['fuel']],
+            'production' => ['label'=>'Production & manufacturing', 'blurb'=>'Making goods from components, with workspaces for each process.', 'families'=>['production']],
+            'trade'      => ['label'=>'Wholesale & trade accounts', 'blurb'=>'Selling to approved businesses, and stock you hold for others.', 'families'=>['trade','production']],
+            'customers'  => ['label'=>'Customers & records', 'blurb'=>'Contact details, notes and identity kept per customer.', 'always'=>true],
+            'people'     => ['label'=>'Staff & approvals', 'blurb'=>'Who did the work, who signs it off.'],
+        ];
+    }
+}
+
+if (!function_exists('mp_get_feature_registry')) {
+    /**
+     * flag_key => ['section'=>, 'industries'=>, 'families'=>, 'always'=>, 'label'=>, 'hint'=>]
+     * 'industries' names exact business types (a workflow only that trade runs);
+     * 'families' covers a whole kind of business. Every key in
+     * mp_get_feature_flags() must appear here exactly once.
+     */
+    function mp_get_feature_registry() {
+        return [
+        // Core modules — every business decides these.
+        'accounts'                 => ['section'=>'core', 'always'=>true],
+        'warehouse'                => ['section'=>'core', 'always'=>true],
+        'multi_store'              => ['section'=>'core', 'always'=>true],
+        'manager_approvals'        => ['section'=>'core', 'always'=>true],
+        'cashier_shifts'           => ['section'=>'core', 'always'=>true],
+
+        // Selling & storefront.
+        'online_store'             => ['section'=>'selling', 'always'=>true],
+        'public_catalogue'         => ['section'=>'selling', 'always'=>true],
+        'price_catalogue'          => ['section'=>'selling', 'always'=>true],
+        'leads'                    => ['section'=>'selling', 'always'=>true],
+        'loyalty'                  => ['section'=>'selling', 'families'=>['retail','food','beauty','services','digital']],
+        'gift_cards'               => ['section'=>'selling', 'families'=>['retail','food','digital']],
+        'store_credit'             => ['section'=>'selling', 'families'=>['retail','food','services','digital']],
+        'payplan'                  => ['section'=>'selling', 'families'=>['retail','trade','services','clinical']],
+        'qr_ordering'              => ['section'=>'selling', 'families'=>['food']],
+        'digital_products'         => ['section'=>'selling', 'families'=>['digital','retail']],
+        'courses'                  => ['section'=>'selling', 'families'=>['digital','services']],
+        'manual_shipping'          => ['section'=>'selling', 'families'=>['retail','digital','trade','food','services']],
+
+        'auto_retail_markup'       => ['section'=>'inventory', 'families'=>['retail','trade','pharmacy','production'], 'hint'=>'Calculate retail price from wholesale plus your store markup. Off by default; purchase cost stays independent.'],
+
+        // Counter.
+        'pos_retail_button'        => ['section'=>'counter', 'always'=>true],
+        'pos_wholesale_button'     => ['section'=>'counter', 'families'=>['trade','retail']],
+        'pos_receipt_reprint'      => ['section'=>'counter', 'always'=>true],
+
+        // Products & inventory.
+        'item_variants'            => ['section'=>'inventory', 'families'=>['retail','beauty','food','auto']],
+        'fashion_variants_default' => ['section'=>'inventory', 'industries'=>['fashion','boutique','shoe_store','tailoring']],
+        'multi_unit_inventory'     => ['section'=>'inventory', 'families'=>['retail','food','trade','production','pharmacy','clinical']],
+        'multi_unit_selling'       => ['section'=>'inventory', 'families'=>['pharmacy','food','trade','retail','production'], 'hint'=>'Sell the pack, the box and the loose piece, and stock counts itself in base units.'],
+        'batch_tracking'           => ['section'=>'inventory', 'families'=>['pharmacy','food','production','clinical'], 'hint'=>'Record the batch number on every unit that arrives, so one shelf date can be traced and pulled.'],
+        'expiry_tracking'          => ['section'=>'inventory', 'families'=>['pharmacy','food','production','beauty']],
+        'mfg_tracking'             => ['section'=>'inventory', 'families'=>['pharmacy','food','production']],
+        'serial_number_tracking'   => ['section'=>'inventory', 'families'=>['retail','auto']],
+        'imei_tracking'            => ['section'=>'inventory', 'industries'=>['electronics','computer_store','gadget_store','phone_accessories','appliance_store']],
+        'warranty_tracking'        => ['section'=>'inventory', 'industries'=>['electronics','computer_store','gadget_store','appliance_store','phone_accessories','furniture','car_dealership','auto_parts','tyre_shop']],
+        'wastage_reasons'          => ['section'=>'inventory', 'families'=>['food','production','pharmacy','clinical','trade'], 'hint'=>'Record why stock left the shelf without being sold.'],
+        'delivery_scheduling'      => ['section'=>'inventory', 'families'=>['retail','food','services','trade','digital','clinical']],
+
+        // Pharmacy & dispensing.
+        'prescription_required'    => ['section'=>'pharmacy', 'hint'=>'A sale of a prescription-only medicine is refused until an approved prescription for that patient is linked to it.'],
+        'medical_notes'            => ['section'=>'pharmacy', 'label'=>'Prescription records', 'hint'=>'The pharmacist reviews and approves each prescription here.'],
+        'recall_management'        => ['section'=>'pharmacy', 'hint'=>'Freeze a batch across every location and see the invoices it already reached.'],
+
+        // Clinic & patient care.
+        'patient_registry'         => ['section'=>'clinical'],
+        'clinical_encounters'      => ['section'=>'clinical'],
+        'clinical_assessments'     => ['section'=>'clinical'],
+        'treatment_plans'          => ['section'=>'clinical'],
+        'patient_wallet'           => ['section'=>'clinical'],
+        'patient_documents'        => ['section'=>'clinical'],
+        'inpatient_care'           => ['section'=>'clinical'],
+        'patient_portal'           => ['section'=>'clinical'],
+        'patient_experience'       => ['section'=>'clinical'],
+        'treatment_notes'          => ['section'=>'clinical'],
+
+        // Services & appointments.
+        'appointments'             => ['section'=>'services'],
+        'service_workflow'         => ['section'=>'services'],
+        'custom_orders'            => ['section'=>'services'],
+        'packages'                 => ['section'=>'services'],
+        'memberships'              => ['section'=>'services'],
+        'service_jobs'             => ['section'=>'services'],
+        'equipment_register'       => ['section'=>'services'],
+        'laundry_workflow'         => ['section'=>'services', 'industries'=>['laundry','tailoring']],
+        'automobile_workflow'      => ['section'=>'services', 'families'=>['auto']],
+        'auto_parts'               => ['section'=>'services', 'families'=>['auto']],
+
+        // Food & drink.
+        'restaurant_workspace'     => ['section'=>'food'],
+        'kitchen_workflow'         => ['section'=>'food'],
+        'table_management'         => ['section'=>'food'],
+        'running_tabs'             => ['section'=>'food'],
+        'sale_voids'               => ['section'=>'food'],
+        'complimentary_items'      => ['section'=>'food'],
+        'waiter_assignment'        => ['section'=>'food'],
+        'tips_gratuity'            => ['section'=>'food'],
+        'service_charge'           => ['section'=>'food'],
+        'event_ticketing'          => ['section'=>'food', 'families'=>['food','services','digital']],
+        'meat_butchery_workflow'   => ['section'=>'food', 'industries'=>['butcher','supermarket','frozen_foods_retailer','restaurant']],
+        'frozen_food_cold_chain'   => ['section'=>'food', 'industries'=>['frozen_foods_retailer','supermarket','butcher','restaurant','cafe']],
+
+        // Production & manufacturing.
+        'production_workflow'      => ['section'=>'production', 'families'=>['production']],
+        'recipe_tracking'          => ['section'=>'production', 'families'=>['production','food']],
+        'printing_workflow'        => ['section'=>'production', 'industries'=>['printing','tailoring','manufacturer']],
+        'perfumery_workflow'       => ['section'=>'production', 'industries'=>['perfume_shop','beauty_cosmetics','skincare','makeup_studio']],
+        'nylon_workflow'           => ['section'=>'production', 'industries'=>['nylon_polythene']],
+        'nylon_extrusion'          => ['section'=>'production', 'industries'=>['nylon_polythene']],
+        'nylon_conversion'         => ['section'=>'production', 'industries'=>['nylon_polythene']],
+        'nylon_roll_trading'       => ['section'=>'production', 'industries'=>['nylon_polythene']],
+        'oil_processing_workflow'  => ['section'=>'production', 'industries'=>['oil_processing_plant']],
+
+        // Oil & gas. One workspace; each operating model switches on its own so
+        // a gas retail outlet is not shown pump meters it does not have.
+        'oil_gas_workspace'        => ['section'=>'fuel', 'hint'=>'The base workspace: gas and fuel stock, sales and purchases for this business.'],
+        'lpg_refills'              => ['section'=>'fuel', 'hint'=>'Fill cylinders by net weight in kg and charge for the gas.'],
+        'cylinder_tracking'        => ['section'=>'fuel', 'hint'=>'Keep a register of every cylinder, who owns it and whether it is full, empty or out for exchange.'],
+        'cylinder_deposits'        => ['section'=>'fuel', 'hint'=>'Record the refundable deposit held on a customer\'s cylinders, kept apart from gas stock.'],
+        'fuel_tanks'               => ['section'=>'fuel', 'hint'=>'Storage tanks per location, with capacity and physical dip readings.'],
+        'pump_metering'            => ['section'=>'fuel', 'hint'=>'Cumulative litre readings for each pump and nozzle.'],
+        'fuel_shift_reconciliation' => ['section'=>'fuel', 'hint'=>'Open and close the station shift on meter readings, and approve any difference before the till closes.'],
+        'bulk_dispatch'            => ['section'=>'fuel', 'hint'=>'Bulk receipts, stored volume, loading and dispatch with delivered-quantity reconciliation.'],
+        'oil_gas_service_jobs'     => ['section'=>'fuel', 'hint'=>'Equipment and spare-part supply, installation and maintenance jobs quoted and invoiced.'],
+
+        // Wholesale & trade accounts.
+        'b2b_trade_accounts'       => ['section'=>'trade', 'hint'=>'Approved businesses order on their own account, with their own prices and payment terms.'],
+        'vendor_owned_stock'       => ['section'=>'trade', 'hint'=>'Shelf stock that belongs to a vendor until it sells; settle them from what sold.'],
+
+        // Customers & records.
+        'customer_notes'           => ['section'=>'customers', 'always'=>true],
+        'id_card'                  => ['section'=>'customers', 'always'=>true],
+        'customer_contacts'        => ['section'=>'customers', 'families'=>['trade','services','production','clinical']],
+        'customer_sites'           => ['section'=>'customers', 'families'=>['trade','services','production']],
+
+        // Staff & approvals.
+        'staff_assignment'         => ['section'=>'people', 'families'=>['services','food','clinical','production']],
+        'staff_commission'         => ['section'=>'people', 'families'=>['services','food','retail','clinical']],
+        ];
+    }
+}
+
+if (!function_exists('mp_get_rotation_methods')) {
+    /**
+     * Batch rotation choices offered to businesses that track stock by batch. This is a
+     * per-store setting in db_inventory_rotation_settings, not a feature flag,
+     * so it is declared here and rendered as its own control.
+     */
+    function mp_get_rotation_methods() {
+        return [
+            'MANUAL' => ['label'=>'Manual — the clerk picks the batch', 'blurb'=>'Nothing is drawn from the batch ledger automatically. This is the safe default.'],
+            'FEFO'   => ['label'=>'Earliest expiry first', 'blurb'=>'Sell the batch that expires soonest. Recommended once batch quantities match total stock.'],
+            'FIFO'   => ['label'=>'Oldest received first', 'blurb'=>'Sell the batch received earliest, whatever its expiry date.'],
+        ];
+    }
+}
+
+if (!function_exists('mp_rotation_gap_count')) {
+    /**
+     * How many medicines this store holds in batches that do not match their
+     * stock figures. A shop still on Manual is about to discover this at the
+     * till, medicine by medicine, the moment it switches rotation on — so the
+     * rotation control shows the number and asks for a deliberate confirmation.
+     * Reads as 0 when the reconciliation tool is not installed on this fleet
+     * yet, or when rotation is already on and the switch is not a new risk.
+     */
+    function mp_rotation_gap_count($storeId = null) {
+        $ci =& get_instance();
+        $storeId = (int)($storeId ?: get_current_store_id());
+        if ($storeId <= 0) return 0;
+        $ci->load->model('Inventory_rotation_model', 'rotation_gap');
+        if ($ci->rotation_gap->method($storeId) !== 'MANUAL') return 0;
+        if (!$ci->db->table_exists('db_batch_reconciliations')) return 0;
+        $ci->load->model('batch_reconciliation_model', 'recon_gap');
+        return (int)$ci->recon_gap->readiness($storeId)['gaps'];
+    }
+}
+
+if (!function_exists('mp_store_feature_layout')) {
+    /**
+     * Which switches this business type should be shown, in which sections.
+     *
+     * A flag is shown when any of these is true:
+     *   1. it is marked 'always' — every business decides it;
+     *   2. the store's business type recommends it (its preset lists it);
+     *   3. it belongs to a family this business type is part of;
+     *   4. it is already ON for this store — a switch that is working must
+     *      never become unreachable, or the store cannot turn it back off.
+     * Everything else is still rendered, but folded away under "Other
+     * capabilities" so a business running an unusual combination can find it.
+     * Nothing is dropped: every rendered switch posts a seen-marker, so
+     * saving one section can never zero another store's setting.
+     */
+    function mp_store_feature_layout($industry_type = null, $preset_features = null, $saved_flags = array(), $context = array()) {
+        $presets = mp_get_business_presets();
+        if ($industry_type === null || $industry_type === '') {
+            $profile = mp_get_store_profile();
+            $industry_type = $profile['industry_type'] ?? 'general_retail';
+        }
+        if ($preset_features === null) {
+            $preset_features = $presets[$industry_type]['features'] ?? [];
+        }
+        $saved_flags = is_array($saved_flags) ? $saved_flags : array();
+        $registry = mp_get_feature_registry();
+        $sections = mp_get_feature_sections();
+        $labels = mp_get_feature_flags();
+        $families = mp_business_families($industry_type);
+
+        $in_section = array();
+        $other = array();
+        foreach ($registry as $key => $meta) {
+            if (!isset($labels[$key])) continue;
+            $relevant = !empty($meta['always']) || in_array($key, (array)$preset_features, true);
+            $names_trades = !empty($meta['industries']);
+            if (!$relevant && $names_trades) {
+                $relevant = in_array((string)$industry_type, $meta['industries'], true);
+            }
+            if (!$relevant && !$names_trades) {
+                // A flag that only names a family inherits its section's; a flag
+                // that names exact trades has already had its say above.
+                $flag_families = !empty($meta['families'])
+                    ? $meta['families']
+                    : ($sections[$meta['section']]['families'] ?? []);
+                if ($flag_families && array_intersect($flag_families, $families)) $relevant = true;
+            }
+            if (!$relevant && isset($saved_flags[$key]) && filter_var($saved_flags[$key], FILTER_VALIDATE_BOOLEAN)) {
+                $relevant = true;
+            }
+            if (!$relevant) { $other[$key] = $labels[$key]; continue; }
+            if (!isset($in_section[$meta['section']])) $in_section[$meta['section']] = array();
+            $in_section[$meta['section']][] = array(
+                'key'   => $key,
+                'label' => !empty($meta['label']) ? $meta['label'] : $labels[$key],
+                'hint'  => $meta['hint'] ?? '',
+            );
+        }
+
+        $layout = array();
+        foreach ($sections as $skey => $def) {
+            $flags = $in_section[$skey] ?? array();
+            $controls = array();
+            if (!empty($def['controls'])) {
+                $section_relevant = !empty($def['always']) || !empty($flags)
+                    || (!empty($def['families']) && array_intersect($def['families'], $families))
+                    || (!empty($def['industries']) && in_array((string)$industry_type, $def['industries'], true));
+                if (!$section_relevant && !empty($def['controls']) && !empty($context['rotation_method'])
+                    && strtoupper((string)$context['rotation_method']) !== 'MANUAL') {
+                    $section_relevant = true; // rotation is in use, so its switch must be reachable
+                }
+                if ($section_relevant) {
+                    foreach ($def['controls'] as $control) { $controls[] = $control; }
+                }
+            }
+            if (!$flags && !$controls) continue;
+            $layout[$skey] = array('key'=>$skey, 'label'=>$def['label'], 'blurb'=>$def['blurb'], 'flags'=>$flags, 'controls'=>$controls);
+        }
+        return array('sections'=>$layout, 'other'=>$other);
+    }
+}
+
+if (!function_exists('mp_merge_feature_flags')) {
+    /**
+     * Build the feature_flags_json payload from what the form posted.
+     *
+     * Three cases, because a checkbox that is OFF posts nothing and is
+     * therefore indistinguishable from a flag the form never rendered:
+     *   1. the form rendered it (marker present) -> submitted value wins,
+     *      so an admin can deliberately switch a preset capability off;
+     *   2. not rendered but already stored        -> preserve, so saving
+     *      one tab can't silently drop flags (a store with a 24-key profile
+     *      would otherwise be rewritten down to the rendered subset);
+     *   3. never stored                           -> default to the
+     *      business-type preset, which is what makes selecting
+     *      Physiotherapy turn patient_registry & the clinical set on.
+     */
+    function mp_merge_feature_flags($posted_flags, $posted_seen, $stored, $preset_features) {
+        $flags = is_array($posted_flags) ? $posted_flags : array();
+        $seen = is_array($posted_seen) ? $posted_seen : array();
+        $stored = is_array($stored) ? $stored : array();
+        $preset_features = is_array($preset_features) ? $preset_features : array();
+
+        $clean = array();
+        foreach (mp_get_feature_flags() as $key => $label) {
+            if (isset($seen[$key])) {
+                $clean[$key] = isset($flags[$key]) ? '1' : '0';
+            } elseif (isset($stored[$key])) {
+                $clean[$key] = $stored[$key];
+            } else {
+                $clean[$key] = in_array($key, $preset_features, true) ? '1' : '0';
+            }
+        }
+        // A store that predates a capability still gets it when its business
+        // type requires it — "select Physiotherapy" must mean the clinical
+        // modules are on, not merely available.
+        foreach ($preset_features as $key) {
+            if (!isset($seen[$key]) && isset($clean[$key]) && $clean[$key] !== '1') {
+                $clean[$key] = empty($stored[$key]) ? '1' : $clean[$key];
+            }
+        }
+        return $clean;
     }
 }
 
@@ -174,6 +602,55 @@ if (!function_exists('mp_feature_label')) {
             return $flags[$flag_key];
         }
         return ucwords(str_replace(['_','-'], ' ', $flag_key));
+    }
+}
+
+if (!function_exists('mp_feature_display_label')) {
+    /**
+     * The wording this store should read for a capability: the registry's clean
+     * section label when it gives one ('Prescription records'), otherwise the
+     * master label. Used by screens that name a locked capability, so the
+     * message always points at a switch the operator can actually find.
+     */
+    function mp_feature_display_label($flag_key) {
+        $registry = mp_get_feature_registry();
+        if (isset($registry[$flag_key]['label'])) return $registry[$flag_key]['label'];
+        return mp_feature_label($flag_key);
+    }
+}
+
+if (!function_exists('mp_get_wastage_reasons')) {
+    /**
+     * Why stock left the shelf without being sold — the wastage twin of the
+     * garden module's loss reasons, and shaped the same way (stable code, the
+     * words the merchant reads).
+     *
+     * These are losses only. A drink a guest was served is not wastage — it is a
+     * sale, complimentary or not — and a cancelled line never left the shelf at
+     * all, so neither belongs in this list.
+     */
+    function mp_get_wastage_reasons() {
+        return [
+            'breakage'  => 'Broken',
+            'spillage'  => 'Spilled',
+            'expiry'    => 'Expired',
+            'quality'   => 'Failed quality',
+            'shrinkage' => 'Missing / uncounted',
+            'other'     => 'Other reason',
+        ];
+    }
+}
+
+if (!function_exists('mp_wastage_reason_label')) {
+    /**
+     * A code in the words the merchant used to record it. An unknown or empty
+     * code returns the not-recorded wording rather than printing a raw code, so
+     * movements saved before reasons existed still read as plain English.
+     */
+    function mp_wastage_reason_label($code) {
+        $code = is_string($code) ? trim($code) : '';
+        if ($code === '' || !isset(mp_get_wastage_reasons()[$code])) return 'Reason not recorded';
+        return mp_get_wastage_reasons()[$code];
     }
 }
 
@@ -257,7 +734,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'pharmacy' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','serial_number_tracking','manager_approvals','price_catalogue','public_catalogue','medical_notes'],
+                'features'=>['accounts','warehouse','online_store','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','serial_number_tracking','manager_approvals','price_catalogue','public_catalogue','medical_notes','prescription_required'],
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'pharmacy','workflow_template'=>'pharmacy_standard',
                 'labels'=>['item'=>'Medicine','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Patient'],
             ],
@@ -429,6 +906,24 @@ if (!function_exists('mp_get_business_presets')) {
                 'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
                 'labels'=>['item'=>'Menu Item','service'=>'Canteen Service','table'=>'Table','order'=>'Meal','pos'=>'Counter'],
             ],
+            // Bar/Lounge starts drinks-first: no online store, QR ordering or
+            // delivery forced on; food stays available by switching kitchen
+            // flags on under Feature Flags. Every flag here gates a workflow
+            // that ships today: running tabs (4.0.9.227), reason-coded
+            // wastage on the phone as well as the desk (4.0.9.228), voids and
+            // compliments (4.0.9.230), waiter attribution with tips and an
+            // optional service charge (4.0.9.231), sections that say which
+            // tables a waiter is behind (4.0.9.235) and event nights
+            // (4.0.9.221).
+            'bar_lounge' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','multi_unit_inventory','multi_unit_selling','restaurant_workspace','table_management','running_tabs','wastage_reasons','sale_voids','complimentary_items','waiter_assignment','tips_gratuity','service_charge','kitchen_workflow','recipe_tracking','manager_approvals','cashier_shifts','loyalty','store_credit','event_ticketing'],
+                'theme_key'=>'food_express','dashboard_template'=>'restaurant','workflow_template'=>'restaurant_standard',
+                // 'workspace' is the word this business uses on its own signs. The
+                // lounge rides the restaurant rails, so every heading that once
+                // said "Restaurant …" verbatim would call a bar a restaurant.
+                'labels'=>['item'=>'Menu Item','service'=>'Bar Service','table'=>'Table','order'=>'Order','pos'=>'Bar','workspace'=>'Lounge'],
+            ],
             'butcher' => [
                 'business_model'=>'product_based',
                 'features'=>['accounts','warehouse','online_store','qr_ordering','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','meat_butchery_workflow','pos_retail_button','pos_wholesale_button'],
@@ -443,7 +938,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'medical_store' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','loyalty','multi_unit_inventory','batch_tracking','expiry_tracking','serial_number_tracking','manager_approvals','price_catalogue','public_catalogue','medical_notes'],
+                'features'=>['accounts','warehouse','online_store','loyalty','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','serial_number_tracking','manager_approvals','price_catalogue','public_catalogue','medical_notes','prescription_required'],
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'pharmacy','workflow_template'=>'pharmacy_standard',
                 'labels'=>['item'=>'Medical Item','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Patient'],
             ],
@@ -581,17 +1076,21 @@ if (!function_exists('mp_get_business_presets')) {
                 'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
                 'labels'=>['item'=>'Feed','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
             ],
+            // Shares the auto-family engine with Tyre Shop (customer vehicles,
+            // fitment, variants, warranty/serial tracking, fitting services);
+            // keeps the distributor dashboard — the tyre seasonal block is
+            // tyre-size specific.
             'auto_parts' => [
-                'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','item_variants','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','serial_number_tracking','warranty_tracking','service_workflow','appointments','staff_assignment','staff_commission','customer_contacts','customer_sites','automobile_workflow','auto_parts','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
                 'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
-                'labels'=>['item'=>'Auto Part','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+                'labels'=>['item'=>'Auto Part','batch'=>'Batch/DOT Code','expiry'=>'Stock Age Check','service'=>'Fitting Service','service_order'=>'Fitting Job','customer'=>'Customer','warehouse'=>'Depot','order'=>'Order'],
             ],
             'tyre_shop' => [
-                'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','online_store','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
-                'theme_key'=>'general_retail','dashboard_template'=>'distributor','workflow_template'=>'distributor_standard',
-                'labels'=>['item'=>'Tyre','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Client','warehouse'=>'Depot','order'=>'Order'],
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','online_store','item_variants','payplan','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','serial_number_tracking','warranty_tracking','service_workflow','appointments','staff_assignment','staff_commission','customer_contacts','customer_sites','automobile_workflow','auto_parts','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling','customer_notes','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'tyre_shop','workflow_template'=>'tyre_shop_standard',
+                'labels'=>['item'=>'Tyre','batch'=>'Batch/DOT Code','expiry'=>'Stock Age Check','service'=>'Fitting Service','service_order'=>'Fitting Job','customer'=>'Customer','warehouse'=>'Depot','order'=>'Order'],
             ],
             'car_dealership' => [
                 'business_model'=>'product_based',
@@ -622,6 +1121,43 @@ if (!function_exists('mp_get_business_presets')) {
                 'features'=>['accounts','warehouse','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','production_workflow','recipe_tracking','manager_approvals','price_catalogue','delivery_scheduling','customer_notes','oil_processing_workflow'],
                 'theme_key'=>'general_retail','dashboard_template'=>'oil_processing_plant','workflow_template'=>'oil_processing_standard',
                 'labels'=>['item'=>'Material / Product','product'=>'Finished Oil','batch'=>'Processing Batch','customer'=>'Buyer','supplier'=>'Supplier','warehouse'=>'Plant / Depot','order'=>'Sales Order','recipe'=>'Process Formula','production'=>'Processing Run','quote'=>'Quotation'],
+            ],
+            /*
+             * Oil & gas. Five operating profiles trade from one commerce base, so a
+             * mixed company can run a station, an LPG outlet, a depot and a supply
+             * division from the same account, and a owner of a single filling station
+             * can run just that. Each profile turns on only the screens its trade
+             * needs; anything the store does not use stays off.
+             */
+            'lpg_gas_business' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','oil_gas_workspace','transfer_receipt','bulk_dispatch','lpg_refills','cylinder_tracking','cylinder_deposits','multi_unit_inventory','multi_unit_selling','online_store','delivery_scheduling','price_catalogue','manager_approvals','customer_notes','customer_sites','cashier_shifts','pos_retail_button','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'lpg_gas_business','workflow_template'=>'lpg_gas_business_standard',
+                'labels'=>['item'=>'Gas / Product','product'=>'Gas Product','service'=>'Refill','warehouse'=>'Outlet','stock_transfer'=>'Inter-Outlet Transfer','customer'=>'Customer','deposit'=>'Cylinder Deposit'],
+            ],
+            'fuel_station' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','oil_gas_workspace','transfer_receipt','pump_metering','fuel_shift_reconciliation','bulk_dispatch','multi_unit_inventory','multi_unit_selling','price_catalogue','manager_approvals','customer_notes','staff_assignment','staff_commission','cashier_shifts','pos_retail_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'fuel_station','workflow_template'=>'fuel_station_standard',
+                'labels'=>['item'=>'Fuel / Product','product'=>'Fuel Product','warehouse'=>'Station','stock_transfer'=>'Inter-Station Transfer','customer'=>'Customer'],
+            ],
+            'bulk_fuel_depot' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','oil_gas_workspace','transfer_receipt','bulk_dispatch','multi_unit_inventory','multi_unit_selling','price_catalogue','manager_approvals','delivery_scheduling','customer_notes','customer_sites','cashier_shifts','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'bulk_fuel_depot','workflow_template'=>'bulk_fuel_depot_standard',
+                'labels'=>['item'=>'Product','product'=>'Bulk Product','warehouse'=>'Depot','stock_transfer'=>'Inter-Depot Transfer','customer'=>'Trade Customer'],
+            ],
+            'lubricants_distributor' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','oil_gas_workspace','transfer_receipt','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','online_store','price_catalogue','public_catalogue','manager_approvals','delivery_scheduling','customer_notes','customer_sites','cashier_shifts','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'lubricants_distributor','workflow_template'=>'lubricants_distributor_standard',
+                'labels'=>['item'=>'Product','product'=>'Lubricant / Pack','warehouse'=>'Depot','stock_transfer'=>'Inter-Depot Transfer','customer'=>'Dealer','batch'=>'Batch','expiry'=>'Best Before'],
+            ],
+            'oil_gas_supply_services' => [
+                'business_model'=>'product_and_service',
+                'features'=>['accounts','warehouse','oil_gas_workspace','transfer_receipt','pump_metering','fuel_shift_reconciliation','bulk_dispatch','multi_unit_inventory','service_workflow','service_jobs','oil_gas_service_jobs','equipment_register','custom_orders','serial_number_tracking','warranty_tracking','online_store','price_catalogue','manager_approvals','delivery_scheduling','customer_notes','customer_sites','staff_assignment','cashier_shifts','pos_wholesale_button'],
+                'theme_key'=>'general_retail','dashboard_template'=>'oil_gas_supply_services','workflow_template'=>'oil_gas_supply_services_standard',
+                'labels'=>['item'=>'Part / Equipment','service'=>'Service','service_order'=>'Service Job','customer'=>'Client','warehouse'=>'Store','stock_transfer'=>'Inter-Store Transfer'],
             ],
             'nylon_polythene' => [
                 'business_model'=>'product_based',
@@ -769,11 +1305,17 @@ if (!function_exists('mp_feature_enabled')) {
             $legacy = mp_feature_flag_raw('flexpay');
             if ($legacy !== null) { return $legacy; }
         }
-        static $profile_features = null;
-        if ($profile_features === null) {
-            $profile = mp_get_store_profile();
-            $profile_features = $profile['features'] ?? [];
+        // Cached per store: one PHP process can serve several companies (a cron
+        // digest, a background loop, a CLI probe), and the first company's
+        // profile must not answer for the rest.
+        static $profile_features_by_store = null;
+        if ($profile_features_by_store === null) { $profile_features_by_store = []; }
+        $profile_store_id = (int) get_current_store_id();
+        if (!array_key_exists($profile_store_id, $profile_features_by_store)) {
+            $profile = mp_get_store_profile($profile_store_id);
+            $profile_features_by_store[$profile_store_id] = $profile['features'] ?? [];
         }
+        $profile_features = $profile_features_by_store[$profile_store_id];
         switch ($flag_key) {
             case 'service_workflow': case 'appointments': return service_module() && in_array($flag_key, $profile_features);
             case 'accounts': return accounts_module();
@@ -781,6 +1323,9 @@ if (!function_exists('mp_feature_enabled')) {
             case 'online_store': case 'qr_ordering': case 'loyalty': case 'gift_cards': case 'store_credit': return in_array($flag_key, $profile_features);
             // Inventory tracking flags - require both the warehouse module and the industry profile
             case 'serial_number_tracking': case 'imei_tracking': case 'warranty_tracking': case 'batch_tracking': case 'expiry_tracking': case 'meat_butchery_workflow': case 'frozen_food_cold_chain': case 'perfumery_workflow': return warehouse_module() && in_array($flag_key, $profile_features);
+            // Recording why stock was written off is meaningless without a
+            // shelf to write it off from, so it follows the warehouse module.
+            case 'wastage_reasons': return warehouse_module() && in_array($flag_key, $profile_features);
             case 'mfg_tracking': return mp_feature_enabled('expiry_tracking');
             // Service flags are independently configurable in Feature Flags.
             // Requiring service_workflow here meant switching treatment_notes
@@ -811,6 +1356,334 @@ if (!function_exists('mp_feature_enabled')) {
     }
 }
 
+if (!function_exists('mp_get_location_scoped_flags')) {
+    /**
+     * Capabilities the head office can narrow site by site. A location can only
+     * switch a capability OFF for itself — it can never grant itself one the
+     * company has not turned on — and a flag that is absent simply inherits.
+     */
+    function mp_get_location_scoped_flags() {
+        return [
+            'transfer_receipt'          => 'Record what actually arrives at this location',
+            'pump_metering'             => 'This location has pumps and tanks to read',
+            'fuel_shift_reconciliation' => 'Duties here are closed and reconciled',
+            'bulk_dispatch'             => 'This location sends or receives bulk loads',
+            'lpg_refills'               => 'Cylinders are refilled and weighed at this location',
+            'cylinder_tracking'         => 'This location keeps its own cylinder register',
+            'delivery_scheduling' => 'Send deliveries from this location',
+            'online_store'        => 'This location sells on the online store',
+            'cashier_shifts'      => 'Tills here are opened and closed as shifts',
+            'staff_assignment'    => 'Assign staff to this location',
+        ];
+    }
+}
+
+if (!function_exists('mp_get_location_flags')) {
+    /** Saved location overrides for one warehouse (empty when nothing is set). */
+    function mp_get_location_flags($warehouse_id) {
+        static $cache = [];
+        $warehouse_id = (int)$warehouse_id;
+        if ($warehouse_id <= 0) return [];
+        if (array_key_exists($warehouse_id, $cache)) return $cache[$warehouse_id];
+        $cache[$warehouse_id] = [];
+        $CI =& get_instance();
+        if (!$CI->db->table_exists('db_warehouse') || !$CI->db->field_exists('feature_flags_json', 'db_warehouse')) {
+            return $cache[$warehouse_id];
+        }
+        $row = $CI->db->select('feature_flags_json')
+            ->where('id', $warehouse_id)
+            ->where('store_id', get_current_store_id())
+            ->get('db_warehouse')->row();
+        if ($row && !empty($row->feature_flags_json)) {
+            $flags = json_decode($row->feature_flags_json, true);
+            if (is_array($flags)) $cache[$warehouse_id] = $flags;
+        }
+        return $cache[$warehouse_id];
+    }
+}
+
+if (!function_exists('mp_location_feature_enabled')) {
+    /**
+     * Company capability AND, when a location is known, not narrowed away there.
+     */
+    function mp_location_feature_enabled($flag_key, $warehouse_id = null) {
+        if (!mp_feature_enabled($flag_key)) return false;
+        $warehouse_id = ($warehouse_id === null) ? 0 : (int)$warehouse_id;
+        if ($warehouse_id <= 0) return true;
+        $flags = mp_get_location_flags($warehouse_id);
+        if (!array_key_exists($flag_key, $flags)) return true;
+        return filter_var($flags[$flag_key], FILTER_VALIDATE_BOOLEAN);
+    }
+}
+
+if (!function_exists('mp_is_oil_gas_workspace')) {
+    function mp_is_oil_gas_workspace() {
+        return mp_feature_enabled('oil_gas_workspace');
+    }
+}
+
+if (!function_exists('mp_oil_gas_jobs_enabled')) {
+    /**
+     * Does this fuel company run service work at its locations? `service_jobs`
+     * is the equipment trade's switch and brings its own screens with it; a
+     * station or depot that only ever fixes pumps and generates can turn on the
+     * fuel one and keep the workspace it actually uses.
+     */
+    function mp_oil_gas_jobs_enabled() {
+        return mp_feature_enabled('oil_gas_service_jobs') || mp_feature_enabled('service_jobs');
+    }
+}
+
+if (!function_exists('mp_oil_gas_report_cards')) {
+    /**
+     * The cards the Oil & Gas company report prints, in the order head office
+     * reads them. Both the desktop and the phone screen render this same table so
+     * the two can never quote different figures for the same question.
+     */
+    function mp_oil_gas_report_cards() {
+        return array(
+            'trading' => array(
+                'title' => 'What each location rang up',
+                'blurb' => "Invoices raised in the period. A cancelled bill or an opening balance is not a day's work, so neither is counted.",
+                'columns' => array(
+                    array('key' => 'sales_count', 'label' => 'Invoices', 'kind' => 'int'),
+                    array('key' => 'sales_value', 'label' => 'Value rung up', 'kind' => 'money'),
+                ),
+            ),
+            'stock' => array(
+                'title' => 'What each location is holding',
+                'blurb' => 'This is the shelf as it stands today, so it carries no dates.',
+                'columns' => array(
+                    array('key' => 'stock_lines', 'label' => 'Lines holding quantity', 'kind' => 'int'),
+                    array('key' => 'stock_value', 'label' => 'Value at cost', 'kind' => 'money'),
+                ),
+            ),
+            'movements' => array(
+                'title' => 'Movement between locations',
+                'blurb' => 'A load counts at the location that sent it and again at the one that received it, because both of them handled it.',
+                'columns' => array(
+                    array('key' => 'loads_sent', 'label' => 'Loads sent', 'kind' => 'int'),
+                    array('key' => 'loads_received', 'label' => 'Loads received', 'kind' => 'int'),
+                    array('key' => 'loads_open', 'label' => 'Still on the road', 'kind' => 'int'),
+                ),
+            ),
+            'forecourt' => array(
+                'title' => 'Forecourt',
+                'blurb' => "Litres the pump meters recorded on duties that have been closed. The difference column adds up every duty's gap, however small, so a slow leak cannot hide inside a big month.",
+                'columns' => array(
+                    array('key' => 'litres_metered', 'label' => 'Litres metered', 'kind' => 'litres'),
+                    array('key' => 'variance_litres', 'label' => 'Difference to explain', 'kind' => 'litres'),
+                    array('key' => 'duties_awaiting', 'label' => 'Duties awaiting a manager', 'kind' => 'int'),
+                ),
+            ),
+            'lpg' => array(
+                'title' => 'Gas cylinders',
+                'blurb' => 'What the scale booked, against the shells that are still out with customers. A fill with no till receipt is one we have weighed but not yet charged for.',
+                'columns' => array(
+                    array('key' => 'kg_filled', 'label' => 'Kilograms filled', 'kind' => 'kg'),
+                    array('key' => 'fills', 'label' => 'Fills weighed', 'kind' => 'int'),
+                    array('key' => 'fills_unmatched', 'label' => 'Fills not yet charged', 'kind' => 'int'),
+                    array('key' => 'shells_out', 'label' => 'Shells out', 'kind' => 'int'),
+                ),
+            ),
+            'deposits' => array(
+                'title' => 'Deposit money held',
+                'blurb' => 'Refundable money taken for shells on loan, less what has been paid back. It is never income and never stock.',
+                'columns' => array(
+                    array('key' => 'deposits_held', 'label' => 'Held at the end of the period', 'kind' => 'money'),
+                ),
+            ),
+            'jobs' => array(
+                'title' => 'Service work',
+                'blurb' => 'Visits still open at each location, whatever date they carry, because an unfinished job is a job somebody still owes. What they are worth counts only once a job is finished, in the period it was finished in, because that is when the number is real.',
+                'columns' => array(
+                    array('key' => 'jobs_open', 'label' => 'Still open', 'kind' => 'int'),
+                    array('key' => 'jobs_completed', 'label' => 'Finished', 'kind' => 'int'),
+                    array('key' => 'job_charge', 'label' => 'Charged for finished work', 'kind' => 'money'),
+                ),
+            ),
+        );
+    }
+}
+
+if (!function_exists('mp_oil_gas_report_figure')) {
+    /** Reads one report figure the way a merchant would say it. */
+    function mp_oil_gas_report_figure($kind, $value) {
+        if ($kind === 'money') return mp_format_money($value);
+        if ($kind === 'litres') return mp_format_litres($value) . ' L';
+        if ($kind === 'kg') return rtrim(rtrim(number_format((float)$value, 2), '0'), '.') . ' kg';
+        return number_format((int)$value);
+    }
+}
+
+if (!function_exists('mp_location_assigned_ids')) {
+    /**
+     * Locations (db_warehouse) the signed-in user may act on inside a company.
+     * null means the whole company: the store owner and Super Admin are never
+     * scoped down. Everyone else is limited to their branch assignment, which
+     * is exactly what the multi-location Oil & Gas workspace needs — a forecourt
+     * attendant sees their own station, head office sees every one.
+     *
+     * One raw query, memoised: this runs while a DataTables query builder is
+     * half-built, and a builder-based nested query would corrupt it.
+     */
+    function mp_location_assigned_ids($store_id = null) {
+        if ($store_id === null) $store_id = get_current_store_id();
+        $store_id = (int)$store_id;
+        if (is_store_admin() || is_admin()) return null;
+        $user_id = (int)get_current_user_id();
+        if ($user_id <= 0) return [];
+        // Keyed by user too: two staff of the same shop must never inherit each
+        // other's site list.
+        static $cache = [];
+        $cache_key = $store_id . ':' . $user_id;
+        if (array_key_exists($cache_key, $cache)) return $cache[$cache_key];
+        $CI =& get_instance();
+        $rows = $CI->db->query(
+            'SELECT uw.warehouse_id FROM db_userswarehouses uw'
+            . ' INNER JOIN db_warehouse w ON w.id = uw.warehouse_id'
+            . ' WHERE uw.user_id = ' . $user_id . ' AND w.store_id = ' . $store_id . ' AND w.status = 1'
+        )->result_array();
+        $ids = array_values(array_unique(array_filter(array_map('intval', array_column($rows, 'warehouse_id')))));
+        $cache[$cache_key] = $ids;
+        return $ids;
+    }
+}
+
+if (!function_exists('mp_transfer_loss_tolerance_percent')) {
+    /**
+     * How much of a transferred quantity may go missing in transit before the
+     * receiving site has to send the load up for approval. Stored per store so
+     * head office sets the rule once.
+     */
+    function mp_transfer_loss_tolerance_percent($store_id = null) {
+        if ($store_id === null) $store_id = get_current_store_id();
+        if (!function_exists('mp_get_store_setting')) return 0.5;
+        $value = mp_get_store_setting((int)$store_id, 'oil_gas', 'transfer_loss_tolerance_percent', null);
+        if ($value === null || !is_numeric($value)) return 0.5;
+        $value = (float)$value;
+        if ($value < 0) return 0;
+        if ($value > 100) return 100;
+        return $value;
+    }
+}
+
+if (!function_exists('mp_forecourt_shift_variance_percent')) {
+    /**
+     * How far a duty's pump meters may disagree with its till, as a percentage of
+     * what was pumped, before a manager has to sign for the difference. A
+     * forecourt always measures a little differently to a cash register; the rule
+     * only decides when that difference stops being normal.
+     */
+    function mp_forecourt_shift_variance_percent($store_id = null) {
+        if ($store_id === null) $store_id = get_current_store_id();
+        if (!function_exists('mp_get_store_setting')) return 1.0;
+        $value = mp_get_store_setting((int)$store_id, 'oil_gas', 'shift_variance_tolerance_percent', null);
+        if ($value === null || !is_numeric($value)) return 1.0;
+        $value = (float)$value;
+        if ($value < 0) return 0;
+        if ($value > 100) return 100;
+        return $value;
+    }
+}
+
+if (!function_exists('mp_forecourt_tank_variance_percent')) {
+    /**
+     * How far a tank's dip may disagree with what it is expected to hold before
+     * the correction needs a manager. Temperature and a wet dip tape account for
+     * a little; a hole in a line account for a lot.
+     */
+    function mp_forecourt_tank_variance_percent($store_id = null) {
+        if ($store_id === null) $store_id = get_current_store_id();
+        if (!function_exists('mp_get_store_setting')) return 0.5;
+        $value = mp_get_store_setting((int)$store_id, 'oil_gas', 'tank_variance_tolerance_percent', null);
+        if ($value === null || !is_numeric($value)) return 0.5;
+        $value = (float)$value;
+        if ($value < 0) return 0;
+        if ($value > 100) return 100;
+        return $value;
+    }
+}
+
+if (!function_exists('mp_format_litres')) {
+    /**
+     * Litres the way a forecourt writes them: whole numbers stay whole, a dip
+     * reading keeps its decimals. Screens use this so 1500 L and 1500.25 L do
+     * not both come out as "1,500.000".
+     */
+    function mp_format_litres($value = 0) {
+        return rtrim(rtrim(number_format((float)$value, 3), '0'), '.');
+    }
+}
+
+if (!function_exists('mp_format_percent')) {
+    function mp_format_percent($value = 0) {
+        return rtrim(rtrim(number_format((float)$value, 2), '0'), '.') . '%';
+    }
+}
+
+if (!function_exists('mp_forecourt_sites')) {
+    /**
+     * Locations that run a forecourt, without loading a model. Used by menus and
+     * the workspace cards, which must not pull the fuel engine just to decide
+     * whether to show a link.
+     */
+    function mp_forecourt_sites($flag = 'pump_metering') {
+        if (!function_exists('mp_feature_enabled') || !mp_feature_enabled($flag)) return array();
+        $ids = function_exists('mp_location_assigned_ids') ? mp_location_assigned_ids((int)get_current_store_id()) : null;
+        if (is_array($ids) && empty($ids)) return array();
+        $where = 'store_id = ' . (int)get_current_store_id() . ' AND status = 1';
+        if (is_array($ids)) {
+            $clean = array_values(array_filter(array_map('intval', $ids)));
+            if (empty($clean)) return array();
+            $where .= ' AND id IN (' . implode(',', $clean) . ')';
+        }
+        $CI =& get_instance();
+        if (!isset($CI->db)) return array();
+        $rows = $CI->db->query('SELECT id, warehouse_name FROM db_warehouse WHERE ' . $where . ' ORDER BY id ASC')->result();
+        $sites = array();
+        foreach ($rows as $row) {
+            if (mp_location_feature_enabled($flag, (int)$row->id)) $sites[(int)$row->id] = $row->warehouse_name;
+        }
+        return $sites;
+    }
+}
+
+if (!function_exists('mp_lpg_movement_words')) {
+    /**
+     * A cylinder's history is read by a person at a counter, so the movement
+     * codes never show up on screen as codes.
+     */
+    function mp_lpg_movement_words($type) {
+        $words = [
+            'registered'        => 'Put on the register',
+            'refilled'          => 'Weighed a fill',
+            'issued'            => 'Sent out with a customer',
+            'returned'          => 'Brought back',
+            'given'             => 'Given on exchange',
+            'received'          => 'Taken back on exchange',
+            'lost'              => 'Written off as lost',
+            'scrapped'          => 'Taken off the road',
+            'deposit_paid'      => 'Deposit taken',
+            'deposit_refunded'  => 'Deposit paid back',
+        ];
+        return isset($words[$type]) ? $words[$type] : 'Moved';
+    }
+}
+
+if (!function_exists('mp_lpg_sites')) {
+    /**
+     * Locations that run LPG work — refilling shells or holding a cylinder
+     * register. Same shape as mp_forecourt_sites(): menus and the workspace ask
+     * this instead of loading the fuel engine just to decide whether to show a
+     * link. A company that switched the capability on but has no site marked for
+     * it is offered nothing, exactly as with pumps.
+     */
+    function mp_lpg_sites($flag = 'lpg_refills') {
+        return mp_forecourt_sites($flag);
+    }
+}
+
 if (!function_exists('mp_is_print_shop')) {
     /**
      * Is this store running a print business?
@@ -831,12 +1704,25 @@ if (!function_exists('mp_is_restaurant_workspace')) {
      *
      * Gated on `restaurant_workspace`, declared by the restaurant/food presets
      * (restaurant, fast_food, cafe, pizza_shop, shawarma, juice_bar, buka,
-     * canteen). A store whose industry label is wrong can still switch it on
-     * under Feature Flags; retail presets never declare it, so ordinary retail
-     * stays untouched.
+     * canteen) and the bar_lounge preset. A store whose industry label is
+     * wrong can still switch it on under Feature Flags; retail presets never
+     * declare it, so ordinary retail stays untouched.
      */
     function mp_is_restaurant_workspace() {
         return mp_feature_enabled('restaurant_workspace');
+    }
+}
+
+if (!function_exists('mp_is_oil_gas_workspace')) {
+    /**
+     * Is this store running the Oil & Gas workspace?
+     *
+     * Gated on `oil_gas_workspace`, declared by the five fuel presets. Ordinary
+     * retail presets never declare it, so a provision store that happens to
+     * sell a bottle of kerosene is not handed tank and pump screens.
+     */
+    function mp_is_oil_gas_workspace() {
+        return mp_feature_enabled('oil_gas_workspace');
     }
 }
 
@@ -876,6 +1762,16 @@ if (!function_exists('mp_get_restaurant_nav_presets')) {
                 'tables'      => true,
                 'outlets'     => true,
             ],
+            'bar_lounge' => [
+                'label'         => 'Bar / Lounge',
+                'description'   => 'Table service with the bar board and drinks stock; food, ordering and delivery stay optional.',
+                'tables'        => true,
+                'outlets'       => false,
+                'kitchen_label' => 'Bar & Kitchen Board',
+                // Drinks go out across the counter as well as to tables, so the
+                // walk-in screen is named for both halves of the floor.
+                'pos_label'     => 'Counter & Bar POS',
+            ],
         ];
     }
 }
@@ -887,8 +1783,10 @@ if (!function_exists('mp_restaurant_nav_preset')) {
      * (the same namespaced-blob pattern the laundry workflow config uses).
      */
     function mp_restaurant_nav_preset() {
-        $default = 'quick_service';
         $profile = mp_get_store_profile();
+        // A lounge lands on the lounge rail: a drinks business should not have to
+        // find a settings screen before its tables, tabs and board are named right.
+        $default = (($profile['industry_type'] ?? '') === 'bar_lounge') ? 'bar_lounge' : 'quick_service';
         // mp_get_store_profile() exposes industry_settings_json as 'settings'.
         $json = (!empty($profile['settings']) && is_array($profile['settings'])) ? $profile['settings'] : [];
         if (!empty($json['restaurant_workspace']['nav_preset'])) {
@@ -896,6 +1794,46 @@ if (!function_exists('mp_restaurant_nav_preset')) {
         }
         $presets = mp_get_restaurant_nav_presets();
         return isset($presets[$default]) ? $default : 'quick_service';
+    }
+}
+
+if (!function_exists('mp_kitchen_board_label')) {
+    /**
+     * What this store calls its fulfilment board.
+     *
+     * A bar/lounge works drinks as well as food on the same tickets, so its
+     * board is named for what the merchant actually does there. Every other
+     * restaurant keeps the plain Kitchen Display name. One function because the
+     * rail, the screen heading and the setup preview must never disagree.
+     */
+    function mp_kitchen_board_label() {
+        $presets = mp_get_restaurant_nav_presets();
+        $key = mp_restaurant_nav_preset();
+        return $presets[$key]['kitchen_label'] ?? 'Kitchen Display';
+    }
+}
+
+if (!function_exists('mp_workspace_word')) {
+    /**
+     * The word a service workspace uses for itself on its own signs.
+     *
+     * A bar/lounge rides the RestaurantOS rails, so the headings that were
+     * written as literal "Restaurant …" called a bar a restaurant. The word now
+     * comes from the store's own industry — a lounge says Lounge, a restaurant
+     * still says Restaurant — and a merchant's label override outranks it. One
+     * function because the rail, the dashboard heading, the overview page and
+     * the setup screen must never disagree about what the place is called.
+     */
+    function mp_workspace_word($default = 'Restaurant') {
+        // Cached per store: a label lookup walks three tables, and one screen
+        // asks this question from the rail, the page heading and the shortcut
+        // grid. They must read the same answer anyway.
+        static $cache = [];
+        $store_id = (int) get_current_store_id();
+        if (!isset($cache[$store_id])) {
+            $cache[$store_id] = mp_label('workspace', $default);
+        }
+        return $cache[$store_id];
     }
 }
 
@@ -942,15 +1880,27 @@ if (!function_exists('mp_restaurant_nav_items')) {
             ];
         };
 
-        $add('pos',       'Walk-in POS',           'pos',                            ['pos']);
+        // A lounge serves drinks across the counter as well as to tables, so its
+        // walk-in screen is named for both halves of the floor.
+        $add('pos',       !empty($preset['pos_label']) ? $preset['pos_label'] : 'Walk-in POS', 'pos', ['pos']);
         $add('orders',    'Orders',                'restaurantos/orders',            ['sales_view', 'online_store_orders', 'admin']);
-        $add('kitchen',   'Kitchen Display',       'operations/kitchen',             ['store_view'], 'kitchen_workflow');
+        // The bar/lounge board carries drinks as well as food, so it is named for
+        // what the merchant actually works on there.
+        $add('kitchen',   mp_kitchen_board_label(), 'operations/kitchen', ['store_view'], 'kitchen_workflow');
         $add('fulfilment','Pickup & Delivery',     'operations/delivery_scheduling', ['store_view'], 'delivery_scheduling');
         if (!empty($preset['tables'])) {
             $add('tables', 'Tables & Reservations', 'operations/table_management',   ['store_view', 'admin'], 'table_management');
         }
+        // Tabs work with or without tables — a bar tab has no table on it.
+        $add('tabs',      'Running Tabs',          'operations/tabs',                ['store_view', 'admin'], 'running_tabs');
+        // A lounge settles wages off the floor, so who served each round and what
+        // the guests left that person is a report, not a notebook by the till.
+        $add('waiters',   'Waiter Takings',        'operations/waiter_takings',      ['store_view', 'admin'], 'waiter_assignment');
         $add('menu',      'Menu & Combos',         'operations/menu_items',          ['items_add'], 'kitchen_workflow');
         $add('recipes',   'Recipes & Ingredients', 'operations/recipes',             ['recipes_view'], 'recipe_tracking');
+        // Event nights are how a lounge fills the room, so the workspace rail
+        // carries them; the shared Operations menu keeps its entry too.
+        $add('events',    'Events & Tickets',      'events',                         ['store_view'], 'event_ticketing');
 
         // Outlets: chains always, plus any store that actually runs more than
         // one outlet — hiding outlet tools from a two-outlet shop because it
@@ -1173,13 +2123,13 @@ if (!function_exists('mp_get_dashboard_widgets')) {
             'deposit_balance'=>['title'=>'Deposit Balance','icon'=>'fa-money','industries'=>['bakery_cake_studio','furniture','makeup_artist','makeup_studio','perfume_shop','skincare'],'features'=>['custom_orders']],
             'pending_appointments'=>['title'=>'Pending Appointments','icon'=>'fa-calendar-check-o','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','service_business','skincare'],'features'=>['appointments']],
             'today_bookings'=>['title'=>"Today's Bookings & Tables",'icon'=>'fa-calendar','industries'=>['restaurant','beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','skincare'],'features'=>['appointments','table_management']],
-            'kitchen_status'=>['title'=>'Kitchen Status','icon'=>'fa-fire','industries'=>['restaurant'],'features'=>['kitchen_workflow']],
-            'open_tables'=>['title'=>'Open Tables','icon'=>'fa-table','industries'=>['restaurant'],'features'=>['table_management']],
+            'kitchen_status'=>['title'=>'Kitchen Status','icon'=>'fa-fire','industries'=>['restaurant','bar_lounge'],'features'=>['kitchen_workflow']],
+            'open_tables'=>['title'=>'Open Tables','icon'=>'fa-table','industries'=>['restaurant','bar_lounge'],'features'=>['table_management']],
             'staff_schedule'=>['title'=>'Staff Schedule','icon'=>'fa-users','industries'=>'*','features'=>['staff_assignment']],
             'commission_due'=>['title'=>'Commission Due','icon'=>'fa-percent','industries'=>'*','features'=>['staff_commission']],
             'pending_approvals'=>['title'=>'Pending Approvals','icon'=>'fa-check-square-o','industries'=>'*','features'=>['manager_approvals']],
             'treatment_history'=>['title'=>'Treatment History','icon'=>'fa-heartbeat','industries'=>['beauty_cosmetics','beauty_spa','salon_barbershop','makeup_artist','makeup_studio','skincare'],'features'=>['treatment_notes']],
-            'recipe_costing'=>['title'=>'Recipe Costing','icon'=>'fa-cutlery','industries'=>['restaurant','bakery_cake_studio','perfume_shop','skincare'],'features'=>['recipe_tracking']],
+            'recipe_costing'=>['title'=>'Recipe Costing','icon'=>'fa-cutlery','industries'=>['restaurant','bakery_cake_studio','perfume_shop','skincare','bar_lounge'],'features'=>['recipe_tracking']],
             'online_orders'=>['title'=>'Online Orders','icon'=>'fa-globe','industries'=>'*','features'=>['online_store']],
             'qr_orders'=>['title'=>'QR Orders','icon'=>'fa-qrcode','industries'=>'*','features'=>['qr_ordering']],
             'nylon_open_jobs'=>['title'=>'Open Production Jobs','icon'=>'fa-industry','industries'=>['nylon_polythene'],'features'=>['nylon_workflow']],
@@ -1375,6 +2325,12 @@ if (!function_exists('mp_role_family')) {
                 return 'clinical';
             }
         }
+        $pharmacy = ['pharmacist','dispensing assistant','pharmacy buyer'];
+        foreach ($pharmacy as $p) {
+            if (strpos($n, $p) !== false) {
+                return 'pharmacy';
+            }
+        }
         if (strpos($n, 'production supervisor') !== false || strpos($n, 'production operator') !== false) {
             return 'production';
         }
@@ -1401,6 +2357,14 @@ if (!function_exists('mp_store_role_families')) {
             || in_array('patient_registry', $feat, true)
             || in_array('clinical_encounters', $feat, true)) {
             $families[] = 'clinical';
+        }
+
+        // A pharmacy may dispense: the till, the prescription queue and recalls
+        // all need a named clinician role.
+        if ((function_exists('mp_pharmacy_industry') && mp_pharmacy_industry($ind))
+            || in_array('prescription_required', $feat, true)
+            || in_array('medical_notes', $feat, true)) {
+            $families[] = 'pharmacy';
         }
 
         if (in_array($ind, ['manufacturer','nylon_polythene','oil_processing_plant','bakery_cake_studio','printing'], true)
@@ -1462,6 +2426,9 @@ if (!function_exists('mp_industry_screen_labels')) {
             'operations/production_schedule' => 'Production Schedule',
             'operations/kitchen'             => 'Kitchen Display',
             'oil_processing'                 => 'Plant Workspace',
+            'oil_gas'                        => 'Oil & Gas Workspace',
+            'oil_gas/locations'              => 'Location Operations',
+            'stock_transfer/view'            => 'Stock Transfers',
             'nylon'                          => 'Production',
             'printing/production'            => 'Production Floor',
         );
@@ -1501,6 +2468,21 @@ if (!function_exists('mp_industry_synonym_map')) {
             'oil_processing_plant' => array(
                 'material' => 'recipe', 'materials' => 'recipe', 'formula' => 'recipe',
                 'process' => 'production', 'run' => 'production', 'runs' => 'production', 'batch' => 'production',
+            ),
+            'fuel_station' => array(
+                'fuel' => 'item', 'petrol' => 'item', 'diesel' => 'item', 'pms' => 'item', 'ago' => 'item',
+                'kerosene' => 'item', 'gas' => 'item', 'litre' => 'item',
+                'station' => 'warehouse', 'forecourt' => 'warehouse', 'filling station' => 'warehouse',
+                'attendant' => 'staff', 'till' => 'pos',
+            ),
+            'lpg_gas_business' => array(
+                'gas' => 'item', 'lpg' => 'item', 'cooking gas' => 'item', 'cylinder' => 'item',
+                'refill' => 'service', 'refills' => 'service', 'filling' => 'service',
+                'exchange' => 'service', 'swap' => 'service',
+            ),
+            'bulk_fuel_depot' => array(
+                'fuel' => 'item', 'petrol' => 'item', 'diesel' => 'item', 'pms' => 'item', 'ago' => 'item',
+                'depot' => 'warehouse', 'tank farm' => 'warehouse', 'load' => 'purchase',
             ),
         );
         if ($industry === null) {

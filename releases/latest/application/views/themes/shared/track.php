@@ -4,11 +4,13 @@
  * Premium order tracking with timeline, order details and customer info.
  */
 $slug = $settings->store_slug ?? '';
-$visibleStatuses = $visible_statuses ?? ['pending','paid','processing','ready','completed'];
-$statusOrder = $visibleStatuses;
-$currentStep = array_search(($order->order_status ?? 'pending'), $statusOrder);
-if($currentStep === false) $currentStep = 0;
 $cur = $store_currency ?? null;
+// The order's own journey: the shop's stages plus the leg to the customer's door.
+// Null when the page is showing a bare lookup form.
+$timeline = (isset($timeline) && is_array($timeline) && !empty($timeline['steps'])) ? $timeline : null;
+$fulfilment = (isset($fulfilment) && is_array($fulfilment)) ? $fulfilment : null;
+$prefill = trim((string)($prefill_code ?? ''));
+if($prefill === '') $prefill = (string)($this->input->post('order_code') ?? '');
 ?>
 <style>
   .mp-track-page { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
@@ -47,6 +49,11 @@ $cur = $store_currency ?? null;
   .mp-track-status { font-size:15px; font-weight:700; color:var(--mp-dark); margin-bottom:2px; }
   .mp-track-step:not(.active) .mp-track-status { color:var(--mp-gray); }
   .mp-track-desc { font-size:13px; color:var(--mp-gray); }
+  .mp-track-when { font-size:11px; color:var(--mp-gray); margin-top:3px; }
+
+  /* Where it is going */
+  .mp-track-fulfilment { background:var(--mp-light-gray); border-radius:var(--mp-radius-sm); padding:12px 14px; margin-bottom:22px; font-size:13px; color:var(--mp-dark); line-height:1.5; }
+  .mp-track-fulfilment-label { font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--mp-gray); font-weight:600; margin-bottom:3px; }
 
   .mp-track-cancelled { background:#FEE2E2; color:#991B1B; padding:16px; border-radius:var(--mp-radius-sm); text-align:center; font-weight:700; font-size:16px; margin-bottom:16px; }
 
@@ -76,7 +83,7 @@ $cur = $store_currency ?? null;
       <div class="mp-track-fields">
         <div class="mp-track-field">
           <label for="track-order-code">Order Number</label>
-          <input type="text" name="order_code" id="track-order-code" value="<?= htmlspecialchars($this->input->post('order_code') ?? ''); ?>" placeholder="e.g. WEB-20260101-0001" required>
+          <input type="text" name="order_code" id="track-order-code" value="<?= htmlspecialchars($prefill); ?>" placeholder="e.g. WEB-20260101-0001" required>
         </div>
         <div class="mp-track-field">
           <label for="track-phone">Phone Number</label>
@@ -109,17 +116,34 @@ $cur = $store_currency ?? null;
         <?php if($order->order_status === 'cancelled'): ?>
           <div class="mp-track-cancelled">This order has been cancelled</div>
         <?php else: ?>
-          <div class="mp-track-timeline">
-            <?php foreach($statusOrder as $i => $status):
-              $info = $status_map[$status] ?? ['label' => ucfirst($status), 'desc' => ''];
-              $active = $i <= $currentStep;
-              $current = $i === $currentStep;
-            ?>
-            <div class="mp-track-step <?= $active ? 'active' : ''; ?> <?= $current ? 'current' : ''; ?>">
-              <div class="mp-track-dot"></div>
-              <div class="mp-track-status"><?= htmlspecialchars($info['label']); ?></div>
-              <div class="mp-track-desc"><?= htmlspecialchars($info['desc']); ?></div>
+          <?php if($fulfilment): ?>
+            <div class="mp-track-fulfilment">
+              <?php if($fulfilment['collection']): ?>
+                <div class="mp-track-fulfilment-label">Collection</div>
+                <div>Pick this order up at the shop.</div>
+              <?php else: ?>
+                <div class="mp-track-fulfilment-label">Delivery</div>
+                <?php if($fulfilment['address'] !== ''): ?>
+                  <div><?= htmlspecialchars($fulfilment['address']); ?></div>
+                <?php endif; ?>
+                <div>Delivery charge: <?php
+                  echo !empty($fulfilment['quote_pending'])
+                    ? 'to be confirmed'
+                    : ($fulfilment['fee'] > 0 ? sf_currency($fulfilment['fee'], $cur) : 'Free');
+                ?></div>
+              <?php endif; ?>
             </div>
+          <?php endif; ?>
+          <div class="mp-track-timeline">
+            <?php foreach(($timeline['steps'] ?? []) as $i => $step): ?>
+              <div class="mp-track-step <?= !empty($step['done']) ? 'active' : ''; ?> <?= $i === (int)$timeline['current'] ? 'current' : ''; ?>">
+                <div class="mp-track-dot"></div>
+                <div class="mp-track-status"><?= htmlspecialchars($step['label']); ?></div>
+                <div class="mp-track-desc"><?= htmlspecialchars($step['desc']); ?></div>
+                <?php if(!empty($step['done']) && $step['when'] !== ''): ?>
+                  <div class="mp-track-when"><?= date('M j, Y, g:i A', strtotime($step['when'])); ?></div>
+                <?php endif; ?>
+              </div>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>

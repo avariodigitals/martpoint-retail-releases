@@ -22,6 +22,7 @@
             <li><a href="#tab_5" data-toggle="tab">Brevo SMS API</a></li>
             <li><a href="#tab_6" data-toggle="tab">Sendchamp SMS API</a></li>
             <li><a href="#tab_7" data-toggle="tab">BulkSMSNigeria API</a></li>
+            <li><a href="#tab_8" data-toggle="tab">Nigeria Bulk SMS API</a></li>
             <li><a href="#tab_3" data-toggle="tab">Action</a></li>
          
          </ul>
@@ -279,6 +280,24 @@
                </div>
             </div>
 
+            <div class="tab-pane" id="tab_8">
+              <?php
+                $nigeriabulksms_username=$nigeriabulksms_password=$nigeriabulksms_sender_id='';
+                if($this->db->table_exists('db_nigeriabulksms')){
+                  $nb=$this->db->where('store_id',get_current_store_id())->get('db_nigeriabulksms')->row();
+                  if($nb){$nigeriabulksms_username=$nb->username;$nigeriabulksms_password=$nb->password;$nigeriabulksms_sender_id=$nb->sender_id;}
+                }
+              ?>
+              <div class="callout callout-info">
+                <h4>Nigeria Bulk SMS HTTP API</h4>
+                Website: <a href="https://nigeriabulksms.com/sms-gateway-api-in-nigeria/" target="_blank" rel="noopener">nigeriabulksms.com</a>
+                <p>Uses your portal username and password with the approved sender ID. The provider API uses a GET request; credentials are sent server-to-server.</p>
+              </div>
+              <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_username">Portal username</label><div class="col-sm-5"><input class="form-control" id="nigeriabulksms_username" name="nigeriabulksms_username" value="<?= htmlspecialchars($nigeriabulksms_username,ENT_QUOTES,'UTF-8'); ?>" autocomplete="username"></div></div>
+              <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_password">Portal password</label><div class="col-sm-5"><input type="password" class="form-control" id="nigeriabulksms_password" name="nigeriabulksms_password" value="" autocomplete="new-password" placeholder="<?= $nigeriabulksms_password !== '' ? 'Saved — leave blank to keep it' : 'Enter portal password'; ?>"></div></div>
+              <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_sender_id">Sender ID</label><div class="col-sm-5"><input class="form-control" id="nigeriabulksms_sender_id" name="nigeriabulksms_sender_id" maxlength="20" value="<?= htmlspecialchars($nigeriabulksms_sender_id,ENT_QUOTES,'UTF-8'); ?>"></div></div>
+            </div>
+
             <!-- /.tab-pane -->
             <div class="tab-pane" id="tab_5">
              <?php
@@ -506,6 +525,7 @@
                                        <option value="5">Sendchamp SMS API</option>
                                        <option value="6">BulkSMSNigeria API</option>
                                        <?php if(!mp_is_central()): ?><option value="7">MartPoint messaging credits</option><?php endif; ?>
+                                       <option value="8">Nigeria Bulk SMS API</option>
                                     </select>
                                     </div>
                                  </div>

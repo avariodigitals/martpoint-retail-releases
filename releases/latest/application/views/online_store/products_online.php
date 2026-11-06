@@ -182,7 +182,7 @@
         <thead>
           <tr>
             <th style="width:30px;"><input type="checkbox" id="selectAll" class="os-row-check" title="Select all"></th>
-            <th>Image</th><th>Product</th><th>Category</th><th>Stock</th><th>Sales Price</th><th>Online Price</th><th>Online</th><th>New Arrival</th><th>Featured</th>
+            <th>Image</th><th>Product</th><th>Category</th><th>Stock</th><th>Sales Price</th><th title="A configured Online Price overrides Retail; blank uses the item Retail price, and signed-in members may receive their assigned customer price.">Online Price</th><th>Online</th><th>New Arrival</th><th>Featured</th>
           </tr>
         </thead>
         <tbody>
@@ -199,7 +199,7 @@
             <td><?= (int)$p->stock; ?></td>
             <td class="amt"><?= store_number_format($p->sales_price); ?></td>
             <td>
-              <input type="number" class="os-price-input" value="<?= $p->online_price > 0 ? $p->online_price : ''; ?>" placeholder="Same" onchange="updateOnlinePrice(<?= (int)$p->id; ?>, this.value)">
+              <input type="number" class="os-price-input" value="<?= $p->online_price > 0 ? $p->online_price : ''; ?>" placeholder="Retail price" title="Blank uses Retail price" onchange="updateOnlinePrice(<?= (int)$p->id; ?>, this.value)">
             </td>
             <td>
               <button type="button" class="os-toggle <?= $p->publish_online ? 'on' : ''; ?>" data-id="<?= (int)$p->id; ?>" onclick="toggleOnline(this)" title="Toggle online publication"></button>

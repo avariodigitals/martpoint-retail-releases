@@ -89,6 +89,13 @@ $company_address=$res1->address;
 $company_gst_no=$res1->gst_no;
 $company_vat_no=$res1->vat_no;
 $company_pan_no=$res1->pan_no;
+$invoice_bank_account = null;
+if ($CI->db->field_exists('invoice_account_id', 'db_sales') && $CI->db->field_exists('bank_account_number', 'ac_accounts')) {
+  $selected = $CI->db->select('invoice_account_id')->where('id', (int)$sales_id)->where('store_id', (int)$res3->store_id)->get('db_sales')->row();
+  if ($selected && (int)$selected->invoice_account_id > 0) {
+    $invoice_bank_account = $CI->db->where('id', (int)$selected->invoice_account_id)->where('store_id', (int)$res3->store_id)->get('ac_accounts')->row();
+  }
+}
 
 $shipping_country='';
 $shipping_state='';
@@ -213,6 +220,16 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
           </ul>
         </div>
       </div>
+
+      <?php if($invoice_bank_account && !empty($invoice_bank_account->bank_account_number)): ?>
+      <div class="invoice-block" style="margin:0 0 20px;">
+        <h4>Payment account</h4>
+        <p><strong><?= htmlspecialchars($invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?></strong><br>
+        <?php if(!empty($invoice_bank_account->bank_name)): ?><?= htmlspecialchars($invoice_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?><br><?php endif; ?>
+        <?= htmlspecialchars($invoice_bank_account->bank_account_name ?: $invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
+        <?= htmlspecialchars($invoice_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?></p>
+      </div>
+      <?php endif; ?>
 
       <div class="invoice-grid">
         <div class="invoice-block">
@@ -381,7 +398,7 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
               <td><?= $i++; ?></td>
               <td><?= show_date($pay_row->payment_date); ?></td>
               <td>
-                <?= htmlspecialchars($pay_row->payment_type); ?>
+                <?= htmlspecialchars(payment_mode_label($pay_row->payment_type), ENT_QUOTES, 'UTF-8'); ?>
                 <?php if(!empty($pay_row->cheque_number)){ ?><br><small>Cheque no.: <?= htmlspecialchars($pay_row->cheque_number); ?> &middot; Period: <?= htmlspecialchars($pay_row->cheque_period); ?></small><?php } ?>
               </td>
               <td><?= get_account_name($pay_row->account_id); ?></td>

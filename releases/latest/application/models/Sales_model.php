@@ -300,15 +300,47 @@ class Sales_model extends CI_Model {
 		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
 		$sales_note = mp_post_text('sales_note');
 		$rowcount = $this->input->post_get('rowcount', TRUE);
-		$sales_id = $this->input->post('sales_id', TRUE);
+		$sales_id = $this->input->post_get('sales_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$store_id = $this->input->post('store_id', TRUE);
+		$invoice_account_id = $standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')
+			? (int)$this->input->post('invoice_account_id', TRUE) : 0;
+		if ($standard_invoice && $invoice_account_id > 0) {
+			$accountStoreId = get_current_store_id();
+			$invoiceAccount = $this->db->select('id')->where('id', $invoice_account_id)
+				->where('store_id', $accountStoreId)->where('status', 1)
+				->where('bank_account_number !=', '')->limit(1)->get('ac_accounts')->row();
+			if (!$invoiceAccount) return 'Choose an active bank account from this store’s Account List.';
+		}
+        $pricingHistory = $command === 'update' ? mp_customer_pricing()->history('db_salesitems','db_sales',$sales_id,get_current_store_id(),$customer_id) : [];
 		$count_id = $this->input->post('count_id', TRUE);
 		$init_code = $this->input->post('init_code', TRUE);
 		$coupon_code = $this->input->post('coupon_code', TRUE);
+        if($coupon_code && mp_customer_has_group($customer_id)) return 'Remove the coupon: automatic coupons do not stack with group prices.';
 		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
 		$invoice_terms = mp_post_text('invoice_terms');
 		$restaurant_order_key = substr(trim((string)$this->input->post('restaurant_order_key', TRUE)), 0, 96);
+		$pos_idempotency_key = substr(trim((string)$this->input->post('pos_idempotency_key', TRUE)), 0, 96);
+		// Fitment link (Tyre Shop) — the vehicle this bill was made for. The
+		// counter only offers the billed customer's vehicles; re-verify here so
+		// no caller can write a vehicle from another store or customer.
+		// Guarded for un-migrated installs.
+		$vehicle_col = $this->db->field_exists('vehicle_id', 'db_sales');
+		$vehicle_id  = $vehicle_col ? (int)$this->input->post('vehicle_id', TRUE) : 0;
+		if ($vehicle_id > 0) {
+			if (!$this->db->table_exists('db_vehicles')) {
+				$vehicle_id = 0;
+			} else {
+				$vehicle_check_store = (store_module() && is_admin()) ? $store_id : get_current_store_id();
+				$vehicle_belongs = $this->db->select('id')
+					->where('id', $vehicle_id)
+					->where('store_id', $vehicle_check_store)
+					->where('customer_id', (int)$customer_id)
+					->where('is_deleted', 0)
+					->limit(1)->get('db_vehicles')->row();
+				if (!$vehicle_belongs) { $vehicle_id = 0; }
+			}
+		}
 		// A quotation link is optional. Normalise it to NULL here, ONCE, so every
 		// later use is safe.
 		//
@@ -444,7 +476,7 @@ class Sales_model extends CI_Model {
 		    		$coupon_code = '';
 		    	} else {
 		    	try {
-		    		if($this->db->table_exists('db_promotions')){
+				if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
 		    			$promo = $this->db->where('store_id', $store_id)
 		    				->where('status', 1)
 		    				->where('promotion_code', strtoupper($coupon_code))
@@ -461,7 +493,7 @@ class Sales_model extends CI_Model {
 		    				if(!$claim['ok']){
 		    					$this->db->trans_rollback();
 		    					return "Promotion code rejected: " . $claim['message'];
-		    				}
+				}
 		    				}
 		    				// Recalculate coupon_discount_amt from the promotion if not provided
 		    				if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
@@ -554,6 +586,11 @@ class Sales_model extends CI_Model {
 				$sales_entry['restaurant_order_key'] = $restaurant_order_key;
 				$sales_entry['source_channel'] = 'walk_in';
 			}
+			// Offline replays land once: the unique (store_id, pos_idempotency_key)
+			// index protects the insert itself, not just the pre-save lookup.
+			if($pos_idempotency_key !== '' && $this->db->field_exists('pos_idempotency_key', 'db_sales')){
+				$sales_entry['pos_idempotency_key'] = $pos_idempotency_key;
+			}
 		    if($quotation_id !== null){
 				$sales_entry['quotation_id'] = $quotation_id;
 			}
@@ -564,6 +601,12 @@ class Sales_model extends CI_Model {
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $vehicle_id ?: null;
+			}
+			if($standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')){
+				$sales_entry['invoice_account_id'] = $invoice_account_id ?: null;
 			}
 		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
@@ -633,6 +676,9 @@ class Sales_model extends CI_Model {
 			if($has_shipaddr_col){
 				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
 			}
+			if($standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')){
+				$sales_entry['invoice_account_id'] = $invoice_account_id ?: null;
+			}
 			// Only touch the shipping columns when the caller actually posted them.
 			// The back-office Sales form has no shipping field, so editing a sale
 			// there must not silently drop the delivery fee (and shrink grand_total).
@@ -641,6 +687,11 @@ class Sales_model extends CI_Model {
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 			}
+			// Editing from the back-office form posts no vehicle field at all, so
+			// an existing fitment link survives the edit untouched.
+			if($vehicle_col && $this->input->post('vehicle_id') !== NULL){
+				$sales_entry['vehicle_id'] = $vehicle_id ?: null;
+			}
 			$sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
@@ -648,7 +699,23 @@ class Sales_model extends CI_Model {
 			##############################################START
 			//FIND THE PREVIOUSE ITEM LIST ID'S
 			$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
+			// The rows are replaced below. Keep their quantities so an edit may
+			// retain stock already consumed by this same invoice, while still
+			// rejecting any increase beyond the quantity originally sold.
+			$previousInvoiceQtyByItem = array();
+			$qtyExpression = $this->db->field_exists('conversion_factor','db_salesitems')
+				? 'SUM(sales_qty * COALESCE(NULLIF(conversion_factor,0),1)) AS qty'
+				: 'SUM(sales_qty) AS qty';
+			$previousInvoiceQtyRows = $this->db->select('item_id, '.$qtyExpression, false)
+				->from('db_salesitems')->where('sales_id',(int)$sales_id)->group_by('item_id')->get()->result();
+			foreach($previousInvoiceQtyRows as $previousInvoiceQtyRow){
+				$previousInvoiceQtyByItem[(int)$previousInvoiceQtyRow->item_id] = (float)$previousInvoiceQtyRow->qty;
+			}
 			##############################################END
+
+			// A corrected bill must say which medicines came off it, so the
+			// prescription lines are read while they still exist.
+			$audit_rx_before = $this->_auditRxLines($sales_id);
 
 			// Release serialised/tracked units bound to the previous version of this
 			// sale before the item rows are replaced (otherwise they stay sold).
@@ -683,6 +750,35 @@ class Sales_model extends CI_Model {
 		$table_id = (int) $this->input->post('table_id', TRUE);
 		if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
 			$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+		}
+
+		// Running tab: a round taken while a tab is open is linked to it. Only the
+		// save that issues the invoice may link it, and only once — editing or
+		// reprinting an existing invoice must never move its money onto another
+		// tab, and a tab that has closed refuses new rounds.
+		$tab_id = (int) $this->input->post('tab_id', TRUE);
+		if($command=='save' && $tab_id > 0 && $this->db->field_exists('tab_id','db_sales')){
+			$this->load->model('tabs_model', 'mp_tabs');
+			$tab_store = (store_module() && is_admin()) ? (int)$store_id : (int)get_current_store_id();
+			$tab_link = $this->mp_tabs->attach_round($tab_id, $sales_id, $tab_store);
+			if($tab_link !== true){
+				$this->db->trans_rollback();
+				return $tab_link;
+			}
+		}
+
+		// Every order belongs to a person, not just to a till. A round that joins
+		// a tab takes that tab's waiter (above); a bill rung up at the counter is
+		// served by whoever punched it. A floor can name somebody else on the bill
+		// when a waiter serves a table the cashier rang up.
+		$seller_id = (int) $this->session->userdata('inv_userid');
+		if($command=='save' && $seller_id > 0 && $tab_id <= 0
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('waiter_assignment')
+			&& $this->db->field_exists('waiter_user_id','db_sales')
+			&& (int) $this->db->where('id', $seller_id)->where('status', 1)
+				->where('store_id', (int) $store_id)->count_all_results('db_users') > 0){
+			$this->db->where('id', $sales_id)->where('waiter_user_id', null)
+				->update('db_sales', ['waiter_user_id' => $seller_id]);
 		}
 
 		
@@ -732,6 +828,11 @@ class Sales_model extends CI_Model {
 				$discount_amt	    =parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');//Amount
 
 				if(!is_numeric($sales_qty) || !is_finite((float)$sales_qty) || (float)$sales_qty<=0){$this->db->trans_rollback();return 'Invoice quantities must be greater than zero.';}
+                try {
+                    $pricingSnapshot = mp_customer_pricing()->line_snapshot($store_id, $customer_id, $item_id,
+                        $price_type, $unit_id, $barcode_id, $price_per_unit, $_REQUEST['pricing_snapshot_'.$i] ?? null, $pricingHistory);
+                    if ($pricingSnapshot) $price_type = json_decode($pricingSnapshot, true)['effective_tier'];
+                } catch (RuntimeException $e) { $this->db->trans_rollback(); return $e->getMessage(); }
 				$discount_amt_per_unit = $discount_amt/$sales_qty;
 				if($tax_type=='Exclusive'){
 					$single_unit_total_cost = $price_per_unit + ($unit_tax * $price_per_unit / 100);
@@ -810,6 +911,12 @@ class Sales_model extends CI_Model {
 				}
 				$base_unit_qty = $sales_qty * $conversion_factor;
 				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+				$previous_invoice_qty = 0;
+				if($command==='update' && $invoiceFlow['previous']
+					&& (int)$invoiceFlow['previous']->warehouse_id===(int)$warehouse_id){
+					$previous_invoice_qty = (float)($previousInvoiceQtyByItem[(int)$item_id] ?? 0);
+				}
+				$available_for_invoice = $current_stock_of_item + $previous_invoice_qty;
 				$this->load->model('Extras_model', 'extras_model');
 				$qtyError = $this->extras_model->qtyRuleError($item_details, $sales_qty);
 				if($qtyError){
@@ -822,13 +929,13 @@ class Sales_model extends CI_Model {
 						$this->db->trans_rollback();
 						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
 					}
-				} else if(!$isInvoiceDraft && $current_stock_of_item<$base_unit_qty && $service_bit==0){
+				} else if(!$isInvoiceDraft && $available_for_invoice<$base_unit_qty && $service_bit==0){
 					// This runs inside the invoice transaction. Roll back the header,
 					// any earlier line rows and any related writes before returning;
 					// otherwise a rejected zero/short-stock invoice can leave the
 					// transaction open until request teardown (and hold DB locks).
 					$this->db->trans_rollback();
-					return $item_name . " has only " . $current_stock_of_item . " in Stock!!";
+					return $item_name . " has only " . $available_for_invoice . " in Stock!!";
 				}
 				
 				$salesitems_entry = array(
@@ -860,6 +967,7 @@ class Sales_model extends CI_Model {
 				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
 				$this->load->model('Physio_accounts_model','pa');
 				$salesitems_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salesitems_entry['store_id']);
+                if ($this->db->field_exists('pricing_snapshot','db_salesitems')) $salesitems_entry['pricing_snapshot'] = $pricingSnapshot;
 				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
 				if(!$q2){
 					$err = $this->db->error();
@@ -930,6 +1038,15 @@ class Sales_model extends CI_Model {
 				} else if(!$this->extras_model->deplete_bundle_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
 					$this->db->trans_rollback();
 					return 'Failed to deplete bundle components.';
+				}
+
+				// Recipe-driven items (component plates, sale-deplete) must deduct
+				// their ingredients on every issuing sale path, not just legacy POS.
+				// The restaurant bridge recognises these SALE-<id> documents and
+				// skips them, so consumption stays exactly-once.
+				if($command=='save' && !$this->pos_model->deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
+					return 'Failed to deplete recipe ingredients.';
 				}
 				
 			}
@@ -1013,7 +1130,12 @@ class Sales_model extends CI_Model {
     				'cheque_period' 	=> $cheque_period,
     				'cheque_status' 	=> "Pending",
 				);
-			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift($salespayments_entry['store_id'], get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
 			$this->load->model('Physio_accounts_model','pa');
 			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
 			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
@@ -1022,8 +1144,6 @@ class Sales_model extends CI_Model {
 			$this->db->trans_rollback();
 			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
 		}
-
-
 			//Set the payment to specified account
 			if(!empty($account_id)){
 				//ACCOUNT INSERT
@@ -1141,6 +1261,15 @@ class Sales_model extends CI_Model {
         $gardenLinkError=$command==='save' ? mp_garden_link_created_document('invoice',$sales_id) : null;
         if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
 		if(!$this->db->trans_status())return 'Invoice could not be saved. No changes were committed.';
+		// Which medicines the bill released, and from which batch. Recorded
+		// after the save is known good and before it lands, so a failed bill
+		// leaves no entry behind — and a failed entry never fails the bill.
+		// Drafts are not dispensing, and a shop without prescription products
+		// writes nothing here.
+		if(!$isInvoiceDraft){
+			$this->_auditDispensed($store_id, $sales_id, $command === 'update',
+				isset($audit_rx_before) ? $audit_rx_before : array());
+		}
 		$this->db->trans_commit(); $invoiceTransactionOpen=false;
 
 		// Append sales_note to customer profile notes for tracking (works for all business types)
@@ -1196,6 +1325,30 @@ class Sales_model extends CI_Model {
 		} finally {if($invoiceTransactionOpen)$this->db->trans_rollback();}
 	}
 	//verify_save_and_update() function end
+
+	/**
+	 * The prescription lines on a bill, read before the bill is rewritten.
+	 * The witness never gets a say in the save: if it cannot be built, the
+	 * caller carries an empty map and the invoice still lands.
+	 */
+	private function _auditRxLines($sales_id){
+		try {
+			$capture = mp_audit_capture();
+			return $capture ? $capture->dispensedLines($sales_id) : array();
+		} catch (Throwable $e) {
+			log_message('error', 'Prescription line audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditDispensed($store_id, $sales_id, $isUpdate, array $before){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->dispensed((int)$store_id, (int)$sales_id, (bool)$isUpdate, $before, 'till');
+		} catch (Throwable $e) {
+			log_message('error', 'Dispensing audit capture failed: ' . $e->getMessage());
+		}
+	}
 
 	function update_sales_payment_status_by_sales_id($sales_id,$customer_id){
 		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id' AND status=1");
@@ -1552,14 +1705,14 @@ class Sales_model extends CI_Model {
 				$bc_data->tax_id = (int)($bc_data->tax_id ?? 0);
 				$bc_data->tax_name = $bc_data->tax_name ?? 'No Tax';
 				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
-				$sales_price = get_price_level_price($customer_id,$sales_price);
+				$sales_price = get_price_level_price($customer_id,$sales_price,$bc_data->sales_price);
 				$sales_price = number_format($sales_price,decimals(),'.','');
 
 				// Apply active promotion (with margin protection) if module is available
 				$bc_promo_name = '';
 				$bc_promo_discount = 0;
 				try {
-					if($this->db->table_exists('db_promotions')){
+					if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
 						$this->load->model('promotions_model');
 						$bc_promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
 						if($bc_promo['has_promo']){
@@ -1586,7 +1739,7 @@ class Sales_model extends CI_Model {
 					'item_tax_amt' => $item_tax_amt,
 					'item_discount' => 0,
 					'item_discount_type' => $bc_data->discount_type,
-					'item_discount_input' => $bc_data->discount,
+					'item_discount_input' => mp_customer_has_group($customer_id) ? 0 : $bc_data->discount,
 					'service_bit' => $bc_data->service_bit,
 					'batch_lot' => $bc_data->batch_lot,
 					'barcode' => $barcode,
@@ -1621,14 +1774,14 @@ class Sales_model extends CI_Model {
 		//Get Customer Price
 		$price_type = $this->input->post('price_type', TRUE) ?? 'wholesale';
 		$base_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
-		$sales_price = get_price_level_price($customer_id,$base_price);
+		$sales_price = get_price_level_price($customer_id,$base_price,$res1->sales_price);
 		$sales_price = number_format($sales_price,decimals(),'.','');
 
 		// Apply active promotion (with margin protection) if module is available
 		$promo_name = '';
 		$promo_discount = 0;
 		try {
-			if($this->db->table_exists('db_promotions')){
+			if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
 				$this->load->model('promotions_model');
 				$promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
 				if($promo['has_promo']){
@@ -1658,7 +1811,7 @@ class Sales_model extends CI_Model {
 							'item_tax_amt' 				=> $item_tax_amt,
 							'item_discount' 			=> 0,
 							'item_discount_type' 		=> $res1->discount_type,
-							'item_discount_input' 		=> $res1->discount,
+							'item_discount_input' 		=> mp_customer_has_group($customer_id) ? 0 : $res1->discount,
 							'service_bit' 				=> $res1->service_bit,
 							'price_type' 				=> $price_type,
 							'promo_name' 				=> $promo_name,
@@ -1681,7 +1834,11 @@ class Sales_model extends CI_Model {
 							'item_name' 				=> $res2->item_name,
 							'item_available_qty' 		=> $res2->stock,
 							'item_price' 				=> $res2->price, 
-							'item_sales_price' 			=> $res1->price_per_unit, 
+							'item_sales_price' 			=> $res1->price_per_unit,
+							'pricing_snapshot' => $res1->pricing_snapshot ?? null,
+							'unit_id' => $res1->unit_id ?? 0,
+							'unit_name' => $res1->unit_name ?? '',
+							'conversion_factor' => $res1->conversion_factor ?? 1,
 							'item_tax_name' 			=> $q3->tax_name, 
 							'item_sales_qty' 			=> $res1->quotation_qty, 
 							'item_tax_id' 				=> $res1->tax_id, 
@@ -1712,7 +1869,11 @@ class Sales_model extends CI_Model {
 							'item_name' 				=> $res2->item_name,
 							'item_available_qty' 		=> ($res2->stock + $res1->sales_qty),
 							'item_price' 				=> $res2->price, 
-							'item_sales_price' 			=> $res1->price_per_unit, 
+							'item_sales_price' 			=> $res1->price_per_unit,
+							'pricing_snapshot' => $res1->pricing_snapshot ?? null,
+							'unit_id' => $res1->unit_id ?? 0,
+							'unit_name' => $res1->unit_name ?? '',
+							'conversion_factor' => $res1->conversion_factor ?? 1,
 							'item_tax_name' 			=> $q3->tax_name, 
 							'item_sales_qty' 			=> $res1->sales_qty, 
 							'item_tax_id' 				=> $res1->tax_id, 
@@ -1851,6 +2012,10 @@ class Sales_model extends CI_Model {
                <input type="hidden" id="td_data_<?=$rowcount;?>_5" name="td_data_<?=$rowcount;?>_5" value="<?=$item_tax_amt;?>">
                <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
                <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+               <input type="hidden" id="pricing_snapshot_<?=$rowcount;?>" name="pricing_snapshot_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['pricing_snapshot'] ?? ''),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="unit_id_<?=$rowcount;?>" name="unit_id_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['unit_id'] ?? 0),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="unit_name_<?=$rowcount;?>" name="unit_name_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['unit_name'] ?? ''),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="conversion_factor_<?=$rowcount;?>" name="conversion_factor_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['conversion_factor'] ?? 1),ENT_QUOTES,'UTF-8');?>">
                
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
@@ -2062,7 +2227,7 @@ class Sales_model extends CI_Model {
 		                    <label for="account_id"><?= $this->lang->line('account'); ?></label>
 		                    <select class="form-control" id='account_id' name="account_id">
 		                    	<option value="">-None-</option>
-                                <?= get_accounts_select_list(get_store_details()->default_account_id);?>
+								<?= get_accounts_select_list(!empty($res1->invoice_account_id) ? $res1->invoice_account_id : get_store_details()->default_account_id);?>
 		                    </select>
 		                    <span id="account_id_msg" style="display:none" class="text-danger"></span>
 		                  </div>
@@ -2227,6 +2392,11 @@ class Sales_model extends CI_Model {
 			}
 			//end 
 			$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+			if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift($salespayments_entry['store_id'] ?? get_current_store_id(), get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
 			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
 				$salespayments_entry['idempotency_key'] = $idempotencyKey;
 			}
@@ -2247,6 +2417,7 @@ class Sales_model extends CI_Model {
 			$this->db->trans_rollback();
 			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
 		}
+		$paymentId = (int)$this->db->insert_id();
 
 			//Set the payment to specified account
 			if(!empty($account_id)){
@@ -2311,6 +2482,23 @@ class Sales_model extends CI_Model {
 				}
 			} catch (Exception $e) {
 				log_message('error', 'Payment received email failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
+			}
+			try {
+				$customer = $this->db->select('mobile')->where('id', $customer_id)->where('store_id', $saleStoreId)->get('db_customers')->row();
+				$sales_rec = get_sales_details($sales_id);
+				$store = get_store_details($saleStoreId);
+				if ($customer && !empty($customer->mobile) && $sales_rec) {
+					$currency = $this->db->select('c.currency')->from('db_store s')->join('db_currency c', 'c.id=s.currency_id', 'left')->where('s.id', $saleStoreId)->get()->row();
+					$currencyCode = trim((string)($currency->currency ?? 'NGN')) ?: 'NGN';
+					$balance = max(0, (float)$sales_rec->grand_total - (float)$sales_rec->paid_amount);
+					$message = trim((string)($store->store_name ?? 'MartPoint')) . ': payment received for invoice '
+						. $sales_rec->sales_code . '. Received ' . $currencyCode . ' ' . number_format((float)$amount, 2)
+						. '; balance due ' . $currencyCode . ' ' . number_format($balance, 2) . '.';
+					$this->load->library('transactional_sms');
+					$this->transactional_sms->send($saleStoreId, $customer->mobile, $message, 'invoice_payment_received', 'invoice-payment:' . $saleStoreId . ':' . $paymentId);
+				}
+			} catch (Throwable $e) {
+				log_message('error', 'Payment received SMS preparation failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
 			}
 		}
 

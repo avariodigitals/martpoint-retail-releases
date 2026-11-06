@@ -445,6 +445,8 @@ class Roles_model extends CI_Model {
 		                                                'stock_adjustment_edit',
 		                                                'stock_adjustment_delete',
 		                                                'stock_adjustment_view',
+		                                                'recall_view',
+		                                                'recall_add',
 		                                                'variant_add',
 														'variant_edit',
 														'variant_delete',
@@ -601,6 +603,7 @@ class Roles_model extends CI_Model {
 
                     // Medical notes
                     'medical_notes_add',
+                    'medical_notes_edit',
                     'medical_notes_delete',
                     'medical_notes_view',
 
@@ -641,6 +644,14 @@ class Roles_model extends CI_Model {
                     'reorder_suggestion_report',
                     'sell_through_report',
                     'variant_attribute_report',
+
+                    // Pharmacy batch ledger. These three keys must be listed
+                    // here or saving a role in the admin UI silently deletes
+                    // the grant: the saver keeps only whitelisted keys, and it
+                    // records the missing ones as deliberate revocations.
+                    'pharmacy_batch_report_view',
+                    'batch_reconciliation_view',
+                    'batch_reconciliation_manage',
 
 													)));
 		

@@ -66,16 +66,12 @@ $when_text = function ($datetime) {
       </div>
     </div>
     <div class="ro-head-tools">
-      <?php if (!empty($branch_opts)): ?>
-        <div class="ro-seg">
-          <span class="ro-seg-label">Outlet</span>
-          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $ro_url('restaurantos', ['branch_id' => '']); ?>"><?= htmlspecialchars($branch_all_label); ?></a>
-          <?php foreach ($branch_opts as $o): ?>
-            <a class="<?= (string) $branch === (string) $o['id'] ? 'active' : ''; ?>"
-               href="<?= $ro_url('restaurantos', ['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
+      <?php $this->load->view('components/outlet_picker', [
+          'opts'      => (array) $branch_opts,
+          'current'   => (string) $branch,
+          'all_label' => $branch_all_label,
+          'url_for'   => function ($id) use ($ro_url) { return $ro_url('restaurantos', ['branch_id' => $id]); },
+      ]); ?>
       <div class="ro-seg">
         <span class="ro-seg-label">Period</span>
         <?php foreach ($ranges as $key => $label): ?>
@@ -88,14 +84,14 @@ $when_text = function ($datetime) {
       </a>
       <?php if (!empty($can_settings)): ?>
         <a href="<?= base_url('restaurantos/settings'); ?>" class="ro-act slate" style="padding:8px 14px;">
-          <span class="ic"><i class="fa fa-cog"></i></span><span class="tx"><b>Restaurant Setup</b></span>
+          <span class="ic"><i class="fa fa-cog"></i></span><span class="tx"><b><?= htmlspecialchars(mp_workspace_word('Restaurant') . ' Setup'); ?></b></span>
         </a>
       <?php endif; ?>
     </div>
   </div>
 
   <!-- Live queues: one glance, one action. Detailed explanations stay below. -->
-  <div class="ro-live-strip" aria-label="Live restaurant queues">
+  <div class="ro-live-strip" aria-label="Live <?= strtolower(htmlspecialchars(mp_workspace_word('Restaurant'))); ?> queues">
     <a class="ro-live-card <?= $online_waiting > 0 ? 'attention' : ($online_ready > 0 ? 'moving' : 'clear'); ?>" href="<?= base_url('online_store/orders'); ?>">
       <div class="ro-live-top">
         <span class="ro-live-title"><span class="ro-live-icon online"><i class="fa fa-globe"></i></span> Online orders</span>
@@ -386,8 +382,14 @@ $when_text = function ($datetime) {
             <tbody>
               <?php foreach ($outlets as $o): ?>
                 <tr>
-                  <td><a class="ro-name" style="color:var(--mp-text);text-decoration:none;"
-                         href="<?= $ro_url('restaurantos', ['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a></td>
+                  <td>
+                    <?php if ($o['id'] === null): /* grouped tail: no single outlet to focus */ ?>
+                      <span class="ro-name" style="color:var(--ro-muted);font-weight:700;"><?= htmlspecialchars($o['name']); ?></span>
+                    <?php else: ?>
+                      <a class="ro-name" style="color:var(--mp-text);text-decoration:none;"
+                         href="<?= $ro_url('restaurantos', ['branch_id' => $o['id']]); ?>"><?= htmlspecialchars($o['name']); ?></a>
+                    <?php endif; ?>
+                  </td>
                   <td class="num"><?= number_format($o['orders']); ?></td>
                   <td class="num"><span class="ro-pill rev"><?= $CI->currency($o['takings']); ?></span></td>
                   <td><span class="ro-bar green"><span style="width:<?= (int) $o['pct']; ?>%;"></span></span></td>
@@ -504,7 +506,7 @@ $when_text = function ($datetime) {
           $sc_icons = [
               'pos' => 'fa-shopping-cart', 'orders' => 'fa-list-alt', 'kitchen' => 'fa-fire',
               'fulfilment' => 'fa-truck', 'tables' => 'fa-table', 'menu' => 'fa-cutlery',
-              'recipes' => 'fa-flask', 'outlets' => 'fa-map-marker',
+              'recipes' => 'fa-flask', 'outlets' => 'fa-map-marker', 'events' => 'fa-ticket',
           ];
           foreach ($nav_items as $key => $item): ?>
             <a class="ro-sc" href="<?= $item['url']; ?>">

@@ -20,11 +20,11 @@ class Communication_review_model extends CI_Model {
         if($id){$old=$this->db->where('id',$id)->get('db_communication_credit_packages')->row_array();if(!$old || $old['channel']!==$channel)throw new RuntimeException('Bundle not found for this channel.');$this->db->where('id',$id)->update('db_communication_credit_packages',$data);}else $this->db->insert('db_communication_credit_packages',$data);
         $this->load->model('communications_model');$this->communications_model->event('bundle:'.bin2hex(random_bytes(12)),0,'Credit bundle changed',$name.'; '.$channel.'; by '.$actor.'. Existing requests keep their purchased conversion.');
     }
-    public function minimum($channel){$r=$this->db->where('channel',$channel)->get('db_communication_credit_rules')->row_array();return (int)($r['minimum_kobo']??10000);}
+    public function minimum($channel){$r=$this->db->where('channel',$channel)->get('db_communication_credit_rules')->row_array();return max(500000,(int)($r['minimum_kobo']??500000));}
     public function quote($channel,array $p,$rate){
         $this->guard();$id=(int)($p['package_id']??0);
         if($id){$b=$this->db->where('id',$id)->where('channel',$channel)->where('enabled',1)->get('db_communication_credit_packages')->row_array();if(!$b)throw new RuntimeException('This credit bundle is not available.');return array('amount'=>(int)$b['amount_kobo'],'units'=>(int)$b['credit_units'],'package_id'=>$id);}
-        $amount=Messaging_pricing::money($p['amount']??'');$min=$this->minimum($channel);if($amount<$min || $amount>50000000)throw new InvalidArgumentException('Recharge between ₦'.number_format($min/100,2).' and ₦500,000.');$units=intdiv($amount,$rate);if($units<1)throw new InvalidArgumentException('This amount does not buy one credit.');return array('amount'=>$amount,'units'=>$units,'package_id'=>0);
+        $amount=Messaging_pricing::money($p['amount']??'');$min=$this->minimum($channel);if($amount<$min || $amount>50000000)throw new InvalidArgumentException('Custom top-ups must be between ₦'.number_format($min/100,2).' and ₦500,000.');$units=intdiv($amount,$rate);if($units<1)throw new InvalidArgumentException('This amount does not buy one credit.');return array('amount'=>$amount,'units'=>$units,'package_id'=>0);
     }
     public function requestPackage($id){$r=$this->db->where('request_id',$id)->get('db_communication_request_packages')->row_array();return (int)($r['package_id']??0);}
     public function snapshot($account){

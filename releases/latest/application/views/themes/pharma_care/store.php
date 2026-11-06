@@ -838,8 +838,9 @@ foreach($orderedSections as $sectionKey => $section):
   <div class="pcr-container">
     <div class="pcr-rx-cta">
       <div class="pcr-rx-cta-title">Refill Your Prescriptions the Easy Way</div>
-      <p class="pcr-rx-cta-text">Send us your prescription on WhatsApp or by email, and we'll prepare it for pickup or delivery.</p>
-      <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pcr-btn">Send Prescription Now</a>
+      <p class="pcr-rx-cta-text">Add your medicines to the cart and attach a photo or PDF of your prescription at checkout. A pharmacist reviews it before anything is prepared, and we will message you if anything needs clarifying.</p>
+      <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="pcr-btn">Start an Order</a>
+      <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pcr-btn pcr-btn-outline" style="margin-left:8px;">Ask a Pharmacist</a>
     </div>
   </div>
 </div>

@@ -28,7 +28,9 @@ class Approval_settings_model extends CI_Model {
 			'store_id' => $storeId,
 			'approval_system_enabled' => 0,
 			'business_control_mode' => 'simple',
-			'allow_self_approval' => 1,
+			// A discount or override needs a second person by default; the owner
+			// can switch self-approval on deliberately under Security & Approvals.
+			'allow_self_approval' => 0,
 		];
 		$types = $this->getApprovalTypes();
 		foreach($types as $key => $label){
@@ -74,6 +76,8 @@ class Approval_settings_model extends CI_Model {
 			'negative_stock_sale' => 'Negative Stock Sale',
 			'stock_adjustment' => 'Stock Adjustment',
 			'inventory_transfer' => 'Inventory Transfer',
+			'forecourt_variance' => 'Forecourt Duty Variance',
+			'forecourt_dip' => 'Fuel Tank Dip Discrepancy',
 			'cost_price_change' => 'Cost Price Change',
 			'selling_price_change' => 'Selling Price Change',
 			'expense' => 'Expense Approval',
@@ -124,7 +128,7 @@ class Approval_settings_model extends CI_Model {
 		return false;
 	}
 
-	public function verifyApprover($approverId, $input, $allowedIds){
+	public function verifyApprover($approverId, $input, $allowedIds, $storeId = null){
 		if(!$approverId || !$input || !$allowedIds || $allowedIds === 'none') return false;
 		
 		// $allowedIds is now a comma-separated string of allowed approver user IDs
@@ -143,6 +147,7 @@ class Approval_settings_model extends CI_Model {
 		$this->db->from('db_users u');
 		$this->db->join('db_roles r', 'r.id = u.role_id', 'left');
 		$this->db->where('u.id', $approverId);
+		if($storeId !== null) $this->db->where('u.store_id', (int)$storeId);
 		$user = $this->db->get()->row();
 		if(!$user) return false;
 
@@ -161,8 +166,13 @@ class Approval_settings_model extends CI_Model {
 
 		if(!$canApprove) return false;
 
-		// Always verify against the user's approval_pin (or password fallback)
+		// Always verify against the user's approval_pin (or password fallback).
+		// Both are stored with password_hash(); the md5 form is only the legacy
+		// row shape Login_model still accepts.
 		$pinHash = !empty($user->approval_pin) ? $user->approval_pin : $user->password;
-		return md5($input) === $pinHash;
+		if(is_string($pinHash) && strpos($pinHash, '$2') === 0){
+			return password_verify($input, $pinHash);
+		}
+		return is_string($pinHash) && $pinHash === md5($input);
 	}
 }

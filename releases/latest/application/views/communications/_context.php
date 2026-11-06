@@ -9,6 +9,8 @@ $names=array('sms'=>'SMS','email'=>'Email','whatsapp'=>'WhatsApp','socials'=>'So
 $comm=$messaging['communications']??null;
 require_once APPPATH.'libraries/Communication_copy.php';
 $status_text=function($text)use($h){return $h(Communication_copy::message($text));};
+// Client-facing clocks are always West Africa Time; stored stamps are UTC.
+$wat=function($utc){$utc=trim((string)$utc);if($utc===''||strpos($utc,'0000')===0)return '';try{$t=(new DateTimeImmutable($utc,new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Africa/Lagos'));}catch(Throwable $e){return '';}return $t->format('j M Y, g:i a').' WAT';};
 $connection_message=Communication_copy::message($messaging['message']??'Account status is unavailable. Please contact your Administrator.');
 $m=$comm['modules'][$channel]??array('active'=>false,'allowed'=>false,'merchant_enabled'=>false,'subscribed_until'=>null);
 $c=$comm['catalogue'][$channel]??array('enabled'=>false,'monthly_kobo'=>0,'annual_kobo'=>0,'credit_price_kobo'=>0,'packages'=>array());
@@ -16,7 +18,7 @@ $wallet=$comm['wallets'][$channel]??null;
 // Central bills VAT on subscriptions, recharges and add-ons; catalogue prices stay net.
 $taxBps=(int)($comm['tax_bps']??0);$taxPercent=$taxBps>0?(round($taxBps/100,2)):'0';
 $gross=function($netKobo)use($taxBps){return (int)round((int)$netKobo*(10000+$taxBps)/10000);};
-$vat_note=$taxBps>0?'VAT of '.$h(rtrim(rtrim($taxPercent,'0'),'.')).'% is added at checkout and shown on your request.':'No VAT is charged on Communications purchases.';
+$vat_note=$taxBps>0?'VAT is '.$h(rtrim(rtrim($taxPercent,'0'),'.')).'%. Choose whether your entered amount includes VAT or has VAT added; credits are calculated from the net amount.':'No VAT is charged on Communications purchases.';
 $subscribed=!empty($m['subscribed_until']) && strtotime($m['subscribed_until'].' UTC')>time();
 $expiry=!empty($m['subscribed_until'])?(new DateTimeImmutable($m['subscribed_until'],new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Africa/Lagos'))->format('d M Y, H:i').' WAT':null;
 $workspace_section=$workspace_section??'dashboard';

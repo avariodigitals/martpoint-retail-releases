@@ -115,7 +115,7 @@
 			              
 			                  echo "<tr>";  
 			                  echo "<td style='padding-left: 2px; padding-right: 2px;' valign='top'>".++$i."</td>";
-			                  echo "<td colspan=3 style='padding-left: 2px; padding-right: 2px;'>".$payment_rec->payment_type."</td>";
+			                  echo "<td colspan=3 style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars(payment_mode_label($payment_rec->payment_type), ENT_QUOTES, 'UTF-8')."</td>";
 			                  
 			                  echo "<td style='text-align: right;padding-left: 2px; padding-right: 2px;'>".store_number_format($payment_rec->amount)."</td>";
 			                  echo "</tr>";  

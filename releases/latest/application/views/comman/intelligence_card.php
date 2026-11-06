@@ -9,6 +9,7 @@
  * Expects:  $intel          array of ['tone','icon','text','action'?]
  * Optional: $intel_title    heading text (defaults to "Intelligence Report")
  *           $intel_subtitle short line under the heading
+ *           $intel_report_url destination for the full report link
  *
  * Optional: $intel_empty_message shows a persistent empty state when supplied.
  * The card is otherwise skipped entirely when there is nothing to say. An empty
@@ -22,6 +23,7 @@ $intel=is_array($intel ?? null) ? $intel : [];
 
 $intel_title    = $intel_title    ?? 'Intelligence Report';
 $intel_subtitle = $intel_subtitle ?? 'Drawn from your own records — what needs attention, and what is trending.';
+$intel_report_url = $intel_report_url ?? '';
 
 // Tone → colour. Kept to three states so the panel reads at a glance rather
 // than becoming a paint chart; 'info' is deliberately neutral because most
@@ -38,7 +40,10 @@ $intel_tone = function ($tone) {
   <div class="mp-card">
     <div class="mp-card-head">
       <h3><i class="fa fa-lightbulb-o" style="color:#B45309;"></i> <?= htmlspecialchars($intel_title); ?></h3>
-      <span class="mp-card-link" style="cursor:default;"><?= $intel ? count($intel).' insight'.(count($intel)===1 ? '' : 's') : 'No insights yet'; ?></span>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span class="mp-card-link" style="cursor:default;"><?= $intel ? count($intel).' insight'.(count($intel)===1 ? '' : 's') : 'No insights yet'; ?></span>
+        <?php if($intel_report_url): ?><a href="<?= htmlspecialchars($intel_report_url, ENT_QUOTES, 'UTF-8'); ?>" style="font-size:12px;font-weight:600;color:var(--mp-primary,#2563eb);white-space:nowrap;">Open report &rarr;</a><?php endif; ?>
+      </div>
     </div>
     <div class="mp-card-body" style="padding:4px 0 0;">
       <?php if (!empty($intel_subtitle)): ?>

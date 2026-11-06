@@ -1,7 +1,7 @@
 <?php
 $workspace_key='sms';require __DIR__.'/_context.php';
 $workspace_name='SMS Studio';$workspace_symbol='S';
-$workspace_menu=array('dashboard'=>'Overview','campaigns'=>'Campaigns','report'=>'Results','compose'=>'New SMS campaign','templates'=>'SMS templates','audience'=>'Phone book','sender'=>'Sender ID','history'=>'Credit usage & logs','recharge'=>'Recharge','subscription'=>'Subscription','requests'=>'Payment requests');
+$workspace_menu=array('dashboard'=>'Overview','campaigns'=>'Campaigns','report'=>'Results','compose'=>'New SMS campaign','templates'=>'SMS templates','audience'=>'Phone book','sender'=>'Sender ID','history'=>'Credit usage & logs','recharge'=>'Recharge','subscription'=>'Access & credits','requests'=>'Payment requests');
 $sections=array(
  'dashboard'=>array('Reach customers with SMS','Create campaigns, manage phone numbers and track every SMS credit.'),
  'campaigns'=>array('SMS campaigns','Your drafts, queued campaigns and sending results.'),
@@ -12,8 +12,8 @@ $sections=array(
  'audience'=>array('Phone book','Import and manage the audience available to your SMS campaigns.'),
  'history'=>array('SMS usage & logs','See how SMS credits were reserved, used or returned.'),
  'recharge'=>array('Recharge SMS credits','Choose a recharge amount or enter a custom amount.'),
- 'subscription'=>array('SMS subscription','Manage access to SMS independently from your message credits.'),
- 'requests'=>array('SMS payment requests','Track subscription approvals, bank requests and card payments.'));
+ 'subscription'=>array('SMS access & credits','SMS access is included with your MartPoint license. Buy credits when you are ready to send.'),
+ 'requests'=>array('SMS credit requests','Track bank and card top-ups for SMS credits.'));
 if(!isset($sections[$workspace_section]))$workspace_section='dashboard';
 list($section_title,$section_description)=$sections[$workspace_section];$section_action=in_array($workspace_section,array('dashboard','campaigns'),true)?array('compose','+ New SMS campaign'):null;
 $this->load->view('communications/_frame_start',get_defined_vars());

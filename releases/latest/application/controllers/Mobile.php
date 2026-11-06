@@ -647,6 +647,9 @@ class Mobile extends MY_Controller {
 			$this->load->model('tables_model','mobile_tables');
 			$data['tables'] = $this->mobile_tables->get_all($store_id);
 		}
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
@@ -711,6 +714,10 @@ class Mobile extends MY_Controller {
 						'id' => (int) $it->item_id,
 						'name' => (string) ($it->item_name ?? 'Item #'.$it->item_id),
 						'price' => (float) $it->price_per_unit,
+                'pricing_snapshot' => json_decode((string)($it->pricing_snapshot ?? ''), true),
+                'price_type' => $it->price_type ?? 'retail',
+                'unit_id' => $it->unit_id ?? null, 'unit_name' => $it->unit_name ?? '',
+                'conversion_factor' => $it->conversion_factor ?? 1,
 						'purchase_price' => (float) $it->purchase_price,
 						'tax_value' => (float) $it->tax,
 						'tax_id' => (int) $it->tax_id,
@@ -736,6 +743,9 @@ class Mobile extends MY_Controller {
 			$this->load->model('tables_model','mobile_tables');
 			$data['tables'] = $this->mobile_tables->get_all($store_id);
 		}
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
 		header('Cache-Control: no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
@@ -2756,15 +2766,22 @@ class Mobile extends MY_Controller {
 		$limit = $this->input->get('limit', TRUE);
 		$limit = is_numeric($limit) ? min((int)$limit, 200) : 20;
 		$store_id = get_current_store_id();
+		$bundleSelect = $this->db->field_exists('is_bundle', 'db_items') ? ', a.is_bundle' : '';
+		// Column probes happen before the query builder opens: field_exists() runs
+		// its own lookup and would otherwise discard the conditions being built.
+		$partRefColumns = [];
+		foreach(['manufacturer_part_no', 'oem_reference', 'cross_reference'] as $partRefColumn){
+			if($this->db->field_exists($partRefColumn, 'db_items')) $partRefColumns[] = $partRefColumn;
+		}
 
 		if(!empty($price_type) && $price_type == 'wholesale'){
 			$this->db->where('a.sales_price >', 0);
 		}
 
 		if($recent == 1){
-			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count'.$bundleSelect, false);
 			$this->db->from('db_items a');
-		$this->db->where('a.item_group !=', 'Variants');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
 			$this->db->join('db_salesitems c', 'c.item_id = a.id', 'left');
 			$this->db->where('a.store_id', $store_id);
@@ -2780,9 +2797,9 @@ class Mobile extends MY_Controller {
 			$this->db->limit(10);
 		}
 		else {
-			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name');
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name'.$bundleSelect, false);
 			$this->db->from('db_items a');
-		$this->db->where('a.item_group !=', 'Variants');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
 			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
 			$this->db->where('a.store_id', $store_id);
 			$this->db->where('a.status', 1);
@@ -2797,6 +2814,10 @@ class Mobile extends MY_Controller {
 				$this->db->like('a.item_name', $term);
 				$this->db->or_like('a.item_code', $term);
 				$this->db->or_like('a.sku', $term);
+				// Parts are asked for by the number on the box.
+				foreach($partRefColumns as $partRefColumn){
+					$this->db->or_like('a.'.$partRefColumn, $term);
+				}
 				$escaped = $this->db->escape_like_str($term);
 				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_selling_units su WHERE su.item_id = a.id AND su.store_id = a.store_id AND su.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
 				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 AND bc.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
@@ -2812,6 +2833,9 @@ class Mobile extends MY_Controller {
 		if($has_promotions) $this->load->model('promotions_model');
 		foreach($rows as &$row){
 				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0) ? $row->mrp_price : $row->sales_price;
+                $row->raw_sales_price = $row->sales_price;
+                $row->raw_mrp_price = $row->mrp_price;
+				$row->is_bundle = !empty($row->is_bundle);
 				$row->original_price = (float)$base_price;
 				$itemDiscount = (float)($row->discount ?? 0);
 				if($itemDiscount > 0){
@@ -2940,6 +2964,12 @@ class Mobile extends MY_Controller {
 		$customer_id = $input['customer_id'] ?? 0;
 		$table_id = (int) ($input['table_id'] ?? 0);
 		$cart = $input['cart'] ?? [];
+        try {
+            $cart = mp_customer_pricing()->validate_cart($store_id, $customer_id, (array)$cart, (string)($input['coupon_code'] ?? ''));
+        } catch (RuntimeException $e) {
+            ob_end_clean(); echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
+        }
+
 		$discount = parse_amount($input['discount'] ?? 0);
 		$sales_note = $input['sales_note'] ?? '';
 
@@ -3012,6 +3042,10 @@ class Mobile extends MY_Controller {
 				'description' => '',
 				'batch_lot' => '',
 				'price_type' => $price_type,
+				'pricing_snapshot' => isset($item['pricing_snapshot']) ? (is_array($item['pricing_snapshot']) ? json_encode($item['pricing_snapshot']) : $item['pricing_snapshot']) : null,
+                'unit_id' => $item['unit_id'] ?? null,
+                'unit_name' => $item['unit_name'] ?? null,
+                'conversion_factor' => $item['conversion_factor'] ?? 1,
 				'sales_qty' => $qty,
 				'price_per_unit' => $price,
 				'tax_id' => $tax_id ? $tax_id : null,
@@ -3094,6 +3128,7 @@ class Mobile extends MY_Controller {
 
 		foreach($items as $it){
 			$it['hold_id'] = $hold_id;
+            foreach(['pricing_snapshot','unit_id','unit_name','conversion_factor'] as $optional) if(!$this->db->field_exists($optional,'db_holditems')) unset($it[$optional]);
 			if(!$this->db->insert('db_holditems', $it)){
 				$err = $this->db->error();
 				$this->db->trans_rollback();
@@ -3212,6 +3247,21 @@ class Mobile extends MY_Controller {
 					'redirect'=>base_url('mobile')]); exit;
 			}
 		}
+		// Offline queue replays are not restaurant-only: every store's queued
+		// till sale carries a client key, and a retry must return the invoice
+		// that was already written instead of selling and depleting stock twice.
+		$pos_idempotency_key = substr(trim((string)($input['pos_idempotency_key'] ?? '')), 0, 96);
+		$pos_dedupe = $pos_idempotency_key !== '' && $this->db->field_exists('pos_idempotency_key', 'db_sales');
+		if($pos_dedupe){
+			$existing_pos_sale = $this->db->where('store_id', $store_id)
+				->where('pos_idempotency_key', $pos_idempotency_key)->get('db_sales')->row();
+			if($existing_pos_sale){
+				ob_end_clean();
+				echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+					'sales_id'=>(int)$existing_pos_sale->id, 'sales_code'=>(string)$existing_pos_sale->sales_code,
+					'plan_id'=>0, 'whatsapp_url'=>'', 'redirect'=>base_url('mobile')]); exit;
+			}
+		}
 		$requested_warehouse_id = !empty($input['warehouse_id']) ? (int)$input['warehouse_id'] : 0;
 		$warehouse_id = $requested_warehouse_id > 0 ? $requested_warehouse_id : get_pos_default_warehouse_id($store_id);
 		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
@@ -3231,6 +3281,12 @@ class Mobile extends MY_Controller {
 		$payment_type = $input['payment_type'];
 		$action = $input['action'] ?? 'pay';
 		$cart = $input['cart'] ?? [];
+        try {
+            $cart = mp_customer_pricing()->validate_cart($store_id, $customer_id, (array)$cart, (string)($input['coupon_code'] ?? ''));
+        } catch (RuntimeException $e) {
+            ob_end_clean(); echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
+        }
+
 		$discount = parse_amount($input['discount'] ?? 0);
 		$sales_note = $input['sales_note'] ?? '';
 		$amount_paid = parse_amount($input['amount_paid'] ?? 0);
@@ -3249,6 +3305,18 @@ class Mobile extends MY_Controller {
 		$tax_total = 0;
 		$rowcount = count($cart);
 
+		// Prescription-only medicines cannot be dispensed without an approved,
+		// patient-matched prescription linked to the sale.
+		if(function_exists('mp_prescription_gate')){
+			$rx_err = mp_prescription_gate($store_id, array_column($cart, 'id'),
+				(int)($input['medical_note_id'] ?? 0), (int)$customer_id);
+			if($rx_err !== ''){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'prescription_required' => true, 'message' => $rx_err]);
+				exit;
+			}
+		}
+
 		$_POST = [];
 		$_POST['command'] = 'save';
 		$_POST['sales_date'] = $sales_date;
@@ -3258,6 +3326,11 @@ class Mobile extends MY_Controller {
 		$_POST['customer_id'] = $customer_id;
 		$table_id = (int) ($input['table_id'] ?? 0);
 		$_POST['table_id'] = $table_id;
+		// Running tab: Sales_model links the round to the tab the waiter opened.
+		$_POST['tab_id'] = (int) ($input['tab_id'] ?? 0);
+		// Tyre-shop fitment: Sales_model re-validates that this vehicle belongs
+		// to the posted customer and store before writing it.
+		$_POST['vehicle_id'] = (int) ($input['vehicle_id'] ?? 0);
 		$_POST['other_charges_input'] = '0';
 		$_POST['other_charges_tax_id'] = '';
 		$_POST['other_charges_amt'] = '0';
@@ -3274,6 +3347,9 @@ class Mobile extends MY_Controller {
 		// not only the post-save operational-order bridge.
 		if($restaurant_order_key !== ''){
 			$_POST['restaurant_order_key'] = $restaurant_order_key;
+		}
+		if($pos_idempotency_key !== ''){
+			$_POST['pos_idempotency_key'] = $pos_idempotency_key;
 		}
 		$_POST['count_id'] = $count_id;
 		$_POST['init_code'] = $init_code;
@@ -3328,6 +3404,7 @@ class Mobile extends MY_Controller {
 			$_POST['item_discount_type_'.$i] = 'Percentage';
 			$_POST['description_'.$i] = '';
 			$_POST['price_type_'.$i] = $item['price_type'] ?? 'retail';
+			$_POST['pricing_snapshot_'.$i] = isset($item['pricing_snapshot']) ? (is_array($item['pricing_snapshot']) ? json_encode($item['pricing_snapshot']) : $item['pricing_snapshot']) : null;
 			$_POST['unit_id_'.$i] = $item['unit_id'] ?? '';
 			$_POST['unit_name_'.$i] = $item['unit_name'] ?? '';
 			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
@@ -3412,6 +3489,25 @@ class Mobile extends MY_Controller {
 		$_POST['cheque_number'] = '';
 		$_POST['cheque_period'] = '';
 		$_POST['allow_tot_advance'] = ($input['allow_tot_advance'] === 'checked') ? 'checked' : '';
+
+		// Discount approvals are enforced here, not in the browser: the UI asks a
+		// manager for a PIN but only this request decides whether the sale may be
+		// written. The redemption is single-use so a replay cannot reuse it.
+		if((float)$discount > 0){
+			$this->load->helper('approval');
+			$gate = mp_discount_approval_gate($discount, $subtotal);
+			if($gate['required']){
+				$approved_log = (int)($input['discount_approval_log'] ?? 0);
+				if(!$approved_log || !mp_redeem_discount_approval($approved_log, $discount, $store_id)){
+					ob_end_clean();
+					echo json_encode(['status' => 'error',
+						'approval_required' => true,
+						'discount_limit_pct' => $gate['threshold'],
+						'message' => 'This discount is over the ' . rtrim(rtrim(number_format((float)$gate['threshold'], 2, '.', ''), '0'), '.') . '% limit and needs a manager PIN first. Enter the discount with Apply Discount and get it approved.']);
+					exit;
+				}
+			}
+		}
 
 		// CRITICAL: Sales_model reads item fields from $_REQUEST (e.g. $_REQUEST['tr_item_id_1']).
 		// $_REQUEST is a snapshot taken at request start and is NOT updated when $_POST is
@@ -3513,6 +3609,11 @@ class Mobile extends MY_Controller {
 						'cheque_period'       => '',
 						'cheque_status'       => 'Pending',
 					);
+					if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+						$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+						$open_shift = $this->m3_cashier_shifts->get_open_shift($store_id, get_current_user_id());
+						if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+					}
 					$this->db->insert('db_salespayments', $salespayments_entry);
 					$total_recorded += $pm;
 					if($total_recorded >= $grand_total) break;
@@ -3577,6 +3678,18 @@ class Mobile extends MY_Controller {
 					echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
 						'sales_id'=>(int)$existing_restaurant_sale->id, 'sales_code'=>(string)$existing_restaurant_sale->sales_code,
 						'redirect'=>base_url('mobile')]); exit;
+				}
+			}
+			// A concurrent twin may have won the unique-key race on insert; the
+			// losing replay returns that invoice rather than a scary error.
+			if($pos_dedupe){
+				$raced_pos_sale = $this->db->where('store_id', $store_id)
+					->where('pos_idempotency_key', $pos_idempotency_key)->get('db_sales')->row();
+				if($raced_pos_sale){
+					ob_end_clean();
+					echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+						'sales_id'=>(int)$raced_pos_sale->id, 'sales_code'=>(string)$raced_pos_sale->sales_code,
+						'plan_id'=>0, 'whatsapp_url'=>'', 'redirect'=>base_url('mobile')]); exit;
 				}
 			}
 			ob_end_clean();
@@ -4131,6 +4244,7 @@ class Mobile extends MY_Controller {
 		}
 
 		$data['adjustments'] = $adjustments;
+		$data['can_record_wastage'] = mp_feature_enabled('wastage_reasons') && $this->permissions('stock_adjustment_add');
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name();
 
@@ -4138,6 +4252,275 @@ class Mobile extends MY_Controller {
 		header('Pragma: no-cache');
 		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 		$this->load->view('mobile/stock_adjustments', $data);
+	}
+
+	/* ===================== MOBILE WASTAGE CAPTURE =====================
+	 * A crate that slips off the bar top is lost at the counter, not at a
+	 * desk, so the write-out has to be recordable from the phone. There is
+	 * exactly one stock write-out path in the app — Stock_adjustment_model —
+	 * and this screen posts into it as a one-line sheet. No second engine.
+	 */
+
+	/**
+	 * The replay token for one wastage sheet. It is issued here and carried by
+	 * the form, never typed by the browser: a POST that repeats a reference
+	 * already on the ledger is treated as a retry of the same sheet instead of
+	 * a second, identical loss. The random tail is a full 16 hex characters so
+	 * two genuine breakages in the same second in one outlet cannot collide.
+	 */
+	private function _wastage_reference()
+	{
+		return 'WST-' . date('Ymd-His') . '-' . bin2hex(random_bytes(8));
+	}
+
+	private function _wastage_reference_ok($reference)
+	{
+		return is_string($reference) && preg_match('/^WST-\d{8}-\d{6}-[a-f0-9]{16}$/', $reference) === 1;
+	}
+
+	/** MySQL lock names are capped at 64 bytes, so the reference is hashed
+	 *  rather than spliced into the key. */
+	private function _wastage_lock_name($store_id, $reference)
+	{
+		return 'mpwst_' . (int) $store_id . '_' . md5($reference);
+	}
+
+	private function _wastage_lock($store_id, $reference)
+	{
+		$res = $this->db->query('SELECT GET_LOCK(?, 8) AS acquired', array($this->_wastage_lock_name($store_id, $reference)));
+		return $res && $res->num_rows() ? (int) $res->row()->acquired === 1 : false;
+	}
+
+	private function _wastage_unlock($store_id, $reference)
+	{
+		$this->db->query('SELECT RELEASE_LOCK(?)', array($this->_wastage_lock_name($store_id, $reference)));
+	}
+
+	public function record_wastage()
+	{
+		$this->permission_check('stock_adjustment_add');
+		if(!mp_feature_enabled('wastage_reasons')){
+			$this->show_feature_not_activated('wastage_reasons',
+				'Recording why stock left the shelf is switched on under Business Profile.');
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Record Wastage';
+		$data['active'] = 'more';
+		$data['reasons'] = mp_get_wastage_reasons();
+		$data['reference_no'] = $this->_wastage_reference();
+		$data['adjustment_date'] = date('Y-m-d');
+		// The same condition the model uses to decide whether it reads a
+		// warehouse from the form or works it out from the store.
+		$data['show_outlet_picker'] = (warehouse_module() && warehouse_count() > 1);
+		// A multi-outlet tenant's item row totals every outlet, so the screen says
+		// whose shelf the number belongs to instead of implying one counter.
+		$data['stock_scope_label'] = $data['show_outlet_picker'] ? 'Across your outlets' : 'On the shelf';
+		$data['default_warehouse_id'] = (int) get_store_warehouse_id();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/wastage_form', $data);
+	}
+
+	public function wastage_items()
+	{
+		$this->permission_check_with_msg('stock_adjustment_add');
+		$term = trim((string) $this->input->get('q', TRUE));
+		if($term === ''){
+			echo json_encode(array('status' => 'success', 'rows' => array()));
+			return;
+		}
+
+		/* Store-scoped on purpose: the only thing a clerk may write off is
+		 * something their own outlet sells. */
+		$rows = $this->db->select('i.id, i.item_name, i.item_code, i.stock, u.unit_name')
+			->from('db_items i')
+			->join('db_units u', 'u.id = i.unit_id', 'left')
+			->where('i.store_id', get_current_store_id())
+			->where('i.status', 1)
+			->where('i.service_bit', 0)
+			->group_start()
+				->like('i.item_name', $term)
+				->or_like('i.item_code', $term)
+				->or_like('i.sku', $term)
+				->or_like('i.custom_barcode', $term)
+			->group_end()
+			->order_by('i.item_name', 'asc')
+			->limit(20)
+			->get()->result();
+
+		$out = array();
+		foreach($rows as $r){
+			$out[] = array(
+				'id'        => (int) $r->id,
+				'item_name' => $r->item_name,
+				'item_code' => (string) $r->item_code,
+				'stock'     => (float) $r->stock,
+				'unit'      => (string) $r->unit_name,
+			);
+		}
+		echo json_encode(array('status' => 'success', 'rows' => $out));
+	}
+
+	public function save_wastage()
+	{
+		$this->permission_check_with_msg('stock_adjustment_add');
+
+		$fail = function($message){
+			echo json_encode(array('status' => 'error', 'message' => $message));
+		};
+
+		if(!mp_feature_enabled('wastage_reasons')){
+			$fail('Wastage reasons are not switched on for this store. Nothing was taken off the shelf.');
+			return;
+		}
+
+		$store_id = (int) get_current_store_id();
+		$reference = (string) $this->input->post('reference_no', TRUE);
+		if(!$this->_wastage_reference_ok($reference)){
+			$fail('This wastage sheet has expired. Reload the screen and record the loss again.');
+			return;
+		}
+
+		$item_id = (int) $this->input->post('tr_item_id_1', TRUE);
+		$item = $this->db->select('id, item_name, service_bit')
+			->where('id', $item_id)
+			->where('store_id', $store_id)
+			->where('status', 1)
+			->get('db_items')->row();
+		if(!$item){
+			$fail('Choose the product that went out — it has to be one of your own items.');
+			return;
+		}
+		if((int) $item->service_bit === 1){
+			$fail('Services do not sit on a shelf, so there is nothing to write off. Choose a product.');
+			return;
+		}
+
+		$qty = (float) $this->input->post('td_data_1_3', TRUE);
+		if($qty <= 0){
+			$fail('Enter how much went out — it has to be more than zero.');
+			return;
+		}
+
+		$reasons = mp_get_wastage_reasons();
+		$reason = trim((string) $this->input->post('tr_reason_1', TRUE));
+		if(!isset($reasons[$reason])){
+			$fail('Choose one of the listed reasons. Nothing was taken off the shelf.');
+			return;
+		}
+
+		$note = trim((string) $this->input->post('adjustment_note', TRUE));
+		if($reason === 'other' && $note === ''){
+			$fail('"Other reason" needs a line saying what happened, so the number can be read later.');
+			return;
+		}
+
+		$date = trim((string) $this->input->post('adjustment_date', TRUE));
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false){
+			$fail('Set a real date for the loss.');
+			return;
+		}
+		if($date > date('Y-m-d')){
+			$fail('A loss cannot be recorded for a date that has not happened yet.');
+			return;
+		}
+
+		$picks_warehouse = (warehouse_module() && warehouse_count() > 1);
+		$warehouse_id = 0;
+		if($picks_warehouse){
+			$warehouse_id = (int) $this->input->post('warehouse_id', TRUE);
+			$allowed = mp_allowed_warehouse_ids($store_id);
+			$in_store = $warehouse_id > 0 && $this->db
+				->where('id', $warehouse_id)
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->count_all_results('db_warehouse') > 0;
+			if(!$in_store || ($allowed !== null && !in_array($warehouse_id, array_map('intval', $allowed), true))){
+				$fail('That outlet is not one you can write stock out from.');
+				return;
+			}
+		}
+
+		/* Two taps, one after the other, must not both reach the ledger. The
+		 * lock makes the "already saved?" question and the insert atomic, so a
+		 * second request either waits for the first to finish or finds its
+		 * slip already there. */
+		if(!$this->_wastage_lock($store_id, $reference)){
+			echo json_encode(array(
+				'status' => 'error',
+				'message' => 'That sheet is still being saved. Give it a moment before trying again.',
+			));
+			return;
+		}
+
+		$existing = $this->db->select('id')
+			->where('store_id', $store_id)
+			->where('reference_no', $reference)
+			->where('status', 1)
+			->get('db_stockadjustment')->row();
+		if($existing){
+			$this->_wastage_unlock($store_id, $reference);
+			echo json_encode(array(
+				'status' => 'success',
+				'replay' => true,
+				'message' => 'Already recorded — this sheet was saved once, so nothing was written out twice.',
+				'adjustment_id' => (int) $existing->id,
+				'reference_no' => $this->_wastage_reference(),
+			));
+			return;
+		}
+
+		/* The model reads its line rows out of $_REQUEST, so the exact values
+		 * validated above are the ones it gets — a query-string pair cannot
+		 * swap in a different item or another store. */
+		$fields = array(
+			'command'         => 'save',
+			'rowcount'        => '1',
+			'reference_no'    => $reference,
+			'store_id'        => (string) $store_id,
+			'adjustment_date' => $date,
+			'adjustment_note' => $note !== '' ? $note : $reasons[$reason],
+			'tr_item_id_1'    => (string) $item_id,
+			'td_data_1_3'     => (string) $qty,
+			'tr_reason_1'     => $reason,
+			'description_1'   => $item->item_name . ' written off — ' . $reasons[$reason],
+		);
+		if($picks_warehouse){
+			$fields['warehouse_id'] = (string) $warehouse_id;
+		} else {
+			unset($_POST['warehouse_id'], $_GET['warehouse_id'], $_REQUEST['warehouse_id']);
+		}
+		foreach($fields as $key => $value){
+			$_POST[$key] = $value;
+			$_REQUEST[$key] = $value;
+		}
+
+		$this->load->model('stock_adjustment_model', 'stock_adjustment');
+		$result = $this->stock_adjustment->verify_save_and_update();
+		$this->_wastage_unlock($store_id, $reference);
+
+		if(stripos((string) $result, 'success') !== false){
+			$parts = explode('<<<###>>>', (string) $result);
+			echo json_encode(array(
+				'status' => 'success',
+				'message' => $item->item_name . ' written off. Stock is updated.',
+				'adjustment_id' => isset($parts[1]) ? (int) $parts[1] : 0,
+				// A fresh sheet needs a fresh replay reference, otherwise the next
+				// breakage would look like a retry of the one just recorded.
+				'reference_no' => $this->_wastage_reference(),
+			));
+		} else {
+			echo json_encode(array(
+				'status' => 'error',
+				'message' => strip_tags((string) $result) ?: 'Could not record that. Nothing was taken off the shelf.',
+			));
+		}
 	}
 
 	public function stock_transfers()
@@ -4148,12 +4531,26 @@ class Mobile extends MY_Controller {
 		$data['active'] = 'more';
 		$store_id = get_current_store_id();
 
-		$this->db->select('a.id, a.transfer_date, a.note, a.warehouse_from, a.warehouse_to, a.created_by');
-		$this->db->from('db_stocktransfer a');
-		$this->db->where('a.store_id', $store_id);
-		$this->db->where('a.status', 1);
-		$this->db->order_by('a.id', 'desc');
-		$transfers = $this->db->get()->result();
+		$allowed = function_exists('mp_location_assigned_ids') ? mp_location_assigned_ids((int)$store_id) : null;
+		$scoped = is_array($allowed);
+		$scope_ids = $scoped ? array_map('intval', $allowed) : array();
+
+		$transfers = array();
+		if(!$scoped || !empty($scope_ids)){
+			$this->db->select('a.id, a.transfer_date, a.note, a.warehouse_from, a.warehouse_to, a.created_by, a.receipt_status');
+			$this->db->from('db_stocktransfer a');
+			$this->db->where('a.store_id', $store_id);
+			$this->db->where('a.status', 1);
+			if($scoped){
+				$this->db->group_start();
+				$this->db->where_in('a.warehouse_from', $scope_ids);
+				$this->db->or_where_in('a.warehouse_to', $scope_ids);
+				$this->db->group_end();
+			}
+			$this->db->order_by('a.id', 'desc');
+			$this->db->limit(200);
+			$transfers = $this->db->get()->result();
+		}
 
 		foreach($transfers as $t){
 			$items = $this->db->select('SUM(transfer_qty) as total_qty, COUNT(*) as item_count')
@@ -4165,9 +4562,13 @@ class Mobile extends MY_Controller {
 			$t->item_count = $items->item_count ?? 0;
 			$t->from_name = get_warehouse_name($t->warehouse_from);
 			$t->to_name = get_warehouse_name($t->warehouse_to);
+			$t->can_count = ((string)$t->receipt_status === 'In Transit')
+				&& $this->permissions('stock_transfer_edit')
+				&& (!$scoped || in_array((int)$t->warehouse_to, $scope_ids, true));
 		}
 
 		$data['transfers'] = $transfers;
+		$data['arrival_mode'] = (function_exists('mp_feature_enabled') && mp_feature_enabled('transfer_receipt'));
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$data['branch_name'] = get_store_name();
 
@@ -4229,6 +4630,67 @@ class Mobile extends MY_Controller {
 		}
 	}
 
+	public function save_stock_transfer_receive()
+	{
+		$this->permission_check_with_msg('stock_transfer_edit');
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+
+		$id = (int)$this->input->post('stocktransfer_id', TRUE);
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid stock transfer.']);
+			return;
+		}
+		$this->belong_to('db_stocktransfer', $id);
+
+		$lines = $this->input->post('received', TRUE);
+		$reason = (string)$this->input->post('variance_reason', TRUE);
+		$result = $this->stock_transfer->save_receipt($id, is_array($lines) ? $lines : array(), $reason);
+
+		if(stripos($result, 'success') !== false){
+			echo json_encode(['status' => 'success', 'message' => 'Counted in. The stock now shows at the receiving site.', 'redirect' => base_url('mobile/stock_transfers')]);
+		} elseif(strpos($result, 'Recorded.') === 0){
+			echo json_encode(['status' => 'success', 'message' => $result, 'redirect' => base_url('stock_transfer/receive/' . $id)]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function decide_transfer_variance()
+	{
+		$may_decide = is_store_admin() || is_admin() || $this->permissions('approval_logs_view');
+		if(!$may_decide){
+			echo json_encode(['status' => 'error', 'message' => 'Only a manager can decide on a short load.']);
+			return;
+		}
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+
+		$id = (int)$this->input->post('stocktransfer_id', TRUE);
+		$decision = $this->input->post('decision', TRUE);
+		$note = trim((string)$this->input->post('decision_note', TRUE));
+		if($id <= 0 || !in_array($decision, array('approve', 'reject'), TRUE)){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid request.']);
+			return;
+		}
+		if($note === ''){
+			echo json_encode(['status' => 'error', 'message' => 'Please say why before deciding on this load.']);
+			return;
+		}
+		$this->belong_to('db_stocktransfer', $id);
+
+		if($decision === 'approve'){
+			$result = $this->stock_transfer->approve_receipt_variance($id, $note);
+			$message = 'Approved. The counted quantity has been added to the receiving site.';
+		} else {
+			$result = $this->stock_transfer->reject_receipt_variance($id, $note);
+			$message = 'Rejected. The load is back in transit and must be counted in again.';
+		}
+		if(stripos($result, 'success') !== false){
+			echo json_encode(['status' => 'success', 'message' => $message]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
 	public function delete_stock_transfer()
 	{
 		$this->permission_check_with_msg('stock_transfer_delete');
@@ -4275,7 +4737,7 @@ class Mobile extends MY_Controller {
 
 		$this->db->select('a.id, a.item_name, a.item_code, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, b.category_name, c.brand_name');
 		$this->db->from('db_items a');
-		$this->db->where('a.item_group !=', 'Variants');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
 		$this->db->join('db_category b', 'b.id = a.category_id', 'left');
 		$this->db->join('db_brands c', 'c.id = a.brand_id', 'left');
 		$this->db->where('a.store_id', $store_id);
@@ -4367,10 +4829,17 @@ class Mobile extends MY_Controller {
 			return;
 		}
 
-		$this->db->where('id', $id)->update('db_items', [
-			'sales_price' => $sales_price,
-			'online_price' => $online_price,
-		]);
+        $prices = mp_apply_retail_markup([
+            'sales_price' => $sales_price,
+            'online_price' => $online_price,
+            'service_bit' => (int)($item->service_bit ?? 0),
+        ], mp_retail_markup_config($store_id));
+        unset($prices['service_bit']);
+        $this->db->where('id', $id)->where('store_id', $store_id)->update('db_items', $prices);
+        $capture = mp_audit_capture();
+        if ($capture) $capture->priceChanged($store_id, $id, $item,
+            $this->db->where('id', $id)->limit(1)->get('db_items')->row(),
+            'catalogue', 'price_change', 'Changed from the till phone screen.');
 		echo json_encode(['success' => true, 'message' => 'Prices updated.']);
 	}
 
@@ -4681,7 +5150,24 @@ class Mobile extends MY_Controller {
 		$menu_groups = [
 			'Overview' => [
 				['title' => 'Dashboard', 'desc' => "Home & today's summary", 'icon' => 'fa-home', 'url' => 'mobile', 'perm' => 'dashboard_view', 'color' => 'blue'],
+				['title' => 'Oil & Gas Workspace', 'desc' => 'Stations, depots & loads on the road', 'icon' => 'fa-tachometer', 'url' => 'oil_gas', 'perm' => 'dashboard_view', 'feature' => 'oil_gas_workspace', 'color' => 'blue'],
+				['title' => 'Location Operations', 'desc' => 'What each site does', 'icon' => 'fa-map-marker', 'url' => 'oil_gas/locations', 'perm' => 'warehouse_view', 'feature' => 'oil_gas_workspace', 'color' => 'teal'],
+				['title' => 'Forecourt', 'desc' => 'Tanks, pumps and duties', 'icon' => 'fa-tachometer', 'url' => 'oil_gas/forecourt', 'perm' => 'warehouse_view', 'feature' => ['pump_metering','fuel_shift_reconciliation'], 'color' => 'blue'],
+				['title' => 'Duty Readings', 'desc' => 'Open or close a duty against the till', 'icon' => 'fa-clock-o', 'url' => 'oil_gas/duty', 'perm' => 'warehouse_view', 'feature' => 'fuel_shift_reconciliation', 'color' => 'orange'],
 			],
+			// Cylinders are a separate half of the trade: an outlet that only lends
+			// and refills shells has no pumps, and a station that only sells litres
+			// has no shell register.
+			'LPG & Cylinders' => (
+				(function_exists('mp_feature_enabled') && (mp_feature_enabled('lpg_refills') || mp_feature_enabled('cylinder_tracking')))
+				? [
+					['title' => 'LPG Board', 'desc' => 'The scale against the till, shells out and money held', 'icon' => 'fa-balance-scale', 'url' => 'oil_gas/lpg', 'perm' => 'warehouse_view', 'color' => 'blue'],
+					['title' => 'Weigh a Fill', 'desc' => 'Record what went into a cylinder', 'icon' => 'fa-tachometer', 'url' => 'oil_gas/refill', 'perm' => 'warehouse_view', 'feature' => 'lpg_refills', 'color' => 'orange'],
+					['title' => 'Cylinder Register', 'desc' => 'Every shell we own and who holds it', 'icon' => 'fa-circle-o', 'url' => 'oil_gas/cylinders', 'perm' => 'warehouse_view', 'feature' => 'cylinder_tracking', 'color' => 'teal'],
+					['title' => 'Cylinder Deposits', 'desc' => 'Money held against a shell on loan', 'icon' => 'fa-money', 'url' => 'oil_gas/deposits', 'perm' => 'warehouse_view', 'feature' => 'cylinder_deposits', 'color' => 'green'],
+				]
+				: []
+			),
 			'Sales' => [
 				['title' => 'POS', 'desc' => 'Quick checkout', 'icon' => 'fa-calculator', 'url' => 'mobile/pos', 'perm' => 'pos', 'color' => 'primary'],
 				['title' => 'New Sale', 'desc' => 'Create an invoice', 'icon' => 'fa-file-text-o', 'url' => 'mobile/sale', 'perm' => 'sales_add', 'color' => 'green'],
@@ -4704,9 +5190,12 @@ class Mobile extends MY_Controller {
 			'Inventory' => [
 				['title' => 'Stock', 'desc' => 'Inventory levels', 'icon' => 'fa-cubes', 'url' => 'mobile/stock', 'perm' => 'items_view', 'color' => 'teal'],
 				['title' => 'Expiry & stock rotation', 'desc' => 'Block expired sales and choose FEFO or FIFO', 'icon' => 'fa-calendar-times-o', 'url' => 'expiry_settings?screen=mobile', 'perm' => 'expiry_settings', 'feature' => 'expiry_tracking', 'color' => 'orange'],
+				['title' => 'Batch reconciliation', 'desc' => 'Balance recorded batches against stock quantities', 'icon' => 'fa-balance-scale', 'url' => 'batch_reconciliation?screen=mobile', 'perm' => 'batch_reconciliation_view', 'feature' => 'batch_tracking', 'color' => 'teal'],
+				['title' => 'Batch ledger reports', 'desc' => 'Review batch quantities, sales and expiry dates', 'icon' => 'fa-list-alt', 'url' => 'batch_reports?screen=mobile', 'perm' => 'pharmacy_batch_report_view', 'feature' => 'batch_tracking', 'color' => 'blue'],
 				['title' => 'Add Product', 'desc' => 'Create a new item', 'icon' => 'fa-plus-circle', 'url' => 'mobile/product', 'perm' => 'items_add', 'color' => 'teal'],
 				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
-				['title' => 'Vehicles', 'desc' => 'Automobile inventory', 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
+				['title' => 'Record Wastage', 'desc' => 'Write off broken, spilled or expired stock', 'icon' => 'fa-exclamation-triangle', 'url' => 'mobile/record_wastage', 'perm' => 'stock_adjustment_add', 'feature' => 'wastage_reasons', 'color' => 'red'],
+				['title' => (mp_vehicle_register_mode() ? 'Customer Vehicles' : 'Vehicles'), 'desc' => (mp_vehicle_register_mode() ? 'Vehicles on file for fitting' : 'Automobile inventory'), 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
 				['title' => 'Butchery', 'desc' => 'Carcass & cuts', 'icon' => 'fa-cut', 'url' => 'mobile/butchery', 'perm' => 'items_view', 'color' => 'red', 'feature' => 'meat_butchery_workflow'],
 				['title' => 'Perfume Lab', 'desc' => 'Blending, maceration & losses', 'icon' => 'fa-flask', 'url' => 'mobile/perfume', 'perm' => 'items_view', 'color' => 'purple', 'feature' => 'perfumery_workflow'],
 				['title' => 'Cold Chain', 'desc' => 'Freezers & temperature log', 'icon' => 'fa-snowflake-o', 'url' => 'mobile/butchery_coldchain', 'perm' => 'items_view', 'color' => 'blue', 'feature' => ['meat_butchery_workflow','frozen_food_cold_chain']],
@@ -4759,6 +5248,7 @@ class Mobile extends MY_Controller {
 				),
 			'Customers' => [
 				['title' => 'Customers', 'desc' => 'Customer directory', 'icon' => 'fa-users', 'url' => 'mobile/customers', 'perm' => 'customers_view', 'color' => 'purple'],
+				['title' => 'Customer Pricing Groups', 'desc' => 'Manage customer price rules', 'icon' => 'fa-tags', 'url' => 'customer_groups', 'perm' => 'customers_view', 'color' => 'purple'],
 				['title' => 'Add Customer', 'desc' => 'Register a new customer', 'icon' => 'fa-user-plus', 'url' => 'mobile/add_customer', 'perm' => 'customers_add', 'color' => 'purple'],
 				['title' => 'Leads', 'desc' => 'Enquiries & prospects', 'icon' => 'fa-user-plus', 'url' => 'mobile/leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'teal'],
 			],
@@ -4800,6 +5290,7 @@ class Mobile extends MY_Controller {
 				['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'url' => 'mobile/report/sales_and_payments', 'perm' => 'sales_report', 'color' => 'primary'],
 				['title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'url' => 'mobile/report/sales_tax', 'perm' => 'sales_tax_report', 'color' => 'red'],
 				['title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/report/sales', 'perm' => 'sales_report', 'color' => 'primary'],
+				['title' => 'Member & Retail Sales', 'desc' => 'Sales separated by customer group price', 'icon' => 'fa-users', 'url' => 'reports/customer_group_sales?screen=mobile', 'perm' => 'sales_report', 'color' => 'blue'],
 				['title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'url' => 'mobile/report/sales_return', 'perm' => 'sales_return_report', 'color' => 'orange'],
 				['title' => 'Purchase Report', 'desc' => 'Purchase invoices', 'icon' => 'fa-cart-arrow-down', 'url' => 'mobile/report/purchase', 'perm' => 'purchase_report', 'color' => 'green'],
 				['title' => 'Purchase Return', 'desc' => 'Purchase returns', 'icon' => 'fa-reply', 'url' => 'mobile/report/purchase_return', 'perm' => 'purchase_return_report', 'color' => 'red'],
@@ -4825,6 +5316,15 @@ class Mobile extends MY_Controller {
 			] : []),
 		],
 		];
+		// Oil & Gas stores land in their own workspace; the operating screens
+		// (refills, tanks, pumps, shifts, dispatch, jobs) join this list as they
+		// ship, so the menu never points at a screen that does not exist.
+		if(function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace()){
+			$menu_groups['Oil & Gas'] = [
+				['title' => 'Oil & Gas Workspace', 'desc' => 'Locations, operations and daily figures', 'icon' => 'fa-tachometer', 'url' => 'oil_gas', 'perm' => null, 'color' => 'primary'],
+				['title' => 'Location Operations', 'desc' => 'What each station, outlet or depot runs', 'icon' => 'fa-map-marker', 'url' => 'oil_gas/locations', 'perm' => 'warehouse_view', 'color' => 'teal'],
+			];
+		}
 		$this->load->helper('industry_guide');
 		$more_industry_guide = mp_industry_guide();
 		if($more_industry_guide){
@@ -5100,9 +5600,14 @@ class Mobile extends MY_Controller {
 		$this->load->model('kitchen_model', 'kitchen');
 		$this->kitchen->sync_new_orders($store_id);
 
+		// A lane only exists once the store sells something routed to it; asking
+		// for one it does not have shows the whole board instead of an empty screen.
+		$bar_lane = $this->kitchen->has_bar_station($store_id);
+		$station = $bar_lane ? Kitchen_model::clean_station($this->input->get('station')) : 'all';
+
 		if($is_ajax){
 			header('Content-Type: application/json');
-			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'])]);
+			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'], $station)]);
 			return;
 		}
 
@@ -5112,9 +5617,11 @@ class Mobile extends MY_Controller {
 		}
 
 		$data['active_status'] = $active_status;
-		$data['status_counts'] = $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed']);
-		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50, 'DESC', $branch_context['branch'], $branch_context['allowed']);
-		$data['served'] = $this->kitchen->get_served_orders($store_id, 10, $branch_context['branch'], $branch_context['allowed']);
+		$data['station'] = $station;
+		$data['bar_lane'] = $bar_lane;
+		$data['status_counts'] = $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'], $station);
+		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50, 'DESC', $branch_context['branch'], $branch_context['allowed'], $station);
+		$data['served'] = $this->kitchen->get_served_orders($store_id, 10, $branch_context['branch'], $branch_context['allowed'], $station);
 		$data['branch'] = $branch_context['branch'];
 		$data['branch_opts'] = $branch_context['options'];
 		$data['branch_names'] = $branch_context['names'];
@@ -5699,7 +6206,7 @@ class Mobile extends MY_Controller {
 		$this->load->model('medical_notes_model','med_notes');
 		$id = $this->input->post('id', TRUE);
 		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
-		$this->med_notes->delete($id);
+		if(!$this->med_notes->delete($id)){ echo json_encode(['success' => false, 'message' => 'Prescription not found in this store.', 'csrf_hash' => $this->security->get_csrf_hash()]); return; }
 		echo json_encode(['success' => true, 'message' => 'Medical note deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 	}
 
@@ -6444,6 +6951,11 @@ class Mobile extends MY_Controller {
 		$data['label_defaults'] = mp_get_label_defaults();
 		$data['workflow_templates'] = mp_get_workflow_templates();
 		$data['dashboard_templates'] = mp_get_dashboard_templates();
+		// Batch rotation is configured with the pharmacy switches, on both shells.
+		$this->load->model('Inventory_rotation_model', 'rotation_model');
+		$data['rotation_method'] = $this->rotation_model->method($store_id);
+		$data['rotation_available'] = $this->db->table_exists('db_inventory_rotation_settings');
+		$data['rotation_gaps'] = mp_rotation_gap_count($store_id);
 		$this->load->model('storefront_model');
 		$data['storefront_themes'] = $this->storefront_model->getThemesByIndustryForStore($data['profile']['industry_type'] ?? null, true);
 
@@ -6688,8 +7200,17 @@ class Mobile extends MY_Controller {
 			case 'order':
 				$order_id = (int)$id;
 				$order = $order_id ? $this->storefront_model->getOrder($order_id) : null;
-				if(!$order){ show_404(); exit; }
+				if(!$order || (int)$order->store_id !== (int)$store_id){ show_404(); exit; }
 				$data['order'] = $order;
+				$this->load->model('online_payments_model', 'onlinepay');
+				$data['money_box'] = $this->onlinepay->summaryFor($order);
+				$data['trail'] = $this->storefront_model->orderTrail((int)$order->store_id, $order_id, 8);
+				$data['delivery_box'] = [
+					'collection' => $this->storefront_model->orderIsCollection($order),
+					'status' => (string)($order->delivery_status ?? ''),
+					'word' => $this->storefront_model->deliveryWord($order->delivery_status ?: 'pending'),
+				];
+				$data['can_move_delivery'] = !empty($data['can_edit']);
 				$data['items'] = $this->storefront_model->getOrderItems($order_id);
 				$data['back_url'] = base_url('mobile/online_store/orders');
 				$data['page_title'] = 'Order #' . $order->order_code;
@@ -6839,6 +7360,7 @@ class Mobile extends MY_Controller {
 			['type' => 'sales_tax', 'title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'perm' => 'sales_tax_report', 'color' => 'red'],
 			['type' => 'sales', 'title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'perm' => 'sales_report', 'color' => 'primary'],
 			['type' => 'repeat_purchase_trends', 'title' => 'Repeat-Purchase Trends', 'desc' => 'Returning customers and repeat revenue by month', 'icon' => 'fa-repeat', 'perm' => 'sales_report', 'color' => 'green'],
+			['type' => 'customer_group_sales', 'title' => 'Member & Retail Sales', 'desc' => 'Sales separated by saved customer group prices', 'icon' => 'fa-users', 'perm' => 'sales_report', 'color' => 'blue', 'url' => 'reports/customer_group_sales?screen=mobile'],
 			['type' => 'sales_return', 'title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'perm' => 'sales_return_report', 'color' => 'orange'],
 			['type' => 'purchase', 'title' => 'Purchase Report', 'desc' => 'Purchase invoices', 'icon' => 'fa-cart-arrow-down', 'perm' => 'purchase_report', 'color' => 'green'],
 			['type' => 'purchase_return', 'title' => 'Purchase Return', 'desc' => 'Purchase returns', 'icon' => 'fa-reply', 'perm' => 'purchase_return_report', 'color' => 'red'],
@@ -7053,6 +7575,7 @@ class Mobile extends MY_Controller {
 						$data = array_merge($data, $detail);
 					} else {
 						$data['account_code'] = $data['account_name'] = $data['note'] = '';
+						$data['bank_name'] = $data['bank_account_name'] = $data['bank_account_number'] = '';
 						$data['parent_id'] = '';
 						$data['opening_balance'] = '0';
 					}
@@ -7267,7 +7790,7 @@ class Mobile extends MY_Controller {
 		$store_id = get_current_store_id();
 		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();
 		$data['taxes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_tax')->result();
-		$data['items'] = $this->db->select('id, item_name, item_code, sales_price, tax_id')->where('store_id', $store_id)->where('status', 1)->where('item_group !=', 'Variants')->order_by('item_name')->limit(200)->get('db_items')->result();
+		$data['items'] = $this->db->select('id, item_name, item_code, sales_price, tax_id')->where('store_id', $store_id)->where('status', 1)->group_start()->where('item_group', NULL)->or_where('item_group !=', 'Variants')->group_end()->order_by('item_name')->limit(200)->get('db_items')->result();
 		$data['warehouses'] = (warehouse_module() && warehouse_count() > 0)
 			? $this->db->where('store_id', $store_id)->where('status', 1)->get('db_warehouse')->result()
 			: [];
@@ -7352,7 +7875,7 @@ class Mobile extends MY_Controller {
 
 		$data['suppliers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('supplier_name')->get('db_suppliers')->result();
 		$data['taxes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_tax')->result();
-		$data['items'] = $this->db->select('id, item_name, purchase_price, tax_id')->where('store_id', $store_id)->where('status', 1)->where('item_group !=', 'Variants')->order_by('item_name')->limit(200)->get('db_items')->result();
+		$data['items'] = $this->db->select('id, item_name, purchase_price, tax_id')->where('store_id', $store_id)->where('status', 1)->group_start()->where('item_group', NULL)->or_where('item_group !=', 'Variants')->group_end()->order_by('item_name')->limit(200)->get('db_items')->result();
 		$data['payment_modes'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_payment_modes')->result();
 		$data['accounts'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('account_name')->get('ac_accounts')->result();
 
@@ -8084,7 +8607,7 @@ class Mobile extends MY_Controller {
 		}
 		$this->load->model('Automobile_model', 'automobile_m');
 		$data = $this->data;
-		$data['page_title'] = 'Vehicles';
+		$data['page_title'] = (mp_vehicle_register_mode()) ? 'Customer Vehicles' : 'Vehicles';
 		$store_id = get_current_store_id();
 
 		$counts = ['available' => 0, 'reserved' => 0, 'sold' => 0];
@@ -8113,6 +8636,9 @@ class Mobile extends MY_Controller {
 		if(!empty($id)){
 			$data['vehicle'] = $this->automobile_m->get_by_id($id);
 			$data['page_title'] = 'Edit Vehicle';
+		}
+		if(mp_vehicle_register_mode()){
+			$data['page_title'] = empty($id) ? 'Add Customer Vehicle' : 'Edit Customer Vehicle';
 		}
 		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
 		$this->load->view('mobile/automobile_form', $data);

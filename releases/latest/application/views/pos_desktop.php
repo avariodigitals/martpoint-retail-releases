@@ -14,6 +14,9 @@ $mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile
 $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
 $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
 $mp_is_restaurant = function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace();
+// The walk-in desk signs itself with the word the store uses for its own
+// workspace, so a lounge's POS never announces itself as a restaurant.
+$mp_desk_word = ($mp_is_restaurant && function_exists('mp_workspace_word')) ? mp_workspace_word('Restaurant') : 'Restaurant';
 $mp_pos_receipt_reprint = function_exists('mp_feature_enabled') && mp_feature_enabled('pos_receipt_reprint');
 $mp_pos_palette = $mp_is_restaurant ? [
     'primary' => '#5E4D66', 'primary_dark' => '#4E3F55', 'bg' => '#F7F6F2',
@@ -44,7 +47,7 @@ $pos_json = static function ($value) {
   <meta charset="utf-8">
 <?php $this->load->view('comman/app_icons'); ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : ($mp_is_restaurant ? 'Restaurant Order Desk' : 'Point of Sale') ?></title>
+  <title><?= htmlspecialchars(get_store_name() ?: 'MartPoint') ?> — <?= $mp_is_pharmacy ? 'Dispensing & Checkout' : ($mp_is_restaurant ? htmlspecialchars($mp_desk_word . ' Order Desk') : 'Point of Sale') ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1532,7 +1535,7 @@ $pos_json = static function ($value) {
     <?php endif; ?>
     <a href="<?= base_url() ?>" class="brand" style="text-decoration: none; color: inherit; cursor: pointer;">
       <h1><?= htmlspecialchars(get_store_name() ?: 'Metro Mart') ?></h1>
-      <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : ($mp_is_restaurant ? 'Restaurant order desk' : 'Point of Sale'); ?></div>
+      <div class="sub"><?= $mp_is_pharmacy ? 'Pharmacy dispensing desk' : ($mp_is_restaurant ? htmlspecialchars(strtolower($mp_desk_word) . ' order desk') : 'Point of Sale'); ?></div>
     </a>
     <?php if(!mp_pharmacy_standard() && !empty($warehouse_options) && count($warehouse_options) > 1): ?>
     <label for="posOutletSelector" style="display:flex;align-items:center;gap:7px;margin:0 12px;font-size:12px;color:#475569;white-space:nowrap;">
@@ -1746,7 +1749,7 @@ $pos_json = static function ($value) {
               </div>
             <?php endif; ?>
           </div>
-          <select id="customerSelect" onchange="handleCustomerChange()">
+          <div id="customerPricingInfo" role="status" style="font-size:12px;color:var(--mp-primary);margin:6px 0"></div><select id="customerSelect" onchange="handleCustomerChange()">
             <?php if(!empty($customers) && is_array($customers)): ?>
               <?php foreach($customers as $c): ?>
                 <option value="<?= $c['id'] ?? $c->id ?>" <?= (!empty($walkin_customer_id) && (int)($c['id'] ?? $c->id) === (int)$walkin_customer_id) ? 'selected' : '' ?>><?= htmlspecialchars($c['customer_name'] ?? $c->customer_name) ?></option>
@@ -1763,6 +1766,25 @@ $pos_json = static function ($value) {
             <?php foreach($tables as $t): ?>
             <option value="<?= (int)$t->id; ?>"><?= htmlspecialchars($t->table_name); ?><?= !empty($t->zone) ? ' (' . htmlspecialchars($t->zone) . ')' : ''; ?> — <?= (int)$t->capacity; ?> seats</option>
             <?php endforeach; ?>
+            </select>
+          </div>
+          <?php endif; ?>
+          <?php if($mp_is_restaurant && function_exists('mp_feature_enabled') && mp_feature_enabled('running_tabs')): ?>
+          <div class="restaurant-table-picker" id="tabPickerWrap">
+            <div class="restaurant-table-label"><span><i class="fa fa-glass" aria-hidden="true"></i> Running tab</span><small>Put this round on a bill to pay later</small></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="tabSelect" aria-label="Running tab" style="flex:1;">
+                <option value="0">Pay this round now</option>
+              </select>
+              <button type="button" class="btn btn-default" style="white-space:nowrap;" onclick="openPosTab()">New tab</button>
+            </div>
+          </div>
+          <?php endif; ?>
+          <?php if(!empty($pos_vehicle_picker)): ?>
+          <div class="restaurant-table-picker" id="vehiclePickerWrap" style="display:none;">
+            <div class="restaurant-table-label"><span><i class="fa fa-car" aria-hidden="true"></i> Fit to vehicle</span><small>Links this sale to the customer's vehicle</small></div>
+            <select id="vehicleSelect" aria-label="Fit to vehicle">
+              <option value="0">No vehicle</option>
             </select>
           </div>
           <?php endif; ?>
@@ -2077,6 +2099,7 @@ $pos_json = static function ($value) {
     </div>
   </div>
 
+  <script src="<?= base_url('theme/js/customer_pricing.js'); ?>?v=1"></script>
   <script src="<?= rtrim($theme_link, '/') ?>/js/mp-offline-db.js?v=4"></script>
   <script>
     const products = <?= $pos_json($products ?? []) ?>;
@@ -2261,7 +2284,17 @@ $pos_json = static function ($value) {
       return false;
     }
 
+    let customerPricePolicy = {source:'normal'};
+    let customerPricingReady = false;
+    let customerPricingRequest = 0;
     function getPrice(product, unit = null) {
+      const normal = getNormalPrice(product, unit);
+      if(product && product.is_bundle) return normal;
+      const activeUnit = unit || (product.selling_units || []).find(u => u.is_default) || (product.selling_units || [])[0];
+      const wholesale = activeUnit ? activeUnit.wholesale_price : product.wholesale;
+      return MpCustomerPricing.price(normal, wholesale, customerPricePolicy);
+    }
+    function getNormalPrice(product, unit = null) {
       if (unit) {
         if (priceType === 'wholesale' && unit.wholesale_price > 0) return unit.wholesale_price;
         return unit.selling_price > 0 ? unit.selling_price : (unit.wholesale_price || 0);
@@ -2557,12 +2590,13 @@ $pos_json = static function ($value) {
     }
 
     function setPriceType(type) {
+      if(customerPricePolicy.source === 'group') type = 'wholesale';
       priceType = type;
       const retailBtn = document.getElementById('retailBtn');
       const wholesaleBtn = document.getElementById('wholesaleBtn');
       if (retailBtn) retailBtn.className = type === 'retail' ? 'active' : '';
       if (wholesaleBtn) wholesaleBtn.className = type === 'wholesale' ? 'active' : '';
-      cart.forEach(item => { item.unitPrice = getPrice(item, item.unit); });
+      cart.forEach(item => { item.unitPrice = getPrice(item, item.unit); item.pricing_snapshot=null; });
       updateCart();
       renderProducts();
       showToast(isPharmacyPos ? 'Price basis changed' : 'Price type changed', 'Switched to ' + (isPharmacyPos ? (type === 'wholesale' ? 'trade' : 'standard') : type) + ' prices', 'success');
@@ -2576,6 +2610,13 @@ $pos_json = static function ($value) {
           (p.name && p.name.toLowerCase().includes(q)) ||
           (p.sku && p.sku.toLowerCase().includes(q)) ||
           (p.item_code && p.item_code.toLowerCase().includes(q)) ||
+          // Tyre shops type a brand ("gondwana") or a size ("195/65") at the till.
+          (p.brand && p.brand.toLowerCase().includes(q)) ||
+          (p.variant_name && p.variant_name.toLowerCase().includes(q)) ||
+          // Auto parts counters type the number on the box, not the item name.
+          (p.part_no && p.part_no.toLowerCase().includes(q)) ||
+          (p.oem_ref && p.oem_ref.toLowerCase().includes(q)) ||
+          (p.xref && p.xref.toLowerCase().includes(q)) ||
           (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase().includes(q));
         return matchesCategory && matchesSearch;
       });
@@ -2595,7 +2636,7 @@ $pos_json = static function ($value) {
       if (productView === 'list') {
         grid.innerHTML = filtered.map(p => {
           const displayPrice = getPrice(p);
-          const stockChip = !showSaleStockLabels ? '' : (p.outOfStock
+          const stockChip = !showSaleStockLabels || p.service_bit ? '' : (p.outOfStock
             ? '<span class="stock-chip out">Out of stock</span>'
             : (p.alert_qty > 0 && p.stock <= p.alert_qty
               ? `<span class="stock-chip low">Low · ${p.stock}${p.unit ? ' ' + p.unit : ''}</span>`
@@ -2607,7 +2648,7 @@ $pos_json = static function ($value) {
               : (isRestaurantPos
                 ? restaurantProductFallback(p, true)
                 : `<div class="row-thumb"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></div>`));
-          const meta = [p.category, p.unit, p.sku].filter(Boolean).join(' · ');
+          const meta = [p.category, p.brand || p.variant_name, p.unit, p.sku].filter(Boolean).join(' · ');
           const saleTag = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-sale-badge">Sale</span>' : '';
           const oldPrice = showSaleStockLabels && priceType === 'retail' && p.onSale ? '<span class="pos-old-price">' + formatMoney(Number(p.original_price) || 0) + '</span>' : '';
           return `
@@ -2668,6 +2709,12 @@ $pos_json = static function ($value) {
       renderProducts();
     }
 
+    // A service line has no shelf quantity, so the stock caps never apply to it.
+    function exceedsStock(product, baseQty) {
+      if (product && product.service_bit) return false;
+      return product && baseQty > (Number(product.stock) || 0);
+    }
+
     function addToCart(id, selectedUnit = null) {
       const product = products.find(p => p.id === id);
       if (!product) return;
@@ -2695,12 +2742,13 @@ $pos_json = static function ($value) {
 
       const existing = cart.find(c => c.id === id && c.unit_id === unitId);
       const nextBaseQty = ((existing ? existing.qty : 0) + 1) * conversionFactor;
-      if (nextBaseQty > product.stock) {
+      if (exceedsStock(product, nextBaseQty)) {
         showToast('Not enough stock', product.name + ': 1 ' + (unitName || 'unit') + ' uses ' + conversionFactor + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
       }
 
       const unitPrice = getPrice(product, selectedUnit);
+      if(!customerPricingReady || unitPrice === null){ showToast('Customer pricing', 'Wait for pricing, or set this item/unit Wholesale price.', 'warning'); return; }
       const item = existing;
       if (item) {
         if (item.weight_pricing_enabled) {
@@ -2779,7 +2827,7 @@ $pos_json = static function ($value) {
       const conversion = parseFloat(item.conversion_factor || 1);
       const weightStep = item.weight_pricing_enabled ? (parseFloat(item.weight_pricing_increment_kg) || 0.05) : 1;
       const nextQty = item.weight_pricing_enabled ? ((parseFloat(item.weight_base_qty || 0) + delta) * (parseFloat(item.weight_pricing_base_kg) || 1)) + ((parseInt(item.weight_lines, 10) || 0) * weightStep) : item.qty + (delta * weightStep);
-      if (product && product.stock < nextQty * conversion) {
+      if (exceedsStock(product, nextQty * conversion)) {
         showToast('Not enough stock', product.name + ': 1 ' + (item.unit_name || 'unit') + ' uses ' + conversion + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
       }
@@ -2809,7 +2857,7 @@ $pos_json = static function ($value) {
       }
       const product = products.find(p => p.id === item.id);
       const conversion = parseFloat(item.conversion_factor || 1);
-      if (product && product.stock < rounded * conversion) {
+      if (exceedsStock(product, rounded * conversion)) {
         showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
         updateCart();
         return;
@@ -2825,7 +2873,7 @@ $pos_json = static function ($value) {
       const product = products.find(p => p.id === item.id);
       const conversion = parseFloat(item.conversion_factor || 1);
       if (!isFinite(qty) || qty <= 0) { cart.splice(index, 1); updateCart(); return; }
-      if (product && product.stock < qty * conversion) {
+      if (exceedsStock(product, qty * conversion)) {
         showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
         updateCart(); return;
       }
@@ -2848,7 +2896,7 @@ $pos_json = static function ($value) {
         item.qty = (parseFloat(item.weight_digital_kg) || 0) + ((WEIGHT_SCALE_MODE === 'hybrid' ? item.weight_lines : 0) * step);
       }
       const product = products.find(p => p.id === item.id);
-      if (product && product.stock < item.qty * (parseFloat(item.conversion_factor || 1))) {
+      if (exceedsStock(product, item.qty * (parseFloat(item.conversion_factor || 1)))) {
         item.qty = previous.qty;
         item.weight_base_qty = previous.weight_base_qty;
         item.weight_digital_kg = previous.weight_digital_kg;
@@ -2886,6 +2934,12 @@ $pos_json = static function ($value) {
       // the post-sale receipt is dismissed so an accidental second payment
       // click resolves to the original sale instead of creating another one.
       window.__mpRestaurantOrderKey = null;
+      window.__mpPosSaleKey = null;
+      // A new invoice starts off any tab, otherwise the next round lands on the
+      // bill of whichever table was served last.
+      const tabSel = posTabSelect();
+      if (tabSel) tabSel.value = '0';
+      loadPosTabs();
       // Auto-wipe hold if it was loaded but not processed
       if (currentLoadedHoldId && holdLoadedAt) {
         const timeElapsed = Date.now() - holdLoadedAt;
@@ -3188,23 +3242,75 @@ $pos_json = static function ($value) {
       document.getElementById('approvalDiscountInput').focus();
     }
 
-    function approveDiscount() {
+    // Discount approvals are recorded server-side: check_ajax decides whether
+    // this amount needs a manager, validate verifies the PIN against that
+    // request log, and the sale payload redeems the log exactly once.
+    let approvedDiscountLog = null;
+    function cartSubtotalForApproval() {
+      return cart.reduce((s, i) => s + getWeightPricing(i, i.qty).total, 0);
+    }
+    function approvalForm(body) {
+      return new URLSearchParams(Object.assign({ csrf_test_name: csrfToken }, body)).toString();
+    }
+    function approvalHeaders() {
+      return { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' };
+    }
+    async function approveDiscount() {
       const pin = document.getElementById('pinInput').value.trim();
       const amount = parseFloat(document.getElementById('approvalDiscountInput').value) || 0;
-      if (pin.length < 4) {
-        showToast('Approval failed', 'Enter a valid manager PIN (4-6 digits)', 'danger');
+      if (amount <= 0) {
+        showToast('Approval failed', 'Enter the discount amount first.', 'danger');
         return;
+      }
+      const subtotal = cartSubtotalForApproval();
+      const pct = subtotal > 0 ? (amount / subtotal) * 100 : 100;
+      let check;
+      try {
+        check = await posFetchJson(baseUrl + '/approvals/check_ajax', {
+          method: 'POST', headers: approvalHeaders(),
+          body: approvalForm({ type: 'discount', context: JSON.stringify({ amount: amount, percentage: pct }) })
+        });
+      } catch (e) {
+        showToast('Approval failed', 'Could not reach the approval service. Check the connection and try again.', 'danger');
+        return;
+      }
+      if (check && check.required) {
+        if (pin.length < 4) {
+          showToast('Approval failed', 'Enter a valid manager PIN (4-6 digits).', 'danger');
+          return;
+        }
+        let val;
+        try {
+          val = await posFetchJson(baseUrl + '/approvals/validate', {
+            method: 'POST', headers: approvalHeaders(),
+            body: approvalForm({ log_id: check.log_id, input: pin })
+          });
+        } catch (e) {
+          showToast('Approval failed', 'Could not reach the approval service. Check the connection and try again.', 'danger');
+          return;
+        }
+        if (!val || !val.success) {
+          showToast('Approval failed', (val && val.message) || 'The manager PIN was not accepted.', 'danger');
+          return;
+        }
+        approvedDiscountLog = { log_id: check.log_id, amount: amount };
+        showToast('Discount approved', formatMoney(amount) + ' approved by manager', 'success');
+      } else {
+        approvedDiscountLog = null;
       }
       discountAmount = amount;
       document.getElementById('discountInput').value = amount;
       document.getElementById('discountInput').disabled = false;
       closeApproval();
       updateCart();
-      showToast('Discount approved', formatMoney(amount) + ' applied', 'success');
     }
 
     function applyDiscountFromInput() {
-      discountAmount = Math.max(0, parseFloat(document.getElementById('discountInput').value) || 0);
+      const v = Math.max(0, parseFloat(document.getElementById('discountInput').value) || 0);
+      if (approvedDiscountLog && Math.abs((approvedDiscountLog.amount || 0) - v) > 0.005) {
+        approvedDiscountLog = null;
+      }
+      discountAmount = v;
       updateCart();
     }
 
@@ -3376,8 +3482,78 @@ $pos_json = static function ($value) {
 
     function onTableChange() {
       syncTableShippingState();
+      renderPosTabs();
       updateCart();
     }
+
+    /* ------------------------------------------------------------------
+       Running tabs. A tab only groups the rounds a table is still on; the
+       money stays on the invoice, so 'on a tab' means this round is saved
+       unpaid and settles later against the bill.
+       ------------------------------------------------------------------ */
+    let posTabs = [];
+
+    function posTabSelect() { return document.getElementById('tabSelect'); }
+
+    function currentPosTabId() {
+      const sel = posTabSelect();
+      return sel ? (parseInt(sel.value, 10) || 0) : 0;
+    }
+
+    function loadPosTabs() {
+      const sel = posTabSelect();
+      if (!sel) return;
+      fetch(baseUrl + '/operations/tabs_ajax', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(res => {
+          if (!res || !res.success) return;
+          posTabs = res.tabs || [];
+          renderPosTabs();
+        })
+        .catch(() => {});
+    }
+
+    // Only tabs for the table on the invoice may be offered — putting a round on
+    // another table's bill is the one mistake a floor server can make silently.
+    function renderPosTabs() {
+      const sel = posTabSelect();
+      if (!sel) return;
+      const tableId = parseInt((document.getElementById('tableSelect') || {}).value || '0', 10) || 0;
+      const keep = sel.value;
+      sel.innerHTML = '<option value="0">Pay this round now</option>';
+      posTabs.forEach(function (t) {
+        if (tableId > 0 && Number(t.table_id) > 0 && Number(t.table_id) !== tableId) return;
+        const o = document.createElement('option');
+        o.value = String(t.id);
+        o.textContent = t.tab_code + ' · ' + Number(t.rounds) + ' round(s) · ' + t.outstanding_fmt + ' owing';
+        sel.appendChild(o);
+      });
+      sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === keep; }) ? keep : '0';
+    }
+
+    function openPosTab() {
+      const tableId = parseInt((document.getElementById('tableSelect') || {}).value || '0', 10) || 0;
+      const payload = new FormData();
+      payload.append('table_id', String(tableId));
+      payload.append('warehouse_id', String(parseInt((document.getElementById('warehouseSelect') || {}).value || '0', 10) || 0));
+      payload.append('tab_key', 'tab-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      payload.append('csrf_test_name', csrfToken);
+      fetch(baseUrl + '/operations/tab_open', { method: 'POST', credentials: 'same-origin', body: payload })
+        .then(r => r.json())
+        .then(res => {
+          if (res && res.success) {
+            showToast('Tab opened', res.tab_code + ' is running' + (tableId ? ' for this table' : ' at the bar'), 'success');
+            loadPosTabs();
+            const sel = posTabSelect();
+            if (sel) { sel.value = String(res.id); }
+          } else {
+            openAlertModal('Could not open a tab', (res && res.message) || 'Please try again.');
+          }
+        })
+        .catch(() => openAlertModal('Could not open a tab', 'Network error. Nothing was saved.'));
+    }
+
+    loadPosTabs();
 
     // Manual shipping picker — fee is verified server-side on save
     function onShippingChange() {
@@ -3649,7 +3825,7 @@ $pos_json = static function ($value) {
       handleCustomerChange();
     }
 
-    function handleCustomerChange() {
+    function handleCustomerChange(preserveQuote = false) {
       const id = document.getElementById('customerSelect').value;
       const opt = document.querySelector('.customer-option[data-id="' + id + '"]');
       if (opt) document.getElementById('customerNameDisplay').textContent = opt.dataset.name || 'Walk-in Customer';
@@ -3674,7 +3850,50 @@ $pos_json = static function ($value) {
       } else {
         balEl.style.display = 'none';
       }
+      loadCustomerVehicles();
+      const request = ++customerPricingRequest;
+      customerPricingReady = false;
+      MpCustomerPricing.load(baseUrl, <?= (int)get_current_store_id(); ?>, id).then(policy => {
+        if(request !== customerPricingRequest) return;
+        customerPricePolicy = policy; customerPricingReady = true;
+        document.getElementById('customerPricingInfo').textContent = MpCustomerPricing.label(policy);
+        ['retailBtn','wholesaleBtn'].forEach(key => {const button=document.getElementById(key); if(button) button.disabled=policy.source==='group';});
+        if(preserveQuote){updateCart();renderProducts();return;}
+        if(policy.source==='group') setPriceType('wholesale');
+        else {cart.forEach(item => {item.unitPrice=getPrice(item,item.unit);item.pricing_snapshot=null;}); updateCart(); renderProducts();}
+      }).catch(error => { if(request===customerPricingRequest){document.getElementById('customerPricingInfo').textContent=error.message; showToast('Customer pricing',error.message,'warning');} });
       updateCart();
+    }
+
+    /* Tyre-shop fitment: vehicles recorded for the selected customer. */
+    let posVehicleIds = [];
+    function loadCustomerVehicles() {
+      const wrap = document.getElementById('vehiclePickerWrap');
+      if (!wrap) return;
+      const sel = document.getElementById('vehicleSelect');
+      const cid = parseInt(document.getElementById('customerSelect').value) || 0;
+      posVehicleIds = [];
+      sel.innerHTML = '<option value="0">No vehicle</option>';
+      wrap.style.display = 'none';
+      if (!cid || cid == WALKIN_CUSTOMER_ID) return;
+      posFetchJson(baseUrl + '/automobile/customer_vehicles/' + cid).then(res => {
+        const vs = (res && res.vehicles) || [];
+        vs.forEach(v => {
+          posVehicleIds.push(String(v.id));
+          const o = document.createElement('option');
+          o.value = v.id;
+          o.textContent = v.label;
+          sel.appendChild(o);
+        });
+        wrap.style.display = vs.length ? '' : 'none';
+      }).catch(() => { wrap.style.display = 'none'; });
+    }
+    function currentPosVehicleId() {
+      const wrap = document.getElementById('vehiclePickerWrap');
+      const sel = document.getElementById('vehicleSelect');
+      if (!wrap || !sel || wrap.style.display === 'none') return 0;
+      const v = parseInt(sel.value) || 0;
+      return (v > 0 && posVehicleIds.indexOf(String(v)) >= 0) ? v : 0;
     }
 
     function syncCustomerSearchFromSelect() {
@@ -3874,6 +4093,7 @@ $pos_json = static function ($value) {
     }
 
     function submitHold() {
+      if(!customerPricingReady || cart.some(item => item.unitPrice === null)){openAlertModal('Customer pricing','Refresh pricing before holding this cart.');return;}
       const reference = document.getElementById('holdReferenceInput').value.trim();
       const warehouseId = WAREHOUSE_ID ? parseInt(WAREHOUSE_ID) : 0;
       if (!warehouseId) {
@@ -3884,6 +4104,7 @@ $pos_json = static function ($value) {
         warehouse_id: warehouseId,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
         table_id: document.getElementById('tableSelect') ? (parseInt(document.getElementById('tableSelect').value) || 0) : 0,
+        tab_id: currentPosTabId(),
         cart: cart.map(item => ({
           id: item.id,
           qty: item.qty,
@@ -3891,12 +4112,14 @@ $pos_json = static function ($value) {
           weight_lines: item.weight_lines,
           price: getWeightPricing(item, item.qty).unit,
           base_price: item.unitPrice,
+        pricing_snapshot: item.pricing_snapshot || (item.is_bundle ? null : customerPricePolicy),
           tax_value: item.tax_value || 0,
           tax_type: item.tax_type || 'Exclusive',
           price_type: priceType,
           tax_id: item.tax_id || 0
         })),
         discount: discountAmount || 0,
+        discount_approval_log: (approvedDiscountLog && Math.abs((approvedDiscountLog.amount || 0) - (discountAmount || 0)) < 0.005) ? approvedDiscountLog.log_id : 0,
         shipping: shippingFeeId ? { id: shippingFeeId } : null,
         sales_note: buildPosSalesNote(),
         reference_id: reference,
@@ -3956,6 +4179,7 @@ $pos_json = static function ($value) {
               if (customerSelect && hold.customer_id) {
                 customerSelect.value = hold.customer_id;
                 syncCustomerSearchFromSelect();
+                handleCustomerChange(true);
               }
               if (hold.price_type === 'wholesale' || hold.price_type === 'retail') {
                 priceType = hold.price_type;
@@ -3980,6 +4204,9 @@ $pos_json = static function ($value) {
                   ...product,
                   id: it.id,
                   name: it.name,
+                  pricing_snapshot: it.pricing_snapshot,
+                  unit: (product.selling_units || []).find(u => String(u.unit_id) === String(it.unit_id)) || null,
+                  unit_id: it.unit_id || '', unit_name: it.unit_name || '', conversion_factor: it.conversion_factor || 1,
                   unitPrice: it.price,
                   qty: it.qty,
                   tax_value: it.tax_value,
@@ -4507,6 +4734,7 @@ $pos_json = static function ($value) {
     }
 
     function buildSalePayload(action, paid, paymentRows) {
+      if(!customerPricingReady || cart.some(item => item.unitPrice === null)) throw new Error('Customer pricing is not ready. Refresh the cart before payment.');
       const dueText = document.getElementById('paymentAmountDue').textContent;
       const due = parseFloat(dueText.replace(/[₦,]/g, '')) || 0;
       const cartItems = cart.map(item => ({
@@ -4516,6 +4744,7 @@ $pos_json = static function ($value) {
         weight_lines: item.weight_lines,
         price: getWeightPricing(item, item.qty).unit,
         base_price: item.unitPrice,
+        pricing_snapshot: item.pricing_snapshot || (item.is_bundle ? null : customerPricePolicy),
         tax_value: item.tax_value || 0,
         tax_type: item.tax_type || 'Exclusive',
         price_type: priceType,
@@ -4529,9 +4758,12 @@ $pos_json = static function ($value) {
         action: action,
         customer_id: parseInt(document.getElementById('customerSelect').value) || 0,
         table_id: document.getElementById('tableSelect') ? (parseInt(document.getElementById('tableSelect').value) || 0) : 0,
+        tab_id: currentPosTabId(),
+        vehicle_id: currentPosVehicleId(),
         warehouse_id: WAREHOUSE_ID ? parseInt(WAREHOUSE_ID) : 0,
         cart: cartItems,
         discount: discountAmount || 0,
+        discount_approval_log: (approvedDiscountLog && Math.abs((approvedDiscountLog.amount || 0) - (discountAmount || 0)) < 0.005) ? approvedDiscountLog.log_id : 0,
         shipping: shippingFeeId ? { id: shippingFeeId } : null,
         sales_note: buildPosSalesNote(),
         sales_status: 'Final',
@@ -4542,6 +4774,7 @@ $pos_json = static function ($value) {
         account_id: paymentRows[0] ? paymentRows[0].account_id : '',
         payment_rows: paymentRows,
         restaurant_order_key: window.__mpRestaurantOrderKey || (window.__mpRestaurantOrderKey = 'pos-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+        pos_idempotency_key: window.__mpPosSaleKey || (window.__mpPosSaleKey = 'posdesk-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
         medical_note_id: medicalNoteId,
         csrf_test_name: csrfToken
       };
@@ -4595,6 +4828,7 @@ $pos_json = static function ($value) {
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'plan' ? 'Create Plan' : 'Pay';
         if (res.status === 'success') {
+          approvedDiscountLog = null;
           closePaymentPopup();
           const salesId = res.sales_id;
           const msg = res.message || (isPharmacyPos ? 'Dispensing record saved' : 'Sale saved');
@@ -4610,6 +4844,13 @@ $pos_json = static function ($value) {
             setTimeout(() => window.location.reload(), 800);
           }
         } else {
+          if (res && res.approval_required) {
+            approvedDiscountLog = null;
+            closePaymentPopup();
+            openAlertModal('Manager approval needed', res.message || 'A manager must approve this discount before the sale can be taken.');
+            setTimeout(function () { try { openApproval(discountAmount); } catch (e) {} }, 250);
+            return;
+          }
           openAlertModal('Payment failed', res.message || 'Could not save the sale. Please check the details and try again.');
         }
       })
@@ -4618,7 +4859,7 @@ $pos_json = static function ($value) {
         submitBtn.textContent = mode === 'plan' ? 'Create Plan' : 'Pay';
         const networkError = !navigator.onLine || /Could not reach the server|network|failed to fetch|load failed/i.test(posErrorText(err, ''));
         if (networkError && window.MPOfflineDB) {
-          const queued = Object.assign({}, payload, { idempotencyKey: payload.restaurant_order_key });
+          const queued = Object.assign({}, payload, { idempotencyKey: payload.pos_idempotency_key || payload.restaurant_order_key });
           MPOfflineDB.queueSale({
             url: baseUrl + '/mobile/save',
             payload: queued,
@@ -4667,6 +4908,7 @@ $pos_json = static function ($value) {
     if (medicalNoteCustomerId) {
       setTimeout(() => { selectCustomer(String(medicalNoteCustomerId)); }, 100);
     }
+    handleCustomerChange();
   })();
 
   </script>

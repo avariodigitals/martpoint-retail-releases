@@ -291,3 +291,4 @@
                <?= form_close();?>
               </div>
               <!-- /.modal -->
+<?php $this->load->view('inventory/retail_markup_script'); ?>

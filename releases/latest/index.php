@@ -363,7 +363,7 @@ try {
 					$mp_path = '/'.ltrim($mp_uri, '/');
 
 					// Paths that must keep their existing routes on a custom domain
-					$mp_skip = array('store/', 'storefront/', 'image/', 'qr/', 'sitemap.xml', 'robots.txt', 'favicon', 'uploads/', 'assets/', 'themes/', 'setup/', 'install', 'index.php', 'api/', 'cron');
+					$mp_skip = array('store/', 'storefront/', 'pay/', 'image/', 'qr/', 'sitemap.xml', 'robots.txt', 'favicon', 'uploads/', 'assets/', 'themes/', 'setup/', 'install', 'index.php', 'api/', 'cron');
 					$mp_lower = strtolower($mp_path);
 					$mp_rewrite = TRUE;
 					foreach ($mp_skip as $mp_p) {

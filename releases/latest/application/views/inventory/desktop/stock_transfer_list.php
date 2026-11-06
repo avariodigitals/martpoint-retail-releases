@@ -1,5 +1,5 @@
 <?php $this->load->view('inventory/desktop/_styles'); ?>
-<?php $CI =& get_instance(); ?>
+<?php $CI =& get_instance(); $arrival_mode = function_exists('mp_feature_enabled') && mp_feature_enabled('transfer_receipt'); ?>
 
 <div class="mp-page-head">
   <div>
@@ -20,6 +20,17 @@
   <div class="mp-card-head">
     <h3><?= htmlspecialchars($page_title); ?></h3>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <?php if($arrival_mode): ?>
+      <select class="form-control" id="receipt_status" name="receipt_status" style="width:auto;min-width:190px;">
+        <option value="" selected>-Every load-</option>
+        <option value="In Transit">Waiting to be counted in</option>
+        <option value="Awaiting Approval">Short, awaiting approval</option>
+        <option value="Received">Counted in</option>
+      </select>
+      <?php if(is_store_admin() || is_admin()): ?>
+      <a href="<?= base_url('stock_transfer/tolerance'); ?>" class="mp-card-link"><i class="fa fa-sliders"></i> Transit loss limit</a>
+      <?php endif; ?>
+      <?php endif; ?>
       <?php if(warehouse_module() && warehouse_count()>1): ?>
       <?php $warehouse_opts = get_warehouse_select_list('', get_current_store_id(), false); ?>
       <?php $warehouse_opts = preg_replace('/\sselected/', '', $warehouse_opts); ?>
@@ -42,6 +53,7 @@
             <th><?= $this->lang->line('from_warehouse') ?: 'From Warehouse'; ?></th>
             <th><?= $this->lang->line('to_warehouse') ?: 'To Warehouse'; ?></th>
             <th><?= $this->lang->line('details') ?: 'Details'; ?></th>
+            <th>Arrival</th>
             <th><?= $this->lang->line('note') ?: 'Note'; ?></th>
             <th><?= $this->lang->line('created_by') ?: 'Created By'; ?></th>
             <th><?= $this->lang->line('action') ?: 'Action'; ?></th>
@@ -55,6 +67,8 @@
 <?= form_close(); ?>
 
 <script type="text/javascript">
+  var arrival_mode = <?= $arrival_mode ? 'true' : 'false' ?>;
+  var export_cols = arrival_mode ? [1,2,3,4,5,6,7] : [1,2,3,4,6,7];
   function load_datatable(){
     var table = $('#example2').DataTable({
       "aLengthMenu": [[10, 25, 50, 100, 500], [10, 25, 50, 100, 500]],
@@ -68,11 +82,11 @@
               multi_delete();
             }
           },
-          { extend: 'copy', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: [1,2,3,4,5,6]} },
-          { extend: 'excel', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: [1,2,3,4,5,6]} },
-          { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: [1,2,3,4,5,6]} },
-          { extend: 'print', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: [1,2,3,4,5,6]} },
-          { extend: 'csv', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: [1,2,3,4,5,6]} },
+          { extend: 'copy', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: export_cols } },
+          { extend: 'excel', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: export_cols } },
+          { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: export_cols } },
+          { extend: 'print', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: export_cols } },
+          { extend: 'csv', className: 'btn bg-teal color-palette btn-flat', exportOptions: { columns: export_cols } },
           { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat', text:'Columns' }
         ]
       },
@@ -87,7 +101,8 @@
         "url": "<?= site_url('stock_transfer/ajax_list'); ?>",
         "type": "POST",
         "data": {
-          warehouse_id: $("#warehouse_id").val()
+          warehouse_id: $("#warehouse_id").val(),
+          receipt_status: arrival_mode ? $("#receipt_status").val() : ''
         },
         complete: function (data) {
           $('.column_checkbox').iCheck({
@@ -99,10 +114,11 @@
         }
       },
       "columnDefs": [
-        { "targets": [0,4,7], "orderable": false },
+        { "targets": [0,4,8], "orderable": false },
         { "targets": [0], "className": "text-center" }
       ]
     });
+    if(!arrival_mode){ table.column(5).visible(false); }
     new $.fn.dataTable.FixedHeader( table );
   }
 
@@ -110,7 +126,7 @@
     load_datatable();
   });
 
-  $("#warehouse_id").on("change", function(){
+  $("#warehouse_id, #receipt_status").on("change", function(){
     $('#example2').DataTable().destroy();
     load_datatable();
   });

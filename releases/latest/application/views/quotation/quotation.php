@@ -338,6 +338,7 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
   var walk_in_customer_name ='<?= get_walk_in_customer_name();?>'
 </script>
 <script src="<?= htmlspecialchars($theme_link); ?>js/quotation/quotation.js?v=<?= (int)@filemtime(FCPATH.'theme/js/quotation/quotation.js'); ?>&r=2"></script>
+<script src="<?= htmlspecialchars(base_url('theme/js/customer_pricing_documents.js?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>"></script>
 <?php if($is_oil_plant_quote): ?><script>
   window.applyPlantQuoteSection = function(row){
     var heading = document.getElementById('plant_quote_section');

@@ -146,6 +146,13 @@
           $q1 = $this->db->where('id', $res3->store_id)->get('db_store');
           $res1 = $q1->row();
     $res1 = mp_document_store($res1, 'db_sales', $sales_id);
+          $invoice_bank_account = null;
+          if ($this->db->field_exists('invoice_account_id', 'db_sales') && $this->db->field_exists('bank_account_number', 'ac_accounts')) {
+            $selected = $this->db->select('invoice_account_id')->where('id', (int)$sales_id)->where('store_id', (int)$res3->store_id)->get('db_sales')->row();
+            if ($selected && (int)$selected->invoice_account_id > 0) {
+              $invoice_bank_account = $this->db->where('id', (int)$selected->invoice_account_id)->where('store_id', (int)$res3->store_id)->get('ac_accounts')->row();
+            }
+          }
           $store_name = $res1->store_name ?? '';
           $company_mobile = $res1->mobile ?? '';
           $company_phone = $res1->phone ?? '';
@@ -185,6 +192,16 @@
           <span class="status status-<?= strtolower($payment_status); ?>"><?= $payment_status; ?></span>
         </div>
       </div>
+
+      <?php if($invoice_bank_account && !empty($invoice_bank_account->bank_account_number)): ?>
+      <div class="card">
+        <div class="card-title">Payment account</div>
+        <div class="info-block">
+          <div class="name"><?= htmlspecialchars($invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?></div>
+          <div class="detail"><?php if(!empty($invoice_bank_account->bank_name)): ?><?= htmlspecialchars($invoice_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?><br><?php endif; ?><?= htmlspecialchars($invoice_bank_account->bank_account_name ?: $invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br><strong><?= htmlspecialchars($invoice_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?></strong></div>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <div class="card">
         <?= mp_document_location_html($res1); ?>

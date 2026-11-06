@@ -83,3 +83,68 @@ function mp_pharmacy_storefront_settings($settings) {
     }
     return $settings;
 }
+
+/**
+ * Dispensing gate: refuse a sale containing prescription-only medicines
+ * unless an approved prescription for the same patient is linked to it.
+ * Returns '' when dispensing is allowed, otherwise a staff-facing message.
+ * With $asList=true it instead returns the names of the Rx-only items in the
+ * cart ([] when there are none) — used by online checkout before ordering.
+ */
+function mp_prescription_gate($storeId, $itemIds, $medicalNoteId = 0, $customerId = 0, $asList = false) {
+    $storeId = (int)$storeId;
+    $listless = $asList ? [] : '';
+    $itemIds = array_values(array_filter(array_map('intval', (array)$itemIds)));
+    if (!$itemIds || !mp_feature_enabled_for_store('prescription_required', $storeId)) return $listless;
+    $db = mp_read_db();
+    if (!$db->field_exists('prescription_required', 'db_items')) return $listless;
+
+    $placeholders = implode(',', array_fill(0, count($itemIds), '?'));
+    $rows = $db->query(
+        "SELECT i.id, i.item_name, IFNULL(pi.prescription_required, 0) AS parent_required, IFNULL(i.prescription_required, 0) AS self_required
+           FROM db_items i
+           LEFT JOIN db_items pi ON pi.id = i.parent_id
+          WHERE i.store_id = ? AND i.id IN ($placeholders)",
+        array_merge([$storeId], $itemIds)
+    )->result();
+
+    $names = [];
+    foreach ($rows as $row) {
+        if ((int)$row->self_required === 1 || (int)$row->parent_required === 1) {
+            $names[] = trim((string)$row->item_name) !== '' ? $row->item_name : ('Item #' . $row->id);
+        }
+    }
+    if (!$names) return $listless;
+
+    $medicalNoteId = (int)$medicalNoteId;
+    if ($medicalNoteId <= 0) {
+        if ($asList) return $names;
+        return 'This sale includes prescription-only medicine (' . implode(', ', $names) . '). '
+            . "Record or open the patient's prescription first, then link it to this sale.";
+    }
+    if (!$db->field_exists('review_status', 'db_medical_notes')) {
+        return 'Prescription review is not set up on this store yet, so prescription-only medicine cannot be dispensed against note #'
+            . $medicalNoteId . '. Contact MartPoint support.';
+    }
+    $note = $db->select('id, customer_id, review_status')
+        ->where('id', $medicalNoteId)->where('store_id', $storeId)
+        ->get('db_medical_notes')->row();
+    if (!$note) {
+        return "The linked prescription record (#$medicalNoteId) does not belong to this store. "
+            . 'Pick the patient’s prescription from this store’s records.';
+    }
+    if ((string)$note->review_status !== 'approved') {
+        $status = ($note->review_status === 'rejected') ? 'rejected' : 'still awaiting pharmacist review';
+        return 'This prescription is ' . $status . ', so the medicine cannot be dispensed yet. '
+            . 'A pharmacist must approve the prescription record first.';
+    }
+    $customerId = (int)$customerId;
+    if ($customerId <= 0) {
+        return 'Prescription-only medicines need a patient. Select the customer the prescription was written for.';
+    }
+    if ((int)$note->customer_id !== $customerId) {
+        return 'The linked prescription belongs to a different patient than the customer on this sale. '
+            . 'Link the prescription record that matches customer #' . $customerId . '.';
+    }
+    return $listless;
+}

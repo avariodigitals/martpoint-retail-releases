@@ -39,6 +39,14 @@ class Business_profile extends MY_Controller {
         $data['label_defaults'] = mp_get_label_defaults();
         $data['workflow_templates'] = mp_get_workflow_templates();
         $data['dashboard_templates'] = mp_get_dashboard_templates();
+        // Batch rotation is configured here now (Pharmacy section), so the
+        // screen needs the store's current method and whether it can be set.
+        $this->load->model('Inventory_rotation_model', 'rotation_model');
+        $data['rotation_method'] = $this->rotation_model->method($store_id);
+        $data['rotation_available'] = $this->db->table_exists('db_inventory_rotation_settings');
+        // Shown next to the switch: how many medicines would stop at the till
+        // the moment this store starts selling from its batches.
+        $data['rotation_gaps'] = mp_rotation_gap_count($store_id);
         $this->load->model('storefront_model');
         $data['storefront_themes'] = $this->storefront_model->getThemesByIndustryForStore($data['profile']['industry_type'] ?? null, true);
         $data['content'] = $this->load->view('business_profile', $data, TRUE);
@@ -48,6 +56,30 @@ class Business_profile extends MY_Controller {
     public function save() {
         $this->permission_check('business_profile');
         $store_id = get_current_store_id();
+
+        // A request with nothing posted is not a save. Run as a GET it would
+        // blank the store's industry and rebuild every feature flag from the
+        // fallback preset, switching the merchant's modules off. Both the
+        // desktop form and the mobile form post.
+        if (strtolower((string)$this->input->method()) !== 'post') {
+            echo json_encode(['status' => 'error', 'message' => 'Use the Business Profile form to save.']);
+            return;
+        }
+
+        // Empty means manual pricing; zero is a valid markup. Omitted controls
+        // (for example a save from another tab) preserve the existing setting.
+        $markup_post = $this->input->post('retail_markup_percent', TRUE);
+        $markup_present = $markup_post !== null && $markup_post !== false;
+        $markup_percent = mp_normalize_retail_markup_percent($markup_post);
+        if ($markup_present && (!is_scalar($markup_post) || (trim((string)$markup_post) !== '' && $markup_percent === null))) {
+            echo json_encode(['status'=>'error','message'=>'Retail markup must be a percentage from 0 to 10,000, or blank for manual pricing.']);
+            return;
+        }
+
+        if ($markup_present && $markup_percent !== null && !$this->db->table_exists('db_store_settings')) {
+            echo json_encode(['status'=>'error','message'=>'Store settings are not installed yet. Apply the latest database updates before setting a retail markup.']);
+            return;
+        }
 
         $industry_type = $this->input->post('industry_type', TRUE);
         if (strtoupper(trim((string)$industry_type)) === 'GARDEN_CENTRE_LANDSCAPING') $industry_type = 'garden_centre_landscaping';
@@ -89,18 +121,10 @@ class Business_profile extends MY_Controller {
             $storefront_theme_key = $existingKey ?: (isset($allowed[$preset['theme_key'] ?? '']) ? $preset['theme_key'] : (array_keys($allowed)[0] ?? 'general_retail'));
         }
 
-        // Feature flags JSON.
-        //
-        // Three cases, because a checkbox that is OFF posts nothing and is
-        // therefore indistinguishable from a flag the form never rendered:
-        //   1. the form rendered it (marker present) -> submitted value wins,
-        //      so an admin can deliberately switch a preset capability off;
-        //   2. not rendered but already stored          -> preserve, so saving
-        //      one tab can't silently drop flags (a store with a 24-key profile
-        //      would otherwise be rewritten down to the rendered subset);
-        //   3. never stored                             -> default to the
-        //      business-type preset, which is what makes selecting
-        //      Physiotherapy turn patient_registry & the clinical set on.
+        // Feature flags JSON — see mp_merge_feature_flags() for the three cases
+        // (rendered / stored-but-not-rendered / never stored) that keep a
+        // section-local save from zeroing a flag on a folded-away part of the
+        // screen, and a store-scoped setting from leaking into the next store.
         $flags = $this->input->post('feature_flags');
         $flags_seen = $this->input->post('feature_flags_seen');   // markers
         $stored = array();
@@ -111,30 +135,29 @@ class Business_profile extends MY_Controller {
             $decoded = json_decode($existing->feature_flags_json, true);
             if (is_array($decoded)) { $stored = $decoded; }
         }
-        $flags = is_array($flags) ? $flags : array();
-        $flags_seen = is_array($flags_seen) ? $flags_seen : array();
         $preset_features = (isset($preset['features']) && is_array($preset['features']))
             ? $preset['features'] : array();
-
-        $clean = array();
-        foreach (mp_get_feature_flags() as $key => $label) {
-            if (isset($flags_seen[$key])) {
-                $clean[$key] = isset($flags[$key]) ? '1' : '0';
-            } elseif (isset($stored[$key])) {
-                $clean[$key] = $stored[$key];
-            } else {
-                $clean[$key] = in_array($key, $preset_features, true) ? '1' : '0';
-            }
-        }
-        // A store that predates a capability still gets it when its business
-        // type requires it — "select Physiotherapy" must mean the clinical
-        // modules are on, not merely available.
-        foreach ($preset_features as $key) {
-            if (!isset($flags_seen[$key]) && isset($clean[$key]) && $clean[$key] !== '1') {
-                $clean[$key] = empty($stored[$key]) ? '1' : $clean[$key];
-            }
-        }
+        $clean = mp_merge_feature_flags($flags, $flags_seen, $stored, $preset_features);
         $feature_flags_json = json_encode($clean);
+
+        // Batch rotation lives with the pharmacy switches now, but saves to its
+        // own per-store table. Only act when the form posted a method: saving a
+        // different tab must not reset it.
+        $rotation_method = strtoupper(trim((string)$this->input->post('rotation_method', TRUE)));
+        $rotation_error = '';
+        if (in_array($rotation_method, ['MANUAL', 'FEFO', 'FIFO'], true)) {
+            $this->load->model('Inventory_rotation_model', 'rotation_model');
+            // Switching onto batch selling with unbalanced lots blocks the
+            // counter medicine by medicine, so the change needs a second,
+            // deliberate click. Numbers come from the reconciliation model.
+            $guard = $this->rotation_model->switch_guard($store_id, $rotation_method,
+                (string)$this->input->post('rotation_ack', TRUE) === '1');
+            if (!$guard['ok']) {
+                $rotation_error = $guard['message'];
+            } elseif (!$this->rotation_model->save_method($store_id, $rotation_method, get_current_user_id())) {
+                $rotation_error = 'Batch rotation could not be saved on this store yet — the rotation table is not installed. Apply the latest update, then choose the method again.';
+            }
+        }
 
         // Label overrides JSON — use submitted values, then merge with preset defaults
         $labels = $this->input->post('label_overrides');
@@ -177,8 +200,21 @@ class Business_profile extends MY_Controller {
             'industry_settings_json' => $industry_settings_json,
         ];
 
-        try { $result = $this->bp_model->update_profile($store_id, $update); }
-        catch (InvalidArgumentException $e) {
+        $this->db->trans_begin();
+        try {
+            $result = $this->bp_model->update_profile($store_id, $update);
+            if ($result && $markup_present && $this->db->table_exists('db_store_settings')) {
+                $result = mp_set_store_setting($store_id, 'inventory', 'retail_markup_percent',
+                    $markup_percent === null ? '' : (string)$markup_percent, 'string');
+            }
+            if (!$result || $this->db->trans_status() === false) {
+                $this->db->trans_rollback();
+                $result = false;
+            } else {
+                $this->db->trans_commit();
+            }
+        } catch (InvalidArgumentException $e) {
+            $this->db->trans_rollback();
             echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
         }
 
@@ -223,7 +259,13 @@ class Business_profile extends MY_Controller {
         }
 
         if ($result) {
-            echo json_encode(['status' => 'success', 'message' => 'Business Profile updated successfully.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            $message = 'Business Profile updated successfully.';
+            if ($rotation_error !== '') {
+                // The profile saved; only the rotation choice did not. Say which
+                // part is pending rather than reporting a blanket failure.
+                $message = $rotation_error;
+            }
+            echo json_encode(['status' => 'success', 'message' => $message, 'csrf_hash' => $this->security->get_csrf_hash()]);
         } else {
             $err = $this->db->error();
             echo json_encode(['status' => 'error', 'message' => 'Failed to update Business Profile. DB error: ' . ($err['message'] ?? 'Unknown'), 'csrf_hash' => $this->security->get_csrf_hash()]);

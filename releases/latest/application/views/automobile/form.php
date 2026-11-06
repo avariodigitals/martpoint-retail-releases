@@ -20,17 +20,17 @@
   @media(max-width: 767px){ .automobile-form .mp-form-grid { grid-template-columns: 1fr; } }
 </style>
 <div class="automobile-form">
-<div class="mp-page-head">
-  <div>
-    <h2><?= !empty($vehicle) ? 'Edit Vehicle' : 'Add Vehicle'; ?></h2>
-    <div class="mp-page-sub">Record the vehicle details, pictures, and price</div>
-  </div>
-</div>
-
 <?php $is_edit = !empty($vehicle); ?>
-
+<?php $tyre = !empty($tyre_ctx); ?>
 <?= form_open_multipart('automobile/save', ['class' => 'mp-form']); ?>
 <input type="hidden" name="id" value="<?= $is_edit ? (int) $vehicle->id : ''; ?>">
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= $tyre ? ($is_edit ? 'Edit Customer Vehicle' : 'Add Customer Vehicle') : ($is_edit ? 'Edit Vehicle' : 'Add Vehicle'); ?></h2>
+    <div class="mp-page-sub"><?= $tyre ? 'Record the vehicle details used for fitting services' : 'Record the vehicle details, pictures, and price'; ?></div>
+  </div>
+</div>
 
 <div class="mp-card" style="margin-top:24px;">
   <div class="mp-card-head"><h3>Vehicle Details</h3></div>
@@ -110,8 +110,8 @@
     </div>
 
     <div class="form-group" style="margin-top:16px;">
-      <label>Description / Specifications</label>
-      <textarea name="description" class="form-control" rows="3" placeholder="Engine, trim, features, etc."><?= $is_edit ? htmlspecialchars($vehicle->description) : ''; ?></textarea>
+      <label><?= $tyre ? 'Notes (tyre size, fitment preferences)' : 'Description / Specifications'; ?></label>
+      <textarea name="description" class="form-control" rows="3" placeholder="<?= $tyre ? 'e.g. Runs 205/55R16, prefers durable all-seasons' : 'Engine, trim, features, etc.'; ?>"><?= $is_edit ? htmlspecialchars($vehicle->description) : ''; ?></textarea>
     </div>
   </div>
 </div>
@@ -158,6 +158,7 @@
   </div>
 </div>
 
+<?php if (!$tyre): ?>
 <div class="mp-card" style="margin-top:16px;">
   <div class="mp-card-head"><h3>Pricing &amp; Status</h3></div>
   <div class="mp-card-body">
@@ -183,11 +184,20 @@
       <label>Customer / Buyer Name</label>
       <input type="text" name="customer_name" class="form-control" value="<?= $is_edit ? htmlspecialchars($vehicle->customer_name) : ''; ?>" placeholder="For reserved or sold units">
     </div>
+<?php else: ?>
+<div class="mp-card" style="margin-top:16px;">
+  <div class="mp-card-head"><h3>Owner</h3></div>
+  <div class="mp-card-body">
+    <div class="form-group">
+      <label>Customer Name</label>
+      <input type="text" name="customer_name" class="form-control" value="<?= $is_edit ? htmlspecialchars($vehicle->customer_name) : ''; ?>" placeholder="Who brings this vehicle in">
+    </div>
+<?php endif; ?>
   </div>
 </div>
 
 <div class="mp-card" style="margin-top:16px;">
-  <div class="mp-card-head"><h3>Vehicle Gallery</h3></div>
+  <div class="mp-card-head"><h3><?= $tyre ? 'Vehicle Photos' : 'Vehicle Gallery'; ?></h3></div>
   <div class="mp-card-body">
     <div class="form-group">
       <input type="file" name="vehicle_images[]" class="form-control" accept="image/png,image/jpeg,image/webp" multiple>
@@ -212,7 +222,7 @@
 </div>
 
 <div class="mp-form-actions" style="margin-top:24px;">
-  <button type="submit" class="mp-btn green"><i class="fa fa-save"></i> Save Vehicle</button>
+  <button type="submit" class="mp-btn green"><i class="fa fa-save"></i> <?= $tyre ? 'Save Customer Vehicle' : 'Save Vehicle'; ?></button>
   <a href="<?= base_url('automobile/list'); ?>" class="mp-btn">Cancel</a>
 </div>
 

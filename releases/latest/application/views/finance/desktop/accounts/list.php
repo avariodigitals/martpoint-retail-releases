@@ -73,7 +73,7 @@ $(document).ready(function() {
   });
 });
 </script>
-<script src="<?= htmlspecialchars($theme_link); ?>js/accounts/accounts.js"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/accounts/accounts.js?v=20261106-account-save-fix"></script>
 <script>
   $('.mp-nav-item').removeClass('active');
   $('.accounts_list-active-li').addClass('active');

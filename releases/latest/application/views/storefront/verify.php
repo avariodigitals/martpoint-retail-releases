@@ -267,7 +267,7 @@
       .then(res => {
         if(res.csrf_hash) document.getElementById('csrf-hash').value = res.csrf_hash;
         if(res.status){
-          window.location.href = '<?= base_url('store/'); ?>' + STORE_SLUG + '/account';
+          window.location.href = '<?= base_url('store/'); ?>' + STORE_SLUG + <?= json_encode($this->input->get('return') === 'cart' ? '/cart' : '/account'); ?>;
         } else {
           showError('otp-error', res.message || 'Invalid code');
           enableBtn('verify-otp-btn', 'Verify & continue');

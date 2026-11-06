@@ -92,6 +92,7 @@ class Items extends MY_Controller {
 			}
 			$data['recipes_list'] = $recipes;
 		}
+		$data = array_merge($data, $this->_auto_part_form_context());
 		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=16'];
 		$data['content'] = $this->load->view('items',$data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -292,6 +293,7 @@ class Items extends MY_Controller {
 			}
 		}
 		//$data['variant_tbody']=$this->items_model->get_variants_list_in_row($id);
+		$data = array_merge($data, $this->_auto_part_form_context((int)$id));
 		$data['extra_js_files'] = ['js/modals.js','js/items.js?v=16'];
 		$data['content'] = $this->load->view('items', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -569,6 +571,7 @@ class Items extends MY_Controller {
 		$data = array();
 		$display_json = array();
 		$name = isset($_GET['name']) ? strtolower(trim($_GET['name'])) : '';
+		$name_sql = $this->db->escape_like_str($name); // the LIKE clauses below interpolate raw SQL
 		$pharmacy_categories = ($search_for === 'purchase')
 			? $this->_pharmacy_purchase_categories($store_id)
 			: array();
@@ -601,7 +604,13 @@ class Items extends MY_Controller {
 			$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 		}
 		if(!empty($name)){
-			$this->db->where("(LOWER(a.custom_barcode) LIKE '%$name%' or LOWER(a.item_name) LIKE '%$name%' or LOWER(a.item_code) LIKE '%$name%')");
+			// Parts trade on references: a workshop asks for the part number, not
+			// the catalogue name. Columns arrive with 4.0.9.243.
+			$part_ref_clause = '';
+			if ($this->db->field_exists('manufacturer_part_no', 'db_items')) {
+				$part_ref_clause = " or LOWER(a.manufacturer_part_no) LIKE '%$name_sql%' or LOWER(a.oem_reference) LIKE '%$name_sql%' or LOWER(a.cross_reference) LIKE '%$name_sql%'";
+			}
+			$this->db->where("(LOWER(a.custom_barcode) LIKE '%$name_sql%' or LOWER(a.item_name) LIKE '%$name_sql%' or LOWER(a.item_code) LIKE '%$name_sql%'$part_ref_clause)");
 		}
 
 		$this->db->group_by("a.id");
@@ -625,7 +634,7 @@ class Items extends MY_Controller {
 				if($res->item_group!='Variants'){
 			      $json_arr["id"] = $res->id;
 				  $json_arr["value"] = $res->item_name;
-				  $json_arr["label"] = $res->item_name;
+				  $json_arr["label"] = $res->item_name . $this->_matched_part_ref($res, $name);
 				  $json_arr["item_code"] = $res->item_code;
 				  $json_arr["stock"] = (isset($search_for) && $search_for=='sales') ? total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res->id) : $res->stock;
 				  $json_arr["purchase_price"] = ($show_purchase_price) ? store_number_format($res->purchase_price) : '';
@@ -660,7 +669,7 @@ class Items extends MY_Controller {
 				$this->db->where('su.status', 1);
 				$this->db->where('su.is_template', 0);
 				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
-				$this->db->where("(LOWER(su.barcode) LIKE '%$name%' OR LOWER(su.sku) LIKE '%$name%')", null, false);
+				$this->db->where("(LOWER(su.barcode) LIKE '%$name_sql%' OR LOWER(su.sku) LIKE '%$name_sql%')", null, false);
 				$this->db->limit(20);
 				$su_sql = $this->db->get();
 				foreach ($su_sql->result() as $sres) {
@@ -699,7 +708,7 @@ class Items extends MY_Controller {
 					$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 				}
 				$this->db->where('b.status', 1);
-				$this->db->where("(LOWER(b.barcode) LIKE '%$name%' OR LOWER(b.serial_number) LIKE '%$name%' OR LOWER(b.imei_number) LIKE '%$name%')", null, false);
+				$this->db->where("(LOWER(b.barcode) LIKE '%$name_sql%' OR LOWER(b.serial_number) LIKE '%$name_sql%' OR LOWER(b.imei_number) LIKE '%$name_sql%')", null, false);
 				$this->db->limit(20);
 				$bc_sql = $this->db->get();
 				foreach ($bc_sql->result() as $bres) {
@@ -736,6 +745,39 @@ class Items extends MY_Controller {
 			}
 
 		echo json_encode($display_json);exit;
+	}
+
+	/**
+	 * When staff search by part reference instead of by name, show the number
+	 * that matched so they can see they have the right part before adding it.
+	 */
+	private function _matched_part_ref($res, $term){
+		$term = trim((string) $term);
+		if ($term === '' || strpos(strtolower((string) $res->item_name), $term) !== false) return '';
+		foreach (['manufacturer_part_no', 'oem_reference', 'cross_reference'] as $col) {
+			foreach (preg_split('/[,\s\/]+/', trim((string) ($res->{$col} ?? ''))) as $token) {
+				if ($token !== '' && strpos(strtolower($token), $term) !== false) return ' [' . $token . ']';
+			}
+		}
+		return '';
+	}
+
+	/** Fitment pickers for the auto-parts catalogue form; other business
+	 * types never see the section, so nothing is posted and nothing is stored.
+	 */
+	private function _auto_part_form_context($item_id = null){
+		if (!mp_feature_enabled('auto_parts')) return [];
+		$store_id = (int) get_current_store_id();
+		$this->load->model('item_vehicle_compat_model');
+		$makes = $this->db->where_in('store_id', [0, $store_id])->where('status', 1)
+			->order_by('name', 'ASC')->get('db_vehicle_makes')->result();
+		$models = $this->db->where_in('store_id', [0, $store_id])->where('status', 1)
+			->order_by('name', 'ASC')->get('db_vehicle_models')->result();
+		return [
+			'vehicle_compat_rows' => $item_id ? $this->item_vehicle_compat_model->rows_for_item($store_id, $item_id) : [],
+			'vehicle_makes' => $makes,
+			'vehicle_models' => $models,
+		];
 	}
 
 	/* Returns all items for offline sync (IndexedDB caching) */
@@ -856,6 +898,9 @@ class Items extends MY_Controller {
 		$html .= '<div class="row">';
 		$html .= '<div class="col-md-3"><b>Code:</b> '.$item->item_code.'</div>';
 		$html .= '<div class="col-md-3"><b>Barcode:</b> '.($item->custom_barcode ?: '-').'</div>';
+		if(mp_feature_enabled('auto_parts') && !empty($item->manufacturer_part_no)){
+			$html .= '<div class="col-md-3"><b>Part No:</b> '.htmlspecialchars($item->manufacturer_part_no).'</div>';
+		}
 		$html .= '<div class="col-md-3"><b>Stock:</b> '.$item->stock.'</div>';
 		$html .= '<div class="col-md-3"><b>Price:</b> '.store_number_format($item->sales_price).'</div>';
 		$html .= '</div>';

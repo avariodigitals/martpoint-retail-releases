@@ -240,11 +240,24 @@
               $tot_qty=0;
               $subtotal=0;
               $tax_amt=0;
+              // Show the committed lot allocations on the receipt. This reads
+              // the saved sale ledger, rather than trying to predict which
+              // lots FIFO/FEFO will consume before checkout completes.
+              $sale_batches = array();
+              if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+                $batchRows = $this->db->select('salesitems_id, batch_lot, expire_date, qty_allocated, rotation_method')
+                    ->where('sales_id', (int)$sales_id)
+                    ->order_by('id', 'ASC')
+                    ->get('db_salesitem_batch_allocations')->result();
+                foreach ($batchRows as $batchRow) {
+                  $sale_batches[(int)$batchRow->salesitems_id][] = $batchRow;
+                }
+              }
               $this->db->select(" COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.mrp,COALESCE(c.item_name, a.description, 'Unknown Item') as item_name, a.sales_qty,a.tax_type,
                                   a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name as base_unit_name,c.sku,c.hsn,
-                                  a.unit_id, a.unit_name as sold_unit_name, e.shortcode as sold_unit_shortcode,
+                                  a.id as salesitems_id, a.unit_id, a.unit_name as sold_unit_name, e.shortcode as sold_unit_shortcode,
                                   a.sold_serial_number, a.sold_imei_number
                               ");
               $this->db->where("a.sales_id",$sales_id);
@@ -265,6 +278,18 @@
                   }
                   if(!empty($res2->sold_imei_number)){
                     echo "<br><small>IMEI: ".htmlspecialchars($res2->sold_imei_number)."</small>";
+                  }
+                  foreach (($sale_batches[(int)$res2->salesitems_id] ?? array()) as $saleBatch) {
+                    $batchLabel = trim((string)($saleBatch->batch_lot ?? ''));
+                    $expiryLabel = trim((string)($saleBatch->expire_date ?? ''));
+                    $batchParts = array();
+                    if ($batchLabel !== '') $batchParts[] = 'Batch ' . htmlspecialchars($batchLabel, ENT_QUOTES, 'UTF-8');
+                    if ($expiryLabel !== '' && $expiryLabel !== '0000-00-00') $batchParts[] = 'Exp ' . htmlspecialchars(show_date($expiryLabel), ENT_QUOTES, 'UTF-8');
+                    if ($batchParts) {
+                      echo "<br><small>" . implode(' · ', $batchParts)
+                        . ' · Qty ' . htmlspecialchars(format_qty($saleBatch->qty_allocated), ENT_QUOTES, 'UTF-8')
+                        . "</small>";
+                    }
                   }
                   echo "</td>";
                   echo "<td style='text-align:center;'>".format_qty($res2->sales_qty)."</td>";

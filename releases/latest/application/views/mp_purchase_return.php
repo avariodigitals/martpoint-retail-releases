@@ -293,7 +293,7 @@
                   echo "<tr id='payment_row_".$res3->id."'>";
                   echo "<td>".$i."</td>";
                   echo "<td>".show_date($res3->payment_date)."</td>";
-                  echo "<td>".$res3->payment_type."</td>";
+                  echo "<td>".htmlspecialchars(payment_mode_label($res3->payment_type), ENT_QUOTES, 'UTF-8')."</td>";
                   echo "<td>".$res3->payment_note."</td>";
                   echo "<td class='text-right' id='paid_amt_$i'>".$CI->currency($res3->payment)."</td>";
                   echo '<td><i class="fa fa-trash mp-row-del" onclick="delete_payment('.$res3->id.')"></i></td>';
@@ -369,7 +369,7 @@
                     if($q1->num_rows()>0){
                       echo "<option value=''>-Select-</option>";
                       foreach($q1->result() as $res1){
-                        echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
+                        echo "<option value='".$res1->payment_type."'>".htmlspecialchars(payment_mode_label($res1->payment_type), ENT_QUOTES, 'UTF-8')."</option>";
                       }
                     } else { echo "<option>None</option>"; }
                   ?>

@@ -251,12 +251,19 @@ class Pharmacy_demo extends CI_Controller {
             $categoryMap[(int)$category->id] = (string)$category->category_name;
         }
 
+        // Match the actual dispensing gate: this store must have the
+        // prescription feature enabled, and the product (or its variant
+        // parent) must be explicitly marked prescription-only. Name/category
+        // guesses can incorrectly block wellness and supplement products.
         $rxMap = [];
-        foreach (['prescription_required', 'requires_prescription', 'is_prescription'] as $field) {
-            if ($this->db->field_exists($field, 'db_items')) {
-                $rows = $this->db->select('id, '.$field.' AS required')->where('store_id', (int)$storeId)->get('db_items')->result();
-                foreach ($rows as $row) $rxMap[(int)$row->id] = !empty($row->required);
-                break;
+        $rxFeatureEnabled = function_exists('mp_feature_enabled_for_store')
+            && mp_feature_enabled_for_store('prescription_required', (int)$storeId);
+        if ($rxFeatureEnabled && $this->db->field_exists('prescription_required', 'db_items')) {
+            $rows = $this->db->select('i.id, IFNULL(i.prescription_required, 0) AS self_required, IFNULL(p.prescription_required, 0) AS parent_required', false)
+                ->from('db_items i')->join('db_items p', 'p.id=i.parent_id', 'left')
+                ->where('i.store_id', (int)$storeId)->get()->result();
+            foreach ($rows as $row) {
+                $rxMap[(int)$row->id] = !empty($row->self_required) || !empty($row->parent_required);
             }
         }
 
@@ -285,7 +292,8 @@ class Pharmacy_demo extends CI_Controller {
         }
         $mappedProducts = [];
         foreach ($products as $index => $product) {
-            $price = (float)$this->storefront_model->getProductEffectivePrice($product);
+            $quote = $this->storefront_model->productPriceQuote($product);
+            $price = (float)$quote['price'];
             $category = $categoryMap[(int)$product->category_id] ?? 'Pharmacy essentials';
             $meta = $itemMeta[(int)$product->id] ?? null;
             $unitName = trim((string)($meta->unit_name ?? '')) ?: 'Pack';
@@ -299,12 +307,13 @@ class Pharmacy_demo extends CI_Controller {
                 'image' => !empty($product->item_image) && is_file((string)$product->item_image) ? base_url($product->item_image) : '',
                 'category' => 'category-'.(int)$product->category_id,
                 'price' => $price,
-                'oldPrice' => (float)$product->sales_price > $price ? (float)$product->sales_price : null,
+                'oldPrice' => $quote['original_price'] > $price ? $quote['original_price'] : null,
+                'pricingVersion' => $quote['version'],
                 'unit' => $unitLabel,
                 'strength' => $strength,
                 'form' => $form,
                 'pack' => $unitLabel,
-                'prescription' => !empty($rxMap[(int)$product->id]) || (bool)preg_match('/prescription|antibiotic/i', $category.' '.$product->item_name),
+                'prescription' => !empty($rxMap[(int)$product->id]),
                 'colour' => $palette[$index % count($palette)],
                 'description' => (string)($product->description ?: 'Available from the selected MartPoint fulfilment location.'),
                 'tags' => [],
@@ -312,9 +321,8 @@ class Pharmacy_demo extends CI_Controller {
             foreach ($warehouses as $warehouse) {
                 $locationId = 'warehouse-'.(int)$warehouse->id;
                 if (!isset($stock[$locationId])) $stock[$locationId] = [];
-                if (!array_key_exists((string)(int)$product->id, $stock[$locationId])) {
-                    $stock[$locationId][(string)(int)$product->id] = count($warehouses) === 1 ? (float)$product->stock : 0;
-                }
+                $sourceId = (int)($warehouse->stock_source_id ?? 0) ?: (int)$warehouse->id;
+                $stock['warehouse-'.$sourceId][(string)(int)$product->id] = $this->storefront_model->sellable_online($storeId, (int)$product->id, $sourceId);
             }
         }
 
@@ -362,6 +370,8 @@ class Pharmacy_demo extends CI_Controller {
             'partnerMarketplaceEnabled' => !empty($settings->partner_marketplace_enabled),
             'basePath' => '/store/'.rawurlencode((string)$settings->store_slug).'/pharmacy',
             'placeOrderUrl' => base_url('storefront/place_order'),
+            'quoteUrl' => base_url('storefront/cart_quote'),
+            'signInUrl' => base_url('store/'.rawurlencode((string)$settings->store_slug).'/verify').'?return=cart',
             'verifyPaymentUrl' => base_url('storefront/verify_payment'),
             'prescriptionRequestUrl' => base_url('store/'.rawurlencode((string)$settings->store_slug).'/pharmacy/prescription'),
             'prescriptionStatusUrl' => base_url('store/'.rawurlencode((string)$settings->store_slug).'/pharmacy/prescription/status'),

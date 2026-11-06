@@ -92,8 +92,13 @@ if(isset($adjustment_id)){
       <table class="table inv-item-table" style="width:100%;" id="adjustment_table">
         <thead>
           <tr>
-            <th style="width:55%"><?= $this->lang->line('item_name'); ?></th>
+            <th style="width:<?= mp_feature_enabled('wastage_reasons') ? '45' : '55'; ?>%"><?= $this->lang->line('item_name'); ?></th>
             <th style="width:30%"><?= $this->lang->line('quantity'); ?></th>
+            <?php if(mp_feature_enabled('wastage_reasons')): ?>
+            <!-- Choosing a reason is what makes a line leave the shelf; leaving it
+                 on "Added to stock" keeps the screen's original meaning. -->
+            <th style="width:15%">Wastage reason</th>
+            <?php endif; ?>
             <th style="width:15%"><?= $this->lang->line('action'); ?></th>
           </tr>
         </thead>

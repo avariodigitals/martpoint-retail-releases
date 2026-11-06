@@ -43,23 +43,46 @@ class Medical_notes_model extends CI_Model {
 
     // ========== CRUD ==========
 
+    private function _store_id() {
+        return (int)get_current_store_id();
+    }
+
     public function save($data, $id = null, $items = []) {
+        // Session-backed screens always scope to their own store; trusted
+        // server-side writers (online store intake) pass store_id explicitly.
+        $session_store = $this->_store_id();
+        $scope = $session_store ?: (int)($data['store_id'] ?? 0);
+        if ($scope <= 0) return 0;
         $this->db->trans_begin();
+        // Read the chart as it stands, and the medicines it listed, before any
+        // of it is overwritten — the trail has to be able to say what changed.
+        $chart_before = $id ? $this->db->where('id', (int)$id)->where('store_id', $scope)
+            ->limit(1)->get('db_medical_notes')->row() : null;
+        $meds_before = $chart_before ? $this->_auditChartMedicines($id) : array();
         try {
             if ($id) {
+                // Updates may only touch this store's own notes and cannot be
+                // rehomed to another tenant.
+                unset($data['store_id']);
                 $this->db->where('id', $id);
+                $this->db->where('store_id', $scope);
                 $this->db->update('db_medical_notes', $data);
+                if ($this->db->affected_rows() < 1 && !$this->get($id)) {
+                    $this->db->trans_rollback();
+                    return 0;
+                }
                 $note_id = $id;
                 $this->db->where('medical_note_id', $note_id);
                 $this->db->delete('db_medical_note_items');
             } else {
+                $data['store_id'] = $scope;
                 $this->db->insert('db_medical_notes', $data);
                 $note_id = $this->db->insert_id();
             }
             foreach ($items as $it) {
                 $item_id = (int)$it['item_id'];
                 if ($item_id <= 0) continue;
-                $item = $this->db->where('id', $item_id)->get('db_items')->row();
+                $item = $this->db->where('id', $item_id)->where('store_id', $scope)->get('db_items')->row();
                 $this->db->insert('db_medical_note_items', [
                     'medical_note_id' => $note_id,
                     'item_id' => $item_id,
@@ -70,6 +93,7 @@ class Medical_notes_model extends CI_Model {
                     'instructions' => $it['instructions'] ?? null,
                 ]);
             }
+            $this->_auditChartSaved($scope, $note_id, $chart_before, $meds_before);
             $this->db->trans_commit();
             return $note_id;
         } catch (Exception $e) {
@@ -82,7 +106,9 @@ class Medical_notes_model extends CI_Model {
         $this->db->select('a.*, i.item_code, i.stock');
         $this->db->from('db_medical_note_items a');
         $this->db->join('db_items i', 'i.id = a.item_id', 'left');
+        $this->db->join('db_medical_notes n', 'n.id = a.medical_note_id');
         $this->db->where('a.medical_note_id', $note_id);
+        $this->db->where('n.store_id', $this->_store_id());
         return $this->db->get()->result();
     }
 
@@ -91,6 +117,7 @@ class Medical_notes_model extends CI_Model {
         $this->db->from('db_medical_notes a');
         $this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
         $this->db->where('a.id', $id);
+        $this->db->where('a.store_id', $this->_store_id());
         $row = $this->db->get()->row();
         if ($row) {
             $row->items = $this->get_items($id);
@@ -103,6 +130,7 @@ class Medical_notes_model extends CI_Model {
         $this->db->from('db_medical_notes a');
         $this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
         $this->db->where('a.customer_id', $customer_id);
+        $this->db->where('a.store_id', $this->_store_id());
         $this->db->order_by('a.note_date', 'DESC');
         $this->db->limit($limit);
         $results = $this->db->get()->result();
@@ -113,17 +141,54 @@ class Medical_notes_model extends CI_Model {
     }
 
     public function delete($id) {
+        $note = $this->db->where('id', (int)$id)->where('store_id', $this->_store_id())->get('db_medical_notes')->row();
+        if (!$note) return false;
         $this->db->trans_begin();
         try {
+            $this->_auditChartRemoved($this->_store_id(), (int)$id);
             $this->db->where('medical_note_id', $id);
             $this->db->delete('db_medical_note_items');
             $this->db->where('id', $id);
+            $this->db->where('store_id', $this->_store_id());
             $this->db->delete('db_medical_notes');
             $this->db->trans_commit();
             return true;
         } catch (Exception $e) {
             $this->db->trans_rollback();
             throw $e;
+        }
+    }
+
+    /**
+     * The chart's own witness. Clinical records are written by people doing a
+     * job, so a recorder that cannot be reached must never be the reason the
+     * record fails to save.
+     */
+    private function _auditChartMedicines($note_id){
+        try {
+            $capture = mp_audit_capture();
+            return $capture ? $capture->chartMedicines($note_id) : array();
+        } catch (Throwable $e) {
+            log_message('error', 'Chart medicine audit read failed: ' . $e->getMessage());
+            return array();
+        }
+    }
+
+    private function _auditChartSaved($store_id, $note_id, $before, array $medicines){
+        try {
+            $capture = mp_audit_capture();
+            if ($capture) $capture->chartSaved((int)$store_id, (int)$note_id, $before, $medicines);
+        } catch (Throwable $e) {
+            log_message('error', 'Prescription chart audit capture failed: ' . $e->getMessage());
+        }
+    }
+
+    private function _auditChartRemoved($store_id, $note_id){
+        try {
+            $capture = mp_audit_capture();
+            if ($capture) $capture->chartRemoved((int)$store_id, (int)$note_id);
+        } catch (Throwable $e) {
+            log_message('error', 'Prescription chart deletion audit capture failed: ' . $e->getMessage());
         }
     }
 
@@ -186,6 +251,7 @@ class Medical_notes_model extends CI_Model {
 
     public function count_by_customer($customer_id) {
         $this->db->where('customer_id', $customer_id);
+        $this->db->where('store_id', $this->_store_id());
         return $this->db->count_all_results('db_medical_notes');
     }
 
@@ -221,6 +287,7 @@ class Medical_notes_model extends CI_Model {
         $this->db->select('a.allergies_flagged, a.note_date');
         $this->db->from('db_medical_notes a');
         $this->db->where('a.customer_id', $customer_id);
+        $this->db->where('a.store_id', $this->_store_id());
         $this->db->where('a.allergies_flagged IS NOT NULL');
         $this->db->where('a.allergies_flagged !=', '');
         $this->db->order_by('a.note_date', 'DESC');

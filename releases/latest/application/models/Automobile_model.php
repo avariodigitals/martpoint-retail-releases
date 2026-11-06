@@ -35,6 +35,19 @@ class Automobile_model extends CI_Model {
         return $row;
     }
 
+    /** Vehicles recorded for one customer of one store — the POS fitment list. */
+    public function for_customer($store_id, $customer_id, $limit = 50) {
+        if (empty($store_id) || empty($customer_id)) {
+            return [];
+        }
+        $this->db->where('store_id', (int) $store_id);
+        $this->db->where('customer_id', (int) $customer_id);
+        $this->db->where('is_deleted', 0);
+        $this->db->order_by('id', 'desc');
+        $this->db->limit((int) $limit);
+        return $this->db->get($this->table)->result();
+    }
+
     public function get_images($vehicle_id) {
         $this->db->where('vehicle_id', $vehicle_id);
         $this->db->order_by('is_primary', 'DESC');

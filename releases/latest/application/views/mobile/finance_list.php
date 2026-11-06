@@ -102,6 +102,7 @@
               <?php if($type == 'accounts'): ?>
                 <div class="fin-title"><?= $r->account_name; ?></div>
                 <div class="fin-meta"><i class="fa fa-barcode"></i> <?= $r->account_code; ?></div>
+                <?php if(!empty($r->bank_account_number)): ?><div class="fin-meta"><i class="fa fa-university"></i> <?= htmlspecialchars($r->bank_name ?? '', ENT_QUOTES, 'UTF-8'); ?> · <?= htmlspecialchars($r->bank_account_number, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
                 <div class="fin-meta"><i class="fa fa-money"></i> Balance: <?= store_number_format($r->balance); ?></div>
                 <?php if($r->parent_id): ?><div class="fin-meta"><i class="fa fa-sitemap"></i> Parent: <?= get_account_name($r->parent_id); ?></div><?php endif; ?>
                 <div class="fin-actions">
@@ -159,7 +160,7 @@
                 <div class="fin-meta"><i class="fa fa-calendar"></i> <?= show_date($r->expense_date); ?></div>
                 <div class="fin-meta"><i class="fa fa-folder"></i> <?= $r->category_name; ?></div>
                 <div class="fin-meta"><i class="fa fa-money"></i> <?= store_number_format($r->expense_amt); ?></div>
-                <div class="fin-meta"><i class="fa fa-credit-card"></i> <?= $r->payment_type; ?></div>
+                <div class="fin-meta"><i class="fa fa-credit-card"></i> <?= htmlspecialchars(payment_mode_label($r->payment_type), ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="fin-actions">
                   <?php if(permissions('expense_edit')): ?>
                     <a href="<?= base_url('mobile/finance/expenses/form/'.$r->id); ?>" class="action edit"><i class="fa fa-edit"></i> Edit</a>

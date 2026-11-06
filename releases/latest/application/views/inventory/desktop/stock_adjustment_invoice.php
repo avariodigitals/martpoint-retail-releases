@@ -70,16 +70,24 @@ $store = mp_document_store($store, 'db_stockadjustment', $adjustment_id);
         <?php
         $i = 0;
         $tot_qty = 0;
-        $q2 = $this->db->query("SELECT a.description, c.item_name, a.adjustment_qty
+        $has_reasons = $this->db->field_exists('reason_code', 'db_stockadjustmentitems');
+        $q2 = $this->db->query("SELECT a.description, c.item_name, a.adjustment_qty"
+                                . ($has_reasons ? ", a.reason_code" : "") . "
                                 FROM db_stockadjustmentitems a
                                 JOIN db_items c ON c.id = a.item_id
                                 WHERE a.adjustment_id = ?", array($adjustment_id));
         foreach ($q2->result() as $res2) {
+          $wastage = $has_reasons && !empty($res2->reason_code);
           echo '<tr>';
           echo '<td>'.(++$i).'</td>';
           echo '<td>'.htmlspecialchars($res2->item_name);
           if(!empty($res2->description)){
             echo '<br><small class="text-muted">['.nl2br(htmlspecialchars($res2->description)).']</small>';
+          }
+          if($wastage){
+            // Plain English, never the raw code: this line is read by whoever
+            // approves the write-off, not by the database.
+            echo '<br><small class="text-danger">Wasted — '.htmlspecialchars(mp_wastage_reason_label($res2->reason_code)).'</small>';
           }
           echo '</td>';
           echo '<td style="text-align:right;">'.format_qty($res2->adjustment_qty).'</td>';

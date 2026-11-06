@@ -41,7 +41,7 @@ $theme_css_extra = '<style>
 <div class="mp-section" style="text-align:center;">
   <div style="background:linear-gradient(135deg,#005EB8,#00A86B); border-radius:var(--mp-radius); padding:40px 24px; color:#fff;">
     <h3 style="font-size:24px; font-weight:700; margin-bottom:8px;">Have a Prescription?</h3>
-    <p style="opacity:0.9; margin-bottom:20px;">Upload your prescription and we will prepare your medicines.</p>
-    <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>?text=I%20have%20a%20prescription%20to%20upload" target="_blank" class="mp-hero-btn" style="background:#fff!important; color:#005EB8!important;">Upload via WhatsApp</a>
+    <p style="opacity:0.9; margin-bottom:20px;">Add your medicines to the cart and attach your prescription at checkout. A pharmacist reviews it before we prepare your order.</p>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/cart'); ?>" class="mp-hero-btn" style="background:#fff!important; color:#005EB8!important;">Order with Prescription</a>
   </div>
 </div>

@@ -2,6 +2,14 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Import extends MY_Controller {
+    private $retail_markup_configs = [];
+    private function retail_priced_row($row, $store_id, $wholesale_key = 'sales_price', $retail_key = 'mrp') {
+        if (!isset($this->retail_markup_configs[$store_id])) {
+            $this->retail_markup_configs[$store_id] = mp_retail_markup_config($store_id);
+        }
+        return mp_apply_retail_markup($row, $this->retail_markup_configs[$store_id], $wholesale_key, $retail_key);
+    }
+
 	public function __construct(){
 		parent::__construct();
 		$this->load_global();
@@ -936,7 +944,7 @@ class Import extends MY_Controller {
                         );
 
                         //If any record failed to save flag will be set false,then all records rolled back
-                        if(!$this->db->insert('db_items',$row)){
+                        if(!$this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
                             $flag=false;
                         }
                         
@@ -1133,7 +1141,7 @@ public function services(){
                         );
 
                         //If any record failed to save flag will be set false,then all records rolled back
-                        if(!$this->db->insert('db_items',$row)){
+                        if(!$this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
                             $flag=false;
                         }
                         
@@ -1325,7 +1333,7 @@ public function services(){
                     'system_name'       =>  $SYSTEM_NAME,
                 );
 
-                if(!$this->db->insert('db_items',$row)){
+                if(!$this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
                     $flag=false;
                 }
                 $item_id = $this->db->insert_id();
@@ -1432,7 +1440,7 @@ public function services(){
                     'system_name'       =>  $SYSTEM_NAME,
                 );
 
-                if(!$this->db->insert('db_items',$child)){
+                if(!$this->db->insert('db_items', $this->retail_priced_row($child, $store_id))){
                     $flag=false;
                 }
                 $child_id = $this->db->insert_id();
@@ -1842,7 +1850,7 @@ public function services(){
                     'system_name'       => $SYSTEM_NAME,
                 );
 
-                if( ! $this->db->insert('db_items', $row)){
+                if( ! $this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
                     $flag = false;
                 }
                 $item_id = $this->db->insert_id();
@@ -1960,7 +1968,7 @@ public function services(){
                     'system_name'       => $SYSTEM_NAME,
                 );
 
-                if( ! $this->db->insert('db_items', $child)){
+                if( ! $this->db->insert('db_items', $this->retail_priced_row($child, $store_id))){
                     $flag = false;
                 }
                 $child_id = $this->db->insert_id();
@@ -2079,7 +2087,7 @@ public function services(){
                 $data['is_template'] = $is_template;
             }
 
-            $this->db->insert('db_item_selling_units', $data);
+            $this->db->insert('db_item_selling_units', $this->retail_priced_row($data, $store_id, 'wholesale_price', 'selling_price'));
         }
         return true;
     }
@@ -2127,7 +2135,7 @@ public function services(){
             if( ! empty($b['mfg_date']))    $data['mfg_date']    = $this->xss_html_filter($b['mfg_date']);
             if( ! empty($b['warranty']))    $data['warranty_months'] = (int)$b['warranty'];
 
-            $this->db->insert('db_item_barcodes', $data);
+            $this->db->insert('db_item_barcodes', $this->retail_priced_row($data, $store_id));
         }
         return true;
     }

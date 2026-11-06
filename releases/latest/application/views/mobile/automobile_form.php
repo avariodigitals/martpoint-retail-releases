@@ -1,3 +1,4 @@
+<?php $am_tyre = mp_vehicle_register_mode(); ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= !empty($vehicle) ? 'Edit Vehicle' : 'Add Vehicle'; ?></title>
+  <title><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?> — <?= $am_tyre ? (!empty($vehicle) ? 'Edit Customer Vehicle' : 'Add Customer Vehicle') : (!empty($vehicle) ? 'Edit Vehicle' : 'Add Vehicle'); ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<?= $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
@@ -64,7 +65,7 @@
         <a href="<?= base_url('mobile/automobile'); ?>" class="back"><i class="fa fa-chevron-left"></i></a>
         <div class="topbar-titles">
           <div class="store-name"><?= htmlspecialchars($store_name ?? $SITE_TITLE ?? 'MartPoint'); ?></div>
-          <h1><?= !empty($vehicle) ? 'Edit Vehicle' : 'Add Vehicle'; ?></h1>
+          <h1><?= $am_tyre ? (!empty($vehicle) ? 'Edit Customer Vehicle' : 'Add Customer Vehicle') : (!empty($vehicle) ? 'Edit Vehicle' : 'Add Vehicle'); ?></h1>
         </div>
       </div>
 
@@ -145,9 +146,15 @@
           <div class="form-group">
             <label>Status</label>
             <select class="mp-select" name="status">
+              <?php if ($am_tyre): ?>
+              <option value="available" <?= !empty($vehicle) && $vehicle->status === 'available' ? 'selected' : ''; ?>>On file</option>
+              <option value="reserved" <?= !empty($vehicle) && $vehicle->status === 'reserved' ? 'selected' : ''; ?>>In the workshop</option>
+              <option value="sold" <?= !empty($vehicle) && $vehicle->status === 'sold' ? 'selected' : ''; ?>>Back with owner</option>
+              <?php else: ?>
               <option value="available" <?= !empty($vehicle) && $vehicle->status === 'available' ? 'selected' : ''; ?>>Available</option>
               <option value="reserved" <?= !empty($vehicle) && $vehicle->status === 'reserved' ? 'selected' : ''; ?>>Reserved</option>
               <option value="sold" <?= !empty($vehicle) && $vehicle->status === 'sold' ? 'selected' : ''; ?>>Sold</option>
+              <?php endif; ?>
             </select>
           </div>
         </div>
@@ -208,10 +215,11 @@
         </div>
 
         <div class="form-group">
-          <label>Description / Specifications</label>
-          <textarea name="description" class="form-control" placeholder="Engine, trim, features, etc."><?= !empty($vehicle) ? htmlspecialchars($vehicle->description) : ''; ?></textarea>
+          <label><?= $am_tyre ? 'Notes (tyre size, preferences)' : 'Description / Specifications'; ?></label>
+          <textarea name="description" class="form-control" placeholder="<?= $am_tyre ? 'e.g. Runs 205/55R16, prefers durable all-seasons' : 'Engine, trim, features, etc.'; ?>"><?= !empty($vehicle) ? htmlspecialchars($vehicle->description) : ''; ?></textarea>
         </div>
 
+        <?php if (!$am_tyre): ?>
         <div class="form-row">
           <div class="form-group">
             <label>Price <span style="color:var(--mp-danger)">*</span></label>
@@ -222,10 +230,13 @@
             <input type="number" step="0.01" name="cost" class="form-control" value="<?= !empty($vehicle) ? number_format($vehicle->cost, 2, '.', '') : ''; ?>" placeholder="0.00">
           </div>
         </div>
+        <?php else: ?>
+        <input type="hidden" name="price" value="0"><input type="hidden" name="cost" value="0">
+        <?php endif; ?>
 
         <div class="form-group">
-          <label>Customer / Buyer Name</label>
-          <input type="text" name="customer_name" class="form-control" value="<?= !empty($vehicle) ? htmlspecialchars($vehicle->customer_name) : ''; ?>" placeholder="For reserved or sold units">
+          <label><?= $am_tyre ? 'Customer Name' : 'Customer / Buyer Name'; ?></label>
+          <input type="text" name="customer_name" class="form-control" value="<?= !empty($vehicle) ? htmlspecialchars($vehicle->customer_name) : ''; ?>" placeholder="<?= $am_tyre ? 'Who brings this vehicle in' : 'For reserved or sold units'; ?>">
         </div>
 
         <div class="form-group">

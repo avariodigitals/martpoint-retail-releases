@@ -89,12 +89,14 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   </div>
 </div>
 
+<div id="mp-commerce-identity" role="status" class="sf-section"></div>
 <div class="sf-section" id="cart-container">
   <!-- Cart items injected here -->
 </div>
 
 <div class="sf-toast" id="toast"></div>
 
+<?php $this->load->view('storefront/commerce'); ?>
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
   const STORE_SLUG = '<?= $settings->store_slug ?? ''; ?>';
@@ -109,6 +111,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   let selectedShippingMethod = '';
   let selectedCityIdx = -1;
   let selectedWarehouseId = <?= count($mp_cart_outlets) === 1 ? (int)$mp_cart_outlets[0]->id : 0; ?>;
+  const ALLOW_BACKORDER = <?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
   let hasServiceAppointment = false;
   let hasServiceNote = false;
   const IS_PHARMACY = <?= $mp_cart_pharmacy ? 'true' : 'false'; ?>;
@@ -130,6 +133,34 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   function saveCart(){
     localStorage.setItem('sf_cart_' + STORE_ID, JSON.stringify(cart));
     renderCart();
+  }
+
+  // Server-side checkout re-checks this; the label + guard just save the
+  // customer a rejected submission.
+  let rxRequired = false;
+  function syncRxRequirement(){
+    if(!IS_PHARMACY) return;
+    const ids = cart.filter(i => (i.type || 'product') === 'product').map(i => parseInt(i.id, 10)).filter(Boolean);
+    if(!ids.length){
+      rxRequired = false;
+      const label = document.querySelector('.sf-rx-card .sf-label');
+      if(label) label.textContent = 'Prescription (optional)';
+      return;
+    }
+    const fd = new FormData();
+    fd.append('store_id', STORE_ID);
+    fd.append('ids', JSON.stringify(ids));
+    if(CSRF_NAME && CSRF_HASH) fd.append(CSRF_NAME, CSRF_HASH);
+    fetch('<?= base_url('storefront/rx_check'); ?>', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(res => {
+        rxRequired = !!(res && res.status && res.rx_required && res.rx_required.length);
+        const label = document.querySelector('.sf-rx-card .sf-label');
+        const hint = document.querySelector('.sf-rx-card .sf-rx-hint');
+        if(label) label.textContent = rxRequired ? 'Prescription (required)' : 'Prescription (optional)';
+        if(hint && rxRequired) hint.textContent = 'These medicines need a prescription. Upload a clear photo or PDF — the pharmacy reviews it before dispensing.';
+      })
+      .catch(() => { rxRequired = false; });
   }
 
   function renderCart(){
@@ -156,8 +187,10 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     html += '<label class="sf-label">Delivery / Service Address</label>';
     html += '<textarea class="sf-input sf-textarea" id="cust-address" placeholder="Enter your address..."></textarea>';
 
-    if(IS_PHARMACY && OUTLETS.length > 0){
-      html += '<label class="sf-label" style="margin-top:8px;">Preferred pharmacy location</label>';
+    if(OUTLETS.length > 0){
+      // Every multi-outlet store names the location on the order, not just a
+      // pharmacy: stock, kitchen routing and outlet reports all hang off it.
+      html += '<label class="sf-label" style="margin-top:8px;"><?= $mp_cart_pharmacy ? 'Preferred pharmacy location' : 'Choose your location'; ?></label>';
       html += '<div class="sf-outlet-options">';
       OUTLETS.forEach(function(outlet){
         const active = selectedWarehouseId === outlet.id ? ' active' : '';
@@ -290,6 +323,8 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
 
     // Set default payment
     selectedPayment = document.querySelector('input[name="paymethod"]:checked')?.value || 'pay_on_delivery';
+
+    syncRxRequirement();
   }
 
   function getShippingFee(){
@@ -351,6 +386,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     const input = el.querySelector('input');
     if(input) input.checked = true;
     selectedWarehouseId = parseInt(id, 10) || 0;
+    refreshCommerceCart(true).catch(error=>showToast(error.message));
   }
 
   function updateQty(idx, delta){
@@ -363,7 +399,34 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     saveCart();
   }
 
-  function placeOrder(){
+  let commerceSubmitting=false;
+  async function refreshCommerceCart(redraw){
+    if(!window.MPCommerce || !cart.length) return false;
+    const before=JSON.stringify(cart);
+    const result=await window.MPCommerce.quote(cart,selectedWarehouseId);
+    if(result.csrf_hash) CSRF_HASH=result.csrf_hash;
+    if(before!==JSON.stringify(cart)) throw new Error('Your cart changed. Please review it again.');
+    const changed=window.MPCommerce.changed(cart,result.items);
+    cart=result.items;localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(cart));
+    if(redraw || changed){
+      const fields={};
+      document.querySelectorAll('#cart-container input[id],#cart-container textarea[id]').forEach(el=>{if(!['radio','checkbox','file','hidden'].includes(el.type))fields[el.id]=el.value;});
+      const oldFile=document.getElementById('prescription-file');
+      const pay=selectedPayment,ship=selectedShippingMethod,city=selectedCityIdx;
+      renderCart();
+      Object.keys(fields).forEach(id=>{const el=document.getElementById(id);if(el)el.value=fields[id];});
+      if(oldFile && oldFile.files && oldFile.files.length){const next=document.getElementById('prescription-file');if(next)next.replaceWith(oldFile);}
+      selectedPayment=pay;selectedShippingMethod=ship;selectedCityIdx=city;
+    }
+    return changed;
+  }
+  async function placeOrder(){
+    if(commerceSubmitting)return;
+    commerceSubmitting=true;
+    try{
+      if(await refreshCommerceCart(false)){showToast('Your prices have been updated. Please review the total before ordering.');return;}
+    }catch(error){showToast(error.message);return;}finally{commerceSubmitting=false;}
+
     const name = document.getElementById('cust-name').value.trim();
     const phone = document.getElementById('cust-phone').value.trim();
     const email = document.getElementById('cust-email').value.trim();
@@ -374,8 +437,13 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
 
     if(!name || !phone){ showToast('Please enter name and phone'); return; }
     if(cart.length === 0){ showToast('Cart is empty'); return; }
+    if(!ALLOW_BACKORDER && cart.some(item=>item.available===false)){showToast('Reduce the quantity of unavailable items or choose another location.');return;}
     if(CITY_SHIPPING.length > 0 && selectedCityIdx < 0){ showToast('Please select your delivery city'); return; }
-    if(IS_PHARMACY && OUTLETS.length > 1 && !selectedWarehouseId){ showToast('Please select a pharmacy location'); return; }
+    if(OUTLETS.length > 1 && !selectedWarehouseId){ showToast('Please choose the location you want this order from'); return; }
+    if(rxRequired){
+      const rxInput = document.getElementById('prescription-file');
+      if(!rxInput || !rxInput.files || !rxInput.files[0]){ showToast('Please attach the prescription for the prescription-only items in your cart'); return; }
+    }
 
     const btn = document.getElementById('checkout-btn');
     btn.disabled = true;
@@ -383,7 +451,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
 
     // Build cart payload
     const cartPayload = cart.map(i => ({
-      id: i.id, type: i.type, name: i.name, price: i.price,
+      id: i.id, type: i.type, name: i.name, price: i.price, pricing_version: i.pricing_version,
       qty: i.qty, image: i.image,
       note: i.service_note || '', requires_appointment: i.requires_appointment || false, requires_note: i.requires_note || false
     }));
@@ -507,6 +575,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   }
 
   renderCart();
+  refreshCommerceCart(true).catch(error=>showToast(error.message));
 </script>
 
 <?php $this->load->view('themes/shared/legacy_site_links'); ?>

@@ -79,7 +79,7 @@
                 <tbody>
                   <?php if(count($counts) > 0): foreach($counts as $c): $var = floatval($c->variance); ?>
                   <tr>
-                    <td><?=htmlspecialchars($c->payment_type);?></td>
+                    <td><?=htmlspecialchars(payment_mode_label($c->payment_type), ENT_QUOTES, 'UTF-8');?></td>
                     <td><?=$c->affects_cash_in_hand ? '<span class="label label-success">Cash</span>' : '<span class="label label-info">Bank/POS</span>';?></td>
                     <td class='text-right'><?=store_number_format($c->expected_amount);?></td>
                     <td class='text-right'><?=store_number_format($c->counted_amount);?></td>

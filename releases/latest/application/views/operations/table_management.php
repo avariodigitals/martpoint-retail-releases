@@ -48,6 +48,18 @@
 .tm-actions .tm-edit:hover { border-color: var(--mp-primary); color: var(--mp-primary); background: rgba(0,87,255,.06); }
 .tm-actions .tm-delete:hover { border-color: var(--mp-danger); color: var(--mp-danger); background: rgba(220,38,38,.06); }
 .tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.tm-section { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 10px; border-radius: 20px; background: rgba(0,87,255,.07); color: var(--mp-primary); font-size: 12px; font-weight: 600; }
+.tm-status-badge + .tm-section { margin-left: 8px; }
+.tm-section.none { background: rgba(120,113,108,.1); color: var(--mp-muted); font-weight: 500; }
+.tm-sect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tm-sect-card { border: 1px solid var(--mp-border); border-radius: 10px; padding: 12px 14px; background: var(--mp-bg); }
+.tm-sect-card .tm-sect-name { font-weight: 700; font-size: 14px; color: var(--mp-text); }
+.tm-sect-card .tm-sect-count { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
+.tm-sect-card .tm-sect-zones { font-size: 12px; color: var(--mp-ink); margin-top: 6px; word-break: break-word; }
+.tm-assign { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding-top: 4px; border-top: 1px dashed var(--mp-border); }
+.tm-assign .tm-assign-field { display: flex; flex-direction: column; gap: 4px; min-width: 170px; }
+.tm-assign label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--mp-muted); }
+.tm-assign select { padding: 8px 10px; border: 1px solid var(--mp-border); border-radius: 8px; background: var(--mp-surface); font-size: 14px; min-height: 38px; }
 </style>
 
 <div class="mp-page-head">
@@ -83,6 +95,66 @@
   </div>
 </div>
 
+<?php if(!empty($sections_on)): ?>
+<!-- Who is standing behind what, and the one control that moves a whole area.
+     The summary and the handover live in the same card so the answer to "is the
+     garden covered tonight?" and the fix for it are one glance apart. -->
+<div class="mp-card-form" style="margin-bottom:20px;">
+  <div class="mp-card-head">
+    <h3><i class="fa fa-user-circle-o"></i> Sections tonight</h3>
+    <span class="mp-page-sub">A tab opened on a table takes that table's waiter, so every round on it is attributed.</span>
+  </div>
+  <div class="mp-card-body">
+    <?php if(empty($sections)): ?>
+      <p class="mp-page-sub" style="margin:0 0 12px;">No table has a section yet. Use the form on the right for one table, or hand over a whole area below.</p>
+    <?php else: ?>
+      <div class="tm-sect-grid">
+        <?php foreach($sections as $s): ?>
+        <div class="tm-sect-card">
+          <div class="tm-sect-name"><?= htmlspecialchars($s->waiter_name); ?></div>
+          <div class="tm-sect-count"><?= (int)$s->table_count; ?> table<?= (int)$s->table_count == 1 ? '' : 's'; ?></div>
+          <?php if($s->zones !== ''): ?>
+          <div class="tm-sect-zones"><i class="fa fa-map-marker"></i> <?= htmlspecialchars($s->zones); ?></div>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
+    <?= form_open('operations/table_management', ['id'=>'section-form']); ?>
+      <input type="hidden" name="assign_section" value="1">
+      <div class="tm-assign">
+        <div class="tm-assign-field">
+          <label for="zone_name">Area</label>
+          <select name="zone_name" id="zone_name" required>
+            <option value="">Choose an area</option>
+            <?php foreach($zones as $z): if(trim((string)$z->zone) === '') continue; ?>
+            <option value="<?= htmlspecialchars($z->zone); ?>"><?= htmlspecialchars($z->zone); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="tm-assign-field">
+          <label for="zone_waiter_id">Give it to</label>
+          <select name="zone_waiter_id" id="zone_waiter_id">
+            <option value="0">Back to the floor</option>
+            <?php foreach($section_staff as $w): ?>
+            <option value="<?= (int)$w['id']; ?>"><?= htmlspecialchars($w['name']); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="tm-assign-field" style="min-width:0;">
+          <label>&nbsp;</label>
+          <button type="submit" class="mp-btn-primary"><i class="fa fa-exchange"></i> Hand over the area</button>
+        </div>
+        <?php if(empty($zones)): ?>
+        <p class="mp-page-sub" style="flex:1 1 100%; margin:4px 0 0;">Name an area on a table first (e.g. Garden), then the whole area can be handed over in one go.</p>
+        <?php endif; ?>
+      </div>
+    <?= form_close(); ?>
+  </div>
+</div>
+<?php endif; ?>
+
 <div class="mp-form-grid" style="grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap:24px; align-items:start;">
   <!-- Table List -->
   <div class="mp-card-form">
@@ -108,6 +180,12 @@
               <i class="fa fa-users"></i> Capacity: <?= (int)$t->capacity; ?>
             </div>
             <span class="tm-status-badge <?= $t->status; ?>"><?= ucfirst($t->status); ?></span>
+            <?php if(!empty($sections_on)): $w = (int)($t->waiter_user_id ?? 0); ?>
+            <span class="tm-section<?= $w ? '' : ' none'; ?>">
+              <i class="fa fa-user-circle-o"></i>
+              <?= $w ? htmlspecialchars($waiter_names[$w] ?? 'no longer on the floor') : 'No section'; ?>
+            </span>
+            <?php endif; ?>
             <div class="tm-actions">
               <a href="?edit=<?= $t->id; ?>" class="tm-edit" title="Edit"><i class="fa fa-pencil"></i></a>
               <a href="?delete=<?= $t->id; ?>" class="tm-delete" title="Delete" onclick="return confirm('Delete this table?');"><i class="fa fa-trash"></i></a>
@@ -172,6 +250,19 @@
           <label>Sort Order</label>
           <input type="number" name="sort_order" class="mp-form-control" placeholder="0" value="<?= !empty($edit_table) ? (int)$edit_table->sort_order : ''; ?>">
         </div>
+
+        <?php if(!empty($sections_on)): $held = (int)($edit_table->waiter_user_id ?? 0); ?>
+        <div class="mp-form-group" style="margin-top:20px;">
+          <label for="waiter_user_id">Waiter's section</label>
+          <select name="waiter_user_id" id="waiter_user_id" class="mp-form-control">
+            <option value="0">No section — anyone can sit it</option>
+            <?php foreach($section_staff as $w): ?>
+            <option value="<?= (int)$w['id']; ?>" <?= $held === (int)$w['id'] ? 'selected' : ''; ?>><?= htmlspecialchars($w['name']); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <span class="mp-page-sub">A tab opened here takes this waiter, and every round on the tab is recorded for them.</span>
+        </div>
+        <?php endif; ?>
 
         <div class="mp-form-actions" style="margin-top:20px; justify-content:flex-end;">
           <button type="submit" class="mp-btn-primary"><i class="fa fa-save"></i> <?= !empty($edit_table) ? 'Update' : 'Save'; ?></button>

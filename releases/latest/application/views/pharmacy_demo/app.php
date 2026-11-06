@@ -15,7 +15,8 @@
   <div id="app"></div>
   <script>window.PHARMACY_DEMO_MODE = <?= json_encode($mode ?? 'customer'); ?>; window.PHARMACY_DEMO_CONFIG = <?= json_encode(array_merge(['partnerMarketplaceEnabled' => !empty($partner_marketplace_enabled), 'basePath' => $pharmacy_base_path ?? '/pharmacy-demo'], $pharmacy_config ?? [])); ?>;</script>
   <?php if (!empty($pharmacy_config['storeId'])): ?><script src="https://js.paystack.co/v1/inline.js"></script><?php endif; ?>
-  <script src="<?= base_url('theme/pharmacy_demo/demo_service.js?v=6'); ?>"></script>
-  <script src="<?= base_url('theme/pharmacy_demo/app.js?v=8'); ?>"></script>
+  <script src="<?= base_url('theme/js/storefront_commerce.js?v=240'); ?>"></script>
+  <script src="<?= base_url('theme/pharmacy_demo/demo_service.js?v=240'); ?>"></script>
+  <script src="<?= base_url('theme/pharmacy_demo/app.js?v=240'); ?>"></script>
 </body>
 </html>

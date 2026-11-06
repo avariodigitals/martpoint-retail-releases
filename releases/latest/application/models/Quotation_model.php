@@ -336,6 +336,7 @@ class Quotation_model extends CI_Model {
 		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
 		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 		$store_id = $this->input->post('store_id', TRUE);
+        $pricingHistory = $command === 'update' ? mp_customer_pricing()->history('db_quotationitems','db_quotation',$quotation_id,get_current_store_id(),$customer_id) : [];
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
 		$this->db->trans_begin();$quotationTransactionOpen=true;
@@ -460,6 +461,8 @@ class Quotation_model extends CI_Model {
 				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
 				$quotation_qty			=parse_amount($_REQUEST['td_data_'.$i.'_3'] ?? '');
 				$price_per_unit 	=parse_amount($_REQUEST['td_data_'.$i.'_4'] ?? '');
+                try { $pricingSnapshot = mp_customer_pricing()->line_snapshot($store_id,$customer_id,$item_id,'wholesale',0,0,$price_per_unit,$_REQUEST['pricing_snapshot_'.$i] ?? null,$pricingHistory); }
+                catch (RuntimeException $e) { $this->db->trans_rollback(); return $e->getMessage(); }
 				$tax_id 			=$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
 				$tax_amt 			=parse_amount($_REQUEST['td_data_'.$i.'_11'] ?? '');
 				$unit_total_cost	=parse_amount($_REQUEST['td_data_'.$i.'_10'] ?? '');
@@ -523,6 +526,7 @@ class Quotation_model extends CI_Model {
 				}
 				
 				$quotationitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+                if($this->db->field_exists('pricing_snapshot','db_quotationitems')) $quotationitems_entry['pricing_snapshot']=$pricingSnapshot;
 				$q2 = $this->db->insert('db_quotationitems', $quotationitems_entry);
 				
 				//UPDATE itemS QUANTITY IN itemS TABLE
@@ -634,7 +638,7 @@ class Quotation_model extends CI_Model {
 		$taxType=in_array((string)($res1->tax_type ?? ''),['Inclusive','Exclusive'],true) ? (string)$res1->tax_type : 'Exclusive';
 
 		//Get Customer Price 
-		$quotation_price = get_price_level_price($customer_id,$res1->sales_price);
+		$quotation_price = get_price_level_price($customer_id,$res1->sales_price,$res1->sales_price);
 		$quotation_price = number_format($quotation_price,2,'.','');
 
 		
@@ -679,7 +683,8 @@ class Quotation_model extends CI_Model {
 							'item_code' 				=> $res2->item_code,
 							'item_available_qty' 		=> $res2->stock,
 							'item_price' 				=> $res2->price, 
-							'item_quotation_price' 			=> $res1->price_per_unit, 
+							'item_quotation_price' 			=> $res1->price_per_unit,
+                            'pricing_snapshot' => $res1->pricing_snapshot ?? null,
 							'item_tax_name' 			=> $q3->tax_name, 
 							'item_quotation_qty' 			=> $res1->quotation_qty, 
 							'item_tax_id' 				=> $res1->tax_id, 
@@ -776,6 +781,7 @@ class Quotation_model extends CI_Model {
                <input type="hidden" id="td_data_<?=$rowcount;?>_5" name="td_data_<?=$rowcount;?>_5" value="<?=$item_tax_amt;?>">
                <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
                <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+               <input type="hidden" id="pricing_snapshot_<?=$rowcount;?>" name="pricing_snapshot_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['pricing_snapshot'] ?? ''),ENT_QUOTES,'UTF-8');?>">
                
                <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
                <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">

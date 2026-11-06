@@ -48,10 +48,29 @@ $branch_opts = (array) ($branch_opts ?? []);
 $branch_names = (array) ($branch_names ?? []);
 $branch_all_label = !empty($branch_can_view_all) ? 'All branches' : 'All assigned branches';
 $branch_name = $branch !== '' ? ($branch_names[(int) $branch] ?? '') : '';
-$kitchen_branch_url = function ($id) {
+$station = (string) ($station ?? 'all');
+$bar_lane = !empty($bar_lane);
+// A lounge's board carries drinks as well as food, so it reads its own rail label.
+$board_label = mp_kitchen_board_label();
+// Only a store that actually sells something bar-routed has lanes to split, so
+// the heading never claims a filter this board does not offer.
+$lane_suffix = $bar_lane && in_array($station, ['bar', 'kitchen'], true) ? ' — ' . $station . ' only' : '';
+/* The outlet picker and the station picker both live in the URL, so each must
+   carry the other or switching one silently resets the other. */
+$kitchen_url = function ($branch_id, $station_id) {
+    $params = [];
+    if ($branch_id !== '') $params['branch_id'] = $branch_id;
+    if ($station_id !== 'all') $params['station'] = $station_id;
     $url = base_url('operations/kitchen');
-    return $id === '' ? $url : $url . '?branch_id=' . urlencode((string) $id);
+    return $params ? $url . '?' . http_build_query($params) : $url;
 };
+$kitchen_branch_url = function ($id) use ($kitchen_url, $station) {
+    return $kitchen_url($id, $station);
+};
+$kitchen_station_url = function ($id) use ($kitchen_url, $branch) {
+    return $kitchen_url($branch, $id);
+};
+
 
 /**
  * One ticket. Kept as a closure so the three lanes cannot drift apart — the
@@ -134,6 +153,9 @@ $render_ticket = function ($o, $lane) use ($lane_meta, $branch_names) {
 ?>
 
 <?php $this->load->view('comman/code_flashdata.php'); ?>
+<!-- This board reuses the workspace's .ro-* controls, which only restaurantos.css
+     defines; the layout alone just brings restaurant_workspace.css. -->
+<?= $this->load->view('restaurantos/_assets', [], TRUE); ?>
 
 <div class="rs-page">
 
@@ -143,13 +165,15 @@ $render_ticket = function ($o, $lane) use ($lane_meta, $branch_names) {
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/><path d="M6 11v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7"/></svg>
         Restaurant service
       </span>
-      <h1>Kitchen Display</h1>
+      <h1><?= htmlspecialchars($board_label) . $lane_suffix; ?></h1>
       <p class="rs-sub">
         <?php if ($total_live > 0): ?>
           <strong style="color:var(--rs-ink)"><?= $total_live; ?></strong> live ticket<?= $total_live === 1 ? '' : 's'; ?> on the board
         <?php else: ?>
           The line is clear — no open tickets.
         <?php endif; ?>
+        <?php if ($bar_lane && $station !== 'all'): ?><!--
+        --><span style="color:var(--rs-faint)">·</span><span>Showing <?= $station === 'bar' ? 'bar-routed items' : 'kitchen-routed items'; ?> only</span><?php endif; ?>
         <?php if ($branch_name !== ''): ?><span style="color:var(--rs-faint)">·</span><span><?= htmlspecialchars($branch_name); ?></span><?php endif; ?>
         <span style="color:var(--rs-faint)">·</span>
         <span id="last_refresh">Auto-refresh every 15s</span>
@@ -157,13 +181,18 @@ $render_ticket = function ($o, $lane) use ($lane_meta, $branch_names) {
     </div>
 
     <div class="rs-head-actions">
-      <?php if (!empty($branch_opts)): ?>
-        <div class="ro-seg" aria-label="Kitchen outlet">
-          <span class="ro-seg-label">Outlet</span>
-          <a class="<?= $branch === '' ? 'active' : ''; ?>" href="<?= $kitchen_branch_url(''); ?>"><?= htmlspecialchars($branch_all_label); ?></a>
-          <?php foreach ($branch_opts as $o): ?>
-            <a class="<?= (string) $branch === (string) $o['id'] ? 'active' : ''; ?>" href="<?= $kitchen_branch_url($o['id']); ?>"><?= htmlspecialchars($o['name']); ?></a>
-          <?php endforeach; ?>
+      <?php $this->load->view('components/outlet_picker', [
+          'opts'      => $branch_opts,
+          'current'   => $branch,
+          'all_label' => $branch_all_label,
+          'url_for'   => function ($id) use ($kitchen_branch_url) { return $kitchen_branch_url($id); },
+      ]); ?>
+      <?php if ($bar_lane): ?>
+        <div class="ro-seg" aria-label="Which station's work to show">
+          <span class="ro-seg-label">Station</span>
+          <a class="<?= $station === 'all' ? 'active' : ''; ?>" href="<?= $kitchen_station_url('all'); ?>">Everything</a>
+          <a class="<?= $station === 'kitchen' ? 'active' : ''; ?>" href="<?= $kitchen_station_url('kitchen'); ?>">Kitchen</a>
+          <a class="<?= $station === 'bar' ? 'active' : ''; ?>" href="<?= $kitchen_station_url('bar'); ?>">Bar</a>
         </div>
       <?php endif; ?>
       <a href="<?= base_url('operations/menu_items'); ?>" class="rs-btn">
@@ -233,6 +262,7 @@ $render_ticket = function ($o, $lane) use ($lane_meta, $branch_names) {
 <script>
 var base_url = '<?= base_url(); ?>';
 var kdsBranch = <?= json_encode($branch); ?>;
+var kdsStation = <?= json_encode($station); ?>;
 var previousNewCount   = <?= count($lanes['new']); ?>;
 var previousPrepCount  = <?= count($lanes['preparing']); ?>;
 var previousReadyCount = <?= count($lanes['ready']); ?>;
@@ -324,7 +354,8 @@ function playNewOrderSound() {
 
 function kdsAutoRefresh() {
     $.ajax({
-        url: base_url + 'operations/kitchen?ajax=1' + (kdsBranch ? '&branch_id=' + encodeURIComponent(kdsBranch) : ''),
+        url: base_url + 'operations/kitchen?ajax=1' + (kdsBranch ? '&branch_id=' + encodeURIComponent(kdsBranch) : '')
+            + (kdsStation && kdsStation !== 'all' ? '&station=' + encodeURIComponent(kdsStation) : ''),
         type: 'GET',
         dataType: 'json',
         success: function (data) {

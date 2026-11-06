@@ -426,7 +426,10 @@ padding-right: 2px;
                            <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
                            <input type="hidden" value='1' id="hidden_rowcount" name="hidden_rowcount">
                            <input type="hidden" value='0' id="hidden_update_rowid" name="hidden_update_rowid">
-                           <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
+                           <section class="invoice-header-controls" aria-label="Invoice status and payment account">
+                             <?php $this->load->view('sales/invoice_controls', array('invoice_record'=>isset($sales_id) ? $q2->row() : null)); ?>
+                             <?php $invoice_account_mobile = true; $this->load->view('sales/invoice_payment_account'); ?>
+                           </section>
 
                           <?php if(isset($quotation_id)) {?>
                            <input type="hidden" id="quotation_id" name="quotation_id" value="<?php echo $quotation_id;; ?>">
@@ -758,7 +761,7 @@ padding-right: 2px;
                                                         echo "<tr class='text-center text-bold' id='payment_row_".$res3->id."'>";
                                                         echo "<td>".$i."</td>";
                                                         echo "<td>".show_date($res3->payment_date)."</td>";
-                                                        echo "<td>".$res3->payment_type."</td>";
+                                                        echo "<td>".htmlspecialchars(payment_mode_label($res3->payment_type), ENT_QUOTES, 'UTF-8')."</td>";
                                                         echo "<td>".$res3->payment_note."</td>";
                                                         echo "<td class='text-right' id='paid_amt_$i'>".store_number_format($res3->payment)."</td>";
                                                         echo '<td><i class="fa fa-trash text-red pointer" onclick="delete_payment('.$res3->id.')"> Delete</i></td>';
@@ -874,9 +877,9 @@ padding-right: 2px;
                                                 </div>
                                                 <div class="col-xs-12">
                                                     <label for="account_id"><?= $this->lang->line('account'); ?></label>
-                                                    <select class="form-control select2" id='account_id' name="account_id">
+                                                    <select class="form-control select2" id='account_id' name="account_id" data-default-account="<?= (int)get_store_details()->default_account_id; ?>">
                                                       <option value="">-None-</option>
-                                                        <?= get_accounts_select_list(get_store_details()->default_account_id);?>
+                                                        <?= get_accounts_select_list(!empty($saved_invoice_account_id) ? $saved_invoice_account_id : get_store_details()->default_account_id);?>
                                                     </select>
                                                     <span id="account_id_msg" style="display:none" class="text-danger"></span>
                                                 </div>
@@ -1039,7 +1042,7 @@ padding-right: 2px;
 <!-- Bootstrap WYSIHTML5 -->
 <script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
 
-<script src="<?php echo $theme_link; ?>js/sales.js?v=<?= htmlspecialchars(app_version(),ENT_QUOTES,'UTF-8'); ?>"></script>
+<script src="<?php echo $theme_link; ?>js/sales.js?v=<?= (int)@filemtime(FCPATH.'theme/js/sales.js'); ?>"></script>
 <script src="<?php echo $theme_link; ?>js/ajaxselect/customer_select_ajax.js"></script>  
       <script>
 

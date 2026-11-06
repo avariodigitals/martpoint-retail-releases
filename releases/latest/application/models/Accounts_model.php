@@ -86,12 +86,17 @@ class Accounts_model extends CI_Model {
 		$account_name = $this->input->post('account_name', TRUE);
 		$parent_id = $this->input->post('parent_id', TRUE);
 		$note = $this->input->post('note', TRUE);
+		$opening_balance = parse_amount($this->input->post('opening_balance', TRUE));
+		$bank_name = trim((string)$this->input->post('bank_name', TRUE));
+		$bank_account_name = trim((string)$this->input->post('bank_account_name', TRUE));
+		$bank_account_number = preg_replace('/\\s+/', '', (string)$this->input->post('bank_account_number', TRUE));
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		$postedStoreId = (int)$this->input->post('store_id', TRUE);
+		$store_id=(store_module() && is_admin() && $postedStoreId > 0) ? $postedStoreId : get_current_store_id();
 
 		$this->db->where("upper(account_code)", strtoupper($account_code));
 		$this->db->where('store_id', $store_id);
@@ -140,6 +145,9 @@ class Accounts_model extends CI_Model {
 	    				'system_name' 				=> $SYSTEM_NAME,
 	    				'status' 					=> 1,
 	    			);
+		foreach (array('bank_name'=>$bank_name, 'bank_account_name'=>$bank_account_name, 'bank_account_number'=>$bank_account_number) as $field=>$value) {
+			if ($this->db->field_exists($field, 'ac_accounts')) $info[$field] = $value;
+		}
 		$q1 = $this->db->insert('ac_accounts', $info);
 		if(!$q1){
 			return "failed";
@@ -187,6 +195,9 @@ class Accounts_model extends CI_Model {
 			$data['parent_id']=$query->parent_id;
 			$data['account_name']=$query->account_name;
 			$data['note']=$query->note;
+			$data['bank_name']=$query->bank_name ?? '';
+			$data['bank_account_name']=$query->bank_account_name ?? '';
+			$data['bank_account_number']=$query->bank_account_number ?? '';
 			$data['opening_balance']=$query->balance;
 			$data['store_id']=$query->store_id;
 			return $data;
@@ -194,16 +205,24 @@ class Accounts_model extends CI_Model {
 	}
 	public function update_accounts(){
 		$q_id = $this->input->post('q_id', TRUE);
+		$q_id = (int)$q_id;
+		if ($q_id <= 0) return 'Account not found. Refresh the Account List and try again.';
 		$account_code = $this->input->post('account_code', TRUE);
 		$account_name = $this->input->post('account_name', TRUE);
 		$parent_id = $this->input->post('parent_id', TRUE);
 		$note = $this->input->post('note', TRUE);
+		$bank_name = trim((string)$this->input->post('bank_name', TRUE));
+		$bank_account_name = trim((string)$this->input->post('bank_account_name', TRUE));
+		$bank_account_number = preg_replace('/\\s+/', '', (string)$this->input->post('bank_account_number', TRUE));
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
 		$CUR_USERNAME = $this->data['CUR_USERNAME'];
 		$SYSTEM_IP = $this->data['SYSTEM_IP'];
 		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
-		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();	
+		$postedStoreId = (int)$this->input->post('store_id', TRUE);
+		$store_id=(store_module() && is_admin() && $postedStoreId > 0) ? $postedStoreId : get_current_store_id();
+		$existing = $this->db->select('id')->where('id', $q_id)->where('store_id', $store_id)->limit(1)->get('ac_accounts')->row();
+		if (!$existing) return 'Account not found for this store.';
 
 		$this->db->where("upper(account_code)", strtoupper($account_code));
 		$this->db->where("id !=", $q_id);
@@ -249,15 +268,26 @@ class Accounts_model extends CI_Model {
 	    				'account_code' 				=> $account_code,
 	    				'note' 				=> $note,
 	    			);
+		$bankValues = array('bank_name'=>$bank_name, 'bank_account_name'=>$bank_account_name, 'bank_account_number'=>$bank_account_number);
+		$bankSchemaReady = true;
+		foreach ($bankValues as $field=>$value) {
+			if ($this->db->field_exists($field, 'ac_accounts')) $info[$field] = $value;
+			else $bankSchemaReady = false;
+		}
+		if (!$bankSchemaReady && implode('', $bankValues) !== '') {
+			return 'Apply migration 4.0.9.254 before saving bank details. Your account details were not changed.';
+		}
 		
 
-		$q1 = $this->db->where('id',$q_id)->update('ac_accounts', $info);
+		$q1 = $this->db->where('id', $q_id)->where('store_id', $store_id)->update('ac_accounts', $info);
 		if ($q1){
 				$this->session->set_flashdata('success', 'Success!! Record Updated Successfully!');
 		        return "success";
 		}
 		else{
-		        return "failed";
+			$dbError = $this->db->error();
+			log_message('error', 'Account update failed for account '.$q_id.' in store '.$store_id.' (database error '.$dbError['code'].').');
+			return 'Account details could not be saved. Please try again; if it continues, contact support with the time of the attempt.';
 		}
 		
 	}

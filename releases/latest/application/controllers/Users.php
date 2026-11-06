@@ -21,11 +21,34 @@
 		}
 		public function save_or_update(){
 			$data=$this->data;//My_Controller constructor data accessed here
+			$cmd = $this->input->get('command') ?: $this->input->post('command');
+			$q_id = (int)$this->input->post('q_id');
+			$target_store_id = 0;
+			if($cmd === 'update'){
+				$target = $q_id > 0 ? $this->db->select('id, store_id')->where('id', $q_id)->get('db_users')->row() : null;
+				if(!$target){ show_error('User not found.', 404); return; }
+				$target_store_id = (int)$target->store_id;
+				$is_self = $q_id === (int)$this->session->userdata('inv_userid');
+				if(!$is_self){ $this->permission_check_with_msg('users_edit'); }
+				if(!is_admin() && $target_store_id !== (int)get_current_store_id()){
+					show_error('You cannot manage users outside your store.', 403); return;
+				}
+				// Tenant staff cannot move an account between stores by editing the hidden form field.
+				if(!is_admin()){
+					$_POST['store_id'] = $target_store_id;
+					$_REQUEST['store_id'] = $target_store_id;
+				}
+			} else {
+				$this->permission_check_with_msg('users_add');
+				if(!is_admin()){
+					$_POST['store_id'] = (int)get_current_store_id();
+					$_REQUEST['store_id'] = (int)get_current_store_id();
+				}
+			}
 			$this->form_validation->set_rules('username', 'Username Name', 'required|trim|min_length[2]|max_length[50]');
 
 			$this->form_validation->set_rules('new_user', 'First Name', 'required|trim|min_length[2]|max_length[50]');
 			
-			$cmd = $this->input->get('command') ?: $this->input->post('command');
 			if($cmd!='update'){
 				$this->form_validation->set_rules('pass', 'Password', 'required|trim|min_length[2]|max_length[50]');
 			}
@@ -186,8 +209,15 @@
 		}
 		public function status_update(){
 			$this->permission_check_with_msg('users_edit');
-			$userid=$this->input->post('id');
-			$status=$this->input->post('status');
+			$userid=(int)$this->input->post('id');
+			$status=(string)$this->input->post('status');
+			if($userid <= 0 || !in_array($status, array('0','1'), true)){
+				show_error('Invalid user status request.', 400); return;
+			}
+			$target = $this->db->select('id, store_id')->where('id', $userid)->get('db_users')->row();
+			if(!$target || (!is_admin() && (int)$target->store_id !== (int)get_current_store_id())){
+				show_error('User not found in this store.', 404); return;
+			}
 
 			$this->load->model('users_model');
 			$result=$this->users_model->status_update($userid,$status);

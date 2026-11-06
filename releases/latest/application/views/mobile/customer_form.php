@@ -56,7 +56,7 @@
     .mp-select-trigger { width: 100%; padding: 12px 14px; border: 1px solid var(--mp-border); border-radius: 12px; font-size: 15px; background: #fff; color: var(--mp-text); cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 46px; }
     .mp-select-trigger::after { content: '\f0d7'; font-family: 'FontAwesome'; color: var(--mp-muted); font-size: 14px; }
     .mp-select-trigger.placeholder { color: var(--mp-muted); }
-    .mp-select-options { display: none; border: 1px solid var(--mp-border); border-top: none; border-radius: 0 0 12px 12px; background: #fff; max-height: 220px; overflow-y: auto; position: absolute; left: 0; right: 0; top: 100%; z-index: 100; }
+    .mp-select-options { display: none; border: 1px solid var(--mp-border); border-top: none; border-radius: 0 0 12px 12px; background: #fff; max-height: 220px; overflow-y: auto; position: static; }
     .mp-select-wrap.open .mp-select-options { display: block; }
     .mp-select-wrap.open .mp-select-trigger { border-radius: 12px 12px 0 0; }
     .mp-select-option { padding: 12px 14px; cursor: pointer; border-bottom: 1px solid var(--mp-border); font-size: 15px; }
@@ -270,6 +270,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
+              <?php $this->load->view('customers/pricing_fields', get_defined_vars()); ?>
               <label>Price Level Type</label>
               <select name="price_level_type" id="price_level_type">
                 <option value="Increase" <?= $price_level_type == 'Increase' ? 'selected' : ''; ?>>Increase</option>

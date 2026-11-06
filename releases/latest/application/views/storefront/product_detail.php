@@ -90,7 +90,7 @@
       <?php endif; ?>
       <div class="sf-card-body">
         <div class="sf-card-name"><?= htmlspecialchars($p->item_name); ?></div>
-        <div class="sf-card-price"><?= store_number_format($p->sales_price); ?></div>
+        <div class="sf-card-price"><?= store_number_format($p->effective_price ?? $p->sales_price); ?></div>
       </div>
     </a>
     <?php endforeach; ?>

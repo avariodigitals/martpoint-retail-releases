@@ -299,7 +299,7 @@ foreach($orderedSections as $sectionKey => $section):
       <p class="pc-hero-lead"><?= htmlspecialchars($settings->store_subheadline ?: 'Quality medicines, expert advice, and caring service — everything your family needs to stay healthy.'); ?></p>
       <div class="pc-hero-actions">
         <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pc-btn pc-btn-white">Shop Medicines</a>
-        <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pc-btn pc-btn-ghost">Upload Prescription</a>
+        <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="pc-btn pc-btn-ghost">Upload Prescription at Checkout</a>
       </div>
     </div>
     <div class="pc-hero-visual">
@@ -321,7 +321,7 @@ foreach($orderedSections as $sectionKey => $section):
       <p class="pc-hero-lead"><?= htmlspecialchars($settings->store_description ?: 'Quality medicines, expert advice, and caring service — everything your family needs to stay healthy.'); ?></p>
       <div class="pc-hero-actions">
         <a href="<?= base_url('store/' . $slug . '/products'); ?>" class="pc-btn pc-btn-white">Shop Medicines</a>
-        <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pc-btn pc-btn-ghost">Upload Prescription</a>
+        <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="pc-btn pc-btn-ghost">Upload Prescription at Checkout</a>
       </div>
     </div>
   </div>
@@ -814,8 +814,9 @@ foreach($orderedSections as $sectionKey => $section):
   <div class="pc-container">
     <div class="pc-wa-cta">
       <div class="pc-wa-cta-title">Need a Prescription Refilled?</div>
-      <p class="pc-wa-cta-text">Send us your prescription on WhatsApp and we'll have it ready for pickup or delivery.</p>
-      <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pc-btn">Chat with a Pharmacist</a>
+      <p class="pc-wa-cta-text">Add the medicines to your cart and attach your prescription at checkout — a pharmacist reviews it before we prepare anything. Message us here if you would rather talk it through first.</p>
+      <a href="<?= base_url('store/' . $slug . '/cart'); ?>" class="pc-btn">Order Medicines</a>
+      <a href="https://wa.me/<?= $waNumber; ?>" target="_blank" class="pc-btn pc-btn-ghost" style="margin-left:8px;">Chat with a Pharmacist</a>
     </div>
   </div>
 </div>

@@ -174,6 +174,13 @@ class Stock_adjustment_model extends CI_Model {
 		$this->db->trans_begin();
 		$adjustment_date=system_fromatted_date($adjustment_date);
 
+		// Wastage: a line that names why it left the shelf is written off; a line
+		// that names no reason keeps the screen's original meaning of adding
+		// stock. So an old form, a store with the flag off, or a caller that never
+		// learned about reasons all save exactly as they did before.
+		$has_reason_column = $this->db->field_exists('reason_code', 'db_stockadjustmentitems');
+		$wastage_reasons = mp_get_wastage_reasons();
+
 	    $prev_item_ids = array();
 	    
 	    $store_id = (store_module() && is_admin()) ? $this->input->post('store_id', TRUE) : get_current_store_id();  
@@ -233,6 +240,9 @@ class Stock_adjustment_model extends CI_Model {
 		
 
 		//Import post data from form
+		// The trail has to say what the shelf held before this document moved
+		// it, so the starting figures are taken now — before any line is written.
+		$audit_stock_before = $this->_audit_shelf_snapshot();
 		for($i=1;$i<=$rowcount;$i++){
 		
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
@@ -242,14 +252,37 @@ class Stock_adjustment_model extends CI_Model {
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 
 				$adjustment_entry = array(
-							'store_id' 				=> $store_id, 
-		    				'warehouse_id' 				=> $warehouse_id, 
+							'store_id' 				=> $store_id,
+		    				'warehouse_id' 				=> $warehouse_id,
 		    				'adjustment_id' 		=> $adjustment_id,
 		    				'item_id' 			=> $item_id,
 		    				'adjustment_qty' 		=> $adjustment_qty,
-		    				'description' 		=> $description, 
+		    				'description' 		=> $description,
 		    				'status'			=> 1,
 		    			);
+
+				if(isset($_REQUEST['tr_reason_'.$i])){
+					$reason = trim((string) $this->xss_html_filter($_REQUEST['tr_reason_'.$i]));
+					if($reason !== ''){
+						if(!isset($wastage_reasons[$reason])){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: that wastage reason is not one of the listed options.';
+						}
+						if(!$has_reason_column){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: this database has not received the wastage reason column yet — run the pending migrations before writing stock out.';
+						}
+						// One control decides the direction, so a typed minus, a
+						// blank reason or a zero can only ever mean one movement.
+						$qty = abs((float) $adjustment_qty);
+						if($qty <= 0){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: a write-out needs a quantity above zero on every line.';
+						}
+						$adjustment_entry['adjustment_qty'] = -$qty;
+						$adjustment_entry['reason_code'] = $reason;
+					}
+				}
 				
 				$q2 = $this->db->insert('db_stockadjustmentitems', $adjustment_entry);
 				if(!$q2){
@@ -285,11 +318,73 @@ class Stock_adjustment_model extends CI_Model {
 		}
 		##############################################END
 
+		$this->_audit_adjustment($store_id, $adjustment_id, $audit_stock_before, $reference_no);
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
 		return "success<<<###>>>$adjustment_id";
 		
 	}//verify_save_and_update() function end
+
+	/** Shelf figures for every product the posted document is about to touch. */
+	private function _audit_shelf_snapshot(){
+		$rowcount = (int)($this->input->post_get('rowcount', TRUE) ?: 0);
+		$seen = array();
+		for($i = 1; $i <= $rowcount; $i++){
+			if(empty($_REQUEST['tr_item_id_'.$i])) continue;
+			$item_id = (int)$_REQUEST['tr_item_id_'.$i];
+			if($item_id <= 0 || isset($seen[$item_id])) continue;
+			$row = $this->db->select('stock')->where('id', $item_id)->limit(1)->get('db_items')->row();
+			$seen[$item_id] = (float)($row->stock ?? 0);
+		}
+		return $seen;
+	}
+
+	/**
+	 * Record the document as the shelf saw it. The lines are read back from
+	 * db_stockadjustmentitems and the after-figures from db_items, so the trail
+	 * reports the movement that landed rather than the one the form intended.
+	 */
+	private function _audit_adjustment($store_id, $adjustment_id, array $before, $reference_no){
+		if(!$adjustment_id || !function_exists('mp_audit_log')) return;
+		try {
+			$rows = $this->db->where('adjustment_id', (int)$adjustment_id)->get('db_stockadjustmentitems')->result_array();
+			if(!$rows) return;
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$lines = array();
+			$reasons = array();
+			$written_out = 0.0;
+			$added = 0.0;
+			$has_reason = $this->db->field_exists('reason_code', 'db_stockadjustmentitems');
+			foreach($rows as $row){
+				$delta = (float)$row['adjustment_qty'];
+				if(abs($delta) < 0.0000001) continue;
+				if($delta < 0){ $written_out += abs($delta); } else { $added += $delta; }
+				$name = $capture->item_name((int)$row['item_id']);
+				if($name === '') continue;
+				$item_id = (int)$row['item_id'];
+				$lines[] = array(
+					'item' => $name,
+					'from' => isset($before[$item_id]) ? $before[$item_id] : null,
+					'to'   => $capture->shelf_qty($item_id),
+				);
+				if($has_reason && !empty($row['reason_code'])){
+					$all = mp_get_wastage_reasons();
+					$reasons[isset($all[$row['reason_code']]) ? $all[$row['reason_code']] : $row['reason_code']] = true;
+				}
+			}
+			if(!$lines) return;
+			$action = ($written_out > 0 && $added > 0) ? 'stock_adjust' : ($written_out > 0 ? 'stock_out' : 'stock_in');
+			$note = $written_out > 0
+				? 'Wrote off ' . rtrim(rtrim(number_format($written_out, 4, '.', ''), '0'), '.') . ' unit(s) of stock'
+				: 'Counted in ' . rtrim(rtrim(number_format($added, 4, '.', ''), '0'), '.') . ' unit(s) of stock';
+			if($reasons) $note .= ' — ' . implode(', ', array_keys($reasons));
+			$capture->stockMoved($store_id, 'inventory', $action, (int)$adjustment_id,
+				((string)$reference_no !== '' ? 'Adjustment ' . $reference_no : 'Stock adjustment'), $lines, $note);
+		} catch (Throwable $e) {
+			log_message('error', 'Stock adjustment audit capture failed: ' . $e->getMessage());
+		}
+	}
 
 
 
@@ -391,11 +486,55 @@ class Stock_adjustment_model extends CI_Model {
 							'item_name' 				=> $res2 ? $res2->item_name : '(deleted item)',
 							'item_adjustment_qty' 		=> $res1->adjustment_qty, 
 							'service_bit' 				=> $res2 ? $res2->service_bit : 0,
+							'reason_code' 				=> property_exists($res1, 'reason_code') ? $res1->reason_code : '',
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);
 		}
 		return $result;
+	}
+
+	/**
+	 * What was written off, grouped by the reason it was written off for.
+	 *
+	 * Quantities come back positive because a loss is being counted, not a
+	 * movement replayed. Lines with no code are deliberately left out of the
+	 * breakdown but shown as their own row, so a store migrating into reasons
+	 * can see how much of its history is still unexplained instead of having it
+	 * quietly vanish.
+	 */
+	public function wastage_by_reason($store_id, $from = null, $to = null, $warehouse_id = null){
+		$rows = array();
+		if(!$this->db->table_exists('db_stockadjustmentitems')
+			|| !$this->db->field_exists('reason_code', 'db_stockadjustmentitems')){
+			return $rows;
+		}
+		// "lines" is a MySQL reserved word, so the count gets a name the server
+		// will accept; the array key the views read stays plain English.
+		$this->db->select("COALESCE(reason_code,'') AS reason_code, COUNT(*) AS slip_lines, "
+			. "COALESCE(SUM(ABS(i.adjustment_qty)),0) AS qty", FALSE);
+		$this->db->from('db_stockadjustmentitems i');
+		$this->db->join('db_stockadjustment a', 'a.id = i.adjustment_id', 'inner');
+		$this->db->where('i.store_id', (int) $store_id);
+		$this->db->where('i.status', 1);
+		$this->db->where('i.adjustment_qty <', 0);
+		if($warehouse_id !== null && $warehouse_id !== ''){
+			$this->db->where('i.warehouse_id', (int) $warehouse_id);
+		}
+		if($from) $this->db->where('a.adjustment_date >=', $from);
+		if($to)   $this->db->where('a.adjustment_date <=', $to);
+		$this->db->group_by("COALESCE(reason_code,'')");
+		$query = $this->db->get();
+		foreach($query ? $query->result_array() : array() as $row){
+			$rows[] = array(
+				'reason' => mp_wastage_reason_label($row['reason_code']),
+				'lines'  => (int) $row['slip_lines'],
+				'qty'    => (float) $row['qty'],
+			);
+		}
+		// Biggest loss first: the reason worth acting on is the one at the top.
+		usort($rows, function($x, $y){ return $y['qty'] <=> $x['qty']; });
+		return $rows;
 	}
 
 	public function return_row_with_data($rowcount,$info){
@@ -406,6 +545,8 @@ class Stock_adjustment_model extends CI_Model {
 		$item_adjustment_qty = isset($info['item_adjustment_qty']) ? $info['item_adjustment_qty'] : 1;
 		$description = isset($info['description']) ? $info['description'] : '';
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
+		$reason_code = isset($info['reason_code']) ? $info['reason_code'] : '';
+		$wastage_reasons = mp_get_wastage_reasons();
 		
 		
 	
@@ -428,6 +569,18 @@ class Stock_adjustment_model extends CI_Model {
                   </div>
                </td>
               
+
+               <!-- Reason the stock left the shelf -->
+               <?php if(mp_feature_enabled('wastage_reasons')): ?>
+               <td id="td_<?=$rowcount;?>_4">
+                  <select class="form-control no-padding" id="tr_reason_<?=$rowcount;?>" name="tr_reason_<?=$rowcount;?>" data-reason-row="<?=$rowcount;?>">
+                     <option value="">Added to stock</option>
+                     <?php foreach($wastage_reasons as $code => $reason_label): ?>
+                     <option value="<?=$code;?>" <?=($reason_code === $code) ? 'selected' : ''; ?>><?=$reason_label;?></option>
+                     <?php endforeach; ?>
+                  </select>
+               </td>
+               <?php endif; ?>
 
                <!-- ADD button -->
                <td id="td_<?=$rowcount;?>_16" style="text-align: center;">

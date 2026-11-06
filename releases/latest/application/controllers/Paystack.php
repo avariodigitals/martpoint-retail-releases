@@ -216,40 +216,88 @@ class Paystack extends MY_Controller {
 				// Server-side verify then atomically claim the paid transition;
 				// a replayed/racing webhook cannot fulfil twice.
 				$verify = $this->paystack->verify_transaction($reference, $order->store_id);
-				$ok = $verify['status'] && $verify['payment_status'] === 'success'
-					&& $verify['reference'] === $order->order_code
-					&& abs((float)$verify['amount'] - (float)$order->grand_total) < 0.01;
-				if($ok){
-					$claimed = $this->storefront_model->claimPaidOrder($order->id, [
-						'paystack_reference' => $reference,
-						'paystack_amount' => $verify['amount'],
-						'order_status' => 'paid'
-					]);
-					if($claimed){
-						$this->storefront_model->adjustStock($order->id);
-						$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_webhook');
-					} else {
-						// Payment verified but the order is no longer claimable
-						// (cancelled / reservation released / refunded). The
-						// money is real — surface it instead of swallowing it.
-						$this->load->model('payment_reconcile_model','recon');
-						$this->recon->queue_late_payment($order->store_id, array(
-							'provider'        => 'paystack',
-							'reference'       => $reference,
-							'order_id'        => $order->id,
-							'amount'          => $verify['amount'],
-							'expected_amount' => $order->grand_total,
-							'currency'        => $verify['currency'] ?? null,
-							'detail'          => 'Verified payment received for order ' . $order->order_code
-								. ' which is already ' . $order->order_status . '/' . $order->payment_status
-								. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
-							'detected_by'     => 'webhook',
-							'payload'         => $data,
-						));
+				$moneyIsReal = !empty($verify['status'])
+					&& (string)($verify['payment_status'] ?? '') === 'success'
+					&& (string)($verify['reference'] ?? '') === (string)$order->order_code;
+				$exact = $moneyIsReal && abs((float)$verify['amount'] - (float)$order->grand_total) < 0.01;
+				// Whatever the amount, money the provider confirms for this order is
+				// recorded against it. Before this, an in-full charge that arrived
+				// here while the browser callback had not run was the only way an
+				// order got paid, and anything short of the invoice was dropped.
+				$this->load->model('online_payments_model', 'onlinepay');
+				if(!$moneyIsReal){
+					// The provider confirmed a charge that does not carry this
+					// order's invoice number. It is not this order's money, so it
+					// must not sit in the order's ledger waiting for somebody to
+					// confirm another payment and settle the whole lot.
+					$this->load->model('payment_reconcile_model','recon');
+					$this->recon->queue((int)$order->store_id, array(
+						'exception_type'  => 'unmatched',
+						'provider'        => 'paystack',
+						'reference'       => (string)$reference,
+						'order_id'        => (int)$order->id,
+						'amount'          => $verify['amount'] ?? $amount,
+						'expected_amount' => (float)$order->grand_total,
+						'currency'        => $verify['currency'] ?? ($data['currency'] ?? null),
+						'detail'          => 'A charge came in against reference ' . $reference
+							. ', which is not the invoice number of order ' . $order->order_code
+							. ' (' . $order->order_status . '/' . $order->payment_status . '). Nothing was recorded on the order.',
+						'detected_by'     => 'webhook',
+						'payload'         => $data,
+					));
+				} else {
+					$ledger = $this->onlinepay->recordGatewayMoney($order, [
+						'provider'       => 'paystack',
+						'reference'      => $reference,
+						'amount'         => $verify['amount'] ?? 0,
+						'currency'       => $verify['currency'] ?? null,
+						'payment_status' => $verify['payment_status'] ?? '',
+					], 'the payment provider');
+					if(!$exact && ($ledger['recorded'] || $ledger['duplicate'])){
+						$settle = $this->onlinepay->settleOrder((int)$order->store_id, (int)$order->id, null, 'card payment');
+						if(($settle['state'] ?? '') === 'paid'){
+							$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_webhook');
+							$this->storefront_model->fulfilPaidOrder($order->id);
+						}
+					} elseif($exact){
+						$claimed = $this->storefront_model->claimPaidOrder($order->id, [
+							'paystack_reference' => $reference,
+							'paystack_amount' => $verify['amount'],
+							'order_status' => 'paid'
+						]);
+						if($claimed){
+							$this->storefront_model->adjustStock($order->id);
+							$salesId = (int)$this->storefront_model->ensureSalesLedger($order->id);
+							$this->onlinepay->postVerifiedLines((int)$order->store_id, (int)$order->id, $salesId);
+							$this->storefront_model->recordPurchaseEvent($order->id, 'paystack_webhook');
+						} else {
+							// Payment verified but the order is no longer claimable
+							// (cancelled / reservation released / already paid).
+							// A replay of a charge this order has already been given
+							// credit for is not news — the browser callback won the
+							// claim a moment ago. Anything else is real money that
+							// arrived where it cannot be applied, so surface it.
+							if(empty($ledger['duplicate'])){
+								$this->load->model('payment_reconcile_model','recon');
+								$this->recon->queue_late_payment($order->store_id, array(
+									'provider'        => 'paystack',
+									'reference'       => $reference,
+									'order_id'        => $order->id,
+									'amount'          => $verify['amount'],
+									'expected_amount' => $order->grand_total,
+									'currency'        => $verify['currency'] ?? null,
+									'detail'          => 'Verified payment received for order ' . $order->order_code
+										. ' which is already ' . $order->order_status . '/' . $order->payment_status
+										. ' (stock ' . ($order->stock_state ?? 'n/a') . '). Refund the customer or reinstate the order.',
+									'detected_by'     => 'webhook',
+									'payload'         => $data,
+								));
+							}
+						}
+						// Idempotent, self-healing: runs for the claim winner and
+						// retries on later webhooks if fulfilment died mid-flight.
+						$this->storefront_model->fulfilPaidOrder($order->id);
 					}
-					// Idempotent, self-healing: runs for the claim winner and
-					// retries on later webhooks if fulfilment died mid-flight.
-					$this->storefront_model->fulfilPaidOrder($order->id);
 				}
 			} else {
 				// Update paystack payment record

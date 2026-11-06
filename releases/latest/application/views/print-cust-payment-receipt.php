@@ -221,7 +221,7 @@
 			                  echo "<tr>";
 			                  echo "<td style='padding-left: 2px; padding-right: 2px;' valign='top'>".++$i."</td>";
 			                  echo "<td style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars(show_date($res2->payment_date))."</td>";
-			                  echo "<td colspan=2 style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars($res2->payment_type).($isThis ? ' &nbsp;&#8592; this receipt' : '')."</td>";
+			                  echo "<td colspan=2 style='padding-left: 2px; padding-right: 2px;'>".htmlspecialchars(payment_mode_label($res2->payment_type), ENT_QUOTES, 'UTF-8').($isThis ? ' &nbsp;&#8592; this receipt' : '')."</td>";
 			                  echo "<td style='text-align: right;padding-left: 2px; padding-right: 2px;'>".number_format(($res2->payment),2,'.','')."</td>";
 			                  echo "</tr>";
 			              }

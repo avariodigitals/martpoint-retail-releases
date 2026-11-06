@@ -79,6 +79,7 @@ class Pos_model extends CI_Model {
             return json_encode(array('error' => 'This batch has expired ('.$bc_data->expire_date.'). Cannot sell expired items.'));
           }
           $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
+          $sales_price = get_price_level_price($customer_id, $sales_price, $bc_data->sales_price);
           $item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price, $bc_data->tax) : calculate_exclusive($sales_price, $bc_data->tax);
           return json_encode(array(
             'id' => $item_id, 'item_name' => $bc_data->item_name, 'stock' => $bc_data->qty,
@@ -140,16 +141,17 @@ class Pos_model extends CI_Model {
           $unit_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
                             ? $selected_unit->wholesale_price
                             : $selected_unit->selling_price;
-          $effective_price = get_price_level_price($customer_id, $unit_price);
+          $effective_price = get_price_level_price($customer_id, $unit_price, $selected_unit->wholesale_price);
       } else {
           $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
+          $effective_price = get_price_level_price($customer_id, $effective_price, $res1->sales_price);
       }
 	      // Apply the item's configured sale discount before any dated
 	      // promotion. This keeps the price shown in the POS catalogue equal to
 	      // the price used when the item is opened into the cart.
 	      $original_effective_price = (float)$effective_price;
 	      $item_discount_amount = 0;
-	      if((float)($res1->discount ?? 0) > 0){
+	      if(!mp_customer_has_group($customer_id) && (float)($res1->discount ?? 0) > 0){
 		  $itemDiscount = (float)$res1->discount;
 		  if(strtolower((string)($res1->discount_type ?? '')) === 'percentage'){
 			  $item_discount_amount = $original_effective_price * ($itemDiscount / 100);
@@ -174,7 +176,7 @@ class Pos_model extends CI_Model {
       $promo_name = '';
       $promo_discount = 0;
       try {
-          if($this->db->table_exists('db_promotions')){
+          if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
               $this->load->model('promotions_model');
               $promo = $this->promotions_model->compute_effective_price($item_id, $effective_price);
               if($promo['has_promo']){
@@ -257,7 +259,6 @@ class Pos_model extends CI_Model {
 		$item_name = $this->input->post('item_name', TRUE);
 		$last_id = $this->input->post('last_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
-		$pos_idempotency_key = trim((string)$this->input->post('pos_idempotency_key', TRUE));
 		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$CI =& get_instance();
@@ -350,7 +351,7 @@ class Pos_model extends CI_Model {
 					if(!isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
 					$display_price = $this->extras_model->bundleUnitPrice($res2, $store_id);
 				}
-				$item_sales_price = get_price_level_price($customer_id,$display_price);
+				$item_sales_price = get_price_level_price($customer_id,$display_price,$default_unit ? $default_unit->wholesale_price : $res2->sales_price);
 				$item_sales_price = number_format($item_sales_price,decimals(),'.','');
 
 	        	$item_cost = ($default_unit && !empty($default_unit->purchase_price)) ? $default_unit->purchase_price : $res2->purchase_price;
@@ -407,7 +408,7 @@ class Pos_model extends CI_Model {
 	          				data-item-name="'.$res2->item_name.'"
 	          				data-item-available-qty="'.$w_stock.'"
 	          				data-item-sales-price="'.$item_sales_price.'"
-									data-item-mrp="'.$res2->mrp.'"
+									data-item-mrp="'.(mp_customer_has_group($customer_id) ? $item_sales_price : $res2->mrp).'"
 									data-item-batch-lot="'.$res2->batch_lot.'"
 	          				data-item-cost="'.$item_cost.'"
 	          				data-item-tax-id="'.$item_tax_id.'"
@@ -508,6 +509,25 @@ class Pos_model extends CI_Model {
 		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
 		// A selected restaurant table is dine-in; shipping cannot coexist with it.
 		if ($table_id > 0) { $shipping_fee_id = 0; $shipping_label = ''; $shipping_fee = 0; }
+		// Fitment link (Tyre Shop) — guarded for un-migrated installs. The bill
+		// may only name a vehicle of this store that belongs to the billed
+		// customer; anything else is dropped rather than trusted.
+		$vehicle_col = false;
+		$pos_vehicle_id = 0;
+		if ($this->db->field_exists('vehicle_id', 'db_sales') && $this->db->table_exists('db_vehicles')) {
+			$vehicle_col = true;
+			$candidate_vehicle_id = (int)$this->input->post('vehicle_id', TRUE);
+			if ($candidate_vehicle_id > 0) {
+				$vehicle_row = $this->db->select('id, customer_id')
+					->where('id', $candidate_vehicle_id)
+					->where('store_id', $store_id)
+					->where('is_deleted', 0)
+					->limit(1)->get('db_vehicles')->row();
+				if ($vehicle_row && (int)$vehicle_row->customer_id === (int)$customer_id) {
+					$pos_vehicle_id = (int)$vehicle_row->id;
+				}
+			}
+		}
 		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
 		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
 		$discount_type = $this->input->post('discount_type', TRUE);
@@ -515,6 +535,7 @@ class Pos_model extends CI_Model {
 		// Optional document links (quote→invoice traceability, delivery site)
 		$pos_quotation_id = (int)$this->input->post('quotation_id', TRUE);
 		$pos_shipaddr_id  = (int)$this->input->post('shippingaddress_id', TRUE);
+		$pos_idempotency_key = substr(trim((string)$this->input->post('pos_idempotency_key', TRUE)), 0, 96);
 		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 
 		//varify max sales usage of the package subscription
@@ -551,6 +572,24 @@ class Pos_model extends CI_Model {
 				$advance = $this->db->select('COALESCE(SUM(payment),0) AS amount')->where('sales_id', (int)$existing->id)->get('db_salespayments')->row();
 				echo 'success<<<###>>>'.$existing->id.'<<<###>>>'.($existing->init_code ?? '').'<<<###>>>'.($existing->count_id ?? '').'<<<###>>>'.($advance->amount ?? 0).'<<<###>>>'.($existing->sales_code ?? $existing->id);
 				exit;
+			}
+		}
+		// Prescription-only medicines cannot be dispensed without an approved,
+		// patient-matched prescription linked to the sale.
+		if($command === 'save' && function_exists('mp_prescription_gate')){
+			$rx_item_ids = [];
+			// Till rows are 0-indexed (hidden_rowcount is the count, not the last
+			// index), so scanning 1..N skipped the first item on every sale.
+			for($rx_i = 0; $rx_i < (int)$hidden_rowcount; $rx_i++){
+				$rx_item_id = (int)$this->input->post_get('tr_item_id_'.$rx_i, TRUE);
+				if($rx_item_id > 0) $rx_item_ids[] = $rx_item_id;
+			}
+			$rx_err = mp_prescription_gate((int)$store_id, $rx_item_ids,
+				(int)$this->input->post_get('medical_note_id', TRUE), (int)$customer_id);
+			if($rx_err !== ''){
+				$this->db->trans_rollback();
+				echo "failed: " . $rx_err;
+				return "failed: " . $rx_err;
 			}
 		}
 		$gardenSaleProfile=mp_get_store_profile($store_id);
@@ -729,6 +768,9 @@ class Pos_model extends CI_Model {
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
 			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $pos_vehicle_id ?: null;
+			}
 				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
 				$q3 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
 				if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
@@ -739,6 +781,24 @@ class Pos_model extends CI_Model {
 				//FIND THE PREVIOUSE ITEM LIST ID'S
 				$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
 				##############################################END
+
+				/* Re-ringing an invoice replaces its lines, so the lots the previous
+				 * version consumed must go back to the ledger first — otherwise the
+				 * re-saved sale deducts the same stock twice. Editing an invoice that
+				 * already has a return would break that return's batch provenance, so
+				 * refuse it instead of silently losing the trail. */
+				$this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+				if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+					$hasReturns = $this->db->where('sales_id', (int)$sales_id)->count_all_results('db_salesreturn') > 0;
+					if ($hasReturns) {
+						$this->db->trans_rollback();
+						return 'This invoice has a return. Its batch history cannot be edited; create a correction invoice instead.';
+					}
+					if (!$this->pos_inventory_rotation->restore_sale($sales_id)) {
+						$this->db->trans_rollback();
+						return 'Could not restore the invoice batch allocations. No changes were saved.';
+					}
+				}
 
 				// Release serialised units bound to the previous version
 				if(function_exists('mp_release_sale_barcodes')){ mp_release_sale_barcodes($sales_id); }
@@ -792,6 +852,9 @@ class Pos_model extends CI_Model {
 				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
 				$sales_entry['shipping_label']  = $shipping_label ?: null;
 				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $pos_vehicle_id ?: null;
 			}
 			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
 
@@ -882,6 +945,10 @@ class Pos_model extends CI_Model {
 				// Prevent selling a unit that is already marked as sold
 				if($barcode_id > 0){
 					$bc_status = $this->db->where('id', $barcode_id)->get('db_item_barcodes')->row()->status ?? 1;
+					if($bc_status == 3){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} is frozen by a product recall and cannot be sold.";
+					}
 					if($bc_status != 1){
 						$this->db->trans_rollback();
 						return "This unit of {$item_name} has already been sold. Use a different serial/IMEI or barcode.";
@@ -891,6 +958,10 @@ class Pos_model extends CI_Model {
 					if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
 					if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
 					$matched_bc = $this->db->get('db_item_barcodes')->row();
+					if($matched_bc && $matched_bc->status == 3){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} is frozen by a product recall and cannot be sold.";
+					}
 					if($matched_bc && $matched_bc->status != 1){
 						$this->db->trans_rollback();
 						return "The serial/IMEI for {$item_name} has already been sold. Use a different unit.";
@@ -904,6 +975,16 @@ class Pos_model extends CI_Model {
 					$this->db->trans_rollback();
 					return $qtyError;
 				}
+
+				// Multi-unit selling: the till posts the chosen selling unit and its
+				// conversion, but stock and batch rows are counted in base units.
+				// "1 box" of 10 tablets must consume 10, not 1.
+				$unit_id = $this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
+				$unit_name = $this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
+				$conversion_factor = isset($_REQUEST['conversion_factor_'.$i]) ? (float)$_REQUEST['conversion_factor_'.$i] : 1;
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
+				$base_unit_qty = $sales_qty * $conversion_factor;
+
 				if(!empty($item_details->is_bundle)){
 					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
 					if($availableBundles === null || $availableBundles < $sales_qty){
@@ -912,7 +993,7 @@ class Pos_model extends CI_Model {
 					}
 				} else {
 					$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
-					if($current_stock_of_item<$sales_qty && $service_bit==0){
+					if($current_stock_of_item<$base_unit_qty && $service_bit==0){
 						$this->db->trans_rollback();
 						return $item_name." has only ".$current_stock_of_item." in Stock!!";
 					}
@@ -953,7 +1034,37 @@ class Pos_model extends CI_Model {
 					return "Failed to save sale item: " . $err['message'];
 				}
 				$sale_items_id = $this->db->insert_id();
-				log_message('error', "POS db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty");
+				log_message('error', "POS db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
+
+				if($sale_items_id){
+					$this->db->where('id', $sale_items_id)->update('db_salesitems', array(
+						'unit_id'           => ($unit_id === '' ? null : (int)$unit_id),
+						'unit_name'         => ($unit_name === '' ? null : $unit_name),
+						'conversion_factor' => $conversion_factor,
+						'base_unit_qty'     => $base_unit_qty,
+					));
+				}
+
+				/* The counter must consume the same batch ledger as the invoice screen
+				 * and the online store, otherwise FEFO/FIFO records a sale that never
+				 * took stock off a lot. Manual rotation (the default) keeps counter
+				 * behaviour exactly as it was. Bundles and recipe-produced lines
+				 * consume their components elsewhere, so they never draw a lot. */
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$rotationStoreId = (int)(store_module() && is_admin() ? $store_id : get_current_store_id());
+				$rotationMethod = $this->inventory_rotation->method($rotationStoreId);
+				$rotationApplies = $rotationMethod !== Inventory_rotation_model::MANUAL
+					&& empty($item_details->is_bundle)
+					&& !in_array((string)($item_details->item_production_mode ?? ''), array('component', 'sale_deplete'), true);
+				if($rotationApplies){
+					$allocationError = $barcode_id > 0
+						? $this->inventory_rotation->consume_chosen_batch($sales_id, $sale_items_id, $rotationStoreId, (int)$warehouse_id, $item_id, $barcode_id, $base_unit_qty, $item_name)
+						: $this->inventory_rotation->allocate_sale_line($sales_id, $sale_items_id, $rotationStoreId, (int)$warehouse_id, $item_id, $base_unit_qty, $service_bit);
+					if($allocationError !== ''){
+						$this->db->trans_rollback();
+						return $allocationError;
+					}
+				}
 
 				// Mark the unit as sold so it cannot be sold again
 				if($q4 && ($track_serial || $track_imei || !empty($sold_serial_number) || !empty($sold_imei_number))){
@@ -1411,7 +1522,7 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="service_bit_'.$i.'" name="service_bit_'.$i.'" value="'.$service_bit.'">';
         		echo '<input type="hidden" id="batch_lot_'.$i.'" name="batch_lot_'.$i.'" value="'.($res3->batch_lot ?? '').'">';
         		echo '<input type="hidden" id="barcode_'.$i.'" name="barcode_'.$i.'" value="">';
-        		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
+			echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_type ?? 'retail').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
         		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
@@ -1570,7 +1681,7 @@ class Pos_model extends CI_Model {
         		echo '<input type="hidden" id="service_bit_'.$i.'" name="service_bit_'.$i.'" value="'.$service_bit.'">';
         		echo '<input type="hidden" id="batch_lot_'.$i.'" name="batch_lot_'.$i.'" value="'.($res3->batch_lot ?? '').'">';
         		echo '<input type="hidden" id="barcode_'.$i.'" name="barcode_'.$i.'" value="">';
-        		echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_per_unit == $q5->row()->mrp ? 'retail' : 'wholesale').'">';
+			echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_type ?? 'retail').'">';
 		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
         		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
         		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
@@ -1825,6 +1936,24 @@ class Pos_model extends CI_Model {
 
 		if (empty($adjustment_items)) {
 			return true;
+		}
+
+		// Never deduct the same sale line twice (replayed save, or the same sale
+		// written through more than one model): the line fingerprint carries the
+		// quantity so a genuine repeat with different qty still depletes.
+		$dedup_ref = 'SALE-' . $sales_id;
+		$line_fingerprint = 'Sale #' . $sales_id . ' / ' . $item->item_name . ' x' . $sales_qty;
+		$existing_docs = $this->db->where('store_id', $store_id)
+			->where('reference_no', $dedup_ref)
+			->select('id')
+			->get('db_stockadjustment')->result_array();
+		foreach ($existing_docs as $doc) {
+			$already = $this->db->where('adjustment_id', (int)$doc['id'])
+				->where('description', $line_fingerprint)
+				->count_all_results('db_stockadjustmentitems');
+			if ($already > 0) {
+				return true;
+			}
 		}
 
 		$adj = [

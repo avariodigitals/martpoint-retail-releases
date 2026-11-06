@@ -10,6 +10,75 @@ class Reports_model extends CI_Model {
 		$this->db->query("SET SESSION sql_mode = REPLACE((SELECT @@SESSION.sql_mode), 'ONLY_FULL_GROUP_BY', '')");
 	}
 
+	/** Build the store-scoped member/retail sales query from line snapshots. */
+	private function customer_group_sales_query($storeId, array $filters, $search = ''){
+		$snapshot = $this->db->field_exists('pricing_snapshot', 'db_salesitems');
+		$sourceExpr = $snapshot
+			? "CASE WHEN JSON_VALID(si.pricing_snapshot) THEN JSON_UNQUOTE(JSON_EXTRACT(si.pricing_snapshot, '$.source')) ELSE '' END"
+			: "''";
+		$groupIdExpr = $snapshot
+			? "CASE WHEN JSON_VALID(si.pricing_snapshot) THEN CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(si.pricing_snapshot, '$.group_id')), 'null') AS UNSIGNED) ELSE NULL END"
+			: 'NULL';
+		$groupNameExpr = $snapshot
+			? "CASE WHEN JSON_VALID(si.pricing_snapshot) THEN JSON_UNQUOTE(JSON_EXTRACT(si.pricing_snapshot, '$.name')) ELSE '' END"
+			: "''";
+		$this->db->from('db_sales s')
+			->join('db_salesitems si', 'si.sales_id = s.id', 'inner')
+			->join('db_customers c', 'c.id = s.customer_id AND c.store_id = s.store_id', 'left')
+			->join('db_items i', 'i.id = si.item_id AND i.store_id = s.store_id', 'left')
+			->join('db_warehouse w', 'w.id = s.warehouse_id AND w.store_id = s.store_id', 'left')
+			->where('s.store_id', (int)$storeId)
+			->where('s.sales_status', 'Final');
+		if(!empty($filters['from_date'])) $this->db->where('s.sales_date >=', $filters['from_date']);
+		if(!empty($filters['to_date'])) $this->db->where('s.sales_date <=', $filters['to_date']);
+		if(!empty($filters['warehouse_id'])) $this->db->where('s.warehouse_id', (int)$filters['warehouse_id']);
+		if(!empty($filters['customer_id'])) $this->db->where('s.customer_id', (int)$filters['customer_id']);
+		if(!empty($filters['created_by'])) $this->db->where('UPPER(s.created_by)', strtoupper($filters['created_by']));
+		if(($filters['sale_type'] ?? 'all') === 'member') $this->db->where("($sourceExpr) = 'group'", null, false);
+		if(($filters['sale_type'] ?? 'all') === 'retail') $this->db->where("(($sourceExpr) IS NULL OR ($sourceExpr) NOT IN ('group','customer'))", null, false);
+		if(($filters['sale_type'] ?? 'all') === 'other') $this->db->where("($sourceExpr) = 'customer'", null, false);
+		if(!empty($filters['group_id'])) $this->db->where("($groupIdExpr) = " . (int)$filters['group_id'], null, false);
+		if($search !== ''){
+			$groupSearch = $this->db->escape('%' . $search . '%');
+			$this->db->group_start()
+				->like('s.sales_code', $search)
+				->or_like('c.customer_name', $search)
+				->or_like('c.customer_code', $search)
+				->or_like('i.item_name', $search)
+				->or_like('w.warehouse_name', $search)
+				->or_where("($groupNameExpr) LIKE $groupSearch", null, false)
+				->group_end();
+		}
+		return [$sourceExpr, $groupIdExpr, $groupNameExpr];
+	}
+
+	/** Paginated, item-level report; group identity comes from the sale snapshot. */
+	public function customer_group_sales_page($storeId, array $filters, $start = 0, $length = 25, $search = ''){
+		list($sourceExpr, $groupIdExpr, $groupNameExpr) = $this->customer_group_sales_query($storeId, $filters, $search);
+		$totalQuery = clone $this->db;
+		$total = (int)$totalQuery->count_all_results();
+		$this->db->select("s.id AS sale_id, s.sales_code, s.sales_date, s.warehouse_id, s.customer_id, s.created_by,
+			c.customer_code, c.customer_name, w.warehouse_name, si.item_id, COALESCE(NULLIF(i.item_name,''), NULLIF(si.description,''), CONCAT('Item #', si.item_id)) AS item_name,
+			si.sales_qty AS qty, si.price_per_unit AS unit_price, si.total_cost AS line_total,
+			$sourceExpr AS pricing_source, $groupIdExpr AS pricing_group_id, $groupNameExpr AS pricing_group_name", false);
+		$this->db->order_by('s.sales_date', 'DESC')->order_by('s.id', 'DESC')->order_by('si.id', 'ASC')
+			->limit(max(1, min(50000, (int)$length)), max(0, (int)$start));
+		$rows = $this->db->get()->result_array();
+
+		list($summarySource) = $this->customer_group_sales_query($storeId, $filters, $search);
+		$this->db->select("COUNT(DISTINCT s.id) AS invoices, SUM(CASE WHEN ($summarySource) = 'group' THEN si.total_cost ELSE 0 END) AS member_sales,
+			SUM(CASE WHEN ($summarySource) = 'customer' THEN si.total_cost ELSE 0 END) AS individual_sales,
+			SUM(CASE WHEN ($summarySource) IN ('group','customer') THEN 0 ELSE si.total_cost END) AS retail_sales,
+			SUM(si.total_cost) AS total_sales", false);
+		$summary = $this->db->get()->row_array() ?: ['invoices'=>0, 'member_sales'=>0, 'individual_sales'=>0, 'retail_sales'=>0, 'total_sales'=>0];
+		return ['rows'=>$rows, 'total'=>$total, 'summary'=>$summary];
+	}
+
+	/** Return all matching rows for a bounded export. */
+	public function customer_group_sales_export_rows($storeId, array $filters, $search = ''){
+		return $this->customer_group_sales_page($storeId, $filters, 0, 50000, $search);
+	}
+
 	public function show_supplier_items_report(){
 		$store_id = $this->input->post('store_id', TRUE);
 		$item_id = $this->input->post('item_id', TRUE);

@@ -628,6 +628,9 @@
             <?php if($CI->permissions('sales_report')) { ?>
             <li class="report-sales-active-li"><a href="<?php echo $base_url; ?>reports/sales" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('sales_report'); ?></span></a></li>
             <?php } ?>
+            <?php if($CI->permissions('sales_report')) { ?>
+            <li class="report-customer-group-sales-active-li"><a href="<?php echo $base_url; ?>reports/customer_group_sales" ><i class="fa fa-users"></i> <span>Member &amp; Retail Sales</span></a></li>
+            <?php } ?>
             <?php if($CI->permissions('sales_return_report')) { ?>
             <li class="report-sales-return-active-li"><a href="<?php echo $base_url; ?>reports/sales_return" ><i class="fa fa-files-o "></i> <span><?= $this->lang->line('sales_return_report'); ?></span></a></li>
             <?php } ?>
@@ -732,7 +735,7 @@
         <!-- 11. OPERATIONS (includes Staff + Table Management) -->
         <?php if(true){ ?>
         <?php
-          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','perfumery_workflow'];
+          $ops_flags = ['custom_orders','memberships','treatment_notes','medical_notes','kitchen_workflow','laundry_workflow','production_workflow','recipe_tracking','public_catalogue','delivery_scheduling','serial_number_tracking','imei_tracking','warranty_tracking','expiry_tracking','batch_tracking','perfumery_workflow'];
           $has_ops = false;
           foreach ($ops_flags as $f) { if (mp_feature_enabled($f)) { $has_ops = true; break; } }
           $has_staff = (mp_feature_enabled('staff_assignment') || mp_feature_enabled('staff_commission')) && (is_admin() || is_store_admin());
@@ -776,6 +779,12 @@
             <?php } ?>
             <?php if(mp_feature_enabled('expiry_tracking')) { ?>
             <li class="stock-rotation-active-li"><a href="<?= $base_url; ?>operations/stock_rotation"><i class="fa fa-refresh"></i> Stock Rotation</a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('batch_tracking') && $CI->permissions('batch_reconciliation_view')) { ?>
+            <li class="batch-reconciliation-active-li"><a href="<?= $base_url; ?>batch_reconciliation"><i class="fa fa-balance-scale"></i> Batch Reconciliation</a></li>
+            <?php } ?>
+            <?php if(mp_feature_enabled('batch_tracking') && $CI->permissions('pharmacy_batch_report_view')) { ?>
+            <li class="batch-reports-active-li"><a href="<?= $base_url; ?>batch_reports"><i class="fa fa-list-alt"></i> Batch Ledger Reports</a></li>
             <?php } ?>
             <?php if(mp_feature_enabled('perfumery_workflow')) { ?>
             <li class="perfume-active-li"><a href="<?= $base_url; ?>perfume"><i class="fa fa-flask"></i> Perfume Lab</a></li>

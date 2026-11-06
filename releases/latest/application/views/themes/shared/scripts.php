@@ -1,3 +1,4 @@
+<?php $this->load->view('storefront/commerce'); ?>
 <script>
   let cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
   let modalProduct = null;

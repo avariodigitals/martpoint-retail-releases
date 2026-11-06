@@ -39,8 +39,16 @@
     .tr-locations .arrow { color: var(--mp-muted); }
     .tr-meta { font-size: 12px; color: var(--mp-muted); }
     .tr-note { font-size: 12px; color: var(--mp-ink); margin-top: 4px; word-break: break-word; }
-    .tr-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .tr-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 10px; }
     .tr-actions .tr-delete { color: var(--mp-danger); font-size: 13px; font-weight: 600; text-decoration: none; }
+    .tr-actions .tr-count { color: var(--mp-primary); font-size: 13px; font-weight: 600; text-decoration: none; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; margin-top: 6px; }
+    .badge.transit { background: #FFFBEB; color: #92400E; }
+    .badge.held { background: #FEF2F2; color: #991B1B; }
+    .badge.arrived { background: #ECFDF5; color: #065F46; }
+    .chips { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+    .chip { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--mp-border); background: #fff; font-size: 13px; font-weight: 600; color: var(--mp-ink); cursor: pointer; }
+    .chip.active { background: var(--mp-primary); color: #fff; border-color: var(--mp-primary); }
     .empty-state { text-align: center; padding: 40px 20px; color: var(--mp-muted); }
     .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; color: var(--mp-border); }
     @media (min-width: 600px) { #app { max-width: 100%; margin: 0; } .screen { padding: 16px 16px 100px; } }
@@ -66,10 +74,24 @@
         <input type='text' id='tr-search' placeholder='Search by branch or note'>
       </div>
 
+      <?php if(!empty($arrival_mode)): ?>
+      <div class='chips' id='tr-chips'>
+        <button type='button' class='chip active' data-status=''>All loads</button>
+        <button type='button' class='chip' data-status='In Transit'>Waiting to count</button>
+        <button type='button' class='chip' data-status='Awaiting Approval'>Held for approval</button>
+        <button type='button' class='chip' data-status='Received'>Counted in</button>
+      </div>
+      <?php endif; ?>
+
       <div class='card tr-list'>
         <?php if(!empty($transfers)): ?>
           <?php foreach($transfers as $t): ?>
-            <div class='tr-item' data-from='<?= strtolower(htmlspecialchars($t->from_name ?? '')); ?>' data-to='<?= strtolower(htmlspecialchars($t->to_name ?? '')); ?>' data-note='<?= strtolower(htmlspecialchars($t->note ?? '')); ?>'>
+            <?php
+              $tstatus = isset($t->receipt_status) ? (string)$t->receipt_status : 'Posted';
+              $badge = array('In Transit' => array('transit', 'Waiting to count in'), 'Awaiting Approval' => array('held', 'Short — held for approval'), 'Received' => array('arrived', 'Counted in'));
+              $review = !empty($arrival_mode) && $tstatus === 'Awaiting Approval';
+            ?>
+            <div class='tr-item' data-from='<?= strtolower(htmlspecialchars($t->from_name ?? '')); ?>' data-to='<?= strtolower(htmlspecialchars($t->to_name ?? '')); ?>' data-note='<?= strtolower(htmlspecialchars($t->note ?? '')); ?>' data-status='<?= $tstatus === 'Posted' ? '' : htmlspecialchars($tstatus); ?>'>
               <div class='tr-header'>
                 <div class='left'>
                   <div class='ref'><?= htmlspecialchars($t->note ?: 'Transfer #'.$t->id); ?></div>
@@ -83,7 +105,13 @@
                 <span><?= htmlspecialchars($t->to_name ?: '-'); ?></span>
               </div>
               <div class='tr-meta'><?= (int)$t->item_count; ?> item<?= (int)$t->item_count == 1 ? '' : 's'; ?> transferred</div>
+              <?php if(!empty($arrival_mode) && isset($badge[$tstatus])): ?>
+                <span class='badge <?= $badge[$tstatus][0]; ?>'><?= $badge[$tstatus][1]; ?></span>
+              <?php endif; ?>
               <div class='tr-actions'>
+                <?php if(!empty($t->can_count) || $review): ?>
+                  <a href='<?= base_url('stock_transfer/receive/' . (int)$t->id); ?>' class='tr-count'><i class='fa <?= $review ? 'fa-exclamation-triangle' : 'fa-check-circle'; ?>"></i> <?= $review ? 'Review' : 'Count in'; ?></a>
+                <?php endif; ?>
                 <?php if(permissions('stock_transfer_delete')): ?>
                   <a href='javascript:void(0)' class='tr-delete' onclick='deleteStockTransfer(<?= (int)$t->id; ?>)'><i class='fa fa-trash'></i> Delete</a>
                 <?php endif; ?>
@@ -103,18 +131,32 @@
   </div>
 
   <script>
-    var searchInput = document.getElementById('tr-search');
-    if(searchInput){
-      searchInput.addEventListener('input', function(){
-        var term = this.value.toLowerCase().trim();
-        document.querySelectorAll('.tr-list .tr-item').forEach(function(el){
-          var from = el.dataset.from || '';
-          var to = el.dataset.to || '';
-          var note = el.dataset.note || '';
-          el.style.display = (from.indexOf(term) !== -1 || to.indexOf(term) !== -1 || note.indexOf(term) !== -1) ? 'block' : 'none';
-        });
+    var activeStatus = '';
+    function filterTransfers(){
+      var term = (document.getElementById('tr-search').value || '').toLowerCase().trim();
+      document.querySelectorAll('.tr-list .tr-item').forEach(function(el){
+        var from = el.dataset.from || '';
+        var to = el.dataset.to || '';
+        var note = el.dataset.note || '';
+        var matchesText = (from.indexOf(term) !== -1 || to.indexOf(term) !== -1 || note.indexOf(term) !== -1);
+        var status = el.dataset.status || '';
+        var matchesStatus = !activeStatus || status === activeStatus;
+        el.style.display = (matchesText && matchesStatus) ? 'block' : 'none';
       });
     }
+
+    var searchInput = document.getElementById('tr-search');
+    if(searchInput){ searchInput.addEventListener('input', filterTransfers); }
+
+    document.querySelectorAll('#tr-chips .chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        document.querySelectorAll('#tr-chips .chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+        activeStatus = chip.getAttribute('data-status') || '';
+        filterTransfers();
+      });
+    });
+  </script>
 
     function deleteStockTransfer(id){
       mpConfirm('Delete this stock transfer?', function(){

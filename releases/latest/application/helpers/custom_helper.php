@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.226';
+    return '4.0.9.254';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -1056,20 +1056,25 @@
   /**
    * Display label for a stored payment_type value. Returns the Payment Mode
    * name when the value matches a configured mode code (case-insensitive),
-   * otherwise returns the stored text unchanged so legacy values like
-   * 'CASH' or 'Bank Transfer' still read sensibly.
+   * otherwise converts stored machine codes like 'bank_transfer' into a
+   * readable label while preserving legacy values like 'Bank Transfer'.
    */
   function payment_mode_label($stored, $store_id = null){
+    static $cache = array();
     $stored = trim((string)$stored);
     if($stored === ''){ return '—'; }
     $CI =& get_instance();
     if(empty($store_id)){ $store_id = get_current_store_id(); }
-    if(!$CI->db->table_exists('db_payment_modes')){ return $stored; }
-    $mode = $CI->db->select('name')
-                   ->where('store_id', $store_id)
-                   ->where('LOWER(code)', strtolower($stored))
-                   ->get('db_payment_modes')->row();
-    return $mode ? $mode->name : $stored;
+    $cacheKey = (string)$store_id . '|' . strtolower($stored);
+    if(array_key_exists($cacheKey, $cache)){ return $cache[$cacheKey]; }
+    if($CI->db->table_exists('db_payment_modes')){
+      $mode = $CI->db->select('name')
+                     ->where('store_id', $store_id)
+                     ->where('LOWER(code)', strtolower($stored))
+                     ->get('db_payment_modes')->row();
+      if($mode){ return $cache[$cacheKey] = $mode->name; }
+    }
+    return $cache[$cacheKey] = (function_exists('mp_code_label') ? mp_code_label($stored) : ucfirst(strtolower(str_replace('_', ' ', $stored))));
   }
 
   function get_warehouse_name($id){
@@ -1137,11 +1142,13 @@
     if(!$q){ return false; }
     $stock_entry_qty=$q->row()->adjustment_qty;
     /*Add Stock Transfer*/
-    $q = $CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
-                              WHERE 
-                              store_id=$store_id AND 
-                              warehouse_to=$warehouse_id AND
-                              item_id=$item_id");
+    $q = $CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END),0) AS stocktransfer_qty FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS h ON h.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_to=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND h.receipt_status NOT IN ('In Transit','Awaiting Approval')");
     if(!$q){ return false; }
     $stocktransfer_qty_add=$q->row()->stocktransfer_qty;
     /*Deduct Stock from warerhouse*/
@@ -1215,13 +1222,14 @@
                               a.item_id=$item_id
                               AND b.adjustment_date <= '$as_of_date'")->row()->adjustment_qty;
 
-    $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(a.transfer_qty),0) AS stocktransfer_qty
+    $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END),0) AS stocktransfer_qty
                               FROM db_stocktransferitems AS a
                               JOIN db_stocktransfer AS b ON b.id = a.stocktransfer_id
                               WHERE
                               a.store_id=$store_id AND
                               a.warehouse_to=$warehouse_id AND
                               a.item_id=$item_id
+                              AND b.receipt_status NOT IN ('In Transit','Awaiting Approval')
                               AND b.transfer_date <= '$as_of_date'")->row()->stocktransfer_qty;
 
     $stocktransfer_qty_deduct=$CI->db->query("SELECT COALESCE(SUM(a.transfer_qty),0) AS stocktransfer_qty
@@ -1406,7 +1414,8 @@
     return $CI->db->select("language_id")->where("id",get_current_store_id())->get("db_store")->row()->language_id;
   }
 
-  function get_price_level_price($customer_id,$price){
+  function get_price_level_price($customer_id,$price,$wholesale=null){
+    if (function_exists('mp_customer_price')) return mp_customer_price($customer_id,$price,$wholesale);
     $CI =& get_instance();
     if(empty($customer_id)){
       return $price;
@@ -3099,7 +3108,7 @@
     return !$flag || $flag->audit_trail_enabled === null || (int)$flag->audit_trail_enabled !== 0;
   }
 
-  function mp_audit_log($module, $action, $ref_id = null, $description = null){
+  function mp_audit_log($module, $action, $ref_id = null, $description = null, $opts = array()){
     $CI =& get_instance();
     if (!isset($CI->db)) return false;
     $previousDebug = $CI->db->db_debug;
@@ -3110,15 +3119,21 @@
         return false;
       }
       if (!mp_audit_recording_enabled()) return false;
-      $store_id = (int)get_current_store_id();
+      $opts = is_array($opts) ? $opts : array();
+      $store_id = isset($opts['store_id']) ? (int)$opts['store_id'] : (int)get_current_store_id();
       if ($store_id <= 0) {
         log_message('error', 'Audit recording skipped: no valid store context.');
         return false;
       }
+      // A CLI run (migration, cron) has no session at all, so staff is read
+      // from the session only when one exists.
+      $hasSession = isset($CI->session);
+      $sessionUser = $hasSession ? $CI->session->userdata('inv_userid') : null;
+      $sessionName = $hasSession ? $CI->session->userdata('inv_username') : null;
       $row = array(
         'store_id'     => $store_id,
-        'user_id'      => $CI->session->userdata('inv_userid') ?: null,
-        'username'     => $CI->session->userdata('inv_username') ?: null,
+        'user_id'      => isset($opts['user_id']) && (int)$opts['user_id'] > 0 ? (int)$opts['user_id'] : ($sessionUser ?: null),
+        'username'     => $sessionName ?: null,
         'module'       => substr((string)$module, 0, 100),
         'action'       => substr((string)$action, 0, 100),
         'ref_id'       => $ref_id !== null ? substr((string)$ref_id, 0, 100) : null,
@@ -3128,6 +3143,17 @@
         'created_time' => date('h:i:s a'),
         'created_at'   => date('Y-m-d H:i:s'),
       );
+      // What the record is called, and which values moved. Both arrive with
+      // 4.0.9.246; a database that has not received it still records the event
+      // as it always did rather than losing the row to an unknown column.
+      if (mp_audit_has_column('ref_label')) {
+        $row['ref_label'] = isset($opts['label']) && (string)$opts['label'] !== ''
+          ? mb_substr(trim((string)$opts['label']), 0, 191) : null;
+      }
+      if (mp_audit_has_column('changes')) {
+        $changes = mp_audit_normalise_changes(isset($opts['changes']) ? $opts['changes'] : null);
+        $row['changes'] = $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null;
+      }
       // INSERT with bindings preserves the caller's unfinished query builder.
       $columns = '`' . implode('`,`', array_keys($row)) . '`';
       $sql = 'INSERT INTO db_audit_trail (' . $columns . ') VALUES (' . implode(',', array_fill(0, count($row), '?')) . ')';
@@ -3142,6 +3168,195 @@
       return false;
     } finally {
       $CI->db->db_debug = $previousDebug;
+    }
+  }
+
+  /**
+   * The recorder, ready to use, or null when this request cannot record.
+   *
+   * A capture is a witness, never a party to the transaction it is watching:
+   * if it cannot be built, the save it was meant to describe still happens.
+   * Callers pair this with a try/catch so an unexpected fault inside a capture
+   * cannot leave a half-written invoice or a batch that never moved.
+   */
+  if(!function_exists('mp_audit_capture')){
+    function mp_audit_capture(){
+      static $capture = null;
+      if ($capture !== null) return $capture;
+      if (!function_exists('mp_audit_log') || !defined('APPPATH')) return null;
+      $file = APPPATH . 'models/Audit_capture_model.php';
+      if (!class_exists('Audit_capture_model', false)) {
+        if (!is_file($file)) return null;
+        require_once $file;
+      }
+      if (!class_exists('Audit_capture_model', false)) return null;
+      $capture = new Audit_capture_model();
+      return $capture;
+    }
+  }
+
+  /** Column probe cached per request — the writer runs inside save paths.
+   *  $reset clears the cache for whoever changed the schema mid-request. */
+  if(!function_exists('mp_audit_has_column')){
+    function mp_audit_has_column($column, $reset = false){
+      static $seen = array();
+      if ($reset) { $seen = array(); return true; }
+      $key = (string)$column;
+      if (!isset($seen[$key])) {
+        $CI =& get_instance();
+        $seen[$key] = (isset($CI->db) && $CI->db->table_exists('db_audit_trail'))
+          ? $CI->db->field_exists($key, 'db_audit_trail') : false;
+      }
+      return (bool)$seen[$key];
+    }
+  }
+
+  /** One recorded movement, already in the words a reviewer should read. */
+  if(!function_exists('mp_audit_change')){
+    function mp_audit_change($label, $from = null, $to = null){
+      return array('label' => (string)$label, 'from' => $from, 'to' => $to);
+    }
+  }
+
+  /** How one field's value is said out loud. */
+  if(!function_exists('mp_audit_format_value')){
+    function mp_audit_format_value($value, $kind = 'text'){
+      switch ($kind) {
+        case 'money':
+        case 'qty':
+          if ($value === null || $value === '') return 'nothing set';
+          $n = (float)$value;
+          return $kind === 'money' ? store_number_format($n) : rtrim(rtrim(number_format($n, 4, '.', ''), '0'), '.');
+        case 'date':
+          if (empty($value)) return 'no date';
+          $t = strtotime((string)$value);
+          return $t ? date('j M Y', $t) : (string)$value;
+        case 'yesno':
+          return ((int)$value === 1) ? 'Yes' : 'No';
+        case 'word':
+          if ($value === null || $value === '') return 'nothing set';
+          return mp_code_label((string)$value);
+        default:
+          $text = trim(preg_replace('/\s+/', ' ', (string)$value));
+          return $text === '' ? 'nothing set' : $text;
+      }
+    }
+  }
+
+  /**
+   * Diff two records over the fields a reviewer cares about.
+   * $fields maps the column onto ['label' => 'Selling price', 'type' => 'money'].
+   * Only fields that genuinely moved are returned, so an unchanged save never
+   * claims a change.
+   */
+  if(!function_exists('mp_audit_diff')){
+    function mp_audit_diff($before, $after, array $fields){
+      $out = array();
+      foreach ($fields as $column => $spec) {
+        $b = is_array($before) ? ($before[$column] ?? null) : ($before->{$column} ?? null);
+        $a = is_array($after) ? ($after[$column] ?? null) : ($after->{$column} ?? null);
+        $kind = $spec['type'] ?? 'text';
+        $moved = false;
+        if ($kind === 'money' || $kind === 'qty') {
+          $moved = abs((float)$b - (float)$a) > 0.0000001;
+        } elseif ($kind === 'yesno') {
+          $moved = (int)$b !== (int)$a;
+        } else {
+          $moved = trim((string)($b ?? '')) !== trim((string)($a ?? ''));
+        }
+        if (!$moved) continue;
+        $out[] = array(
+          'label' => (string)($spec['label'] ?? $column),
+          'from'  => mp_audit_format_value($b, $kind),
+          'to'    => mp_audit_format_value($a, $kind),
+        );
+      }
+      return $out;
+    }
+  }
+
+  /**
+   * Bound what a single entry can carry. An audit row is read on a screen, not
+   * downloaded, so a change that touches thirty fields shows the first eight
+   * and says how many it left out instead of burying the reader.
+   */
+  if(!function_exists('mp_audit_normalise_changes')){
+    function mp_audit_normalise_changes($changes){
+      if (!is_array($changes) || !$changes) return array();
+      $clean = array();
+      foreach ($changes as $row) {
+        if (!is_array($row)) {
+          if ($row === null || trim((string)$row) === '') continue;
+          $row = array('label' => (string)$row, 'from' => null, 'to' => null);
+        }
+        $label = mb_substr(trim(preg_replace('/\s+/', ' ', (string)($row['label'] ?? ''))), 0, 80);
+        if ($label === '') continue;
+        $item = array('label' => $label);
+        foreach (array('from', 'to') as $k) {
+          if (!array_key_exists($k, $row) || $row[$k] === null) { $item[$k] = null; continue; }
+          $v = is_string($row[$k]) ? $row[$k] : (string)$row[$k];
+          $item[$k] = mb_substr(trim(preg_replace('/\s+/', ' ', $v)), 0, 120);
+        }
+        if (($item['from'] ?? null) === null && ($item['to'] ?? null) === null) continue;
+        $clean[] = $item;
+      }
+      if (!$clean) return array();
+      if (count($clean) > 8) {
+        $left = count($clean) - 7;
+        $clean = array_slice($clean, 0, 7);
+        $clean[] = array('label' => 'Other changes', 'from' => null, 'to' => $left . ' more not listed here');
+      }
+      return $clean;
+    }
+  }
+
+  /** Read the stored JSON back as rows; garbage or an old row yields none. */
+  if(!function_exists('mp_audit_decode_changes')){
+    function mp_audit_decode_changes($json){
+      if (!is_string($json) || trim($json) === '') return array();
+      $rows = json_decode($json, true);
+      if (!is_array($rows)) return array();
+      $out = array();
+      foreach ($rows as $row) {
+        if (!is_array($row) || trim((string)($row['label'] ?? '')) === '') continue;
+        $out[] = array(
+          'label' => (string)$row['label'],
+          'from'  => isset($row['from']) ? (string)$row['from'] : null,
+          'to'    => isset($row['to']) ? (string)$row['to'] : null,
+        );
+      }
+      return $out;
+    }
+  }
+
+  /**
+   * The name a reviewer should see for a record, never its row id. Falls back
+   * to nothing when the table or the name is missing so the screen can show
+   * the reference it has.
+   */
+  if(!function_exists('mp_audit_record_name')){
+    function mp_audit_record_name($table, $id, $column = 'name'){
+      $CI =& get_instance();
+      $id = (int)$id;
+      if ($id <= 0 || !isset($CI->db)) return '';
+      static $cache = array();
+      $key = $table . ':' . $column . ':' . $id;
+      if (isset($cache[$key])) return $cache[$key];
+      $name = '';
+      $previousDebug = $CI->db->db_debug;
+      $CI->db->db_debug = false;
+      try {
+        if ($CI->db->table_exists($table) && $CI->db->field_exists($column, $table)) {
+          $row = $CI->db->select($column)->where('id', $id)->limit(1)->get($table)->row();
+          $name = mp_catalogue_name($row ? ($row->{$column} ?? '') : '');
+        }
+      } catch (Throwable $e) {
+        $name = '';
+      } finally {
+        $CI->db->db_debug = $previousDebug;
+      }
+      $cache[$key] = $name;
+      return $name;
     }
   }
 

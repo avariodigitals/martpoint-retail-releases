@@ -145,7 +145,7 @@
               <div class="product-price">Sales: <?= store_number_format($p->sales_price); ?></div>
               <?php if($can_edit): ?>
                 <div class="product-actions">
-                  <input type="number" step="0.01" value="<?= $p->online_price > 0 ? $p->online_price : ''; ?>" placeholder="Online price" onchange="updatePrice(<?= (int)$p->id; ?>, this.value)">
+                  <input type="number" step="0.01" value="<?= $p->online_price > 0 ? $p->online_price : ''; ?>" placeholder="Uses Retail price" title="Blank uses Retail price" onchange="updatePrice(<?= (int)$p->id; ?>, this.value)">
                   <button class="<?= $p->publish_online ? 'online' : 'offline'; ?>" onclick="toggleOnline(<?= (int)$p->id; ?>, this)"><?= $p->publish_online ? 'Online' : 'Offline'; ?></button>
                   <button class="new-arrival <?= $p->is_new_arrival ? 'active' : ''; ?>" onclick="toggleNewArrival(<?= (int)$p->id; ?>, this)"><i class="fa fa-star-o"></i> <?= $p->is_new_arrival ? 'New' : 'New'; ?></button>
                   <button class="featured <?= $p->is_featured ? 'active' : ''; ?>" onclick="toggleFeatured(<?= (int)$p->id; ?>, this)"><i class="fa fa-thumbs-up"></i> <?= $p->is_featured ? 'Featured' : 'Feature'; ?></button>

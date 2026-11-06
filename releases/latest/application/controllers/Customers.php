@@ -424,6 +424,12 @@ class Customers extends MY_Controller {
 		$customer = $this->db->where('id', $id)->get('db_customers')->row();
 		if(!$customer) redirect('customers');
 		$data['customer'] = $customer;
+		$data['pricing_group'] = null;
+		$this->load->model('customer_pricing_model', 'customer_pricing');
+		if($this->customer_pricing->installed() && !empty($customer->pricing_group_id)){
+			$data['pricing_group'] = $this->db->where('id', (int)$customer->pricing_group_id)
+				->where('store_id', (int)$store_id)->get('db_customer_pricing_groups')->row();
+		}
 
 		// Calculate total due
 		$opening_balance = $customer->opening_balance ?? 0;

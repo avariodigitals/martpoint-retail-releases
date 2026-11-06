@@ -227,7 +227,7 @@
                                           echo "<td>".$i."</td>";
                                           echo "<td>".show_date($res3->payment_date)."</td>";
                                           echo "<td class='text-right'>".$CI->currency($res3->payment)."</td>";
-                                          echo "<td>".$res3->payment_type."</td>";
+                                          echo "<td>".htmlspecialchars(payment_mode_label($res3->payment_type), ENT_QUOTES, 'UTF-8')."</td>";
                                           echo "<td>".$res3->payment_note."</td>";
                                           echo '<td><i class="fa fa-trash text-red pointer" onclick="delete_opening_balance_entry('.$res3->id.')"> Delete</i></td>';
                                           echo "</tr>";

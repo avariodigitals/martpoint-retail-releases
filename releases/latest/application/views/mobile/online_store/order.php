@@ -54,6 +54,11 @@
     .action-btn { padding: 8px 12px; border-radius: 20px; border: 1px solid var(--mp-border); background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
     .action-btn:active { background: #F8FAFC; }
     .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; padding-top: 12px; border-top: 2px solid var(--mp-border); margin-top: 12px; }
+    .money-line { padding: 10px 0; border-top: 1px solid var(--mp-border); }
+    .money-line .row-pair { border-bottom: none; padding: 4px 0; }
+    .money-line .actions { margin: 8px 0 0; }
+    .money-meta { font-size: 12px; color: var(--mp-muted); }
+    .money-note { font-style: italic; margin-top: 3px; }
     .toast { position: fixed; top: 16px; left: 16px; right: 16px; padding: 14px; border-radius: 12px; text-align: center; color: #fff; font-weight: 600; z-index: 1000; display: none; }
     .toast.error { background: var(--mp-danger); }
     .toast.success { background: var(--mp-success); }
@@ -77,6 +82,44 @@
         <div class="status-pill payment-status-<?= $order->payment_status; ?>"><?= ucfirst(str_replace('_',' ',$order->payment_status)); ?></div>
       </div>
 
+      <?php $money = (isset($money_box) && is_array($money_box)) ? $money_box : null; ?>
+      <?php if($money): ?>
+      <div class="card">
+        <div class="card-title">Money in</div>
+        <div class="row-pair"><span class="label">Invoiced</span><span class="value"><?= store_number_format($money['due']); ?></span></div>
+        <div class="row-pair"><span class="label">Confirmed</span><span class="value"><?= store_number_format($money['verified']); ?></span></div>
+        <?php if($money['pending'] > 0): ?>
+          <div class="row-pair"><span class="label">Waiting to confirm</span><span class="value"><?= store_number_format($money['pending']); ?></span></div>
+        <?php endif; ?>
+        <div class="row-pair"><span class="label">Still owing</span><span class="value"><?= $money['outstanding'] > 0 ? store_number_format($money['outstanding']) : 'Nothing'; ?></span></div>
+        <?php foreach($money['lines'] as $mline): ?>
+          <div class="money-line">
+            <div class="row-pair"><span class="label"><?= htmlspecialchars($mline->channel_name); ?></span><span class="value"><?= store_number_format($mline->amount); ?></span></div>
+            <div class="money-meta">
+              <?php if((string)$mline->status === 'verified'): ?>
+                Confirmed<?= $mline->person_name ? ' by ' . htmlspecialchars($mline->person_name) : ''; ?>
+              <?php elseif((string)$mline->status === 'rejected'): ?>
+                <span style="color:#B91C1C;">Dismissed<?= $mline->person_name ? ' by ' . htmlspecialchars($mline->person_name) : ''; ?></span>
+              <?php else: ?>
+                <span style="color:#92400E;">Not confirmed yet</span>
+              <?php endif; ?>
+              <?php if(!empty($mline->reference)): ?> &middot; ref <?= htmlspecialchars($mline->reference); ?><?php endif; ?>
+              <?php if(!empty($mline->note)): ?><div class="money-note"><?= htmlspecialchars($mline->note); ?></div><?php endif; ?>
+            </div>
+            <?php if((string)$mline->status === 'pending' && $can_edit): ?>
+              <div class="actions">
+                <button class="action-btn" onclick="decideMoney(<?= (int)$mline->id; ?>,'verified')">I have seen it</button>
+                <button class="action-btn" onclick="decideMoney(<?= (int)$mline->id; ?>,'rejected')">Dismiss</button>
+              </div>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+        <?php if($can_edit): ?>
+          <div class="actions"><button class="action-btn" onclick="recordMoney()">Record money in</button></div>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+
       <?php if($can_edit): ?>
         <div class="card">
           <div class="card-title">Update Order Status</div>
@@ -98,6 +141,46 @@
             <?php endforeach; ?>
           </div>
         </div>
+      <?php endif; ?>
+
+      <?php
+        $trail_rows = (isset($trail) && is_array($trail)) ? $trail : [];
+        $dv = (isset($delivery_box) && is_array($delivery_box)) ? $delivery_box : null;
+      ?>
+      <?php if($dv || $trail_rows): ?>
+      <div class="card">
+        <div class="card-title">Where this order has got to</div>
+        <?php if($dv && !$dv['collection']): ?>
+          <div class="row-pair"><span class="label">Delivery</span><span class="value"><?= htmlspecialchars($dv['word']); ?></span></div>
+          <?php if(!empty($can_move_delivery)): ?>
+            <div class="actions">
+              <?php if($dv['status'] !== 'out_for_delivery' && $dv['status'] !== 'delivered'): ?>
+                <button class="action-btn" onclick="sendOut()"><?= $dv['status'] === 'failed' ? 'Try sending it again' : 'Send it out'; ?></button>
+              <?php endif; ?>
+              <?php if($dv['status'] === 'out_for_delivery'): ?>
+                <button class="action-btn" onclick="markDelivery('delivered')">It has arrived</button>
+                <button class="action-btn" onclick="markDelivery('failed')">It did not arrive</button>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
+        <?php elseif($dv && $dv['collection']): ?>
+          <p style="margin:0;font-size:13px;color:#64748b;">This order is for collection at the shop — mark it Ready when it is packed, and Completed once the customer has picked it up.</p>
+        <?php endif; ?>
+
+        <?php if($trail_rows): ?>
+          <ul style="margin:12px 0 0;padding:0;list-style:none;">
+            <?php foreach($trail_rows as $t): ?>
+              <li style="padding:7px 0;border-top:1px dashed #E2E8F0;font-size:13px;">
+                <strong><?= htmlspecialchars($t['text']); ?></strong>
+                <span style="color:#64748b;">
+                  · <?= htmlspecialchars($t['actor'] !== '' ? $t['actor'] : 'the system'); ?>
+                  · <?= htmlspecialchars(@date('d M Y H:i', strtotime((string)$t['when']))); ?>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
       <?php endif; ?>
 
       <div class="card">
@@ -169,6 +252,94 @@
       mpFetchJson('<?= base_url('online_store/update_payment_status'); ?>', {method:'POST', body:fd})
         .then(d => { showToast(d.message || 'Done', d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 800); })
         .catch(err => showToast(mpErrorText(err, 'The payment status could not be updated. Please try again.'), true));
+    }
+    function postMoney(fd, done){
+      mpFetchJson('<?= base_url('online_store/record_order_payment'); ?>', {method:'POST', body:fd})
+        .then(d => { showToast(d.message || 'Done', d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 900); })
+        .catch(err => showToast(mpErrorText(err, 'MartPoint could not be reached. Nothing was recorded.'), true));
+    }
+    /* Money in, asked in the order a person actually knows it: how much, which
+       channel, and the bank reference if there is one. A transfer they have not
+       checked stays unconfirmed so a second pair of eyes is still required. */
+    function recordMoney(){
+      mpPrompt({title:'Amount that came in', message:'Numbers only, for example 3500.', placeholder:'Amount', required:true, okText:'Next'})
+        .then(function(raw){
+          if(raw === null) return;
+          var amount = (raw || '').trim();
+          if(!amount || parseFloat(amount) <= 0){ showToast('Enter the amount in numbers.', true); return; }
+          mpPrompt({title:'How did it come in?', okText:'Next', options:[
+            {value:'transfer_seen', label:'Bank transfer — I have seen it in the account'},
+            {value:'transfer_wait', label:'Bank transfer — waiting for somebody to check'},
+            {value:'cash', label:'Cash at the counter'},
+            {value:'pay_at_collection', label:'Promised at collection'},
+            {value:'pay_on_delivery', label:'Cash on delivery'},
+            {value:'card', label:'Card or another payment gateway'}
+          ]}).then(function(pick){
+            if(!pick) return;
+            var channel = pick.indexOf('transfer') === 0 ? 'transfer' : pick;
+            var seen = pick !== 'transfer_wait';
+            var needsRef = channel === 'transfer' || channel === 'card';
+            var finish = function(reference){
+              var fd = new FormData();
+              fd.append('order_id', <?= (int)$order->id; ?>);
+              fd.append('amount', amount);
+              fd.append('channel', channel);
+              fd.append('reference', reference || '');
+              fd.append('note', '');
+              fd.append('seen', seen ? 1 : 0);
+              <?php if($this->security): ?>
+              fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+              <?php endif; ?>
+              postMoney(fd);
+            };
+            if(!needsRef){ finish(''); return; }
+            mpPrompt({title:'Transfer reference', message:'The bank or gateway transaction ID. Leave it empty if you do not have it yet.', placeholder:'e.g. 800123456789', okText:'Save'})
+              .then(function(ref){ if(ref === null) return; finish((ref || '').trim()); });
+          });
+        });
+    }
+    function decideMoney(paymentId, decision){
+      var confirming = decision === 'verified';
+      mpConfirmAsync(confirming
+        ? 'Only confirm this if you have looked and the money is really in.'
+        : 'Dismissing keeps this money off the books, and the customer still owes it.',
+        {title: confirming ? 'Confirm this payment' : 'Dismiss this payment',
+         okText: confirming ? 'Confirm it' : 'Dismiss it', danger: !confirming}
+      ).then(function(ok){
+        if(!ok) return;
+        var fd = new FormData();
+        fd.append('payment_id', paymentId);
+        fd.append('decision', decision);
+        <?php if($this->security): ?>
+        fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+        <?php endif; ?>
+        mpFetchJson('<?= base_url('online_store/decide_order_payment'); ?>', {method:'POST', body:fd})
+          .then(d => { showToast(d.message || 'Done', d.status !== 'success'); if(d.status === 'success') setTimeout(()=>location.reload(), 900); })
+          .catch(err => showToast(mpErrorText(err, 'MartPoint could not be reached. Nothing was changed.'), true));
+      });
+    }
+    function markDelivery(status, rider){
+      var fd = new FormData();
+      fd.append('order_id', <?= (int)$order->id; ?>);
+      fd.append('status', status);
+      fd.append('rider', rider || '');
+      fd.append('note', '');
+      <?php if($this->security): ?>
+      fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
+      <?php endif; ?>
+      mpFetchJson('<?= base_url('online_store/update_delivery_status'); ?>', {method:'POST', body:fd})
+        .then(d => {
+          showToast((d.message || 'Done') + (d.notified ? ' — the customer was ' + d.notified : ''), d.status !== 'success');
+          if(d.status === 'success') setTimeout(()=>location.reload(), 900);
+        })
+        .catch(err => showToast(mpErrorText(err, 'MartPoint could not be reached. Nothing was changed.'), true));
+    }
+    function sendOut(){
+      mpPrompt({title:'Who is taking it?', message:'The rider's name if you know it. You can leave this empty.', placeholder:'e.g. Chidi', required:false, okText:'Send it out'})
+        .then(function(raw){
+          if(raw === null) return;
+          markDelivery('out_for_delivery', (raw || '').trim());
+        });
     }
   </script>
 </body>

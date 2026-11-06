@@ -96,12 +96,14 @@ function validate_approval($logId, $input, $approverId){
 	$CI->load->model('approval_settings_model');
 	$CI->load->model('approval_logs_model');
 
-	$log = $CI->approval_logs_model->getLogById($logId);
-	if(!$log || $log->status !== 'pending'){
+	// An approval code from another business must never redeem a request here.
+	$storeId = (int)get_current_store_id();
+	$log = $CI->approval_logs_model->getLogById($logId, $storeId);
+	if(!$log || (int)$log->store_id !== $storeId || $log->status !== 'pending'){
 		return ['success' => false, 'message' => 'Invalid or expired approval request'];
 	}
 
-	$settings = $CI->approval_settings_model->getSettings();
+	$settings = $CI->approval_settings_model->getSettings($storeId);
 	$type = $log->approval_type;
 	$methodField = $type . '_approval_method';
 	$method = $settings->$methodField ?? 'none';
@@ -112,22 +114,24 @@ function validate_approval($logId, $input, $approverId){
 	$CI->db->from('db_users u');
 	$CI->db->join('db_roles r', 'r.id = u.role_id', 'left');
 	$CI->db->where('u.id', $approverId);
+	$CI->db->where('u.store_id', $storeId);
 	$approverUser = $CI->db->get()->row();
+	if(!$approverUser){
+		return ['success' => false, 'message' => 'That approver does not belong to this business.'];
+	}
 	$isPrivileged = false;
-	if($approverUser){
-		$roleName = $approverUser->role_name ?? '';
-		$isPrivileged = stripos($roleName, 'Owner') !== false || stripos($roleName, 'Admin') !== false || stripos($roleName, 'Manager') !== false || stripos($roleName, 'Super Admin') !== false || $approverId == 1;
-		// Also check can_approve permission
-		if(!$isPrivileged && $approverUser->role_id){
-			$perm = $CI->db->where('permissions','can_approve')->where('role_id', $approverUser->role_id)->get('db_permissions')->row();
-			if($perm) $isPrivileged = true;
-		}
+	$roleName = $approverUser->role_name ?? '';
+	$isPrivileged = stripos($roleName, 'Owner') !== false || stripos($roleName, 'Admin') !== false || stripos($roleName, 'Manager') !== false || stripos($roleName, 'Super Admin') !== false || (int)$approverId == 1;
+	// Also check can_approve permission
+	if(!$isPrivileged && $approverUser->role_id){
+		$perm = $CI->db->where('permissions','can_approve')->where('role_id', $approverUser->role_id)->get('db_permissions')->row();
+		if($perm) $isPrivileged = true;
 	}
 	if(!$allowSelf && $log->requesting_user_id == $approverId && !$isPrivileged){
 		return ['success' => false, 'message' => 'Self-approval is not allowed'];
 	}
 
-	$verified = $CI->approval_settings_model->verifyApprover($approverId, $input, $method);
+	$verified = $CI->approval_settings_model->verifyApprover($approverId, $input, $method, $storeId);
 	if(!$verified){
 		$msg = 'Invalid PIN or password. ';
 		$msg .= 'If you have not set an approval PIN in your user profile, enter your login password instead. ';
@@ -139,6 +143,7 @@ function validate_approval($logId, $input, $approverId){
 	$CI->db->from('db_users u');
 	$CI->db->join('db_roles r', 'r.id = u.role_id', 'left');
 	$CI->db->where('u.id', $approverId);
+	$CI->db->where('u.store_id', $storeId);
 	$approver = $CI->db->get()->row();
 	$approverName = trim(($approver->first_name ?? '') . ' ' . ($approver->last_name ?? '')) ?: ($approver->role_name ?? 'User');
 
@@ -154,4 +159,64 @@ function is_approval_system_enabled(){
 	$CI->load->model('approval_settings_model');
 	$settings = $CI->approval_settings_model->getSettings();
 	return $settings && $settings->approval_system_enabled;
+}
+
+/**
+ * Server-side gate for POS discounts: same thresholds as
+ * check_approval_required() but without writing a request log — the
+ * save path must not spam pending rows just by being retried.
+ */
+function mp_discount_approval_gate($amount, $subtotal){
+	$out = ['required' => false, 'reason' => 'Approval system disabled', 'threshold' => null, 'percentage' => null];
+	if((float)$amount <= 0){
+		$out['reason'] = 'No discount applied';
+		return $out;
+	}
+	if(!function_exists('is_approval_system_enabled') || !is_approval_system_enabled()){
+		return $out;
+	}
+	$CI =& get_instance();
+	$CI->load->model('approval_settings_model');
+	$settings = $CI->approval_settings_model->getSettings();
+	if(empty($settings->discount_approval_enabled)){
+		$out['reason'] = 'Discount approval disabled';
+		return $out;
+	}
+	$method = $settings->discount_approval_method ?: 'none';
+	if($method === 'none'){
+		$out['reason'] = 'No approval method set';
+		return $out;
+	}
+	$threshold = (float)($settings->discount_limit ?? 0);
+	$pct = ((float)$subtotal > 0) ? ((float)$amount / (float)$subtotal) * 100 : 100;
+	$out['threshold'] = $threshold;
+	$out['percentage'] = round($pct, 2);
+	if($pct > $threshold){
+		$out['required'] = true;
+		$out['reason'] = 'Discount exceeds ' . rtrim(rtrim(number_format($threshold, 2, '.', ''), '0'), '.') . '% limit';
+	} else {
+		$out['reason'] = 'Within discount limit';
+	}
+	return $out;
+}
+
+/**
+ * Atomically redeem an approved discount log against a POS sale. The log
+ * must exist for this store, be approved, and have been granted for at
+ * least the discount now being taken. Redeeming flips it out of 'approved'
+ * so a replayed request can never reuse it.
+ */
+function mp_redeem_discount_approval($logId, $amount, $store_id){
+	if((int)$logId <= 0) return false;
+	$CI =& get_instance();
+	$log = $CI->db->where('id', (int)$logId)
+		->where('store_id', (int)$store_id)
+		->where('approval_type', 'discount')
+		->where('status', 'approved')
+		->get('db_approval_logs')->row();
+	if(!$log) return false;
+	if($log->amount !== null && (float)$log->amount + 0.005 < (float)$amount) return false;
+	$CI->db->where('id', (int)$logId)->where('status', 'approved')
+		->update('db_approval_logs', ['status' => 'consumed']);
+	return $CI->db->affected_rows() > 0;
 }

@@ -242,8 +242,10 @@
   font-variant-numeric:tabular-nums;}
 
 /* ---------- filter chips + summary ---------- */
-.ro-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.ro-flabel{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ro-muted);margin-right:2px;}
+.ro-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px;}
+/* Each narrowing owns a row and its label holds a fixed column, so the chip
+   groups read as a list instead of one wrapping wall of pills. */
+.ro-flabel{flex:0 0 74px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ro-muted);}
 .ro-fchip{padding:5px 12px;border-radius:999px;border:1px solid var(--ro-line);background:var(--ro-surface);
   font-size:12.5px;font-weight:700;color:#57534E;text-decoration:none;transition:all .14s;}
 .ro-fchip:hover{border-color:var(--ro-brand);color:var(--ro-brand);}

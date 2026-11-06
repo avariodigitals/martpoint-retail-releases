@@ -38,7 +38,10 @@ function pharmacy_workspace_tools() {
             ['suppliers_view', 'suppliers', 'Suppliers', 'Supplier contacts and purchase history'],
             ['purchase_return_view', 'purchase_return', 'Purchase returns', 'Return received stock to suppliers'],
             ['stock_adjustment_view', 'stock_adjustment/view', 'Stock adjustments', 'Record and review stock corrections'],
+            ['batch_reconciliation_view', 'batch_reconciliation', 'Batch reconciliation', 'Settle where the batches and the stock figures disagree', 'batch_tracking'],
+            ['pharmacy_batch_report_view', 'batch_reports', 'Batch ledger reports', 'What each batch holds, what sold from it and how long it has sat', 'batch_tracking'],
             ['expired_items_report', 'expired_items_report', 'Expiry watch', 'Review expired and near-expiry medicines', 'expiry_tracking'],
+            ['recall_view', 'recall', 'Recalls & quarantine', 'Freeze unsafe batches and trace the invoices they reached', 'batch_tracking'],
             ['expiry_settings', 'expiry_settings?screen=mobile', 'Expiry & stock rotation', 'Block expired sales and choose FEFO or FIFO', 'expiry_tracking'],
         ],
         'Finance & reports' => [
@@ -139,4 +142,25 @@ function pharmacy_workspace_render(array $data, $view) {
     $data['content'] = $ci->load->view($view, $data, true);
     if ($mobile) $ci->load->view('mobile/pharmacy_workspace', $data);
     else $ci->load->view('mp_layout', $data);
+}
+
+/** Batch ledger screens are also used by frozen-food stores, outside Pharmacy. */
+function inventory_batch_workspace_render(array $data, $view) {
+    $ci =& get_instance();
+    $industry = (string)(mp_get_store_profile()['industry_type'] ?? '');
+    if ($industry !== 'frozen_foods_retailer') {
+        pharmacy_workspace_render($data, $view);
+        return;
+    }
+    $screen = $ci->input->get('screen');
+    $mobile = $screen === 'mobile' || ($screen !== 'desktop' && is_mobile());
+    $data['pharmacy_mobile'] = $mobile; // Existing report view uses this to hide desktop-only controls.
+    if ($mobile) {
+        $data['SITE_TITLE'] = $data['store_name'] ?? $ci->session->userdata('store_name') ?: 'MartPoint';
+        $data['content'] = $ci->load->view($view, $data, true);
+        $ci->load->view('mobile/batch_workspace', $data);
+        return;
+    }
+    $data['content'] = $ci->load->view($view, $data, true);
+    $ci->load->view('mp_layout', $data);
 }

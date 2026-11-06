@@ -87,6 +87,12 @@ class Marketing_model extends CI_Model {
             $summary['group']=Communication_lists_model::GROUP;
             $summary['description']=$list && $list['note']!==''?$list['note']:'Contacts you grouped into this list.';
             if(!$list)$summary['status']='List not available';
+        }elseif(isset(self::$SEGMENTS[$key]) && !isset(Communication_audience::definitions()[$key])){
+            // Keep legacy marketing segment identifiers internal; the picker
+            // should always show the readable label from the segment registry.
+            $summary['name']=self::$SEGMENTS[$key][0];
+            $summary['group']='Customer segments';
+            $summary['description']=self::$SEGMENTS[$key][1];
         }
         return $summary;
     }

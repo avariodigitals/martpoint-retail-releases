@@ -82,7 +82,7 @@
   $groups = [
     'Sales Approvals' => ['discount','price_override','void_sale','sale_return','edit_completed_sale','hold_delete'],
     'Customer & Credit Approvals' => ['credit_sale','credit_limit_override','customer_balance_adjustment'],
-    'Inventory Approvals' => ['negative_stock_sale','stock_adjustment','inventory_transfer','cost_price_change','selling_price_change'],
+    'Inventory Approvals' => ['negative_stock_sale','stock_adjustment','inventory_transfer','forecourt_variance','forecourt_dip','cost_price_change','selling_price_change'],
     'Finance Approvals' => ['expense','cash_variance','reopen_shift'],
     'Online Store Approvals' => ['online_refund','cancel_online_order','manual_payment_confirmation'],
     'Purchase Approvals' => ['purchase','purchase_price_override'],

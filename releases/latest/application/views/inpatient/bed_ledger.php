@@ -28,7 +28,7 @@
 </tbody></table></div>
 <h4>Payments credited to this account</h4>
 <div class="ba-table-wrap"><table class="ba-table"><thead><tr><th>Date</th><th>Patient</th><th>Receipt / invoice</th><th>Payment type</th><th>Amount</th></tr></thead><tbody>
-<?php foreach($ledger['payments'] as $r): ?><tr><td><?= $esc($r->date); ?></td><td><?= $esc($r->customer_name); ?></td><td><?= $esc($r->payment_code.' / '.$r->sales_code); ?></td><td><?= $esc($r->payment_type); ?></td><td><?= $CI->currency($r->amount); ?></td></tr><?php endforeach; ?>
+<?php foreach($ledger['payments'] as $r): ?><tr><td><?= $esc($r->date); ?></td><td><?= $esc($r->customer_name); ?></td><td><?= $esc($r->payment_code.' / '.$r->sales_code); ?></td><td><?= $esc(payment_mode_label($r->payment_type)); ?></td><td><?= $CI->currency($r->amount); ?></td></tr><?php endforeach; ?>
 <?php if(!$ledger['payments']): ?><tr><td colspan="5">No recorded payments.</td></tr><?php endif; ?>
 </tbody></table></div>
 <h4>Wallet deposits and refunds</h4>

@@ -1740,7 +1740,7 @@ subscription to receive updates.';
                 }
             } else {
                 if ($otp === '') {
-                    return ['ok' => false, 'message' => 'OTP required. Use Request OTP in Central — it is emailed to the authorized address.'];
+                    return ['ok' => false, 'message' => 'OTP required. Use Request OTP to send a code to the authorized email address.'];
                 }
                 $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
                 if ($otpCheck !== true) {
@@ -1893,7 +1893,7 @@ subscription to receive updates.';
             if (!empty($result['success'])) {
                 return ['ok' => true, 'message' => "OTP {$otp} — emailed to the authorized address."];
             }
-            return ['ok' => true, 'message' => "OTP {$otp} — install email failed, Central will forward it."];
+            return ['ok' => true, 'message' => "OTP {$otp} — install email failed, MartPoint Support will forward it."];
         } catch (Throwable $e) {
             return ['ok' => false, 'message' => 'OTP error: ' . $e->getMessage()];
         }
@@ -2756,7 +2756,7 @@ subscription to receive updates.';
                     // persistent mismatch means the published release really is
                     // wrong — say that instead of blaming the cache.
                     $hint = ($channelRef !== '')
-                        ? 'the release on the update channel is internally inconsistent (this file does not match the hash in its manifest) — re-publish the release from Central, then press Resume.'
+                        ? 'the release on the update channel is internally inconsistent (this file does not match the hash in its manifest) — ask your MartPoint administrator to republish the release, then press Resume.'
                         : 'the update channel is still serving a cached copy. Wait a few minutes and press Resume; the update continues from this checkpoint.';
                     throw new Exception("Hash mismatch for: {$relPath} — {$hint}");
                 }

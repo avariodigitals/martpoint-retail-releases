@@ -15,7 +15,7 @@ $preset_icons = [
 <div class="ro-wrap ro-stack">
   <div class="ro-head">
     <div>
-      <h2>Restaurant Setup</h2>
+      <h2><?= htmlspecialchars(mp_workspace_word('Restaurant') . ' Setup'); ?></h2>
       <div class="ro-head-sub">
         Pick how this outlet's navigation is arranged — the screens stay the same,
         the menu follows your operating model.

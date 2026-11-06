@@ -8,12 +8,15 @@ $h = function($value){ return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-
 $reviewKind = function_exists('mp_food_product_kind') && $product
     ? mp_food_product_kind($product->item_name ?? '', $product->category_name ?? '', $product->description ?? '')
     : 'dish';
-$reviewItemLabel = $reviewKind === 'drink' ? 'this drink' : ($reviewKind === 'sweet' ? 'this treat' : 'this meal');
+// Only food_express opts into the guest/restaurant framing. Every other store
+// sells products, so the copy must not tell a pharmacy customer "this meal".
+$reviewItemLabel = !$restaurantReview ? 'this item'
+    : ($reviewKind === 'drink' ? 'this drink' : ($reviewKind === 'sweet' ? 'this treat' : 'this meal'));
 ?>
 <section class="mp-product-reviews fx-review-section" aria-labelledby="mp-product-reviews-title">
   <div class="mp-product-reviews-head">
     <div>
-      <h2 id="mp-product-reviews-title"><?= $restaurantReview ? 'Guest reviews' : 'What guests say'; ?></h2>
+      <h2 id="mp-product-reviews-title"><?= $restaurantReview ? 'Guest reviews' : 'Customer reviews'; ?></h2>
       <?php if($product && !$restaurantReview): ?><p><?= $h($product->item_name); ?></p><?php endif; ?>
     </div>
     <div class="mp-product-reviews-score" aria-label="<?= $average === null ? 'No ratings yet' : $h(number_format((float)$average, 1) . ' out of 5'); ?>">

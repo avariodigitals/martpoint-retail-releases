@@ -54,14 +54,21 @@ document.addEventListener('DOMContentLoaded',function(){
   }
   const options=Array.from(document.querySelectorAll('[name="basket_outlet"]'));
   function syncKitchen(){
-    const saved=localStorage.getItem('sf_outlet_'+STORE_ID);
+    let saved=localStorage.getItem('sf_outlet_'+STORE_ID);
+    // A store with a single counter has nothing to choose — the basket belongs
+    // to that location by default, exactly as the server would default it.
+    if(options.length===1){
+      saved=String(options[0].value);localStorage.setItem('sf_outlet_'+STORE_ID,saved);
+    }elseif(saved && !options.some(input=>input.value===saved)){
+      saved='';localStorage.removeItem('sf_outlet_'+STORE_ID);
+    }
     options.forEach(input=>input.checked=input.value===saved);
     const selected=options.find(input=>input.checked);
     if(selected){document.getElementById('fx-basket-kitchen').textContent=selected.dataset.name;document.querySelectorAll('[data-fx-location-value]').forEach(el=>el.textContent=selected.dataset.name);}
   }
   options.forEach(input=>input.onchange=()=>{localStorage.setItem('sf_outlet_'+STORE_ID,input.value);syncKitchen();document.getElementById('fx-basket-location').open=false;});
   document.getElementById('fx-basket-checkout').onclick=event=>{
-    if(options.length && !options.some(input=>input.checked)){
+    if(options.length > 1 && !options.some(input=>input.checked)){
       event.preventDefault();document.getElementById('fx-basket-location').open=true;showToast('Choose your kitchen first');
     }
   };

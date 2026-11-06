@@ -141,7 +141,7 @@ foreach($this->db->where('store_id', get_current_store_id())->where('status', 1)
     $pm_map[strtolower($pm->code)] = $pm->name;
     $pm_map[strtolower($pm->name)] = $pm->name;
 }
-$payment_method = ($q_payments->num_rows() > 0) ? ($pm_map[strtolower($first_payment->payment_type)] ?? $first_payment->payment_type) : 'Unpaid';
+$payment_method = ($q_payments->num_rows() > 0) ? ($pm_map[strtolower($first_payment->payment_type)] ?? payment_mode_label($first_payment->payment_type)) : 'Unpaid';
 $payment_note_display = '';
 if($q_payments->num_rows() > 0 && !empty($first_payment->payment_note)){
     $pn = $first_payment->payment_note;
@@ -306,7 +306,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
       <td class="sl"><?= $pi++; ?></td>
       <td><?= show_date($p->payment_date); ?></td>
       <td>
-        <?= $pm_map[strtolower($p->payment_type)] ?? $p->payment_type; ?>
+        <?= htmlspecialchars($pm_map[strtolower($p->payment_type)] ?? payment_mode_label($p->payment_type), ENT_QUOTES, 'UTF-8'); ?>
         <?php if(!empty($p->cheque_number)): ?><br><small>Cheque no.: <?= $p->cheque_number; ?></small><?php endif; ?>
       </td>
       <td><?= get_account_name($p->account_id); ?></td>

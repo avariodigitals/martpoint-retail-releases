@@ -1,5 +1,15 @@
 
 /*Email validation code end*/
+function showAccountSaveTransportError(xhr, buttonId){
+	var message = (xhr && xhr.responseText) ? xhr.responseText.trim() : '';
+	if(!message || message.indexOf('<') !== -1 || message.length > 300){
+		message = 'The server could not save this account. Please try again.';
+	}
+	toastr["error"](message);
+	$("#"+buttonId).attr('disabled',false);
+	$(".overlay").remove();
+}
+
 $('#save,#update').on("click",function (e) {
 	var base_url=$("#base_url").val();
     /*Initially flag set true*/
@@ -26,7 +36,7 @@ $('#save,#update').on("click",function (e) {
     //Validate Input box or selection box should not be blank or empty
 	check_field("account_code");
 	check_field("account_name");
-	check_field("opening_balance");
+	if ($("#opening_balance").length) check_field("opening_balance");
     
 	if(flag==false)
     {
@@ -72,8 +82,9 @@ $('#save,#update').on("click",function (e) {
 							}
 							$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 							$(".overlay").remove();
-					   }
-					   });
+						   },
+						   error: function(xhr){ showAccountSaveTransportError(xhr, this_id); }
+						   });
 				//}
 
 				//e.preventDefault
@@ -118,8 +129,9 @@ $('#save,#update').on("click",function (e) {
 							$("#"+this_id).attr('disabled',false);  //Enable Save or Update button
 							$(".overlay").remove();
 							return;
-					   }
-					   });
+						   },
+						   error: function(xhr){ showAccountSaveTransportError(xhr, this_id); }
+						   });
 				//}
 
 				//e.preventDefault

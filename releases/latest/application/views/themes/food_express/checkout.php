@@ -1,3 +1,4 @@
+<?php $this->load->view('storefront/commerce'); ?>
 <?php
 $fxTagline = $fxCopy('brand_tagline') ?: 'From first craving to first bite.';
 $fxOutlets = !empty($outlets) && is_array($outlets) ? array_values($outlets) : [];
@@ -13,6 +14,7 @@ $fxSelectedOutlet = count($fxOutlets) === 1 ? (int)$fxOutlets[0]->id : 0;
     <div class="fx-checkout-layout" style="display:grid; grid-template-columns:1fr 400px; gap:32px;">
       <!-- Form -->
       <div>
+        <div id="mp-commerce-identity" role="status" style="padding:12px 0;font-size:13px;"></div>
         <form id="checkout-form" method="POST" action="<?= base_url('storefront/place_order'); ?>">
           <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
           <input type="hidden" name="warehouse_id" id="fx-warehouse-id" value="<?= $fxSelectedOutlet; ?>">
@@ -290,7 +292,7 @@ document.querySelectorAll('input[name="delivery_method"]').forEach(radio => {
 
 const checkoutForm = document.getElementById('checkout-form');
 if(checkoutForm){
-  checkoutForm.addEventListener('submit', function(event){
+  checkoutForm.addEventListener('submit', async function(event){
     event.preventDefault();
     if(!this.reportValidity()) return;
     if(FX_OUTLETS.length > 1 && !fxSelectedOutlet){
@@ -314,6 +316,15 @@ if(checkoutForm){
     const cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
     if(!cart.length){ showToast('Your cart is empty'); return; }
 
+    try{
+      const result=await window.MPCommerce.quote(cart,fxSelectedOutlet);
+      if(window.MPCommerce.changed(cart,result.items)){
+        localStorage.setItem('sf_cart_'+STORE_ID,JSON.stringify(result.items));
+        showToast('Your prices have been updated. Please review your cart.');
+        window.location.href=<?= json_encode(base_url('store/'.($settings->store_slug ?? '').'/cart')); ?>;return;
+      }
+      cart.splice(0,cart.length,...result.items);
+    }catch(error){showToast(error.message);return;}
     const data = new FormData();
     data.append('store_id', STORE_ID);
     data.append('customer_name', (firstName + ' ' + lastName).trim());

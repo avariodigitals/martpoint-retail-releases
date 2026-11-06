@@ -303,6 +303,11 @@ class Sales_return_model extends CI_Model {
 		}
 		//end
 
+		// The shelf is read before any of it comes back: the trail can only say
+		// how much returned against what was standing there first.
+		$return_store = (store_module() && is_admin()) ? (int)$store_id : (int)get_current_store_id();
+		$shelf_before = $this->_auditPostedShelf($rowcount);
+
 		/*if(isset($return_id) && isset($previous_return)){
 			foreach ($previous_return->result() as $row){
 					if(!empty($sales_id)){
@@ -559,6 +564,7 @@ class Sales_return_model extends CI_Model {
 		}
 		##############################################END
 
+		$this->_auditReturnSaved($return_store, $return_id, $shelf_before, $command === 'update');
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
 		return "success<<<###>>>$return_id";
@@ -733,6 +739,11 @@ class Sales_return_model extends CI_Model {
 	
 	public function delete_return($ids){
       	$this->db->trans_begin();
+		// The shelf and the credits have to be read while the returns still
+		// exist; afterwards there would only be a gap to explain.
+		$deleted_ids = array();
+		foreach(explode(',', (string)$ids) as $candidate){ if((int)$candidate > 0) $deleted_ids[] = (int)$candidate; }
+		$shelf_before = $this->_auditShelfForReturns($deleted_ids);
 		if ($this->db->table_exists('db_salesreturn_batch_allocations')) {
 			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
 			$returnLineIds = $this->db->select('id')->where("return_id in ($ids)")->get('db_salesitemsreturn')->result();
@@ -835,9 +846,66 @@ class Sales_return_model extends CI_Model {
         }
         //ACCOUNT RESET END
 
+		$this->_auditReturnsDeleted($deleted_ids, $shelf_before);
 		$this->db->trans_commit();
 		return "success";
 	}
+
+	/**
+	 * Shelf quantities behind a capture that must never decide the outcome of
+	 * the return it is watching: an unreadable witness is an empty map, not a
+	 * failed save.
+	 */
+	private function _auditPostedShelf($rowcount){
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return array();
+			$shelf = array();
+			for($i=1;$i<=(int)$rowcount;$i++){
+				$item_id = (int)($_REQUEST['tr_item_id_'.$i] ?? 0);
+				if($item_id > 0 && !isset($shelf[$item_id])) $shelf[$item_id] = $capture->shelf_qty($item_id);
+			}
+			return $shelf;
+		} catch (Throwable $e) {
+			log_message('error', 'Return shelf audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditShelfForReturns(array $return_ids){
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture || !$return_ids) return array();
+			$shelf = array();
+			foreach($this->db->select('item_id')->distinct()->where_in('return_id', $return_ids)
+					->where('item_id IS NOT NULL')->get('db_salesitemsreturn')->result() as $line){
+				$shelf[(int)$line->item_id] = $capture->shelf_qty((int)$line->item_id);
+			}
+			return $shelf;
+		} catch (Throwable $e) {
+			log_message('error', 'Return shelf audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditReturnSaved($store_id, $return_id, array $shelf_before, $isUpdate){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->goodsReturned((int)$store_id, (int)$return_id, $shelf_before, (bool)$isUpdate);
+		} catch (Throwable $e) {
+			log_message('error', 'Customer return audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	private function _auditReturnsDeleted(array $return_ids, array $shelf_before){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->returnsDeleted((int)get_current_store_id(), $return_ids, $shelf_before);
+		} catch (Throwable $e) {
+			log_message('error', 'Return deletion audit capture failed: ' . $e->getMessage());
+		}
+	}
+
 	public function search_item($q){
 		$json_array=array();
         $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";

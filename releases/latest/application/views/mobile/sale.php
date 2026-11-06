@@ -251,6 +251,14 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
           <button type="button" onclick="showToast('Add customer flow here', 'warning')">+</button>
         </div>
         <div class="due-text" id="customer_due" style="display:none;">Previous due: <strong>₦ 0.00</strong></div>
+        <?php if(!empty($pos_vehicle_picker)): ?>
+        <div id="mpVehicleWrap" style="display:none; margin-top:8px;">
+          <label>Fit to vehicle</label>
+          <select class="form-control" id="vehicle_id">
+            <option value="0">No vehicle</option>
+          </select>
+        </div>
+        <?php endif; ?>
       </div>
 
       <?php if(!empty($tables) && mp_feature_enabled('kitchen_workflow')): ?>
@@ -265,10 +273,21 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       </div>
       <?php endif; ?>
 
+      <?php if(mp_feature_enabled('running_tabs')): ?>
+      <div class="form-group" id="mpTabGroup">
+        <label>Running tab</label>
+        <div class="chip-list" id="mpTabChips">
+          <button type="button" class="chip active" data-tab="0" onclick="mpPickTab(0)">Pay this round now</button>
+          <button type="button" class="chip" onclick="mpOpenTab()">+ New tab</button>
+        </div>
+        <div class="due-text" id="mpTabHint" style="display:none;">Rounds on a tab are saved unpaid and settled later against the bill.</div>
+      </div>
+      <?php endif; ?>
+
       <?php if ($pos_retail_button || $pos_wholesale_button): ?>
       <div class="form-group">
         <label><?= $mp_is_pharmacy ? 'Price basis' : 'Price Type'; ?></label>
-        <input type="hidden" id="price_type" value="<?= $default_price_type; ?>">
+        <div id="customerPricingInfo" role="status" style="font-size:12px;color:var(--mp-primary);margin-bottom:8px"></div><input type="hidden" id="price_type" value="<?= $default_price_type; ?>">
         <div class="option-chips" id="price_type_chips">
           <?php if ($pos_retail_button): ?>
           <button type="button" data-value="retail" class="<?= $default_price_type === 'retail' ? 'active' : ''; ?>"><?= $mp_is_pharmacy ? 'Standard' : 'Retail (MRP)'; ?></button>
@@ -565,6 +584,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
 
   <script src="<?= $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
   <script src="<?= $theme_link; ?>plugins/select2/select2.min.js"></script>
+  <script src="<?= base_url('theme/js/customer_pricing.js'); ?>?v=1"></script>
   <script>
     var base_url = '<?= base_url(); ?>';
     var cart = [];
@@ -633,6 +653,8 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
           id: it.id,
           name: it.name || 'Unnamed item',
           price: parseFloat(it.price) || 0,
+          pricing_snapshot: it.pricing_snapshot, price_type: it.price_type || hold.price_type || 'retail',
+          unit_id: it.unit_id || '', unit_name: it.unit_name || '', conversion_factor: it.conversion_factor || 1,
           purchase_price: parseFloat(it.purchase_price) || 0,
           tax_value: parseFloat(it.tax_value) || 0,
           tax_id: it.tax_id || 0,
@@ -762,7 +784,14 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       return $('#price_type_chips button.active').data('value') || $('#price_type').val() || 'wholesale';
     }
 
+    var customerPricePolicy = {source:'normal'}, customerPricingReady = false, customerPricingRequest = 0;
     function selectedPrice(item, unit){
+      var normal = selectedNormalPrice(item, unit);
+      if(item && item.is_bundle) return normal;
+      var activeUnit = unit || ((item.selling_units || []).find(function(u){return u.is_default;}) || (item.selling_units || [])[0]);
+      return MpCustomerPricing.price(normal, activeUnit ? activeUnit.wholesale_price : (item.raw_sales_price !== undefined ? item.raw_sales_price : item.sales_price), customerPricePolicy);
+    }
+    function selectedNormalPrice(item, unit){
       if(unit){
         if(getActivePriceType() === 'retail' && unit.selling_price > 0) return parseFloat(unit.selling_price);
         if(getActivePriceType() === 'wholesale' && unit.wholesale_price > 0) return parseFloat(unit.wholesale_price);
@@ -770,7 +799,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       }
       if(item && item.selling_units && item.selling_units.length > 0){
         var defaultUnit = item.selling_units.find(function(u){ return u.is_default; }) || item.selling_units[0];
-        return selectedPrice(item, defaultUnit);
+        return selectedNormalPrice(item, defaultUnit);
       }
       var retail = parseFloat(item.mrp_price) || 0;
       var wholesale = parseFloat(item.sales_price) || 0;
@@ -967,7 +996,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       }
 
       var price = selectedPrice(item, selectedUnit);
-      if(price <= 0){
+      if(!customerPricingReady || price === null || price < 0){
         showToast('No ' + ($('#price_type').val() === 'retail' ? 'retail (MRP)' : 'wholesale') + ' price for this item.', 'error');
         return;
       }
@@ -997,6 +1026,10 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       } else {
         cart.push({
           id: item.id,
+          pricing_product: item,
+          pricing_unit: selectedUnit,
+          price_type: getActivePriceType(),
+          pricing_snapshot: item.is_bundle ? null : customerPricePolicy,
           name: item.item_name,
           price: price,
           purchase_price: parseFloat(item.purchase_price) || 0,
@@ -1197,7 +1230,36 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       minimumInputLength: 1
     }).on('change', function(){
       loadCustomerDue($(this).val());
+      loadCustomerVehicles($(this).val());
+      refreshMobileCustomerPricing();
     });
+
+    // Fit-to-vehicle: tyre shops bill a fitting to the exact car on file.
+    var mpVehicleIds = [];
+    window.loadCustomerVehicles = function(cid){
+      var $wrap = $('#mpVehicleWrap');
+      if(!$wrap.length){ return; }
+      var keep = $('#vehicle_id').val() || '0';
+      $wrap.hide();
+      mpVehicleIds = [];
+      if(!cid || cid == '<?= get_walk_in_customer_id(); ?>'){ return; }
+      $.get(base_url + 'automobile/customer_vehicles/' + cid, function(res){
+        var list = (res && res.vehicles) || [];
+        var $sel = $('#vehicle_id');
+        $sel.empty().append(new Option('No vehicle', '0', true, true));
+        list.forEach(function(v){
+          mpVehicleIds.push(String(v.id));
+          $sel.append(new Option(v.label, v.id));
+        });
+        if(keep !== '0' && mpVehicleIds.indexOf(keep) !== -1) $sel.val(keep);
+        if(list.length) $wrap.show();
+      }, 'json').fail(function(){ /* no vehicle list is not a sale blocker */ });
+    };
+    function currentVehicleId(){
+      if(!$('#mpVehicleWrap').length || $('#mpVehicleWrap').css('display') === 'none') return 0;
+      var v = String($('#vehicle_id').val() || '0');
+      return mpVehicleIds.indexOf(v) !== -1 ? parseInt(v, 10) : 0;
+    }
 
     $('#item_search').on('input', function(){
       var q = $(this).val().trim();
@@ -1267,7 +1329,28 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       renderCart();
     });
 
+    function repriceMobileCart(){
+      cart.forEach(function(item){
+        if(!item.pricing_product){return;}
+        item.price=selectedPrice(item.pricing_product,item.pricing_unit);
+        item.price_type=getActivePriceType();
+        item.pricing_snapshot=item.pricing_product.is_bundle ? null : customerPricePolicy;
+      });
+      renderCart();
+    }
+    function refreshMobileCustomerPricing(){
+      var request=++customerPricingRequest; customerPricingReady=false;
+      MpCustomerPricing.load(base_url, <?= (int)get_current_store_id(); ?>, $('#customer_id').val()).then(function(policy){
+        if(request!==customerPricingRequest)return;
+        customerPricePolicy=policy;customerPricingReady=true;
+        $('#customerPricingInfo').text(MpCustomerPricing.label(policy));
+        $('#price_type_chips button').prop('disabled',policy.source==='group');
+        if(policy.source==='group'){$('#price_type').val('wholesale');$('#price_type_chips button').removeClass('active').filter('[data-value="wholesale"]').addClass('active');}
+        repriceMobileCart();loadCatalog();
+      }).catch(function(error){if(request===customerPricingRequest){$('#customerPricingInfo').text(error.message);showToast(error.message,'error');}});
+    }
     $(document).on('change', '#price_type', function(){
+      repriceMobileCart();
       var q = $('#item_search').val().trim();
       if(q.length >= 2) searchItems(q);
       loadCatalog();
@@ -1290,9 +1373,11 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       updatePaymentChange();
     });
 
+    refreshMobileCustomerPricing();
     var selectedAction = '';
 
     function openPayment(action){
+      if(!customerPricingReady || cart.some(function(item){return item.price===null;})){showToast('Refresh customer pricing before payment.','warning');return;}
       var customer_id = $('#customer_id').val();
       if(!customer_id){ showToast('Please select a customer', 'warning'); return; }
       if(cart.length === 0){ showToast('Please add at least one item', 'warning'); return; }
@@ -1354,6 +1439,103 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       $('#payment_modal').addClass('active');
     }
 
+    /* Running tabs: the tab only groups rounds; the money stays on the invoice. */
+    var mpTabs = [];
+    var mpTabId = 0;
+    function mpSelectedTabId(){ return mpTabId || 0; }
+    function mpTableForTab(){ return parseInt($('#table_id').val() || '0', 10) || 0; }
+    function mpRenderTabChips(){
+      var box = document.getElementById('mpTabChips');
+      if(!box) return;
+      var tableId = mpTableForTab();
+      var html = '<button type="button" class="chip' + (mpTabId === 0 ? ' active' : '') + '" onclick="mpPickTab(0)">Pay this round now</button>';
+      mpTabs.forEach(function(t){
+        if(tableId > 0 && Number(t.table_id) > 0 && Number(t.table_id) !== tableId) return;
+        html += '<button type="button" class="chip' + (mpTabId === Number(t.id) ? ' active' : '') + '" onclick="mpPickTab(' + Number(t.id) + ')">'
+             + escMP(t.tab_code) + ' · ' + Number(t.rounds) + ' rd · ' + escMP(t.outstanding_fmt) + ' owing</button>';
+      });
+      html += '<button type="button" class="chip" onclick="mpOpenTab()">+ New tab</button>';
+      box.innerHTML = html;
+      var hint = document.getElementById('mpTabHint');
+      if(hint) hint.style.display = mpTabId > 0 ? 'block' : 'none';
+    }
+    function mpPickTab(id){ mpTabId = Number(id) || 0; mpRenderTabChips(); }
+    function mpLoadTabs(){
+      if(!document.getElementById('mpTabChips')) return;
+      $.get(base_url + 'operations/tabs_ajax', function(res){
+        if(!res || !res.success) return;
+        mpTabs = res.tabs || [];
+        if(mpTabId && !mpTabs.some(function(t){ return Number(t.id) === mpTabId; })) mpTabId = 0;
+        mpRenderTabChips();
+      }, 'json');
+    }
+    function mpOpenTab(){
+      var body = {
+        table_id: mpTableForTab(),
+        guest_name: '',
+        covers: 0,
+        tab_key: 'tab-' + Date.now() + '-' + Math.random().toString(36).slice(2)
+      };
+      body[csrf_name] = csrf_hash;
+      $.post(base_url + 'operations/tab_open', body, function(res){
+        if(res && res.success){
+          mpLoadTabs();
+          mpTabId = Number(res.id) || 0;
+          mpRenderTabChips();
+          showToast(res.tab_code + ' is now running.', 'success');
+        } else {
+          showToast((res && res.message) || 'Could not open a tab.', 'error');
+        }
+      }, 'json').fail(function(){ showToast('Could not open a tab. Check your connection.', 'error'); });
+    }
+    function escMP(v){
+      var d = document.createElement('div');
+      d.textContent = (v === null || v === undefined) ? '' : String(v);
+      return d.innerHTML;
+    }
+    $(document).on('change', '#table_id', function(){
+      // A round picked for another table must not stay on this table's tab.
+      mpTabId = 0;
+      mpRenderTabChips();
+    });
+    mpLoadTabs();
+
+    var mpDiscountApproval = null; // {amount, log_id} once a manager has approved
+    function mpDiscountSubtotal(){
+      var subtotal = 0;
+      cart.forEach(function(item){ subtotal += (parseFloat(item.qty) || 0) * mobileWeightUnitPrice(item); });
+      return subtotal;
+    }
+    function mpDiscountAmountTotal(){
+      return (parseFloat($('#discount').val()) || 0) + (parseFloat($('#redeem_discount').val()) || 0);
+    }
+    function mpAskDiscountApproval(message, amount, done){
+      var pct = mpDiscountSubtotal() > 0 ? (amount / mpDiscountSubtotal()) * 100 : 100;
+      var post = function(url, data){
+        data[csrf_name] = csrf_hash;
+        return $.post(base_url + url, data);
+      };
+      post('approvals/check_ajax', { type: 'discount', context: JSON.stringify({ amount: amount, percentage: pct }) })
+        .then(function(check){
+          if(!check || !check.required){ done('none'); return; }
+          if(!window.mpPrompt){ showToast('A manager must approve this discount. Use a till screen that offers manager approval.', 'warning'); done(null); return; }
+          mpPrompt({ title: 'Manager approval', message: message || 'A manager must approve this discount.', placeholder: 'Manager PIN or password', secret: true, okText: 'Approve' }).then(function(pin){
+            if(pin === null || !pin.trim()){ done(null); return; }
+            post('approvals/validate', { log_id: check.log_id, input: pin.trim() }).then(function(val){
+              if(val && val.success){
+                mpDiscountApproval = { amount: amount, log_id: check.log_id };
+                showToast('Discount approved', 'success');
+                done(check.log_id);
+              } else {
+                showToast((val && val.message) || 'The manager PIN was not accepted.', 'error');
+                done(null);
+              }
+            }).fail(function(){ showToast('Could not verify the manager PIN. Please try again.', 'error'); done(null); });
+          });
+        })
+        .fail(function(){ showToast('Could not reach the approval service.', 'error'); done(null); });
+    }
+
     function submitSale(action){
       var customer_id = $('#customer_id').val();
       if(!customer_id){ showToast('Please select a customer', 'warning'); return; }
@@ -1408,12 +1590,15 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       var saleNote = ($('#sales_note').val() || '').trim();
       var payload = {
         customer_id: customer_id,
+        vehicle_id: currentVehicleId(),
         table_id: $('#table_id').val() || 0,
+        tab_id: mpSelectedTabId(),
         payment_type: (action === 'pay') ? 'Cash' : $('#payment_mode_select').val(),
         account_id: $('#account_id_select').val(),
         action: action,
         warehouse_id: '',
         discount: (parseFloat($('#discount').val()) || 0) + (parseFloat($('#redeem_discount').val()) || 0),
+        discount_approval_log: (mpDiscountApproval && Math.abs(mpDiscountApproval.amount - ((parseFloat($('#discount').val()) || 0) + (parseFloat($('#redeem_discount').val()) || 0))) < 0.005) ? mpDiscountApproval.log_id : 0,
         sales_note: [consultationNote, saleNote].filter(Boolean).join('\n\n'),
         pharmacy_assessment: consultationNote,
         amount_paid: amountPaid,
@@ -1457,7 +1642,11 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
         headers: headers,
         success: function(res){
           if(res.status === 'success'){
+            mpDiscountApproval = null;
             window.__mpRestaurantOrderKey = null;
+            // The next invoice starts off the tab this one was charged to.
+            mpTabId = 0;
+            mpLoadTabs();
             if(action === 'pay' && res.sales_id){
               lastSalesId = res.sales_id;
               lastWhatsAppUrl = res.whatsapp_url || '';
@@ -1468,6 +1657,20 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
             } else {
               window.location.href = res.redirect;
             }
+          } else if(res && res.approval_required){
+            var wantAmount = mpDiscountAmountTotal();
+            var alreadyRetried = (window.__mpApprovalRetryFor === wantAmount);
+            mpAskDiscountApproval(res.message, wantAmount, function(logId){
+              $(btn).prop('disabled', false).text(original);
+              $('#payment_confirm, #payment_cancel').prop('disabled', false);
+              if(logId === null) return; // cashier gave up
+              if(alreadyRetried && logId === 'none'){
+                showToast('This discount still needs manager approval. Ask a manager, or reduce the discount.', 'error');
+                return;
+              }
+              window.__mpApprovalRetryFor = wantAmount;
+              submitSale(action);
+            });
           } else {
             showToast(res.message || 'The sale could not be saved. Please check the details and try again.', 'error');
             $(btn).prop('disabled', false).text(original);

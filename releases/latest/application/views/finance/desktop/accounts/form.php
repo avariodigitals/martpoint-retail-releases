@@ -2,6 +2,7 @@
 <?php
 if(!isset($q_id)){
    $parent_id = $account_name = $note = $q_id = $store_id = '';
+   $bank_name = $bank_account_name = $bank_account_number = '';
    $account_code = get_init_code('accounts');
    $opening_balance = 0;
 }
@@ -51,6 +52,20 @@ $btn_id   = $is_edit ? 'update' : 'save';
           <span id="account_name_msg" style="display:none" class="text-danger"></span>
         </div>
 
+        <div class="mp-form-group">
+          <label for="bank_name">Bank name <small>(optional)</small></label>
+          <input type="text" class="mp-form-control" id="bank_name" name="bank_name" value="<?= htmlspecialchars($bank_name ?? '', ENT_QUOTES, 'UTF-8'); ?>" placeholder="e.g. First Bank">
+        </div>
+        <div class="mp-form-group">
+          <label for="bank_account_name">Bank account name</label>
+          <input type="text" class="mp-form-control" id="bank_account_name" name="bank_account_name" value="<?= htmlspecialchars($bank_account_name ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+        </div>
+        <div class="mp-form-group">
+          <label for="bank_account_number">Bank account number</label>
+          <input type="text" inputmode="numeric" class="mp-form-control" id="bank_account_number" name="bank_account_number" value="<?= htmlspecialchars($bank_account_number ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          <small>Adding bank details makes this account available as an invoice payment destination.</small>
+        </div>
+
         <?php if(!$is_edit){ ?>
         <div class="mp-form-group">
           <label for="opening_balance"><?= $this->lang->line('opening_balance'); ?> <span class="text-danger">*</span></label>
@@ -74,7 +89,7 @@ $btn_id   = $is_edit ? 'update' : 'save';
   </div>
 </div>
 
-<script src="<?= htmlspecialchars($theme_link); ?>js/accounts/accounts.js"></script>
+<script src="<?= htmlspecialchars($theme_link); ?>js/accounts/accounts.js?v=20261106-account-save-fix"></script>
 <script type="text/javascript">
   <?php if($is_edit){ ?> $("#store_id").attr('readonly',true); <?php } ?>
 </script>

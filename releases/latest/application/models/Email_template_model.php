@@ -69,6 +69,7 @@ class Email_template_model extends CI_Model {
 			['template_key'=>'supplier_purchase_order','template_name'=>'Supplier Purchase Order','subject'=>'Purchase Order {purchase_order_number} from {store_name}','html_body'=>"<p>Hello {supplier_name},</p><p>Please find the purchase order from {store_name}.</p><p><strong>Purchase Order:</strong> {purchase_order_number}<br><strong>Order Total:</strong> {purchase_order_total}<br><strong>Expected Delivery:</strong> {expected_delivery_date}</p><p><strong>Items:</strong><br>{purchase_order_items}</p><p>Thank you,<br>{store_name}</p>",'text_body'=>"Hello {supplier_name},\n\nPlease find the purchase order from {store_name}.\n\nPurchase Order: {purchase_order_number}\nOrder Total: {purchase_order_total}\nExpected Delivery: {expected_delivery_date}\n\nItems:\n{purchase_order_items}\n\nThank you,\n{store_name}",'status'=>1,'send_copy_to_owner'=>0],
 			['template_key'=>'customer_statement','template_name'=>'Customer Statement','subject'=>'Customer Statement — {store_name}','html_body'=>"<p>Hello {customer_name},</p><p>Here is your account statement from {store_name}.</p><p><strong>Total Purchases:</strong> {total_purchases}<br><strong>Total Paid:</strong> {total_paid}<br><strong>Outstanding Balance:</strong> {outstanding_balance}</p><p><strong>Statement Period:</strong> {statement_period}</p><p>View Statement:<br><a href='{statement_link}'>{statement_link}</a></p><p>Thank you,<br>{store_name}</p>",'text_body'=>"Hello {customer_name},\n\nHere is your account statement from {store_name}.\n\nTotal Purchases: {total_purchases}\nTotal Paid: {total_paid}\nOutstanding Balance: {outstanding_balance}\n\nStatement Period: {statement_period}\n\nView Statement:\n{statement_link}\n\nThank you,\n{store_name}",'status'=>1,'send_copy_to_owner'=>0],
 			['template_key'=>'overdue_debt_notice','template_name'=>'Overdue Debt Notice','subject'=>'Overdue Payment Notice — {store_name}','html_body'=>"<p>Hello {customer_name},</p><p>This is a notice that your outstanding balance of {amount_due} is now overdue.</p><p><strong>Invoice:</strong> {invoice_number}<br><strong>Due Date:</strong> {due_date}</p><p>Please make payment using the link below:</p><p><a href='{payment_link}'>{payment_link}</a></p><p>Thank you,<br>{store_name}</p>",'text_body'=>"Hello {customer_name},\n\nThis is a notice that your outstanding balance of {amount_due} is now overdue.\n\nInvoice: {invoice_number}\nDue Date: {due_date}\n\nPlease make payment using the link below:\n{payment_link}\n\nThank you,\n{store_name}",'status'=>1,'send_copy_to_owner'=>0],
+			$this->defaultVehicleServiceDue(),
 			['template_key'=>'end_of_day_report_ready','template_name'=>'End of Day Report Ready','subject'=>'Your End-of-Day Report is Ready — {store_name}','html_body'=>"<p>Hello {user_name},</p><p>Your end-of-day business report for {report_date} is ready.</p><p><strong>Total Sales:</strong> {total_sales}<br><strong>Expenses:</strong> {total_expenses}<br><strong>Net Position:</strong> {net_position}</p><p>View Report:<br><a href='{report_link}'>{report_link}</a></p><p>Thank you,<br>{app_name}</p>",'text_body'=>"Hello {user_name},\n\nYour end-of-day business report for {report_date} is ready.\n\nTotal Sales: {total_sales}\nExpenses: {total_expenses}\nNet Position: {net_position}\n\nView Report:\n{report_link}\n\nThank you,\n{app_name}",'status'=>1,'send_copy_to_owner'=>1],
 			['template_key'=>'payment_failed','template_name'=>'Payment Failed','subject'=>'Payment Failed — Invoice {invoice_number}','html_body'=>"<p>Hello {customer_name},</p><p>Your payment attempt for invoice {invoice_number} was not successful.</p><p><strong>Amount:</strong> {amount_due}</p><p>You can try again using the link below:</p><p><a href='{payment_link}'>{payment_link}</a></p><p>If you already made payment, please contact {store_name}.</p><p>Thank you,<br>{store_name}</p>",'text_body'=>"Hello {customer_name},\n\nYour payment attempt for invoice {invoice_number} was not successful.\n\nAmount: {amount_due}\n\nYou can try again using the link below:\n{payment_link}\n\nIf you already made payment, please contact {store_name}.\n\nThank you,\n{store_name}",'status'=>1,'send_copy_to_owner'=>0],
 			['template_key'=>'subscription_renewal_reminder','template_name'=>'Subscription Renewal Reminder','subject'=>'MartPoint Subscription Renewal Reminder — {store_name}','html_body'=>"<p>Hello {user_name},</p><p>Your MartPoint Retail subscription for {store_name} will expire on {subscription_expiry_date}.</p><p><strong>Days Left:</strong> {subscription_days_left}<br><strong>Plan:</strong> {subscription_plan}<br><strong>Renewal Amount:</strong> {renewal_amount}</p><p>Please contact your MartPoint provider to renew your subscription.</p><p>Thank you,<br>{app_name}</p>",'text_body'=>"Hello {user_name},\n\nYour MartPoint Retail subscription for {store_name} will expire on {subscription_expiry_date}.\n\nDays Left: {subscription_days_left}\nPlan: {subscription_plan}\nRenewal Amount: {renewal_amount}\n\nPlease contact your MartPoint provider to renew your subscription.\n\nThank you,\n{app_name}",'status'=>1,'send_copy_to_owner'=>1],
@@ -114,6 +115,24 @@ class Email_template_model extends CI_Model {
 		}
 
 		return $created;
+	}
+
+	/**
+	 * Seed one template key for a store from the built-in defaults. Reminders
+	 * and other late-added flows use this so a store created before the
+	 * template existed still gets it on first use — and a store that has
+	 * customised (or deliberately disabled) the key is never touched.
+	 */
+	public function ensureTemplate($templateKey, $storeId = NULL){
+		if(empty($storeId)){ $storeId = get_current_store_id(); }
+		$row = $this->getByKey($templateKey, $storeId);
+		if($row) return $row;
+		$this->seedDefaults($storeId);
+		return $this->getByKey($templateKey, $storeId);
+	}
+
+	protected function defaultVehicleServiceDue(){
+		return ['template_key'=>'vehicle_service_due','template_name'=>'Vehicle Service Due','subject'=>'Time to service your {vehicle_label} at {store_name}','html_body'=>"<p>Hello {customer_name},</p><p>Our records show your <strong>{vehicle_label}</strong> had a {service_type} on {service_date}, and the next service is due on <strong>{due_date}</strong>.</p><p>Booking the work keeps the vehicle — and your on-the-road record — in good order. Reply to this email or visit us to book a slot.</p><p>If the work has already been done elsewhere, or the details look wrong, just let us know and we will update your records.</p><p>Thank you,<br>{store_name}</p>",'text_body'=>"Hello {customer_name},\n\nYour {vehicle_label} is due for its next service on {due_date}. The last recorded work was a {service_type} on {service_date}.\n\nReply to this email or visit {store_name} to book a slot.\n\nIf the work has already been done elsewhere, let us know and we will update your records.\n\nThank you,\n{store_name}",'status'=>1,'send_copy_to_owner'=>0];
 	}
 
 	/* ============== Branded storefront email bodies ==============
@@ -244,12 +263,10 @@ class Email_template_model extends CI_Model {
           <div class="panel">
             <p class="kv"><b>Payment:</b> {payment_method}</p>
             <p class="kv"><b>Shipping:</b> {shipping_method}</p>
-            <p class="kv"><b>Fulfilment location:</b> {fulfilment_branch}</p>
-            <p class="kv"><b>Prescription:</b> {prescription_link}</p>
           </div>
           <div class="cta-wrap"><a class="btn" href="{dashboard_link}">Open order in MartPoint</a></div>
           <p class="help">You are receiving this because a customer placed an order on your MartPoint online store.</p>';
-		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\nFulfilment location: {fulfilment_branch}\nPrescription: {prescription_link}\n\nManage this order: {dashboard_link}";
+		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\n\nManage this order: {dashboard_link}";
 		return [
 			'template_key'   => 'online_order_owner',
 			'template_name'  => 'Online Order Received (Store Owner)',

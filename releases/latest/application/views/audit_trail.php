@@ -35,14 +35,41 @@ $verb = function($a) {
         'delete' => 'Removed', 'remove' => 'Removed',
         'approve' => 'Approved', 'reject' => 'Rejected', 'review' => 'Reviewed',
         'post' => 'Posted', 'void' => 'Voided', 'cancel' => 'Cancelled', 'print' => 'Printed',
+        // What the shop actually did, in the words a counter uses.
+        'dispensed' => 'Medicines given out', 'dispensed_corrected' => 'Dispensing corrected',
+        'rx_approved' => 'Prescription approved', 'rx_rejected' => 'Prescription refused',
+        'chart_written' => 'Prescription written', 'chart_corrected' => 'Prescription corrected',
+        'chart_removed' => 'Prescription deleted',
+        'price_change' => 'Price changed', 'batch_received' => 'Batch received',
+        'receipt_reversed' => 'Receipt reversed', 'status_changed' => 'Status changed',
+        'stock_transfer' => 'Stock moved between outlets', 'stock_in' => 'Stock added',
+        'stock_out' => 'Stock written off', 'stock_adjust' => 'Stock figure corrected',
+        'batch_reconciliation' => 'Batches balanced', 'recall_frozen' => 'Batch sealed by recall',
+        'recall_extended' => 'Recall widened', 'recall_released' => 'Batch released',
+        'expiry_settings' => 'Expiry warnings changed', 'rotation_method' => 'Stock rotation changed',
+        'customer_return' => 'Goods taken back', 'return_corrected' => 'Return corrected',
+        'return_deleted' => 'Return deleted', 'supplier_return' => 'Sent back to supplier',
+        'supplier_return_corrected' => 'Supplier return corrected', 'comp' => 'Given free of charge',
     );
     return $map[$a] ?? ucfirst(str_replace('_', ' ', $a));
 };
 $tone = function($a) {
     $a = strtolower(trim((string)$a));
-    if (strpos($a, 'fail') !== false || strpos($a, 'delete') !== false || strpos($a, 'remove') !== false || strpos($a, 'void') !== false || strpos($a, 'reject') !== false) return 'bad';
-    if (strpos($a, 'login') !== false || strpos($a, 'create') !== false || strpos($a, 'add') !== false || strpos($a, 'approve') !== false || strpos($a, 'post') !== false) return 'good';
+    foreach(array('fail', 'delete', 'removed', 'void', 'reversed') as $bad) {
+        if(strpos($a, $bad) !== false) return 'bad';
+    }
+    if(strpos($a, 'correct') !== false) return 'warn';
+    foreach(array('login', 'create', 'add', 'approve', 'post', 'received', 'released', 'dispensed') as $good) {
+        if(strpos($a, $good) !== false) return 'good';
+    }
     return 'warn';
+};
+/* What moved, in the reviewer's words: the value it had and the value it has. */
+$changesOf = function($e){
+    if(!empty($e->changes) && function_exists('mp_audit_decode_changes')){
+        return mp_audit_decode_changes($e->changes);
+    }
+    return array();
 };
 $dayLabel = function($d) {
     $t = strtotime($d . ' 00:00:00');
@@ -79,6 +106,14 @@ $dayLabel = function($d) {
 .at-what .who{font-weight:800}
 .at-what .mod{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#475569;background:#F1F5F9;border-radius:8px;padding:2px 7px;margin-right:6px;vertical-align:1px}
 .at-desc{font-size:12px;color:#475569;line-height:1.45;margin-top:3px;overflow-wrap:anywhere}
+.at-subject{font-weight:800;color:#0F172A}
+.at-diff{margin-top:7px;border:1px solid var(--mp-border)!important;border-radius:10px!important;background:#F8FAFC;padding:6px 10px}
+.at-diff-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:4px 0;font-size:12px;line-height:1.4}
+.at-diff-row+.at-diff-row{border-top:1px dashed #E2E8F0}
+.at-diff-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mp-muted);min-width:120px}
+.at-diff-was{color:#64748B;text-decoration:line-through}
+.at-arrow{color:#94A3B8;font-weight:800}
+.at-diff-now{font-weight:800;color:#0F172A;overflow-wrap:anywhere}
 .at-ref{font-size:11px;color:var(--mp-muted);text-align:right;overflow-wrap:anywhere;line-height:1.4}
 .at-ref .lbl{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .at-pager{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
@@ -152,7 +187,7 @@ $dayLabel = function($d) {
     </div>
     <div class="fg" style="min-width:210px">
       <label>Search</label>
-      <input type="text" name="q" value="<?= $f('q'); ?>" placeholder="Name, detail or reference">
+      <input type="text" name="q" value="<?= $f('q'); ?>" placeholder="Medicine, bill, detail or person">
     </div>
     <div class="fg acts">
       <button type="submit" class="mp-qa-btn blue"><i class="fa fa-filter"></i> Filter</button>
@@ -201,8 +236,26 @@ $dayLabel = function($d) {
           <span class="mod"><?= htmlspecialchars(function_exists('mp_code_label') ? mp_code_label($e->module) : $e->module); ?></span>
           <span class="who"><?= htmlspecialchars($who); ?></span>
           <?= htmlspecialchars(strtolower($verbTxt)); ?>
-          <?php if(!empty($e->ref_id)): ?><span class="at-desc" style="display:inline;margin:0">&mdash; reference <?= htmlspecialchars($e->ref_id); ?></span><?php endif; ?>
+          <?php $named = trim((string)($e->ref_label ?? '')); if($named !== ''): ?><span class="at-subject"><?= htmlspecialchars($named); ?></span><?php endif; ?>
         </div>
+        <?php $moved = $changesOf($e); if($moved): ?>
+        <div class="at-diff">
+          <?php foreach($moved as $row):
+            $from = $row['from']; $to = $row['to'];
+            $isNote = ($from === null || $from === ''); ?>
+          <div class="at-diff-row">
+            <span class="at-diff-label"><?= htmlspecialchars($row['label']); ?></span>
+            <?php if($isNote): ?>
+              <span class="at-diff-now"><?= htmlspecialchars($to === null || $to === '' ? 'nothing set' : $to); ?></span>
+            <?php else: ?>
+              <span class="at-diff-was"><?= htmlspecialchars($from); ?></span>
+              <span class="at-arrow">&rarr;</span>
+              <span class="at-diff-now"><?= htmlspecialchars($to === null || $to === '' ? 'nothing set' : $to); ?></span>
+            <?php endif; ?>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
         <?php if(!empty($e->description)): ?><div class="at-desc"><?= htmlspecialchars($e->description); ?></div><?php endif; ?>
       </div>
       <div class="at-ref">

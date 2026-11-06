@@ -108,7 +108,19 @@
   <meta name="twitter:description" content="<?= htmlspecialchars($seoDesc); ?>">
   <meta name="twitter:image" content="<?= $seoImage; ?>">
 
-  <link href="<?= ($theme_key ?? '')==='botanical_elegance'?'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap':$this->theme_engine->googleFontLink(); ?>" rel="stylesheet">
+<?php
+  /* Market Fresh sets headings in Manrope and body copy in the merchant's chosen
+     face. Manrope is only fetched when the merchant left the font on the theme
+     default — a deliberate font choice keeps its own link, untouched. */
+  $sfFontHref = $this->theme_engine->googleFontLink();
+  if (($theme_key ?? '') === 'market_fresh') {
+      $sfMerchantFont = trim((string)($settings->font_family ?: ''));
+      if ($sfMerchantFont === '' || $sfMerchantFont === 'Inter') {
+          $sfFontHref = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap';
+      }
+  }
+?>
+  <link href="<?= ($theme_key ?? '')==='botanical_elegance'?'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap':$sfFontHref; ?>" rel="stylesheet">
 <?php $themeKey = $theme_key ?? 'general_retail'; ?>
 <?php if(file_exists(FCPATH . 'theme/dist/css/' . $themeKey . '.css')): ?>
   <link rel="stylesheet" href="<?= base_url('theme/dist/css/' . $themeKey . '.css?v=' . ($themeKey==='botanical_elegance'?'4':'1')); ?>">

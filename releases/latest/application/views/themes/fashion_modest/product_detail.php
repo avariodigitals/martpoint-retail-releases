@@ -147,7 +147,7 @@ $hasDiscount = $product->original_price > $product->effective_price;
               </div>
               <div class="ms-product-body">
                 <div class="ms-product-name"><?= htmlspecialchars($p->item_name); ?></div>
-                <div class="ms-product-price"><?= sf_currency($p->sales_price, $cur); ?></div>
+                <div class="ms-product-price"><?= sf_currency($p->effective_price ?? $p->sales_price, $cur); ?></div>
               </div>
             </a>
             <?php endforeach; ?>

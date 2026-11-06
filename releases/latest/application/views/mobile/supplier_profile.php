@@ -167,7 +167,7 @@
           <?php foreach($payments as $p): ?>
             <div class="list-item">
               <div class="left">
-                <div class="name"><?= ucfirst(str_replace('_', ' ', $p->payment_type)); ?></div>
+                <div class="name"><?= htmlspecialchars(payment_mode_label($p->payment_type), ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="desc"><?= !empty($p->payment_date) ? show_date($p->payment_date) : 'N/A'; ?></div>
               </div>
               <div class="right">

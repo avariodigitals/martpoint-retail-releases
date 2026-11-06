@@ -133,8 +133,78 @@ class Purchase_returns_model extends CI_Model {
 	}
 
 	//Save Cutomers
-	public function verify_save_and_update(){
-		$command = $this->input->post_get('command', TRUE);
+	/** Base quantity already returned to a supplier for one purchase line. */
+	private function _returned_base_qty($purchase_id, $item_id, $exclude_return_id = 0)
+	{
+		$this->db->select('COALESCE(SUM(COALESCE(base_unit_qty, return_qty)),0) AS ret_qty')
+			->where('item_id', (int)$item_id);
+		if (!empty($purchase_id)) $this->db->where('purchase_id', (int)$purchase_id);
+		if (!empty($exclude_return_id)) $this->db->where('return_id !=', (int)$exclude_return_id);
+		$row = $this->db->get('db_purchaseitemsreturn')->row();
+		return (float)($row->ret_qty ?? 0);
+	}
+
+	/**
+	 * Drain the supplier return from the exact lot rows the original purchase
+	 * received, oldest-expiry first, and remember which lot each unit left so
+	 * editing or deleting the return restores them precisely. Purchases with no
+	 * lot rows (ordinary non-batch goods) keep the legacy aggregate behaviour.
+	 */
+	private function _consume_batches_for_return($return_id, $purchase_id, $item_id, $base_qty, $purchaseitemsreturn_id, $store_id)
+	{
+		$need = round((float)$base_qty, 4);
+		if ($need <= 0.00001) return '';
+		if (!$this->db->table_exists('db_item_barcodes') || !$this->db->table_exists('db_purchaseitemsreturn_batch_allocations')) return '';
+		$lots = $this->db->select('id, qty')
+			->where('item_id', (int)$item_id)
+			->where('purchase_id', (int)$purchase_id)
+			->where('status', 1)
+			->where('qty >', 0)
+			->order_by('(expire_date IS NULL) ASC, expire_date ASC, created_date ASC, id ASC')
+			->get('db_item_barcodes')->result();
+		if (!$lots) return ''; // receipt predates the batch ledger — nothing to drain
+		$available = 0.0;
+		foreach ($lots as $lot) $available += (float)$lot->qty;
+		if ($available + 0.00001 < $need) {
+			return 'The lot stock behind this purchase is not enough for the return (returning '.format_qty($need).', only '.format_qty($available).' still on hand from that purchase). Adjust the quantity or reconcile the batch first.';
+		}
+		$remaining = $need;
+		foreach ($lots as $lot) {
+			if ($remaining <= 0.00001) break;
+			$take = min($remaining, (float)$lot->qty);
+			$updated = $this->db->query('UPDATE db_item_barcodes SET status = IF(qty - ? <= 0.00001, 0, 1), qty = qty - ? WHERE id = ? AND status = 1 AND qty >= ?', [$take, $take, (int)$lot->id, $take]);
+			if (!$updated || $this->db->affected_rows() !== 1) {
+				return 'A batch changed during this return. Please retry; nothing was saved.';
+			}
+			$this->db->insert('db_purchaseitemsreturn_batch_allocations', [
+				'store_id' => (int)$store_id,
+				'return_id' => (int)$return_id,
+				'purchaseitemsreturn_id' => (int)$purchaseitemsreturn_id,
+				'barcode_id' => (int)$lot->id,
+				'qty' => $take,
+				'created_date' => date('Y-m-d'),
+			]);
+			$remaining -= $take;
+		}
+		return '';
+	}
+
+	/** Put previously drained lot quantities back when a return is edited or deleted. */
+	private function _restore_return_batches($return_ids)
+	{
+		$ids = is_array($return_ids) ? $return_ids : [$return_ids];
+		$ids = array_filter(array_map('intval', $ids));
+		if (!$ids || !$this->db->table_exists('db_purchaseitemsreturn_batch_allocations')) return true;
+		$allocations = $this->db->where_in('return_id', $ids)->get('db_purchaseitemsreturn_batch_allocations')->result();
+		foreach ($allocations as $allocation) {
+			$restored = $this->db->query('UPDATE db_item_barcodes SET qty = qty + ?, status = 1 WHERE id = ?', [(float)$allocation->qty, (int)$allocation->barcode_id]);
+			if (!$restored || $this->db->affected_rows() !== 1) return false;
+		}
+		if ($allocations) $this->db->where_in('return_id', $ids)->delete('db_purchaseitemsreturn_batch_allocations');
+		return true;
+	}
+
+	public function verify_save_and_update(){		$command = $this->input->post_get('command', TRUE);
 		$return_date = $this->input->post('return_date', TRUE);
 		$reference_no = $this->input->post('reference_no', TRUE);
 		$return_status = $this->input->post('return_status', TRUE);
@@ -249,6 +319,13 @@ class Purchase_returns_model extends CI_Model {
 			$prev_item_ids = $this->db->select("item_id")->from("db_purchaseitemsreturn")->where("return_id",$return_id)->get()->result_array();
 			##############################################END
 
+			// Give the lots this return drained back before the old lines go;
+			// the loop below re-consumes them for the newly typed quantities.
+			if (!$this->_restore_return_batches($return_id)) {
+				$this->db->trans_rollback();
+				return "failed: Could not restore the batch stock from the previous return lines.";
+			}
+
 			$q11=$this->db->query("delete from db_purchaseitemsreturn where return_id='$return_id'");
 			if(!$q11){
 				return "failed";
@@ -265,6 +342,12 @@ class Purchase_returns_model extends CI_Model {
 		}*/
 		
 		//Import post data from form
+		// The shelf is read before any of it leaves: the trail can only say how
+		// much went back to the supplier against what was standing there first.
+		$return_store = (store_module() && is_admin()) ? (int)$store_id : (int)get_current_store_id();
+		$shelf_before = $this->_auditPostedShelf($rowcount);
+
+		$submitted_base = array();
 		for($i=1;$i<=$rowcount;$i++){
 		
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
@@ -283,13 +366,40 @@ class Purchase_returns_model extends CI_Model {
 				$discount_amt	    =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8']));//Amount
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 
-				
+				/* Lot math: purchase-line conversion factor and a hard cap of
+				   the quantity that purchase actually received. */
+				$return_qty_clean = (float)str_replace(',','',$return_qty);
+				if ($return_qty_clean <= 0) {
+					$this->db->trans_rollback();
+					return "failed: Return quantity must be greater than zero.";
+				}
+				$pline = null;
+				if (!empty($purchase_id)) {
+					$pline = $this->db->where('purchase_id',(int)$purchase_id)->where('item_id',(int)$item_id)->order_by('id','ASC')->get('db_purchaseitems')->row();
+				}
+				$factor = ($pline && (float)($pline->conversion_factor ?? 1) > 0) ? (float)$pline->conversion_factor : 1;
+				$base_return_qty = round($return_qty_clean * $factor, 4);
+				$earlier_lines_base = isset($submitted_base[$item_id]) ? $submitted_base[$item_id] : 0;
+				$submitted_base[$item_id] = $earlier_lines_base + $base_return_qty;
+				if (!empty($purchase_id) && $pline) {
+					$received_base = 0;
+					foreach ($this->db->where('purchase_id',(int)$purchase_id)->where('item_id',(int)$item_id)->where_in('purchase_status',array('Received','Partially Received'))->get('db_purchaseitems')->result() as $pr) {
+						$received_base += ($pr->received_qty !== null) ? (float)($pr->base_unit_qty ?? $pr->received_qty) : (float)($pr->base_unit_qty ?? $pr->purchase_qty);
+					}
+					$already_returned = $this->_returned_base_qty($purchase_id, $item_id, $return_id) + $earlier_lines_base;
+					if ($already_returned + $base_return_qty > $received_base + 0.00001) {
+						$this->db->trans_rollback();
+						return "failed: Returned quantity exceeds what this purchase received.";
+					}
+				}
+
 				$purchaseitems_entry = array(
 		    				'purchase_id' 		=> $purchase_id,
 		    				'return_id' 		=> $return_id,
 		    				'return_status'		=> $return_status,
 		    				'item_id' 			=> $item_id,
 		    				'return_qty' 		=> $return_qty,
+		    				'base_unit_qty'		=> $base_return_qty,
 		    				'price_per_unit' 	=> $price_per_unit,
 		    				'tax_id' 			=> $tax_id,
 		    				'tax_amt' 			=> $tax_amt,
@@ -303,7 +413,16 @@ class Purchase_returns_model extends CI_Model {
 		    				'tax_type'		=> $tax_type,
 		    			);
 				$purchaseitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+				if (!$this->db->field_exists('base_unit_qty', 'db_purchaseitemsreturn')) unset($purchaseitems_entry['base_unit_qty']);
 				$q2 = $this->db->insert('db_purchaseitemsreturn', $purchaseitems_entry);
+					// Drain the lots this purchase originally received.
+					if (!empty($purchase_id)) {
+						$batch_err = $this->_consume_batches_for_return($return_id, $purchase_id, $item_id, $base_return_qty, $this->db->insert_id(), $purchaseitems_entry['store_id']);
+						if ($batch_err !== '') {
+							$this->db->trans_rollback();
+							return "failed: " . $batch_err;
+						}
+					}
 
 				/*Find the Item Exist in Purchase entry or not*/
 				//$this->adjust_purchase_item($purchase_id,$item_id,$return_qty,$command);
@@ -407,6 +526,7 @@ class Purchase_returns_model extends CI_Model {
 		##############################################END
 		
 		//exit();
+		$this->_auditSupplierReturnSaved($return_store, $return_id, $shelf_before, $command === 'update');
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
 		return "success<<<###>>>$return_id";
@@ -540,12 +660,24 @@ class Purchase_returns_model extends CI_Model {
 	}
 	public function delete_return($ids){
       	$this->db->trans_begin();
+      	// The shelf is read while the return still exists: afterwards the trail
+      	// could only say that something went missing.
+      	$deleted_ids = array();
+      	foreach(explode(',', (string)$ids) as $candidate){ if((int)$candidate > 0) $deleted_ids[] = (int)$candidate; }
+      	$shelf_before = $this->_auditShelfForReturns($deleted_ids);
       	//ACCOUNT RESET
 		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
 									->where("ref_purchasepaymentsreturn_id in ($ids)")
 									->group_by("debit_account_id,credit_account_id")
 									->get("ac_transactions");
 		//ACCOUNT RESET END
+
+		// Hand the returned units back to the lots they left so the batch
+		// ledger matches the recomputed aggregate stock.
+		if (!$this->_restore_return_batches(explode(',', $ids))) {
+			$this->db->trans_rollback();
+			return "failed: Could not restore batch stock for the deleted return.";
+		}
 
       	##############################################START
 		//FIND THE PREVIOUSE ITEM LIST ID'S
@@ -613,10 +745,67 @@ class Purchase_returns_model extends CI_Model {
         }
         //ACCOUNT RESET END
 
+		$this->_auditReturnsDeleted($deleted_ids, $shelf_before);
 		$this->db->trans_commit();
 	    return "success";
 		
 	}
+
+	/**
+	 * Shelf quantities for the capture that watches this document. The witness
+	 * never decides the outcome: unreadable means an empty map, not a failed
+	 * return.
+	 */
+	private function _auditPostedShelf($rowcount){
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return array();
+			$shelf = array();
+			for($i=1;$i<=(int)$rowcount;$i++){
+				$item_id = (int)($_REQUEST['tr_item_id_'.$i] ?? 0);
+				if($item_id > 0 && !isset($shelf[$item_id])) $shelf[$item_id] = $capture->shelf_qty($item_id);
+			}
+			return $shelf;
+		} catch (Throwable $e) {
+			log_message('error', 'Supplier return shelf audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditShelfForReturns(array $return_ids){
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture || !$return_ids) return array();
+			$shelf = array();
+			foreach($this->db->select('item_id')->distinct()->where_in('return_id', $return_ids)
+					->where('item_id IS NOT NULL')->get('db_purchaseitemsreturn')->result() as $line){
+				$shelf[(int)$line->item_id] = $capture->shelf_qty((int)$line->item_id);
+			}
+			return $shelf;
+		} catch (Throwable $e) {
+			log_message('error', 'Supplier return shelf audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditSupplierReturnSaved($store_id, $return_id, array $shelf_before, $isUpdate){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->goodsReturnedToSupplier((int)$store_id, (int)$return_id, $shelf_before, (bool)$isUpdate);
+		} catch (Throwable $e) {
+			log_message('error', 'Supplier return audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	private function _auditReturnsDeleted(array $return_ids, array $shelf_before){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->returnsDeleted((int)get_current_store_id(), $return_ids, $shelf_before, 'supplier');
+		} catch (Throwable $e) {
+			log_message('error', 'Supplier return deletion audit capture failed: ' . $e->getMessage());
+		}
+	}
+
 	public function search_item($q){
 		$json_array=array();
         $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";

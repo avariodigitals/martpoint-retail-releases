@@ -502,6 +502,7 @@ class Purchase_model extends CI_Model {
 		
 
 		//Import post data from form
+		$audit_receipts = array();
 		for($i=1;$i<=$rowcount;$i++){
 
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
@@ -556,6 +557,11 @@ class Purchase_model extends CI_Model {
 				// Base quantity for stock: selected unit quantity × conversion factor
 					$purchase_qty_clean = (float)str_replace(',','',$purchase_qty);
 				$received_qty_clean = ($received_qty !== null) ? (float)str_replace(',','',$received_qty) : null;
+				// Receiving more than was ordered would inflate both item stock
+				// and the batch ledger; reject rather than silently clamp.
+				if ($received_qty_clean !== null && $received_qty_clean > $purchase_qty_clean + 0.00001) {
+					return "failed: Received quantity (".format_qty($received_qty_clean).") cannot exceed the ordered quantity (".format_qty($purchase_qty_clean).") for this line.";
+				}
 				$stock_qty = ($received_qty_clean !== null) ? $received_qty_clean : $purchase_qty_clean;
 				$base_unit_qty = $stock_qty * $conversion_factor;
 				// Per-base purchase price for updating item cost ledger
@@ -648,9 +654,11 @@ class Purchase_model extends CI_Model {
 						$existing_bc = $this->db->get('db_item_barcodes')->row();
 						// A serial or IMEI is always one distinct physical unit.
 						if(!empty($serial_number) || !empty($imei_number)) $existing_bc = null;
+						$audit_lot = null;
 						if($existing_bc){
 							// Add to existing batch quantity (in base units for consistency with stock)
 							$new_qty = $existing_bc->qty + $base_unit_qty;
+							$audit_lot = array('before' => (float)$existing_bc->qty, 'after' => (float)$new_qty);
 							$this->db->where('id',$existing_bc->id)->update('db_item_barcodes', array(
 								'qty' => $new_qty,
 								'purchase_price' => store_number_format($base_price_per_unit,0),
@@ -680,15 +688,29 @@ class Purchase_model extends CI_Model {
 								'created_date' => date('Y-m-d'),
 								'created_time' => date('H:i:s'),
 							));
+							$audit_lot = array('before' => 0.0, 'after' => (float)$base_unit_qty);
+						}
+						if($audit_lot){
+							$audit_receipts[] = array(
+								'item'   => mp_audit_record_name('db_items', (int)$item_id, 'item_name'),
+								'batch'  => trim((string)$batch_lot),
+								'from'   => $audit_lot['before'],
+								'to'     => $audit_lot['after'],
+								'expiry' => !empty($expire_date) ? $expire_date : null,
+							);
 						}
 					}
 
 					// Keep the item's default cost current for non-barcoded sales (normalize to base unit)
 					if($received_qty > 0){
+						$cost_before = $this->db->select('item_name,price,purchase_price')->where('id',$item_id)->get('db_items')->row();
 						$this->db->where('id',$item_id)->update('db_items', array(
 							'price' => store_number_format($base_price_per_unit,0),
 							'purchase_price' => store_number_format(($unit_total_cost_clean / $conversion_factor),0)
 						));
+						// A receipt silently re-prices the shelf's default cost.
+						// That is a decision somebody has to be able to trace.
+						$this->_audit_received_cost($cost_before, $item_id, $store_id);
 					}
 				}
 
@@ -783,6 +805,7 @@ class Purchase_model extends CI_Model {
 			$this->db->trans_rollback();
 			return "failed";
 		}
+		$this->_audit_receipt_in($store_id, $purchase_id, $audit_receipts);
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
 		return "success<<<###>>>$purchase_id";
@@ -792,6 +815,82 @@ class Purchase_model extends CI_Model {
 			return "Error: " . $e->getMessage();
 		}
 	}//verify_save_and_update() function end
+
+	/**
+	 * A receipt that re-prices the product's default cost is a decision, not a
+	 * side effect: record which figure moved and what it used to be.
+	 */
+	private function _audit_received_cost($before, $item_id, $store_id){
+		if (!$before || !function_exists('mp_audit_log')) return;
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$after = $this->db->select('item_name,price,purchase_price')->where('id', (int)$item_id)->limit(1)->get('db_items')->row();
+			$capture->priceChanged($store_id, $item_id, $before, $after,
+				'procurement', 'cost_change', 'The cost price on the shelf followed this receipt in.');
+		} catch (Throwable $e) {
+			log_message('error', 'Purchase cost audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	/**
+	 * What actually landed on the shelf: the batch, how many units it now
+	 * holds, and the date it runs out. A receipt that arrives without a batch
+	 * identity is an aggregate stock movement, so nothing is claimed here.
+	 */
+	private function _audit_receipt_in($store_id, $purchase_id, $lines){
+		if(!$purchase_id || !is_array($lines) || !$lines || !function_exists('mp_audit_log')) return;
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$changes = array();
+			$units = 0.0;
+			foreach($lines as $line){
+				$name = trim((string)($line['item'] ?? ''));
+				if($name === '') continue;
+				$label = $name . ($line['batch'] !== '' ? ' — batch ' . $line['batch'] : '');
+				if(!empty($line['expiry'])) $label .= ' (expires ' . mp_audit_format_value($line['expiry'], 'date') . ')';
+				$from = (float)$line['from'];
+				$to = (float)$line['to'];
+				if(abs($to - $from) < 0.0000001) continue;
+				$changes[] = mp_audit_change($label, mp_audit_format_value($from, 'qty'), mp_audit_format_value($to, 'qty'));
+				$units += max(0, $to - $from);
+			}
+			if(!$changes) return;
+			$doc = $this->db->select('reference_no')->where('id', (int)$purchase_id)->limit(1)->get('db_purchase')->row();
+			$ref = trim(mp_catalogue_name($doc->reference_no ?? ''));
+			$capture->event($store_id, 'procurement', 'batch_received', (int)$purchase_id,
+				$ref !== '' ? 'Purchase ' . $ref : 'Goods received', $changes,
+				rtrim(rtrim(number_format($units, 4, '.', ''), '0'), '.') . ' unit(s) received onto the shelf');
+		} catch(Throwable $e){
+			log_message('error', 'Purchase receipt audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	/**
+	 * A goods receipt that is deleted takes its stock back off the shelf. That
+	 * reversal is a decision somebody has to be able to account for.
+	 */
+	private function _audit_receipt_reversed($store_id, $ids, $item_ids){
+		if(!$item_ids || !function_exists('mp_audit_log')) return;
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$names = array();
+			foreach($item_ids as $row){
+				$name = $capture->item_name((int)($row['item_id'] ?? 0));
+				if($name !== '' && !in_array($name, $names, true)) $names[] = $name;
+			}
+			if(!$names) return;
+			$said = 'Deleted a goods receipt. ' . implode(', ', array_slice($names, 0, 3));
+			if(count($names) > 3) $said .= ' and ' . (count($names) - 3) . ' more';
+			$said .= ' came back off the shelf.';
+			$capture->event($store_id, 'procurement', 'receipt_reversed', $ids,
+				count($names) . ' product(s) on this receipt', array(), $said);
+		} catch(Throwable $e){
+			log_message('error', 'Purchase reversal audit capture failed: ' . $e->getMessage());
+		}
+	}
 
 	public function delete_payment($payment_id){
         $this->db->trans_begin();
@@ -956,6 +1055,21 @@ class Purchase_model extends CI_Model {
 			return "failed: ".$msg;
 		}
 
+		// Remove the batch ledger rows these receipts created before the
+		// purchase lines disappear; if a lot was already (partly) sold, the
+		// guarded subtraction fails and the delete must not proceed.
+		foreach (explode(',', $ids) as $del_id) {
+			$del_id = (int)$del_id;
+			if ($del_id <= 0) continue;
+			$del_header = $this->db->select('warehouse_id')->where('id', $del_id)->get('db_purchase')->row();
+			if (!$del_header) continue;
+			if (!$this->_reverse_purchase_batch_receipts($del_id, (int)$del_header->warehouse_id)) {
+				$this->db->trans_rollback();
+				log_message('error', 'delete_purchase aborted: batch stock already consumed for purchase '.$del_id);
+				return "failed: This purchase has received batch stock that has already been sold or changed. Delete the related sales or returns first, or reconcile the batch before deleting.";
+			}
+		}
+
 		//ACCOUNT RESET
 		$payment_ids = $this->db->select("id")->where("purchase_id in ($ids)")->get("db_purchasepayments")->result_array();
 		$payment_ids_str = get_in_comma_delimited($payment_ids);
@@ -1048,6 +1162,7 @@ class Purchase_model extends CI_Model {
         }
         //ACCOUNT RESET END
 
+		$this->_audit_receipt_reversed(get_current_store_id(), $ids, $prev_item_ids);
 		$this->db->trans_commit();
         return "success";
 	}
@@ -1896,8 +2011,12 @@ class Purchase_model extends CI_Model {
 		$mfg_dates = $this->input->post('cs_mfg_date', TRUE);
 
 		$this->db->trans_begin();
-		$purchaseHeader = $this->db->select('warehouse_id')->where('id', (int)$purchase_id)->get('db_purchase')->row();
-		if (!$purchaseHeader || !$this->_reverse_purchase_batch_receipts($purchase_id, (int)$purchaseHeader->warehouse_id)) {
+		$purchaseHeader = $this->db->select('warehouse_id, purchase_status, reference_no, store_id')->where('id', (int)$purchase_id)->get('db_purchase')->row();
+		$warehouse_id = (int)($purchaseHeader->warehouse_id ?? 0);
+		// The shelf is read before the receipt is reversed or taken on again, so
+		// the trail can say what this status change did to the stock.
+		$audit_shelf_before = $purchaseHeader ? $this->_auditPurchaseShelf((int)$purchase_id) : array();
+		if (!$purchaseHeader || !$this->_reverse_purchase_batch_receipts($purchase_id, $warehouse_id)) {
 			$this->db->trans_rollback();
 			return 'Cannot change this purchase status because its received batch stock has already been used or is inconsistent. Reconcile the batch first.';
 		}
@@ -1929,6 +2048,9 @@ class Purchase_model extends CI_Model {
 				$rcv_qty = (!empty($rcv_raw) && is_numeric(str_replace(',','',$rcv_raw))) ? (float)str_replace(',','',$rcv_raw) : 0;
 				if($new_status == 'Received'){
 					$rcv_qty = (float)$purchase_qty;
+				} elseif ($rcv_qty > (float)$purchase_qty + 0.00001) {
+					$this->db->trans_rollback();
+					return 'failed: Received quantity cannot exceed the ordered quantity for a purchased line.';
 				}
 				$base_unit_qty = $rcv_qty * $conversion_factor;
 
@@ -2012,8 +2134,62 @@ class Purchase_model extends CI_Model {
 			$this->db->trans_rollback();
 			return "failed";
 		}
+		$this->_audit_status_change($purchaseHeader, $purchase_id, $new_status, $audit_shelf_before);
 		$this->db->trans_commit();
 		$this->session->set_flashdata('success', 'Status updated successfully!');
 		return "success";
+	}
+
+	/**
+	 * Shelf quantities for the products on this order, read while the order
+	 * still stands as it does. An unreadable witness is an empty map — never a
+	 * refused status change.
+	 */
+	private function _auditPurchaseShelf($purchase_id){
+		try {
+			$capture = mp_audit_capture();
+			if (!$capture) return array();
+			$shelf = array();
+			foreach($this->db->select('item_id')->distinct()->where('purchase_id', (int)$purchase_id)
+					->where('item_id IS NOT NULL')->get('db_purchaseitems')->result() as $line){
+				$shelf[(int)$line->item_id] = $capture->shelf_qty((int)$line->item_id);
+			}
+			return $shelf;
+		} catch (Throwable $e) {
+			log_message('error', 'Purchase shelf audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	/**
+	 * An order's status is a statement about goods: marking it Received puts
+	 * stock on the shelf, marking it Ordered takes the claim back. Both belong
+	 * in the trail with the figures that actually moved.
+	 */
+	private function _audit_status_change($header, $purchase_id, $new_status, array $shelf_before){
+		if(!$header || !$purchase_id || !function_exists('mp_audit_log')) return;
+		try{
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$changes = array();
+			$from = trim((string)($header->purchase_status ?? ''));
+			$to = trim((string)$new_status);
+			if($from !== $to) $changes[] = mp_audit_change('Order status',
+				$from === '' ? 'Not recorded' : mp_audit_format_value($from, 'word'),
+				mp_audit_format_value($to, 'word'));
+			foreach($shelf_before as $item_id => $before){
+				$after = $capture->shelf_qty($item_id);
+				if($after === null || $before === null) continue;
+				if(abs((float)$before - (float)$after) < 0.0000001) continue;
+				$changes[] = mp_audit_change($capture->item_name($item_id),
+					mp_audit_format_value($before, 'qty'), mp_audit_format_value($after, 'qty'));
+			}
+			if(!$changes) return;
+			$code = trim((string)($header->reference_no ?? ''));
+			$capture->event((int)($header->store_id ?? get_current_store_id()), 'procurement', 'status_changed',
+				(int)$purchase_id, $code !== '' ? 'Purchase ' . $code : 'A purchase order', $changes,
+				$from === $to ? 'The order was re-confirmed as ' . mp_audit_format_value($to, 'word') . '.'
+					: 'Marked ' . mp_audit_format_value($to, 'word') . ' (was ' . ($from === '' ? 'not recorded' : mp_audit_format_value($from, 'word')) . ').');
+		}catch(Throwable $e){ log_message('error', 'Purchase status audit skipped: '.$e->getMessage()); }
 	}
 }

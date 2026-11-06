@@ -8,7 +8,6 @@
   </div>
   <div class="mp-report-actions">
     <a href="<?= base_url('expiry_settings'); ?>" class="mp-btn-secondary"><i class="fa fa-cog"></i> Settings</a>
-    <a href="<?= base_url('expiry_settings/send_email_alert'); ?>" class="mp-btn-secondary" onclick="toastr.success('Email alert triggered!');"><i class="fa fa-envelope"></i> Send Alert</a>
   </div>
 </div>
 

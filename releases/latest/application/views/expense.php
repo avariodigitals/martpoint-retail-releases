@@ -127,7 +127,7 @@
                               echo "<option value=''>-Select-</option>";
                                foreach($q1->result() as $res1){
                                 $selected = (!empty($payment_type) && $payment_type==$res1->payment_type)? 'selected' : '';
-                               echo "<option $selected value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
+                               echo "<option $selected value='".$res1->payment_type."'>".htmlspecialchars(payment_mode_label($res1->payment_type), ENT_QUOTES, 'UTF-8')."</option>";
                              }
                            }
                            else{

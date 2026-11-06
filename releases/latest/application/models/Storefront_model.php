@@ -8,9 +8,16 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Storefront_model extends CI_Model {
 
 	private static $themesSeeded = false;
+	private $verifiedCustomers = [];
 
 	/** Why the last status change was refused, in staff's words. */
 	public $last_status_error = '';
+
+	/** Why the last sales-ledger posting was refused (batch stock short, etc). */
+	public $last_ledger_error = '';
+
+	/** Why the last online reservation was refused, in the shopper's words. */
+	public $last_reservation_error = '';
 
 	public function __construct(){
 		parent::__construct();
@@ -25,7 +32,7 @@ class Storefront_model extends CI_Model {
 	private function _expiredWhere($tableAlias = 'a', $storeId = null){
 		// Always exclude expired items from the online storefront.
 		// If you need to allow expired items online, manually unpublish them.
-		return "($tableAlias.expire_date IS NULL OR $tableAlias.expire_date NOT LIKE '0000%' OR $tableAlias.expire_date >= '".date('Y-m-d')."')";
+		return "($tableAlias.expire_date IS NULL OR $tableAlias.expire_date LIKE '0000%' OR $tableAlias.expire_date >= '".date('Y-m-d')."')";
 	}
 
 	/**
@@ -212,6 +219,18 @@ class Storefront_model extends CI_Model {
 				}
 				if(!$this->db->field_exists('token_expires_at', 'db_online_orders')){
 					$this->db->query("ALTER TABLE db_online_orders ADD token_expires_at DATETIME NULL DEFAULT NULL");
+				}
+				// Approved-Rx invoice link (migration 4.0.9.233). Self-healed so a
+				// server that has not run the migration yet still sends customers a
+				// link instead of failing the pharmacist's approval.
+				if(!$this->db->field_exists('pay_link_token_hash', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD pay_link_token_hash CHAR(64) NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('pay_link_expires_at', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD pay_link_expires_at DATETIME NULL DEFAULT NULL");
+				}
+				if(!$this->db->field_exists('pay_link_sent_at', 'db_online_orders')){
+					$this->db->query("ALTER TABLE db_online_orders ADD pay_link_sent_at DATETIME NULL DEFAULT NULL");
 				}
 				if(!$this->db->field_exists('stock_adjusted', 'db_online_orders')){
 					$this->db->query("ALTER TABLE db_online_orders ADD stock_adjusted TINYINT(1) NOT NULL DEFAULT 0");
@@ -500,13 +519,13 @@ class Storefront_model extends CI_Model {
 	 * price = lowest child effective price, image = first child image when
 	 * the parent has none, stock = sum of child stock. Mutates the rows.
 	 */
-	private function _decorateVariantParents($rows, $inheritFlags = false){
+	private function _decorateVariantParents($rows, $inheritFlags = false, $warehouseId = 0){
 		$parentIds = [];
 		foreach($rows as $r){
 			if(($r->item_group ?? '') === 'Variants'){ $parentIds[] = (int)$r->id; }
 		}
 		if(!empty($parentIds)){
-			$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, online_price, discount_type, discount, stock, is_featured, is_new_arrival')
+			$children = $this->db->select('id, parent_id, item_name, item_image, sales_price, mrp, online_price, discount_type, discount, stock, is_featured, is_new_arrival')
 				->from('db_items')
 				->where('store_id', (int)$rows[0]->store_id)
 				->where_in('parent_id', $parentIds)
@@ -515,6 +534,9 @@ class Storefront_model extends CI_Model {
 				->where("(not_for_sale IS NULL OR not_for_sale = 0)", null, false)
 				->order_by('id', 'asc')
 				->get()->result();
+			// Options are corrected against the shelf before the parent's figure
+			// is summed, so a parent never advertises units no option can sell.
+			$children = $this->_applyLedgerAvailability($children, (int)$rows[0]->store_id, (int)$warehouseId);
 			$byParent = [];
 			foreach($children as $c){ $byParent[$c->parent_id][] = $c; }
 			foreach($rows as $r){
@@ -556,10 +578,135 @@ class Storefront_model extends CI_Model {
 		return $rows;
 	}
 
-	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0){
+	/**
+	 * Which stock locations the online channel may sell from for this store.
+	 *
+	 * A Standard pharmacy sells from its own branch — the same one the till
+	 * opens on — and never from a partner or collection hub. Every other route
+	 * keeps its existing behaviour and may sell from any active location of the
+	 * store. A named outlet always wins, so a multi-outlet shop can quote the
+	 * outlet the shopper is actually ordering from.
+	 */
+	public function online_stock_locations($storeId = null, $warehouseId = 0){
+		$storeId = (int)($storeId ?: get_current_store_id());
+		$warehouseId = (int)$warehouseId;
+		if($warehouseId > 0){
+			try { return [$this->orderStockSource($storeId, $warehouseId)]; } catch(RuntimeException $e){ return []; }
+		}
+		if(mp_pharmacy_standard($storeId)){
+			$own = mp_pharmacy_own_warehouse_ids($storeId);
+			$preferred = (int)get_pos_default_warehouse_id($storeId);
+			return in_array($preferred, $own, true) ? [$preferred] : $own;
+		}
+		if(!$this->db->table_exists('db_warehouse')) return [];
+		$rows = $this->db->select('id')->where('store_id', $storeId)->where('status', 1)->get('db_warehouse')->result();
+		return array_map(function($row){ return (int)$row->id; }, $rows);
+	}
+
+	/**
+	 * How much of each item this shop can hand over right now.
+	 *
+	 * Under automatic batch selling the shelf IS the batch ledger, so the
+	 * online number is what the sellable lots hold — capped by the stock figure
+	 * and by the branch's own count, because the counter stops at whichever
+	 * runs out first. A store on Manual rotation gets no answers back here and
+	 * keeps the plain stock figure, which is what every other industry's route
+	 * has always used.
+	 *
+	 * @param array $stockByItem [item_id => aggregate stock figure]
+	 * @return array [item_id => float]
+	 */
+	private function _ledger_availability($storeId, array $ids, array $stockByItem, $warehouseId = 0){
+		$storeId = (int)$storeId;
+		$ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+		if(!$ids || !$storeId) return [];
+		$this->load->model('inventory_rotation_model');
+		$usesLots = $this->inventory_rotation_model->sells_from_lot_ledger($storeId);
+		if(!$usesLots && !(int)$warehouseId) return [];
+		$locations = $this->online_stock_locations($storeId, $warehouseId);
+		if(!$locations) return array_fill_keys($ids, 0);
+		$lots = $usesLots ? $this->inventory_rotation_model->sellable_map($storeId, $locations, $ids) : [];
+		$single = count($locations) === 1;
+		$branch = [];
+		if($single && $this->db->table_exists('db_warehouseitems')){
+			$query = $this->db->select('item_id, available_qty')->where('store_id', $storeId)
+				->where('warehouse_id', (int)$locations[0])->where_in('item_id', $ids)->get('db_warehouseitems');
+			foreach(($query ? $query->result() : []) as $row) $branch[(int)$row->item_id] = (float)$row->available_qty;
+		}
+		$branchLedgerExists = false;
+		if($single && $this->db->table_exists('db_warehouseitems')){
+			// Once the store uses branch allocations, an item with no row at this
+			// source is not available there. Looking only for rows on the selected
+			// branch would incorrectly fall back to pooled stock for a new/empty
+			// branch and could promise stock held at a different outlet.
+			$branchLedgerExists = $this->db->where('store_id', $storeId)
+				->count_all_results('db_warehouseitems') > 0;
+		}
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($storeId) : [];
+		$isPharmacy = function_exists('mp_pharmacy_industry')
+			? mp_pharmacy_industry($profile['industry_type'] ?? '') : mp_pharmacy_standard($storeId);
+		$requireBranchLedger = $single && ($isPharmacy || $branchLedgerExists);
+		$out = [];
+		foreach($ids as $id){
+			$figures = [(float)($stockByItem[$id] ?? 0)];
+			if($usesLots) $figures[] = (float)($lots[$id] ?? 0);
+			// An outlet with no row holds nothing there — the branch figure is
+			// deleted when it drains. Only apply it for a single-location read.
+			if($requireBranchLedger) $figures[] = (float)($branch[$id] ?? 0);
+			$out[$id] = round(max(0, min($figures)), 4);
+		}
+		return $out;
+	}
+
+	/**
+	 * How much of one item this shop can hand over right now, online. Used by
+	 * the cart and checkout guards, which must refuse for the same reason the
+	 * till would.
+	 */
+	public function sellable_online($storeId, $itemId, $warehouseId = 0){
+		$storeId = (int)$storeId; $itemId = (int)$itemId;
+		$row = $this->db->select('stock')->where('id', $itemId)->where('store_id', $storeId)->get('db_items')->row();
+		if(!$row) return 0.0;
+		$map = $this->_ledger_availability($storeId, [$itemId], [$itemId => (float)$row->stock], $warehouseId);
+		if($map) return $map[$itemId];
+		return round((float)$row->stock, 4);
+	}
+
+	/**
+	 * Rewrite the stock figure on storefront rows to the number the counter
+	 * could actually give the shopper, so "in stock" online means the same
+	 * thing as "in stock" at the till. Variant parents are skipped — their
+	 * figure is the sum of options, which are corrected here first.
+	 */
+	private function _applyLedgerAvailability($rows, $storeId, $warehouseId = 0){
+		if(empty($rows)) return $rows;
+		$ids = [];
+		$stockByItem = [];
+		foreach($rows as $row){
+			if(($row->item_group ?? '') === 'Variants') continue;
+			// A bundle's figure is what its components can be assembled into,
+			// already resolved; the bundle itself has no lot on the shelf.
+			if(!empty($row->is_bundle)) continue;
+			if(!empty($row->service_bit)) continue;
+			if(isset($row->product_type) && !in_array((string)$row->product_type, ['physical', ''], true)) continue;
+			$ids[] = (int)$row->id;
+			$stockByItem[(int)$row->id] = (float)($row->stock ?? 0);
+		}
+		$map = $this->_ledger_availability((int)$storeId, $ids, $stockByItem, $warehouseId);
+		if(!$map) return $rows;
+		foreach($rows as $row){
+			$id = (int)$row->id;
+			if(!isset($map[$id])) continue;
+			$row->sellable_qty = $map[$id];
+			$row->stock = $map[$id];
+		}
+		return $rows;
+	}
+
+	public function getOnlineProducts($storeId = null, $categoryId = null, $search = '', $limit = 50, $offset = 0, $sort = ''){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.expire_date');
-		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.mrp, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -579,9 +726,56 @@ class Storefront_model extends CI_Model {
 			$this->db->or_like('b.category_name', $search);
 			$this->db->group_end();
 		}
-		$this->db->order_by('a.id', 'desc');
+		foreach($this->_onlineSortColumns($sort) as $column => $direction){
+			$this->db->order_by($column, $direction, strpos($column, '(') !== false ? FALSE : TRUE);
+		}
 		if($limit !== null) $this->db->limit($limit, $offset);
-		return $this->_decorateVariantParents($this->db->get()->result());
+		return $this->_applyLedgerAvailability($this->_decorateVariantParents($this->db->get()->result()), $storeId);
+	}
+
+	/**
+	 * Whitelisted catalogue sort orders. An empty sort keeps the historical
+	 * "newest first" ordering, so callers that never pass one are unaffected.
+	 *
+	 * Price sorts on the same base the pricing engine starts from —
+	 * online_price, else mrp, else sales_price — because effective_price is
+	 * resolved in PHP per customer and cannot be ordered in SQL.
+	 */
+	private function _onlineSortColumns($sort){
+		$price = 'COALESCE(NULLIF(a.online_price,0), NULLIF(a.mrp,0), a.sales_price)';
+		switch((string)$sort){
+			case 'price_asc':  return [$price => 'asc', 'a.id' => 'desc'];
+			case 'price_desc': return [$price => 'desc', 'a.id' => 'desc'];
+			case 'name_asc':   return ['a.item_name' => 'asc', 'a.id' => 'desc'];
+			case 'name_desc':  return ['a.item_name' => 'desc', 'a.id' => 'desc'];
+			case 'newest':     return ['a.id' => 'desc'];
+			default:           return ['a.id' => 'desc'];
+		}
+	}
+
+	/**
+	 * Attach each item's selling unit ("kg", "carton") for storefront display.
+	 * Additive: rows keep every field they had, and an item with no unit simply
+	 * gets none. One store-scoped query for the whole page.
+	 */
+	public function attachUnitNames($rows, $storeId = null){
+		if(empty($rows) || !is_array($rows)) return $rows;
+		$storeId = (int)($storeId ?: get_current_store_id());
+		$ids = [];
+		foreach($rows as $row) if(is_object($row) && !empty($row->id)) $ids[(int)$row->id] = (int)$row->id;
+		if(!$ids || !$this->db->table_exists('db_units')) return $rows;
+		$names = $this->db->select('i.id, u.unit_name')
+			->from('db_items i')
+			->join('db_units u', 'u.id=i.unit_id', 'inner')
+			->where('i.store_id', $storeId)
+			->where_in('i.id', array_values($ids))
+			->get()->result();
+		$map = [];
+		foreach($names as $row) $map[(int)$row->id] = trim((string)$row->unit_name);
+		foreach($rows as $row){
+			if(is_object($row) && isset($map[(int)$row->id])) $row->unit_name = $map[(int)$row->id];
+		}
+		return $rows;
 	}
 
 	/** Restaurant-only complements, separately resolved against each published kitchen. */
@@ -618,7 +812,7 @@ class Storefront_model extends CI_Model {
 
 	public function getFeaturedProducts($storeId = null, $limit = 8, $includeVariantFlags = false){
 		$storeId = $storeId ?: get_current_store_id();
-		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+		$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.item_code, a.description, a.stock, a.alert_qty, a.sales_price, a.mrp, a.online_price, a.discount_type, a.discount, a.status, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 		$this->db->from('db_items a');
 		$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 		$this->db->where('a.store_id', $storeId);
@@ -635,10 +829,10 @@ class Storefront_model extends CI_Model {
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'desc');
 		$this->db->limit($limit);
-		return $this->_decorateVariantParents($this->db->get()->result(), $includeVariantFlags);
+		return $this->_applyLedgerAvailability($this->_decorateVariantParents($this->db->get()->result(), $includeVariantFlags), $storeId);
 	}
 
-	public function getOnlineProduct($productId, $storeId = null){
+	public function getOnlineProduct($productId, $storeId = null, $warehouseId = 0){
 		$storeId = $storeId ?: get_current_store_id();
 		$this->db->select('a.*, b.category_name');
 		$this->db->from('db_items a');
@@ -652,7 +846,10 @@ class Storefront_model extends CI_Model {
 		// variant children must stay purchasable (order flow resolves by id).
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$product = $this->db->get()->row();
-		if($product){ $this->_decorateVariantParents([$product]); }
+		if($product){
+			$decorated = $this->_decorateVariantParents([$product], false, $warehouseId);
+			$this->_applyLedgerAvailability($decorated, $storeId, $warehouseId);
+		}
 		return $product;
 	}
 
@@ -669,7 +866,7 @@ class Storefront_model extends CI_Model {
 		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
 		$this->db->where($this->_expiredWhere('a', $storeId), NULL, FALSE);
 		$this->db->order_by('a.id', 'asc');
-		return $this->db->get()->result();
+		return $this->_applyLedgerAvailability($this->db->get()->result(), $storeId);
 	}
 
 	public function countOnlineProducts($storeId = null, $categoryId = null, $search = ''){
@@ -774,7 +971,28 @@ class Storefront_model extends CI_Model {
 		$this->db->where('a.status', 1);
 		$this->db->where($this->_expiredWhere('b', $storeId), NULL, FALSE);
 		$this->db->group_by('a.id');
-		$published=$this->db->get()->result();$tree=mp_category_tree_model()->public_tree($storeId,$published);$flat=[];$walk=function($nodes)use(&$walk,&$flat){foreach($nodes as $node){$flat[]=$node;$walk($node->children);}};$walk($tree);return $flat;
+		$published=$this->db->get()->result();$tree=mp_category_tree_model()->public_tree($storeId,$published);$flat=[];$walk=function($nodes)use(&$walk,&$flat){foreach($nodes as $node){$flat[]=$node;$walk($node->children);}};$walk($tree);
+		// Tree nodes are rebuilt from the full category table, so the real
+		// published-item count is attached here rather than in the select above.
+		foreach($flat as $node) $node->item_count = 0;
+		if($flat){
+			$rows = $this->db->select('b.category_id, COUNT(DISTINCT b.id) AS c')
+				->from('db_items b')
+				->where('b.store_id', $storeId)
+				->where('b.publish_online', 1)
+				->where('b.status', 1)
+				->where('b.service_bit', 0)
+				->where('(b.not_for_sale IS NULL OR b.not_for_sale = 0)', null, false)
+				->where($this->_listedItemsWhere('b'), NULL, FALSE)
+				->where($this->_expiredWhere('b', $storeId), NULL, FALSE)
+				->where_in('b.category_id', array_map(function($n){ return (int)$n->id; }, $flat))
+				->group_by('b.category_id')
+				->get()->result();
+			$counts = [];
+			foreach($rows as $row) $counts[(int)$row->category_id] = (int)$row->c;
+			foreach($flat as $node) $node->item_count = $counts[(int)$node->id] ?? 0;
+		}
+		return $flat;
 	}
 
 	public function getServiceCategories($storeId = null){
@@ -815,6 +1033,17 @@ class Storefront_model extends CI_Model {
 	 * reservation/commit state, while db_sales is only the financial/reporting
 	 * representation of the same order.
 	 */
+	/**
+	 * What the delivery line on the invoice should say. A collection order has no
+	 * charge to name, so it stays blank rather than printing "Pickup: ₦0.00".
+	 */
+	private function _deliveryLabel($order){
+		if((float)($order->delivery_fee ?? 0) <= 0) return null;
+		$method = trim((string)($order->shipping_method ?? ''));
+		if($method === '' || stripos($method, 'pickup') === 0) return 'Delivery';
+		return substr($method, 0, 160);
+	}
+
 	public function ensureSalesLedger($orderId){
 		$order = $this->getOrder((int)$orderId);
 		if(!$order || !$this->db->field_exists('sales_id', 'db_online_orders')
@@ -837,30 +1066,87 @@ class Storefront_model extends CI_Model {
 			'reference_no' => $saleCode, 'sales_date' => date('Y-m-d'), 'sales_status' => 'Final',
 			'customer_id' => $customerId > 0 ? $customerId : null, 'subtotal' => (float)$locked->subtotal,
 			'grand_total' => (float)$locked->grand_total, 'payment_status' => ($locked->payment_status === 'paid' ? 'Paid' : 'Unpaid'),
+			// The shopper was quoted delivery at checkout, so the invoice they are
+			// asked to pay must carry it too — otherwise the store has taken money
+			// the ledger cannot see.
+			'shipping_fee' => (float)($locked->delivery_fee ?? 0),
+			'shipping_label' => $this->_deliveryLabel($locked),
 			'paid_amount' => 0, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
 			'created_by' => 'RestaurantOS', 'status' => 1, 'table_id' => 0,
 		];
 		$this->db->insert('db_sales', $sale);
 		$salesId = (int)$this->db->insert_id();
 		if(!$salesId){ $this->db->trans_rollback(); return false; }
+		// Products hold FEFO-ordered lots at the till; online orders must draw
+		// the same physical stock or the batch screen overstates what is on the
+		// shelf and recalls miss the sale. The rotation model no-ops while the
+		// store keeps rotation on Manual.
+		$stockWarehouseId = (int)($locked->source_warehouse_id ?? 0);
+		if($stockWarehouseId <= 0) $stockWarehouseId = (int)($locked->warehouse_id ?? 0);
+		if($stockWarehouseId <= 0 && function_exists('get_store_warehouse_id')) $stockWarehouseId = (int)get_store_warehouse_id();
+		$this->load->model('inventory_rotation_model');
 		foreach($this->getOrderItems($orderId) as $line){
 			if(!in_array((string)$line->item_type, ['product','bundle','event'], true)) continue;
-			$this->db->insert('db_salesitems', [
+			$saleLine = [
 				'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'sales_status' => 'Final',
 				'item_id' => (int)$line->item_id, 'sales_qty' => (float)$line->qty,
 				'base_unit_qty' => (float)$line->qty, 'price_per_unit' => (float)$line->unit_price,
 				'total_cost' => (float)$line->total_price, 'unit_total_cost' => (float)$line->unit_price,
 				'status' => 1,
-			]);
+			];
+			if($this->db->field_exists('pricing_snapshot', 'db_salesitems')) $saleLine['pricing_snapshot'] = $line->pricing_snapshot ?? null;
+			if($this->db->field_exists('price_type', 'db_salesitems')){
+				$pricing = json_decode((string)($line->pricing_snapshot ?? ''), true);
+				$saleLine['price_type'] = ($pricing['effective_tier'] ?? '') === 'wholesale' ? 'wholesale' : 'retail';
+			}
+			$this->db->insert('db_salesitems', $saleLine);
+			$salesItemId = (int)$this->db->insert_id();
+			if(!$salesItemId){ $this->db->trans_rollback(); return false; }
+			if((string)$line->item_type === 'product'){
+				// An order that reserved its batches at checkout already has the
+				// units taken off those lots; posting the sale converts the hold
+				// into provenance instead of drawing the shelf a second time.
+				if($this->inventory_rotation_model->has_holds((int)$orderId, (int)$line->id)){
+					$batchErr = $this->inventory_rotation_model->convert_line_holds(
+						(int)$orderId, $salesId, (int)$line->id, $salesItemId);
+				} else {
+					$batchErr = $this->inventory_rotation_model->allocate_sale_line(
+						$salesId, $salesItemId, (int)$locked->store_id, $stockWarehouseId, (int)$line->item_id, (float)$line->qty, 0);
+				}
+				// Only a real message from the rotation model may refuse the
+				// sale. A null answer (an unloaded model, a stubbed caller) used
+				// to read as a refusal here, which silently kept a paid online
+				// order from ever reaching the ledger.
+				if(!is_string($batchErr)){
+					log_message('error', 'Online order '.$orderId.' got a non-string batch result ('.gettype($batchErr).'); posting the ledger without batch allocation.');
+				} elseif($batchErr !== ''){
+					$this->db->trans_rollback();
+					$this->last_ledger_error = $batchErr;
+					log_message('error', 'Online order batch allocation refused (order '.$orderId.'): '.$batchErr);
+					return false;
+				}
+			}
 		}
 		if($locked->payment_status === 'paid'){
-			$this->db->insert('db_salespayments', [
-				'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'payment_date' => date('Y-m-d'),
-				'payment_type' => $locked->payment_method ?: 'Online', 'payment' => (float)$locked->grand_total,
-				'payment_reference' => $locked->paystack_reference ?: $locked->order_code,
-				'confirmation_status' => 1, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
-				'created_by' => 'RestaurantOS', 'status' => 1, 'customer_id' => $customerId > 0 ? $customerId : null,
-			]);
+			// Money that a gateway or a named person has confirmed for this order
+			// already exists as its own record, so post those amounts rather than
+			// inventing one line for the whole invoice. Only when there is nothing
+			// to post (an install without the ledger, or a legacy paid order) does
+			// the old single full-total row get written.
+			$posted = 0;
+			$this->load->model('online_payments_model', 'onlinepay');
+			if($this->onlinepay->available()){
+				$posted = $this->onlinepay->postVerifiedLines((int)$locked->store_id, (int)$orderId, $salesId);
+			}
+			if(!$posted){
+				$this->db->insert('db_salespayments', [
+					'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'payment_date' => date('Y-m-d'),
+					'payment_type' => $locked->payment_method ?: 'Online', 'payment' => (float)$locked->grand_total,
+					'payment_reference' => $locked->paystack_reference ?: $locked->order_code,
+					'confirmation_status' => 1, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+					'created_by' => 'RestaurantOS', 'status' => 1, 'customer_id' => $customerId > 0 ? $customerId : null,
+				]);
+			}
 		}
 		// Recipe ingredients are a stock movement of the same order, not a
 		// second financial or finished-product ledger.  Keep this inside the
@@ -872,8 +1158,26 @@ class Storefront_model extends CI_Model {
 		$this->db->where('id', (int)$orderId)->where('store_id', (int)$locked->store_id)
 			->update('db_online_orders', ['sales_id' => $salesId]);
 		if($this->db->trans_status() === false){ $this->db->trans_rollback(); return false; }
+		// A storefront order that carries prescription-only medicines is a
+		// dispensing too, not just a sale. Recorded with the same batch
+		// provenance the till uses, and only when such a line exists.
+		$this->_auditDispensed((int)$locked->store_id, $salesId);
 		$this->db->trans_commit();
 		return $salesId;
+	}
+
+	/**
+	 * The ledger write is the money; the record of what it dispensed is the
+	 * witness. A fault here must never leave a paid order unposted, so the
+	 * capture is tried and dropped rather than allowed to abort the commit.
+	 */
+	private function _auditDispensed($storeId, $salesId){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->dispensed((int)$storeId, (int)$salesId, false, array(), 'online');
+		} catch (Throwable $e) {
+			log_message('error', 'Online dispensing audit capture failed: ' . $e->getMessage());
+		}
 	}
 
 	/**
@@ -986,9 +1290,12 @@ class Storefront_model extends CI_Model {
 	}
 
 	/**
-	 * Atomically claim the unpaid -> paid transition for an order.
+	 * Atomically claim the paid transition for an order.
 	 * Returns true only for the request that actually performed the
 	 * transition, so duplicate/concurrent callbacks cannot re-fulfil.
+	 *
+	 * A part-paid order is claimable too: money arriving in pieces is the
+	 * normal way an invoice for a prescription gets settled.
 	 */
 	public function claimPaidOrder($orderId, $data = []){
 		$data['payment_status'] = 'paid';
@@ -998,7 +1305,7 @@ class Storefront_model extends CI_Model {
 		unset($data['order_status']);
 		$data['updated_at'] = date('Y-m-d H:i:s');
 		$this->db->where('id', $orderId)
-			->where('payment_status', 'unpaid');
+			->where_in('payment_status', ['unpaid', 'partially_paid']);
 		if($this->db->field_exists('stock_state', 'db_online_orders')){
 			$this->db->where_in('stock_state', ['none', 'reserved']);
 		}
@@ -1073,6 +1380,395 @@ class Storefront_model extends CI_Model {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * The delivery leg of an order, kept apart from the shop's own stage:
+	 * "packed" and "on the rider's bike" are different facts. The same words the
+	 * rider board writes (Delivery_model::mark_item_status) land in the same
+	 * column, so a shop that schedules riders and a shop that simply calls a
+	 * bike are not writing two vocabularies onto one order.
+	 */
+	const DELIVERY_STATES = ['pending', 'out_for_delivery', 'delivered', 'failed', 'cancelled'];
+
+	public function deliveryWord($state){
+		$words = [
+			'pending'          => 'Not sent out yet',
+			'out_for_delivery' => 'On its way',
+			'delivered'        => 'Delivered',
+			'failed'           => 'Could not be delivered',
+			'cancelled'        => 'Delivery cancelled',
+		];
+		return isset($words[(string)$state]) ? $words[(string)$state] : 'Not sent out yet';
+	}
+
+	/** A collection order has no delivery leg to move, whatever its status says. */
+	public function orderIsCollection($order){
+		if((string)($order->fulfilment_type ?? '') === 'pickup') return true;
+		if((float)($order->delivery_fee ?? 0) > 0) return false;
+		$method = trim((string)($order->shipping_method ?? ''));
+		return $method !== '' && (bool)preg_match('/pick\s*[-\s]?up|collect/i', $method);
+	}
+
+	/**
+	 * Move an order's delivery leg and write down who moved it. Delivered goods
+	 * also close the shop's own stage, so the board is not left showing an order
+	 * as waiting to go out after the rider is back at the depot.
+	 *
+	 * @return array ['ok'=>bool,'changed'=>bool,'word'=>string,'error'=>string]
+	 */
+	public function setOrderDelivery($storeId, $orderId, $status, array $opts = []){
+		$this->last_status_error = '';
+		$refuse = function($message){
+			$this->last_status_error = $message;
+			return ['ok' => false, 'changed' => false, 'word' => '', 'error' => $message];
+		};
+		$storeId = (int)$storeId; $orderId = (int)$orderId;
+		$status = (string)$status;
+		if(!in_array($status, self::DELIVERY_STATES, true)){
+			return $refuse('That is not a delivery step.');
+		}
+		if(!$this->db->field_exists('delivery_status', 'db_online_orders')){
+			return $refuse('This store cannot track deliveries yet — the delivery step has not been installed.');
+		}
+		$order = $this->db->where('id', $orderId)->where('store_id', $storeId)->get('db_online_orders')->row();
+		if(!$order) return $refuse('That order is not one of yours.');
+		$going = in_array($status, ['out_for_delivery', 'delivered'], true);
+		if((string)$order->order_status === 'cancelled'){
+			return $refuse('This order has been cancelled, so there is nothing to send.');
+		}
+		if($going && $this->orderIsCollection($order)){
+			return $refuse('This order is for collection at the shop, so there is nothing to send out. Mark it Ready when it is packed, then Completed once the customer has picked it up.');
+		}
+		if($going && (string)$order->payment_status !== 'paid' && (string)$order->payment_method !== 'pay_on_delivery'){
+			return $refuse('The money for this order has not arrived and it is not cash on delivery, so do not send it out yet.');
+		}
+		$from = trim((string)($order->delivery_status ?? ''));
+		if($from === '') $from = 'pending';
+		if(in_array($status, ['delivered', 'failed'], true) && $from !== 'out_for_delivery'){
+			return $refuse($status === 'delivered'
+				? 'Say the order is on its way before you say it has arrived.'
+				: 'Only an order that is on its way can fail to arrive.');
+		}
+		if($from === 'delivered' && $status !== 'delivered'){
+			return $refuse('This order has already been delivered. If something is wrong with it, refund it or raise a return rather than changing the delivery.');
+		}
+		if($from === $status){
+			return ['ok' => true, 'changed' => false, 'word' => $this->deliveryWord($status), 'error' => ''];
+		}
+
+		$this->db->where('id', $orderId)->where('store_id', $storeId)->update('db_online_orders', [
+			'delivery_status' => $status,
+			'updated_at'      => date('Y-m-d H:i:s'),
+		]);
+		$rider = mb_substr(trim((string)($opts['rider'] ?? '')), 0, 80);
+		$note  = mb_substr(trim((string)($opts['note'] ?? '')), 0, 160);
+		$reason = $rider !== '' ? 'With ' . $rider : '';
+		if($note !== '') $reason = trim($reason . ($reason !== '' ? ' — ' : '') . $note);
+		$this->_recordDeliveryMove($storeId, $orderId, $from, $status, $reason, (string)($opts['channel'] ?? 'online'));
+
+		if($status === 'delivered'){
+			$this->load->model('order_lifecycle_model');
+			$this->order_lifecycle_model->move($storeId, $orderId, 'completed', [
+				'channel' => 'delivery',
+				'reason'  => $reason !== '' ? $reason : null,
+			]);
+		}
+		return ['ok' => true, 'changed' => true, 'word' => $this->deliveryWord($status), 'error' => ''];
+	}
+
+	/**
+	 * The order's own journey, newest first, in the words a shop would say:
+	 * who moved it, when, and anything they wrote when they did. A delivery step
+	 * reads as "On its way — with Chidi", not as a status code.
+	 *
+	 * @return array of ['when','text','actor','kind']
+	 */
+	public function orderTrail($storeId, $orderId, $limit = 8){
+		$rows = [];
+		if(!$this->db->table_exists('db_order_status_log')) return $rows;
+		$found = $this->db->where('store_id', (int)$storeId)->where('online_order_id', (int)$orderId)
+			->order_by('created_at', 'desc')->order_by('id', 'desc')
+			->limit((int)$limit)->get('db_order_status_log')->result();
+		if(!$found) return $rows;
+		$this->load->model('order_lifecycle_model');
+		foreach($found as $r){
+			// The handover that closes the shop's own stage is written on the
+			// delivery channel, so the vocabulary is read from the step itself.
+			$isDelivery = (string)$r->channel === 'delivery'
+				&& in_array((string)$r->to_status, self::DELIVERY_STATES, true);
+			$label = $isDelivery ? $this->deliveryWord($r->to_status) : $this->order_lifecycle_model->label($r->to_status);
+			$reason = trim((string)($r->reason ?? ''));
+			$rows[] = [
+				'when'   => (string)$r->created_at,
+				'text'   => $label . ($reason !== '' ? ' — ' . $reason : ''),
+				'actor'  => trim((string)($r->actor ?? '')),
+				'kind'   => $isDelivery ? 'delivery' : 'stage',
+				// The step itself, so a caller that needs to line a time up with
+				// a known stage (the customer's track page) can do so without
+				// reading the shop's wording back into a status.
+				'code'   => (string)$r->to_status,
+				'reason' => $reason,
+			];
+		}
+		return $rows;
+	}
+
+	/** The delivery leg's own line in the order's journey table. */
+	private function _recordDeliveryMove($storeId, $orderId, $from, $to, $reason, $channel){
+		if(!$this->db->table_exists('db_order_status_log')) return;
+		$actor = 'System';
+		$user_id = function_exists('get_current_user_id') ? (int)get_current_user_id() : 0;
+		if($user_id > 0 && function_exists('mp_first_name')) $actor = (string)mp_first_name($user_id);
+		$this->db->insert('db_order_status_log', [
+			'store_id'        => (int)$storeId,
+			'online_order_id' => (int)$orderId,
+			'sales_id'        => 0,
+			'kitchen_order_id'=> 0,
+			'from_status'     => $from,
+			'to_status'       => $to,
+			'reason'          => $reason !== '' ? $reason : null,
+			'actor'           => mb_substr($actor, 0, 60),
+			'channel'         => 'delivery',
+			'created_at'      => date('Y-m-d H:i:s'),
+		]);
+		if(function_exists('mp_audit_log')){
+			mp_audit_log('Orders', $this->deliveryWord($to), (int)$orderId,
+				$this->deliveryWord($from) . ' → ' . $this->deliveryWord($to) . ($reason !== '' ? ' — ' . $reason : ''));
+		}
+	}
+
+	/**
+	 * Names of the Rx-only medicines in an order's cart (variant children
+	 * inherit their parent's flag). Empty when none, or when the store has
+	 * the rule switched off.
+	 */
+	public function rxItemNames($orderId, $storeId){
+		$empty = ['names' => [], 'ids' => []];
+		if(!$orderId || !$storeId) return $empty;
+		if(!mp_feature_enabled_for_store('prescription_required', (int)$storeId)) return $empty;
+		if(!$this->db->field_exists('prescription_required', 'db_items')) return $empty;
+		$ids = [];
+		foreach($this->getOrderItems($orderId) as $line){
+			if((string)$line->item_type === 'product' && (int)$line->item_id > 0){
+				$ids[] = (int)$line->item_id;
+			}
+		}
+		if(!$ids) return $empty;
+		$placeholders = implode(',', array_fill(0, count($ids), '?'));
+		$rows = $this->db->query(
+			"SELECT i.id, i.item_name, IFNULL(pi.prescription_required,0) AS parent_required, IFNULL(i.prescription_required,0) AS self_required
+			   FROM db_items i
+			   LEFT JOIN db_items pi ON pi.id = i.parent_id
+			  WHERE i.store_id = ? AND i.id IN ($placeholders)",
+			array_merge([(int)$storeId], $ids))->result();
+		$names = [];
+		$ids_by_name = [];
+		foreach($rows as $row){
+			if((int)$row->self_required === 1 || (int)$row->parent_required === 1){
+				$names[] = trim((string)$row->item_name) !== '' ? $row->item_name : ('Item #'.$row->id);
+				$ids_by_name[(int)$row->id] = true;
+			}
+		}
+		if(!$names) return $empty;
+		return ['names' => $names, 'ids' => array_keys($ids_by_name)];
+	}
+
+	/**
+	 * The prescription review record raised for an online order, whatever the
+	 * customer attached through checkout (linked note, or an uploaded file
+	 * from before the review flow existed).
+	 */
+	public function findRxNote($orderId, $storeId){
+		if(!$orderId || !$storeId || !$this->db->table_exists('db_medical_notes')) return null;
+		$note = null;
+		if($this->db->field_exists('online_order_id', 'db_medical_notes')){
+			$note = $this->db->where('online_order_id', (int)$orderId)->where('store_id', (int)$storeId)
+				->order_by('id', 'desc')->get('db_medical_notes')->row();
+		}
+		if(!$note && $this->db->field_exists('prescription_ref', 'db_medical_notes')){
+			$note = $this->db->where('store_id', (int)$storeId)
+				->where("prescription_ref IN ('ONLINE-".$orderId."', 'ONLINE#".$orderId."')")
+				->order_by('id', 'desc')->get('db_medical_notes')->row();
+		}
+		return $note ? $this->attachRxReviewer($note) : null;
+	}
+
+	/**
+	 * reviewed_by holds the staff row, not the person's name — so say who it was
+	 * by first name, and fall back to the login name for rows written before the
+	 * column carried an id.
+	 */
+	private function attachRxReviewer($note){
+		$note->reviewed_by_name = null;
+		if(empty($note->reviewed_by) || !$this->db->table_exists('db_users')) return $note;
+		$user = $this->db->select('username, first_name')->where('id', (int)$note->reviewed_by)
+			->get('db_users')->row();
+		if($user){
+			$note->reviewed_by_name = trim((string)($user->first_name ?? '')) !== ''
+				? $user->first_name : $user->username;
+		}
+		return $note;
+	}
+
+	/** May this order's Rx medicines be dispensed? Unflagged orders: yes. */
+	public function rxApprovedForOrder($orderId, $storeId){
+		$rx = $this->rxItemNames($orderId, $storeId);
+		if(empty($rx['ids'])) return true;
+		$note = $this->findRxNote($orderId, $storeId);
+		return $note && (string)($note->review_status ?? '') === 'approved';
+	}
+
+	/**
+	 * Mint the customer's pay-later link for an existing order. Only the SHA-256
+	 * of the secret is stored (same convention as db_quotation.response_token_hash),
+	 * so a leaked dump cannot mint live URLs. Re-issuing replaces the secret,
+	 * which is what keeps one order to one live amount.
+	 */
+	public function issuePayLink($orderId, $storeId, $ttlHours = 168){
+		$order = $this->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== (int)$storeId) return null;
+		$token = bin2hex(random_bytes(16));
+		$hash = hash('sha256', $token);
+		$expires = date('Y-m-d H:i:s', time() + max(1, (int)$ttlHours) * 3600);
+		$this->db->where('id', (int)$orderId)->where('store_id', (int)$storeId)->update('db_online_orders', [
+			'pay_link_token_hash' => $hash,
+			'pay_link_expires_at' => $expires,
+			'pay_link_sent_at'    => date('Y-m-d H:i:s'),
+		]);
+		$saved = $this->db->select('pay_link_token_hash')->where('id', (int)$orderId)
+			->where('store_id', (int)$storeId)->get('db_online_orders')->row();
+		if(!$saved || (string)$saved->pay_link_token_hash !== $hash){
+			log_message('error', 'Could not store the payment link for online order '.$orderId.'.');
+			return null;
+		}
+		return ['token' => $token, 'expires_at' => $expires, 'url' => base_url('pay/'.$token)];
+	}
+
+	/** Find the order a presented link secret belongs to, store-scoped by the row. */
+	public function payLinkOrder($token){
+		if(!preg_match('/^[a-f0-9]{32}$/', (string)$token)) return null;
+		$row = $this->db->where('pay_link_token_hash', hash('sha256', (string)$token))
+			->get('db_online_orders')->row();
+		return $row ?: null;
+	}
+
+	/** Is this link still a way to pay, or does the page have to explain itself? */
+	public function payLinkState($order){
+		if(!$order) return 'missing';
+		if((string)$order->payment_status === 'paid') return 'paid';
+		if((string)$order->payment_status === 'refunded') return 'refunded';
+		if(in_array((string)$order->order_status, ['cancelled', 'completed'], true)) return 'closed';
+		if(empty($order->pay_link_expires_at) || strtotime((string)$order->pay_link_expires_at) < time()) return 'expired';
+		if((float)$order->grand_total <= 0) return 'closed';
+		// Money that has already reached the till is not the invoiced total any
+		// more. Asking the customer to pay the full amount again over this link
+		// would charge them twice, so the link stops offering a card button.
+		if($this->db->table_exists('db_online_order_payments')){
+			$in = $this->db->select('COALESCE(SUM(amount),0) AS t', false)
+				->where('store_id', (int)$order->store_id)->where('online_order_id', (int)$order->id)
+				->where('status', 'verified')->get('db_online_order_payments')->row();
+			if((float)($in->t ?? 0) > 0.005) return 'partial';
+		}
+		return 'payable';
+	}
+
+	/**
+	 * The words a customer is sent when their order becomes payable. One amount,
+	 * which already contains the delivery charge they were quoted at checkout,
+	 * and the link. Public because "the invoice includes delivery" has to be
+	 * checkable without sending a message to a real person.
+	 */
+	public function buildInvoiceMessage($order, $storeName, $url){
+		$cur = $this->db->query("SELECT a.currency AS symbol FROM db_currency a INNER JOIN db_store b ON b.currency_id = a.id WHERE b.id = ? LIMIT 1",
+			[(int)$order->store_id])->row();
+		$currency = trim((string)($cur->symbol ?? ''));
+		$amount = trim($currency . ' ' . store_number_format((float)$order->grand_total));
+		$delivery = (float)$order->delivery_fee > 0
+			? ' (includes ' . trim($currency . ' ' . store_number_format((float)$order->delivery_fee)) . ' delivery)'
+			: '';
+		return [
+			'amount' => $amount,
+			'email' => [
+				'customer_name'  => htmlspecialchars((string)$order->customer_name),
+				'invoice_number' => $order->order_code,
+				'amount_due'     => htmlspecialchars($amount . $delivery),
+				'payment_link'   => $url,
+				'store_name'     => htmlspecialchars($storeName),
+			],
+			'sms' => $storeName . ': your prescription is approved for order ' . $order->order_code
+				. '. Pay ' . $amount . $delivery . ' here: ' . $url
+				. ' (valid until ' . date('d M Y', strtotime((string)$order->pay_link_expires_at)) . ')',
+		];
+	}
+
+	/**
+	 * Invoice an approved order on the channels the customer already gave us.
+	 * Deliberately best-effort per channel: an SMS provider that is not
+	 * configured must not fail the pharmacist's approval, and the reply has to
+	 * say in plain English what actually went out.
+	 */
+	public function sendOrderInvoiceLink($orderId, $storeId){
+		$order = $this->getOrder($orderId);
+		if(!$order || (int)$order->store_id !== (int)$storeId){
+			return ['ok' => false, 'channels' => [], 'message' => 'That order is not one of yours.'];
+		}
+		$link = $this->issuePayLink($orderId, $storeId);
+		if(!$link){
+			return ['ok' => false, 'channels' => [], 'message' => 'The payment link could not be created. Try again or take payment at the counter.'];
+		}
+		$store = function_exists('get_store_details') ? get_store_details($storeId) : null;
+		$order->pay_link_expires_at = $link['expires_at'];
+		$parts = $this->buildInvoiceMessage($order, trim((string)(($store->store_name ?? 'the store'))) ?: 'the store', $link['url']);
+		$channels = [];
+		$silent = [];
+
+		$email = trim((string)($order->customer_email ?? ''));
+		if(filter_var($email, FILTER_VALIDATE_EMAIL)){
+			try {
+				$this->load->model('email_service');
+				$this->load->model('email_settings_model');
+				$this->load->model('email_template_model');
+				$this->email_service->setStoreId($storeId);
+				if(!$this->email_settings_model->isReady($storeId)){
+					$silent[] = 'email is not set up for this store';
+				} else {
+					$this->email_template_model->seedDefaults($storeId);
+					$res = $this->email_service->sendTemplate('payment_link_sent', $email, $parts['email'],
+						['related_module' => 'storefront', 'related_record_id' => (int)$orderId]);
+					if(!empty($res['success'])) $channels[] = 'email'; else $silent[] = 'the email was refused';
+				}
+			} catch (Throwable $e) {
+				log_message('error', 'Invoice email failed for online order '.$orderId.': '.$e->getMessage());
+				$silent[] = 'the email could not be sent';
+			}
+		} else {
+			$silent[] = $email === '' ? 'no email address on the order' : 'the email address on the order is not valid';
+		}
+
+		$phone = preg_replace('/[^0-9]/', '', (string)($order->customer_phone ?? ''));
+		if($phone !== ''){
+			try {
+				$this->load->library('transactional_sms');
+				if($this->transactional_sms->send($storeId, $phone, $parts['sms'], 'online_rx_invoice',
+					'online-order:' . (int)$storeId . ':' . (int)$orderId . ':invoice-' . substr($link['token'], 0, 8))){
+					$channels[] = 'sms';
+				} else {
+					$silent[] = 'text messages are not set up for this store';
+				}
+			} catch (Throwable $e) {
+				log_message('error', 'Invoice SMS failed for online order '.$orderId.': '.$e->getMessage());
+				$silent[] = 'the text could not be sent';
+			}
+		} else {
+			$silent[] = 'no phone number on the order';
+		}
+
+		$message = $channels
+			? 'Payment link sent by ' . implode(' and ', $channels) . ', valid until ' . date('d M Y H:i', strtotime($link['expires_at'])) . '.'
+			: 'Payment link created, but nothing reached the customer: ' . implode(', ', $silent) . '. Give them the link or take payment at the counter.';
+		return ['ok' => (bool)$channels, 'channels' => $channels, 'message' => $message,
+			'url' => $link['url'], 'expires_at' => $link['expires_at']];
 	}
 
 	public function updatePaymentStatus($orderId, $status, $data = []){
@@ -1208,8 +1904,12 @@ class Storefront_model extends CI_Model {
 	 * oversell the same unit. The reservation is recorded as
 	 * stock_state='reserved' + stock_reserved_at so abandoned online
 	 * payments can be expired later. Returns false when any item is short.
+	 * Releases and commits go through the same state row, so an abandoned
+	 * payment gives the lots back and a paid order turns them into the sale's
+	 * batch provenance without moving any quantity twice.
 	 */
 	public function reserveOrderItems($orderId, $items, $allowBackorder = false){
+		$this->last_reservation_error = '';
 		$reserved = [];
 		foreach($items as $item){
 			if(($item['item_type'] ?? '') !== 'product') continue;
@@ -1220,38 +1920,39 @@ class Storefront_model extends CI_Model {
 		if(empty($reserved)) return true;
 
 		$this->db->trans_begin();
-		$order = $this->getOrder($orderId);
+		$order = $this->db->query('SELECT * FROM db_online_orders WHERE id = ? FOR UPDATE', [(int)$orderId])->row();
 		if(!$order){
 			$this->db->trans_rollback();
 			return false;
 		}
-		// Where a store keeps stock by outlet, the units have to exist at the
-		// outlet the customer chose — a full store pool means nothing to a
-		// kitchen that has run out. An outlet that has never been allocated
-		// stock falls back to the store pool instead of blocking every order.
-		$warehouseId = (int)($order->warehouse_id ?? 0);
-		if($warehouseId > 0 && (mp_pharmacy_standard((int)$order->store_id) || (function_exists('warehouse_module') && warehouse_module()))){
-			$allocated = $this->db->where('warehouse_id', $warehouseId)
-				->where('store_id', (int)$order->store_id)
-				->count_all_results('db_warehouseitems');
-			// Standard pharmacies must never fall back to the aggregate pool,
-			// which can still contain stock at saved partner locations.
-			if($allocated > 0 || mp_pharmacy_standard((int)$order->store_id)){
-				$atOutlet = [];
-				$rows = $this->db->select('item_id, available_qty')
-					->where('warehouse_id', $warehouseId)
-					->where('store_id', (int)$order->store_id)
-					->where_in('item_id', array_column($reserved, 'item_id'))
-					->get('db_warehouseitems')->result();
-				foreach($rows as $r) $atOutlet[(int)$r->item_id] = (float)$r->available_qty;
-				foreach($reserved as $r){
-					if((float)($atOutlet[$r['item_id']] ?? 0) < (float)$r['qty']){
-						$this->db->trans_rollback();
-						return false;
-					}
+		try {
+			$warehouseId = $this->orderStockSource((int)$order->store_id, (int)($order->warehouse_id ?? 0), (int)($order->source_warehouse_id ?? 0));
+		} catch(RuntimeException $e){
+			$this->last_reservation_error = $e->getMessage(); $this->db->trans_rollback(); return false;
+		}
+		$needed = [];
+		foreach($reserved as $r) $needed[$r['item_id']] = ($needed[$r['item_id']] ?? 0) + $r['qty'];
+		ksort($needed);
+		$branchAllocated = false;
+		if($warehouseId > 0 && $this->db->table_exists('db_warehouseitems')){
+			$branchAllocated = $this->db->where('store_id', (int)$order->store_id)
+				->count_all_results('db_warehouseitems') > 0;
+		}
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)$order->store_id) : [];
+		$isPharmacy = function_exists('mp_pharmacy_industry')
+			? mp_pharmacy_industry($profile['industry_type'] ?? '') : mp_pharmacy_standard((int)$order->store_id);
+		$checkBranchStock = $warehouseId > 0 && $this->db->table_exists('db_warehouseitems')
+			&& ($branchAllocated || $isPharmacy);
+		if($checkBranchStock){
+			foreach($needed as $itemId => $qty){
+				$row = $this->db->query('SELECT available_qty FROM db_warehouseitems WHERE store_id = ? AND warehouse_id = ? AND item_id = ? FOR UPDATE', [(int)$order->store_id, $warehouseId, $itemId])->row();
+				if(!$allowBackorder && (!$row || (float)$row->available_qty < $qty)){
+					$this->last_reservation_error = 'There is not enough stock at the selected location. Please review your cart.';
+					$this->db->trans_rollback(); return false;
 				}
 			}
 		}
+
 		if(isset($order->stock_state)){
 			$this->db->where('id', (int)$orderId)->where('stock_state', 'none')
 				->update('db_online_orders', [
@@ -1268,6 +1969,35 @@ class Storefront_model extends CI_Model {
 			return false;
 		}
 
+		// Hold the exact lots this order will be served from. The counter draws
+		// from the same ledger, so without this an online basket and a till sale
+		// could both be promised the same three packets — and the paid order
+		// would then reach the ledger with no batch left to allocate.
+		$this->load->model('inventory_rotation_model');
+		if($this->inventory_rotation_model->holds_installed()
+			&& $this->inventory_rotation_model->sells_from_lot_ledger((int)$order->store_id)){
+			$holdWarehouse = $warehouseId;
+			if($holdWarehouse <= 0){
+				$locations = $this->online_stock_locations((int)$order->store_id);
+				$holdWarehouse = (int)($locations[0] ?? 0);
+			}
+			$holdLines = [];
+			foreach($this->getOrderItems($orderId) as $line){
+				if((string)$line->item_type === 'product' && (float)$line->qty > 0){
+					$holdLines[] = [(int)$line->id, (int)$line->item_id, (float)$line->qty, (string)($line->item_name ?? 'this item')];
+				}
+			}
+			foreach($holdLines as $hold){
+				$err = $this->inventory_rotation_model->reserve_lots(
+					(int)$orderId, $hold[0], (int)$order->store_id, $holdWarehouse, $hold[1], $hold[2], $hold[3]);
+				if($err !== ''){
+					$this->last_reservation_error = $err;
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
+		}
+
 		foreach($reserved as $r){
 			$qty = $r['qty'];
 			$this->db->set('stock', 'stock - ' . $qty, false);
@@ -1282,6 +2012,45 @@ class Storefront_model extends CI_Model {
 			}
 		}
 		if(!$this->_writeOrderStockLedger($orderId, $order->store_id, $reserved, -1, 'reserve', $warehouseId) || $this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+
+	/**
+	 * Take the batches an order will be served from, for a channel that has
+	 * already consumed the stock figure but has not rung up a sale yet — a
+	 * staff-taken WhatsApp order, for instance. Without this the counter can
+	 * sell units this order is holding, and the order then reaches the ledger
+	 * with no lot left to give it.
+	 */
+	public function hold_order_batches($orderId){
+		$this->last_reservation_error = '';
+		$order = $this->getOrder((int)$orderId);
+		if(!$order) return false;
+		$this->load->model('inventory_rotation_model');
+		if(!$this->inventory_rotation_model->holds_installed()) return true;
+		if(!$this->inventory_rotation_model->sells_from_lot_ledger((int)$order->store_id)) return true;
+		$warehouse = (int)($order->source_warehouse_id ?? 0) ?: (int)($order->warehouse_id ?? 0);
+		if($warehouse <= 0){
+			$locations = $this->online_stock_locations((int)$order->store_id);
+			$warehouse = (int)($locations[0] ?? 0);
+		}
+		$this->db->trans_begin();
+		foreach($this->getOrderItems($orderId) as $line){
+			if((string)$line->item_type !== 'product' || (float)$line->qty <= 0) continue;
+			$err = $this->inventory_rotation_model->reserve_lots((int)$orderId, (int)$line->id,
+				(int)$order->store_id, $warehouse, (int)$line->item_id, (float)$line->qty,
+				(string)($line->item_name ?? 'this item'));
+			if($err !== ''){
+				$this->last_reservation_error = $err;
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		if($this->db->trans_status() === false){
 			$this->db->trans_rollback();
 			return false;
 		}
@@ -1332,6 +2101,24 @@ class Storefront_model extends CI_Model {
 				$this->db->trans_rollback();
 				return false;
 			}
+		}
+		// When the order already reached the sales ledger its lot allocation
+		// must be undone with the release, or the batch screen would show the
+		// returned units as sold while the shelf has them back.
+		if((int)($order->sales_id ?? 0) > 0 && $this->db->table_exists('db_salesitem_batch_allocations')){
+			$this->load->model('inventory_rotation_model');
+			if(!$this->inventory_rotation_model->restore_sale((int)$order->sales_id)){
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		// Lots still held by an order that never reached the ledger go straight
+		// back on the shelf. Once an order has posted, its batches are sale
+		// allocations and restore_sale() above has already returned them.
+		$this->load->model('inventory_rotation_model');
+		if(!$this->inventory_rotation_model->release_holds((int)$orderId)){
+			$this->db->trans_rollback();
+			return false;
 		}
 		$releaseLines = [];
 		foreach($this->getOrderItems($orderId) as $item){
@@ -1552,52 +2339,190 @@ class Storefront_model extends CI_Model {
 		return $counts;
 	}
 
-	public function getProductEffectivePrice($product){
-		if(!is_object($product) && !is_array($product)) return 0.0;
-		$prod = (object)$product;
-		if(!empty($prod->is_bundle)){
-			$this->load->model('Extras_model', 'extras_model');
-			return $this->extras_model->bundleUnitPrice($prod, (int)($prod->store_id ?? get_current_store_id()));
-		}
-		$onlinePrice = isset($prod->online_price) ? (float)$prod->online_price : 0.0;
-		$salesPrice = isset($prod->sales_price) ? (float)$prod->sales_price : 0.0;
-		$price = $onlinePrice > 0 ? $onlinePrice : $salesPrice;
-		$discount = isset($prod->discount) ? (float)$prod->discount : 0.0;
-		if($discount > 0){
-			$discountType = strtolower((string)($prod->discount_type ?? ''));
-			if($discountType === 'percentage'){
-				$price = $price - ($price * ($discount / 100));
-			} else {
-				$price = $price - $discount;
-			}
-		}
-		// Apply active item/category/brand promotions to the public price using
-		// the same promotion engine as POS. This keeps a campaign sale visible
-		// online and ensures checkout resolves the same effective amount.
-		try {
-			if(!empty($prod->id) && $this->db->table_exists('db_promotions')){
-				$this->load->model('promotions_model');
-				$promo = $this->promotions_model->compute_effective_price((int)$prod->id, (float)$price, (int)($prod->store_id ?? get_current_store_id()));
-				if(!empty($promo['has_promo'])) $price = (float)$promo['price'];
-			}
-		} catch(Throwable $e) { /* Keep legacy storefront pricing if promotions are unavailable. */ }
-		return max(0, round($price, 2));
+	/** Only a live, store-scoped portal session grants customer pricing/history. */
+	public function verifiedCustomer($storeId){
+		if(!method_exists($this->input, 'cookie')) return null;
+		$token = (string)$this->input->cookie('customer_token', TRUE);
+		if(!preg_match('/^[a-f0-9]{64}$/', $token)) return null;
+		$key = (int)$storeId . ':' . $token;
+		if(array_key_exists($key, $this->verifiedCustomers)) return $this->verifiedCustomers[$key];
+		$session = $this->getCustomerPortalSession($token, (int)$storeId);
+		if(!$session) return $this->verifiedCustomers[$key] = null;
+		return $this->verifiedCustomers[$key] = $this->db->where('id', (int)$session->customer_id)->where('store_id', (int)$storeId)
+			->where('status', 1)->get('db_customers')->row();
 	}
 
-	/**
-	 * The storefront's undiscounted display price. Online price is the
-	 * merchant's channel-specific base when present; otherwise sales price is
-	 * used. Keeping this beside getProductEffectivePrice prevents cards and
-	 * product pages from comparing a discounted online price with an unrelated
-	 * POS/MRP value.
-	 */
+	/** Shared with the POS customer policy; catalogue prices are never rewritten. */
+	public function productPriceQuote($product, $customerId = null){
+		$prod = (object)$product;
+		$storeId = (int)($prod->store_id ?? get_current_store_id());
+		if($customerId === null){
+			$customer = $this->verifiedCustomer($storeId);
+			$customerId = $customer ? (int)$customer->id : 0;
+		}
+		$this->load->model('customer_pricing_model', 'customer_pricing');
+		$policy = $this->customer_pricing->policy($storeId, (int)$customerId);
+		$online = (float)($prod->online_price ?? 0);
+		$retail = (float)($prod->mrp ?? 0);
+		$wholesale = (float)($prod->sales_price ?? 0);
+		$base = $online > 0 ? $online : ($retail > 0 ? $retail : $wholesale);
+		$tier = $online > 0 ? 'online' : ($retail > 0 ? 'retail' : 'wholesale');
+		if(!empty($prod->is_bundle)){
+			$this->load->model('Extras_model', 'extras_model');
+			$base = $this->extras_model->bundleUnitPrice($prod, $storeId);
+			$policy = array_merge($policy, ['source'=>'normal', 'group_id'=>null, 'name'=>'Bundle price']);
+			$tier = 'bundle';
+		}
+		$price = $base;
+		$originalPrice = $base;
+		if($policy['source'] === 'group'){
+			if($wholesale <= 0) throw new RuntimeException('A Wholesale price is required for the member price of ' . ($prod->item_name ?? 'this item') . '. Please contact the store.');
+			$base = $wholesale; $originalPrice = $wholesale; $tier = 'wholesale';
+			$price = Customer_pricing_model::adjust($base, $policy['direction'], $policy['percent'], $policy['decimals']);
+		} elseif(empty($prod->is_bundle)){
+			if($policy['source'] === 'customer') $price = Customer_pricing_model::adjust($base, $policy['direction'], $policy['percent'], $policy['decimals']);
+			$discount = (float)($prod->discount ?? 0);
+			if($discount > 0) $price -= strtolower((string)($prod->discount_type ?? '')) === 'percentage' ? $price * $discount / 100 : $discount;
+			$price = max(0, $price);
+			if(!empty($prod->id) && $this->db->table_exists('db_promotions')){
+				$this->load->model('promotions_model');
+				try {
+					$promo = $this->promotions_model->compute_effective_price((int)$prod->id, $price, $storeId);
+					if(!empty($promo['has_promo'])) $price = (float)$promo['price'];
+				} catch(Throwable $e) { /* Keep the verified catalogue rule if a legacy promotion schema is incomplete. */ }
+			}
+		}
+		$quote = array_merge($policy, ['store_id'=>$storeId, 'customer_id'=>(int)$customerId,
+			'item_id'=>(int)($prod->id ?? 0), 'base'=>(float)$base, 'original_price'=>(float)$originalPrice,
+			'price'=>max(0, round($price, $policy['decimals'])), 'effective_tier'=>$tier]);
+		$quote['version'] = hash('sha256', json_encode($quote));
+		return $quote;
+	}
+
+	public function getProductEffectivePrice($product){
+		if(!is_object($product) && !is_array($product)) return 0.0;
+		return $this->productPriceQuote($product)['price'];
+	}
+
 	public function getProductOriginalPrice($product){
 		if(!is_object($product) && !is_array($product)) return 0.0;
-		$prod = (object)$product;
-		if(!empty($prod->is_bundle)) return $this->getProductEffectivePrice($prod);
-		$onlinePrice = isset($prod->online_price) ? (float)$prod->online_price : 0.0;
-		$salesPrice = isset($prod->sales_price) ? (float)$prod->sales_price : 0.0;
-		return max(0, round($onlinePrice > 0 ? $onlinePrice : $salesPrice, 2));
+		return $this->productPriceQuote($product)['original_price'];
+	}
+
+	/** Reject stale or tampered cart prices before creating an order or payment. */
+	public function validateProductQuote($product, array $line){
+		$q = $this->productPriceQuote($product);
+		if(!isset($line['price']) || !is_scalar($line['price']) || !is_numeric($line['price'])
+			|| !is_finite((float)$line['price']) || abs((float)$line['price'] - $q['price']) > 0.00001
+			|| (!empty($line['pricing_version']) && !hash_equals($q['version'], (string)$line['pricing_version']))){
+			throw new RuntimeException('Prices or membership have changed. Refresh your cart and review the total before placing the order.');
+		}
+		return $q;
+	}
+
+	public function verifiedHasGroup($storeId){
+		$c = $this->verifiedCustomer($storeId);
+		if(!$c) return false;
+		$this->load->model('customer_pricing_model', 'customer_pricing');
+		return $this->customer_pricing->policy($storeId, (int)$c->id)['source'] === 'group';
+	}
+
+	public function hasGroupPrice(array $lines){
+		foreach($lines as $line){
+			$line = (array)$line;
+			if(($line['pricing_source'] ?? '') === 'group') return true;
+			$snapshot = json_decode((string)($line['pricing_snapshot'] ?? ''), true);
+			if(($snapshot['source'] ?? '') === 'group') return true;
+		}
+		return false;
+	}
+
+	/** Recipient outlet and physical stock source are distinct, tenant-owned records. */
+	public function checkoutLocation($storeId, $settings, $requested, array $outlets, $requireChoice = true){
+		$requested = (int)$requested;
+		$outlet = null;
+		if(mp_pharmacy_standard($storeId)){
+			if($requested > 0) throw new RuntimeException('This pharmacy fulfils orders from its own store. Please refresh checkout.');
+			$own = mp_pharmacy_own_warehouse_ids($storeId);
+			$preferred = (int)get_pos_default_warehouse_id($storeId);
+			$requested = in_array($preferred, $own, true) ? $preferred : (int)($own[0] ?? 0);
+		} else {
+			if($requested > 0){
+				foreach($outlets as $o) if((int)$o->id === $requested) $outlet = $o;
+				if(!$outlet) throw new RuntimeException('Please choose an available fulfilment location.');
+			} elseif(count($outlets) > 1){
+				if($requireChoice) throw new RuntimeException('Please choose the location that will fulfil this order.');
+				return ['warehouse_id'=>0, 'source_warehouse_id'=>0, 'outlet'=>null, 'needs_location'=>true];
+			} else {
+				$outlet = $outlets[0] ?? null;
+				$requested = $outlet ? (int)$outlet->id : (int)($settings->default_branch_id ?? 0);
+				if(!$requested) $requested = (int)get_pos_default_warehouse_id($storeId);
+				// Older single-location storefronts use the store-wide stock pool and
+				// have no warehouse record. Preserve that valid setup.
+				if(!$requested && !$outlets && !mp_pharmacy_standard($storeId)){
+					return ['warehouse_id'=>0, 'source_warehouse_id'=>0, 'outlet'=>null];
+				}
+			}
+		}
+		if(!$requested) throw new RuntimeException('This store has no fulfilment stock location. Please contact the store.');
+		$source = $this->orderStockSource($storeId, $requested);
+		return ['warehouse_id'=>$requested, 'source_warehouse_id'=>$source, 'outlet'=>$outlet];
+	}
+
+	/** Reprice browser/recovered carts from raw catalogue data, never saved client prices. */
+	public function quoteCart($storeId, $cart, $sourceId = 0){
+		if(!is_array($cart) || count($cart) > 200) throw new RuntimeException('Please refresh your cart.');
+		$this->load->model('Extras_model', 'extras_model');
+		$out = []; $demand = [];
+		foreach($cart as $line){
+			if(!is_array($line)) throw new RuntimeException('Invalid cart item.');
+			$id = (int)($line['id'] ?? 0); $qty = $line['qty'] ?? 1;
+			if(!is_scalar($qty) || !is_numeric($qty) || !is_finite((float)$qty) || (float)$qty < 1 || (float)$qty != (int)$qty || (float)$qty > 1000000) throw new RuntimeException('Enter a valid whole quantity for each item.');
+			$type = ($line['type'] ?? 'product') === 'service' ? 'service' : 'product';
+			if($type === 'product'){
+				$item = $this->getOnlineProduct($id, $storeId, $sourceId);
+				if(!$item || ($item->item_group ?? '') === 'Variants') throw new RuntimeException('An item or selected variant is no longer available. Please update your cart.');
+				if(!empty($item->requires_quote)) throw new RuntimeException('Please request a quotation for this item.');
+				$error = $this->extras_model->qtyRuleError($item, (int)$qty);
+				if($error) throw new RuntimeException($error);
+				$q = $this->productPriceQuote($item);
+				$line['pricing_source'] = $q['source']; $line['pricing_name'] = $q['name'];
+				$line['pricing_version'] = $q['version'];
+				$line['price'] = $q['price']; $line['stock'] = (float)$item->stock;
+				$line['name'] = $item->item_name; $line['image'] = $item->item_image;
+				if(empty($item->is_bundle) && ($item->product_type ?? 'physical') === 'physical'){
+					$demand[$id] = ($demand[$id] ?? 0) + (int)$qty;
+					$line['available'] = $demand[$id] <= (float)$item->stock;
+				}
+			} else {
+				$item = $this->getOnlineService($id, $storeId);
+				if(!$item) throw new RuntimeException('A service is no longer available.');
+				$line['price'] = $this->getServiceEffectivePrice($item);
+				$line['name'] = $item->service_name; $line['image'] = $item->service_image ?? '';
+				$line['pricing_source'] = 'normal'; $line['pricing_name'] = '';
+			}
+			$selections = $line['addons'] ?? [];
+			list($addons, $error) = $this->extras_model->resolveAddonSelections($type, $id, $selections, $storeId);
+			if($error) throw new RuntimeException($error);
+			$line['addons'] = array_map(function($a){ return ['id'=>(int)$a->id, 'name'=>(string)$a->name, 'price'=>(float)$a->price, 'qty'=>(int)$a->resolved_qty]; }, $addons);
+			$line['qty'] = (int)$qty; $out[] = $line;
+		}
+		return $out;
+	}
+
+	/** One physical source for availability, holds, movements, posting and release. */
+	public function orderStockSource($storeId, $warehouseId, $sourceId = 0){
+		$storeId = (int)$storeId; $warehouseId = (int)$warehouseId; $sourceId = (int)$sourceId;
+		if($warehouseId <= 0 && $sourceId <= 0) return 0; // historical pooled orders
+		$outlet = $this->db->where('id', $warehouseId)->where('store_id', $storeId)->where('status', 1)->get('db_warehouse')->row();
+		if(!$outlet) throw new RuntimeException('This fulfilment location is unavailable. Please choose another location.');
+		$resolved = $sourceId ?: (int)($outlet->stock_source_id ?? 0);
+		$resolved = $resolved ?: $warehouseId;
+		$source = $this->db->where('id', $resolved)->where('store_id', $storeId)->where('status', 1)->get('db_warehouse')->row();
+		if(!$source || (string)($source->branch_type ?? '') === 'pickup_hub') throw new RuntimeException('This location has no available stock source. Please contact the store.');
+		if(mp_pharmacy_standard($storeId) && (!in_array($warehouseId, mp_pharmacy_own_warehouse_ids($storeId), true)
+			|| !in_array($resolved, mp_pharmacy_own_warehouse_ids($storeId), true))) throw new RuntimeException('This pharmacy fulfils orders from its own stock.');
+		return $resolved;
 	}
 
 	public function getServiceEffectivePrice($service){
@@ -2160,7 +3085,7 @@ class Storefront_model extends CI_Model {
 		$expiryClause = $this->_expiredWhere('i2', $storeId);
 		// Orders store the purchased child item; roll children up to their
 		// variant parent so best sellers rank real products, not SKU rows.
-		$rows = $this->db->query("SELECT i2.id, i2.store_id, i2.item_name, i2.item_image, i2.sales_price, i2.online_price, i2.discount_type, i2.discount, i2.stock, i2.description, i2.product_type, i2.is_new_arrival, i2.is_featured, i2.is_bundle, i2.bundle_pricing, i2.item_group, i2.parent_id, i2.child_bit, SUM(oi.qty) as sold_count
+		$rows = $this->db->query("SELECT i2.id, i2.store_id, i2.item_name, i2.item_image, i2.sales_price, i2.mrp, i2.online_price, i2.discount_type, i2.discount, i2.stock, i2.description, i2.product_type, i2.is_new_arrival, i2.is_featured, i2.is_bundle, i2.bundle_pricing, i2.item_group, i2.parent_id, i2.child_bit, SUM(oi.qty) as sold_count
 			FROM db_online_order_items oi
 			JOIN db_online_orders o ON o.id=oi.order_id
 			JOIN db_items i ON i.id=oi.item_id
@@ -2177,7 +3102,7 @@ class Storefront_model extends CI_Model {
 		// Prefer manually flagged "New Arrival" cards (including variant parents).
 		// Themes may opt out of the recent-product fallback when flags are explicit.
 		$buildQuery = function($storeId, $limit, $flaggedOnly) use ($includeVariantFlags) {
-			$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
+			$this->db->select('a.id, a.store_id, a.category_id, a.item_name, a.item_image, a.sales_price, a.mrp, a.online_price, a.discount_type, a.discount, a.stock, a.description, a.product_type, a.is_new_arrival, a.is_featured, a.is_bundle, a.bundle_pricing, a.item_group, a.parent_id, a.child_bit, b.category_name');
 			$this->db->from('db_items a');
 			$this->db->join('db_category b', 'b.id=a.category_id', 'left');
 			$this->db->where('a.store_id', $storeId);

@@ -1529,7 +1529,10 @@ class Operations extends MY_Controller {
         }
 
         $this->load->model('medical_notes_model', 'med_notes');
-        $this->med_notes->delete($id);
+        if (!$this->med_notes->delete($id)) {
+            echo json_encode(['success' => false, 'message' => 'Prescription not found in this store.']);
+            return;
+        }
         echo json_encode(['success' => true, 'message' => 'Medical note deleted.']);
     }
 
@@ -1663,6 +1666,13 @@ class Operations extends MY_Controller {
         // Auto-sync any new POS sales into kitchen queue
         $this->kitchen->sync_new_orders($store_id);
 
+        // Bar lane: a separate view of the same tickets, offered only once the
+        // store actually sells something routed to the bar. Asking for a lane a
+        // store does not have shows its whole board, not an empty screen.
+        $data['bar_lane'] = $this->kitchen->has_bar_station($store_id);
+        $station = $data['bar_lane'] ? Kitchen_model::clean_station($this->input->get('station')) : 'all';
+        $data['station'] = $station;
+
         // AJAX polling: return just JSON counts
         if ($is_ajax) {
             header('Content-Type: application/json');
@@ -1670,7 +1680,8 @@ class Operations extends MY_Controller {
                 'status_counts' => $this->kitchen->count_by_status(
                     $store_id,
                     $branch_context['branch'],
-                    $branch_context['allowed']
+                    $branch_context['allowed'],
+                    $station
                 )
             ]);
             return;
@@ -1682,24 +1693,27 @@ class Operations extends MY_Controller {
             50,
             'DESC',
             $branch_context['branch'],
-            $branch_context['allowed']
+            $branch_context['allowed'],
+            $station
         );
         $data['status_counts'] = $this->kitchen->count_by_status(
             $store_id,
             $branch_context['branch'],
-            $branch_context['allowed']
+            $branch_context['allowed'],
+            $station
         );
         $data['served'] = $this->kitchen->get_served_orders(
             $store_id,
             10,
             $branch_context['branch'],
-            $branch_context['allowed']
+            $branch_context['allowed'],
+            $station
         );
         $data['branch'] = $branch_context['branch'];
         $data['branch_opts'] = $branch_context['options'];
         $data['branch_names'] = $branch_context['names'];
         $data['branch_can_view_all'] = $branch_context['can_view_all'];
-        $this->_render('Kitchen Display', 'operations/kitchen', $data);
+        $this->_render(mp_kitchen_board_label(), 'operations/kitchen', $data);
     }
 
     public function kitchen_update_status() {
@@ -1923,6 +1937,10 @@ class Operations extends MY_Controller {
         }
 
         $this->db->where('id', $itemId)->update('db_items', ['sales_price' => $newPrice]);
+        $capture = mp_audit_capture();
+        if ($capture) $capture->priceChanged($store_id, $itemId, $item,
+            $this->db->where('id', $itemId)->limit(1)->get('db_items')->row(),
+            'catalogue', 'price_change', 'Changed from the price list.');
         echo json_encode([
             'success' => true,
             'message' => 'Price updated',
@@ -2062,12 +2080,27 @@ class Operations extends MY_Controller {
 
         $this->load->model('tables_model', 'tables');
         $store_id = get_current_store_id();
+        /* A section is offered only where the switch is on and the floor already
+         * has the column. A store that has not run 4.0.9.235 sees this screen
+         * exactly as it did before, with nothing half-built on it. */
+        $sections_on = mp_feature_enabled('waiter_assignment') && $this->tables->has_waiter_column();
 
         // Handle delete
         $del_id = $this->input->get('delete');
         if (!empty($del_id)) {
             $this->tables->delete((int)$del_id, $store_id);
             $this->session->set_flashdata('success', 'Table deleted.');
+            redirect('operations/table_management');
+        }
+
+        /* Hand a whole area to one waiter, which is how a section is actually
+         * given out at the start of the night — one table at a time is too slow
+         * when the garden is sixteen seats. */
+        if ($sections_on && $this->input->post('assign_section')) {
+            $zone = $this->tables->set_zone_waiter($store_id,
+                (string) $this->input->post('zone_name', TRUE),
+                (int) $this->input->post('zone_waiter_id', TRUE));
+            $this->session->set_flashdata($zone['ok'] ? 'success' : 'error', $zone['message']);
             redirect('operations/table_management');
         }
 
@@ -2087,7 +2120,17 @@ class Operations extends MY_Controller {
                     'sort_order'  => (int)$this->input->post('sort_order', TRUE),
                 ];
                 $edit_id = $this->input->post('edit_id', TRUE);
-                $this->tables->save($save_data, $edit_id ?: null);
+                $saved_id = $this->tables->save($save_data, $edit_id ?: null);
+                /* The section is on the same form but written through the model
+                 * that checks the staff member belongs to this store, so a posted
+                 * user id from elsewhere cannot land on this floor. */
+                if ($sections_on && $saved_id) {
+                    $section = $this->tables->set_waiter((int) $saved_id, $store_id,
+                        (int) $this->input->post('waiter_user_id', TRUE));
+                    if (!$section['ok']) {
+                        $this->session->set_flashdata('error', $section['message']);
+                    }
+                }
                 $this->session->set_flashdata('success', $edit_id ? 'Table updated.' : 'Table added.');
                 redirect('operations/table_management');
             }
@@ -2097,6 +2140,10 @@ class Operations extends MY_Controller {
         $data['zones'] = $this->tables->get_zones($store_id);
         $data['status_counts'] = $this->tables->count_by_status($store_id);
         $data['edit_table'] = null;
+        $data['sections_on'] = $sections_on;
+        $data['sections'] = $sections_on ? $this->tables->section_summary($store_id) : [];
+        $data['waiter_names'] = $sections_on ? $this->tables->waiter_names($store_id) : [];
+        $data['section_staff'] = $sections_on ? $this->_tab_staff_options($store_id) : [];
 
         $edit_id = $this->input->get('edit');
         if (!empty($edit_id)) {
@@ -2119,6 +2166,587 @@ class Operations extends MY_Controller {
 
         header('Content-Type: application/json');
         echo json_encode(['success' => $ok]);
+    }
+
+    /* ===================== RUNNING TABS ===================== */
+
+    /**
+     * Floor board for running tabs.
+     *
+     * The money never lives here: every round is a normal invoice and every
+     * payment is recorded against that invoice, so this screen only groups the
+     * rounds a table has accumulated, names the waiter holding them and closes
+     * the tab once nothing is owing.
+     */
+    public function tabs() {
+        $this->_check_feature('running_tabs');
+        $this->permission_check('store_view');
+
+        $branch_context = $this->_kitchen_branch_context();
+        if (empty($branch_context['ok'])) {
+            $this->show_access_denied_page();
+            return;
+        }
+
+        $this->load->model('tabs_model', 'tabs');
+        $store_id = get_current_store_id();
+
+        $data['tabs'] = $this->tabs->list_open($store_id, $branch_context['branch']);
+        $data['branch'] = $branch_context['branch'];
+        $data['branch_opts'] = $branch_context['options'];
+        $data['branch_names'] = $branch_context['names'];
+        $data['tables'] = $this->_tab_table_options($store_id);
+        $data['staff'] = $this->_tab_staff_options($store_id);
+        $data['available'] = $this->tabs->is_available();
+        $this->_render('Table Tabs', 'operations/tabs', $data);
+    }
+
+    /** Poll-safe list: the POS and the board both read this. */
+    public function tabs_ajax() {
+        $this->_check_feature('running_tabs');
+        $this->_tab_permission();
+        $this->load->model('tabs_model', 'tabs');
+
+        $store_id = get_current_store_id();
+        $branch = (string) $this->input->get('branch_id', TRUE);
+        if ($branch !== '' && !$this->_tab_warehouse_allowed((int) $branch)) {
+            set_status_header(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'You are not assigned to this outlet.']);
+            return;
+        }
+
+        $rows = $this->tabs->is_available() ? $this->tabs->list_open($store_id, $branch) : [];
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'id'         => (int) $row->id,
+                'tab_code'   => (string) $row->tab_code,
+                'table_id'   => (int) $row->table_id,
+                'guest_name' => (string) $row->guest_name,
+                'waiter_id'  => (int) $row->waiter_user_id,
+                'rounds'     => (int) $row->rounds,
+                'total'      => (float) $row->total,
+                'total_fmt'  => $this->currency((float) $row->total),
+                'outstanding'=> (float) $row->outstanding,
+                'outstanding_fmt' => $this->currency((float) $row->outstanding),
+                'opened_at'  => (string) $row->opened_at,
+            ];
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'tabs' => $out]);
+    }
+
+    public function tab_open() {
+        $this->_tab_write_guard('running_tabs');
+        $this->load->model('tabs_model', 'tabs');
+
+        $store_id = get_current_store_id();
+        $warehouse_id = (int) $this->input->post('warehouse_id', TRUE);
+        if (!$this->_tab_warehouse_allowed($warehouse_id)) {
+            $this->_tab_denied('You are not assigned to this outlet.');
+            return;
+        }
+
+        $result = $this->tabs->open([
+            'store_id'        => $store_id,
+            'warehouse_id'    => $warehouse_id,
+            'table_id'        => (int) $this->input->post('table_id', TRUE),
+            'tab_type'        => $this->input->post('tab_type', TRUE),
+            'customer_id'     => (int) $this->input->post('customer_id', TRUE),
+            'guest_name'      => $this->input->post('guest_name', TRUE),
+            'covers'          => (int) $this->input->post('covers', TRUE),
+            'note'            => $this->input->post('note', TRUE),
+            'idempotency_key' => substr(trim((string) $this->input->post('tab_key', TRUE)), 0, 96),
+        ]);
+        $this->_tab_respond($result, $result['tab'] ? [
+            'id'       => (int) $result['tab']->id,
+            'tab_code' => (string) $result['tab']->tab_code,
+            'table_id' => (int) $result['tab']->table_id,
+        ] : []);
+    }
+
+    public function tab_settle() {
+        $this->_tab_write_guard('running_tabs');
+        $this->load->model('tabs_model', 'tabs');
+        $store_id = get_current_store_id();
+
+        $tab = $this->tabs->get((int) $this->input->post('tab_id', TRUE), $store_id);
+        if (!$tab) { $this->_tab_respond(['ok' => false, 'message' => 'Tab not found.']); return; }
+        if (!$this->_tab_warehouse_allowed((int) $tab->warehouse_id)) {
+            $this->_tab_denied('This tab belongs to another outlet.');
+            return;
+        }
+        $this->_tab_respond($this->tabs->settle((int) $tab->id, $store_id));
+    }
+
+    public function tab_cancel() {
+        $this->_tab_write_guard('running_tabs');
+        $this->load->model('tabs_model', 'tabs');
+        $store_id = get_current_store_id();
+
+        $tab = $this->tabs->get((int) $this->input->post('tab_id', TRUE), $store_id);
+        if (!$tab) { $this->_tab_respond(['ok' => false, 'message' => 'Tab not found.']); return; }
+        if (!$this->_tab_warehouse_allowed((int) $tab->warehouse_id)) {
+            $this->_tab_denied('This tab belongs to another outlet.');
+            return;
+        }
+        $this->_tab_respond($this->tabs->cancel(
+            (int) $tab->id, $store_id, (string) $this->input->post('reason', TRUE)
+        ));
+    }
+
+    /** Hand a tab to another waiter (shift change, or the manager takes over). */
+    public function tab_waiter() {
+        $this->_tab_write_guard('running_tabs');
+        $this->load->model('tabs_model', 'tabs');
+        $store_id = get_current_store_id();
+
+        $tab = $this->tabs->get((int) $this->input->post('tab_id', TRUE), $store_id);
+        if (!$tab) { $this->_tab_respond(['ok' => false, 'message' => 'Tab not found.']); return; }
+        if (!$this->_tab_warehouse_allowed((int) $tab->warehouse_id)) {
+            $this->_tab_denied('This tab belongs to another outlet.');
+            return;
+        }
+        $this->_tab_respond($this->tabs->set_waiter(
+            (int) $tab->id, $store_id, (int) $this->input->post('waiter_id', TRUE)
+        ));
+    }
+
+    /** Rounds on one tab, for the board drawer. Totals stay read-from-ledger. */
+    public function tab_rounds() {
+        $this->_check_feature('running_tabs');
+        $this->_tab_permission();
+        $this->load->model('tabs_model', 'tabs');
+
+        $store_id = get_current_store_id();
+        $tab = $this->tabs->get((int) $this->input->get('tab_id', TRUE), $store_id);
+        if (!$tab) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Tab not found.']);
+            return;
+        }
+        if (!$this->_tab_warehouse_allowed((int) $tab->warehouse_id)) {
+            $this->_tab_denied('This tab belongs to another outlet.');
+            return;
+        }
+        header('Content-Type: application/json');
+        $totals = $this->tabs->totals((int) $tab->id, $store_id);
+        $rounds = [];
+        foreach ($this->tabs->rounds((int) $tab->id, $store_id) as $r) {
+            $rounds[] = [
+                'round_no'     => (int) $r->round_no,
+                'sales_id'     => (int) $r->id,
+                'sales_code'   => (string) $r->sales_code,
+                'created_time' => (string) $r->created_time,
+                'total_fmt'    => $this->currency((float) $r->grand_total),
+                'unpaid'       => (float) $r->outstanding > 0.005,
+                // A voided round stays on the list, struck through: the floor
+                // has to see that the round happened and was pulled off.
+                'voided'       => (string) $r->sales_status === 'Voided',
+                'bill_url'     => base_url('operations/lounge_bill/' . (int) $r->id),
+            ];
+        }
+        echo json_encode([
+            'success' => true,
+            'tab'     => ['id' => (int) $tab->id, 'tab_code' => (string) $tab->tab_code, 'status' => (string) $tab->status],
+            'totals'  => ['rounds' => (int) $totals['rounds'], 'outstanding_fmt' => $this->currency((float) $totals['outstanding']),
+                          'tips' => (float) $totals['tips'], 'tips_fmt' => $this->currency((float) $totals['tips'])],
+            'rounds'  => $rounds,
+        ]);
+    }
+
+    /** Tabs are a floor action, so they need the same page permission to write. */
+    private function _tab_write_guard($flag) {
+        $this->_check_feature($flag);
+        $this->_tab_permission();
+        if (!$this->input->post()) {
+            set_status_header(405);
+            $this->_tab_respond(['ok' => false, 'message' => 'Use the tab screen to change a tab.']);
+            exit;
+        }
+    }
+
+    /**
+     * Rounds are rung up by whoever holds the `pos` permission, and the floor
+     * board is read by whoever holds `store_view`. Either of the two may work a
+     * tab — requiring both would lock a cashier out of their own table.
+     */
+    private function _tab_permission() {
+        if ($this->permissions('pos') || $this->permissions('store_view')) return;
+        $this->permission_check_with_msg('pos');
+    }
+
+    private function _tab_warehouse_allowed($warehouse_id) {
+        $allowed = function_exists('mp_allowed_warehouse_ids')
+            ? mp_allowed_warehouse_ids(get_current_store_id())
+            : null;
+        if ($allowed === null) return true;
+        if ($warehouse_id <= 0) return true;
+        return in_array((int) $warehouse_id, $allowed, true);
+    }
+
+    private function _tab_denied($message) {
+        set_status_header(403);
+        $this->_tab_respond(['ok' => false, 'message' => $message]);
+    }
+
+    private function _tab_respond($result, $extra = []) {
+        header('Content-Type: application/json');
+        echo json_encode(array_merge(
+            ['success' => !empty($result['ok']), 'message' => (string) ($result['message'] ?? '')],
+            $extra
+        ));
+    }
+
+    private function _tab_table_options($store_id) {
+        if (!$this->db->table_exists('db_tables')) return [];
+        $this->db->where('store_id', (int) $store_id);
+        $this->db->order_by('sort_order', 'asc')->order_by('table_name', 'asc')->limit(200);
+        $rows = $this->db->get('db_tables')->result();
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'id'    => (int) $row->id,
+                'name'  => (string) $row->table_name,
+                'zone'  => (string) $row->zone,
+                'status'=> (string) $row->status,
+            ];
+        }
+        return $out;
+    }
+
+    private function _tab_staff_options($store_id) {
+        if (!$this->db->table_exists('db_users')) return [];
+        $this->db->select('id, first_name, last_name, username')->where('store_id', (int) $store_id)
+            ->where('status', 1)->order_by('first_name', 'asc')->limit(100);
+        $out = [];
+        foreach ($this->db->get('db_users')->result() as $row) {
+            $name = trim($row->first_name . ' ' . $row->last_name);
+            // Floor staff are known by their first name, never by a login.
+            $out[] = ['id' => (int) $row->id, 'name' => $name !== '' ? $name : 'Staff'];
+        }
+        return $out;
+    }
+
+    /* ============== FLOOR CORRECTIONS: VOIDS & COMPLIMENTS ============== */
+
+    /**
+     * One round, worked on from the floor.
+     *
+     * The bill is an ordinary invoice and stays one. This screen offers the two
+     * corrections a lounge actually needs — take a round off (void) or give one
+     * away (compliment) — and refuses them when the ledger says the correction
+     * would corrupt something: money already paid, a return already raised, a
+     * round the bar has already handed out.
+     */
+    public function lounge_bill($sales_id = 0) {
+        $id = (int) $sales_id;
+        if ($id <= 0) { redirect('operations/tabs', 'auto'); return; }
+        // One screen works the whole floor: the corrections a round can be given,
+        // the tip the guest left and the charge the bill carries. It opens when
+        // any one of those is switched on, and shows only the panels that are.
+        $floor_flags = ['sale_voids', 'complimentary_items', 'tips_gratuity', 'service_charge', 'waiter_assignment'];
+        if (!array_filter($floor_flags, 'mp_feature_enabled')) {
+            $this->_check_feature('sale_voids');
+            return;
+        }
+        $this->_tab_permission();
+
+        $this->load->model('bill_adjustments_model', 'floor');
+        $bill = $this->floor->is_available() ? $this->floor->bill($id, get_current_store_id()) : null;
+        if (!$bill) { $this->show_access_denied_page(); return; }
+        if (!$this->_tab_warehouse_allowed((int) ($bill->warehouse_id ?? 0))) {
+            show_error('This round belongs to an outlet you are not assigned to.', 403);
+            return;
+        }
+
+        $data = [];
+        $data['bill'] = $bill;
+        $data['floor_void_on'] = mp_feature_enabled('sale_voids');
+        $data['floor_comp_on'] = mp_feature_enabled('complimentary_items');
+        $data['floor_tip_on'] = $this->floor->has_tip_columns() && mp_feature_enabled('tips_gratuity');
+        $data['floor_charge_on'] = $this->floor->has_tip_columns() && mp_feature_enabled('service_charge');
+        $data['floor_waiter_on'] = $this->floor->has_tip_columns() && mp_feature_enabled('waiter_assignment');
+        $data['void_reasons'] = $this->_floor_reasons('void');
+        $data['comp_reasons'] = $this->_floor_reasons('comp');
+        $data['names'] = $this->_floor_names($bill);
+        $data['staff'] = $this->_tab_staff_options(get_current_store_id());
+        $data['void_approval'] = $this->_floor_approval_gate('void_sale', (float) $bill->grand_total);
+        $this->_render('Round ' . $bill->sales_code, 'operations/lounge_bill', $data);
+    }
+
+    /** Take a round off the bill and put its stock back on the shelf. */
+    public function bill_void() {
+        $this->_floor_write_guard('sale_voids');
+        $store_id = get_current_store_id();
+        $id = (int) $this->input->post('sales_id', TRUE);
+
+        $this->load->model('bill_adjustments_model', 'floor');
+        $bill = $this->floor->bill($id, $store_id);
+        if (!$bill) { $this->_tab_respond(['ok' => false, 'message' => 'That bill is not in this store.']); return; }
+        if (!$this->_tab_warehouse_allowed((int) ($bill->warehouse_id ?? 0))) {
+            $this->_tab_denied('This round belongs to another outlet.');
+            return;
+        }
+
+        $reason = $this->_floor_reason_text($this->_floor_reasons('void'),
+            (string) $this->input->post('reason', TRUE), (string) $this->input->post('reason_other', TRUE));
+        if ($reason === '') {
+            $this->_tab_respond(['ok' => false, 'message' => 'Say why the round is coming off the bill.']);
+            return;
+        }
+
+        // A void moves money off a bill, so a store that asks for manager
+        // approval on voids keeps it here; the lounge floor cannot bypass it.
+        $gate = $this->_floor_approval_gate('void_sale', (float) $bill->grand_total);
+        if ($gate['required'] && !$this->_floor_approval_passes($gate, 'void_sale')) {
+            $this->_tab_respond(['ok' => false, 'message' => 'A manager has to approve this void. Ask them to enter their PIN.'],
+                ['approval_required' => true]);
+            return;
+        }
+
+        $this->_tab_respond($this->floor->void_round($id, $store_id, $reason,
+            (string) $this->session->userdata('inv_username')));
+    }
+
+    /**
+     * Give items away on a round.
+     *
+     * The cashier's own call, with no manager PIN in front of it: the house
+     * absorbs the cost through COGS, the stock leaves the shelf, and the charge
+     * comes off the bill. Who gave it and why are recorded on the line, so the
+     * figures still say which round was free and which was only cheaper.
+     */
+    public function bill_comp() {
+        $this->_floor_write_guard('complimentary_items');
+        $store_id = get_current_store_id();
+        $id = (int) $this->input->post('sales_id', TRUE);
+
+        $this->load->model('bill_adjustments_model', 'floor');
+        $bill = $this->floor->bill($id, $store_id);
+        if (!$bill) { $this->_tab_respond(['ok' => false, 'message' => 'That bill is not in this store.']); return; }
+        if (!$this->_tab_warehouse_allowed((int) ($bill->warehouse_id ?? 0))) {
+            $this->_tab_denied('This round belongs to another outlet.');
+            return;
+        }
+
+        $reason = $this->_floor_reason_text($this->_floor_reasons('comp'),
+            (string) $this->input->post('reason', TRUE), (string) $this->input->post('reason_other', TRUE));
+        if ($reason === '') {
+            $this->_tab_respond(['ok' => false, 'message' => 'Say why the round is on the house.']);
+            return;
+        }
+
+        $posted = $this->input->post('line_ids');
+        $lines = [];
+        foreach ((array) $posted as $line_id) {
+            if ((int) $line_id > 0) $lines[] = (int) $line_id;
+        }
+        $lines = array_slice(array_values(array_unique($lines)), 0, 50);
+        if (!$lines) {
+            $this->_tab_respond(['ok' => false, 'message' => 'Choose the items to give away first.']);
+            return;
+        }
+
+        $this->_tab_respond($this->floor->comp_lines($id, $store_id, $lines, $reason,
+            (string) $this->session->userdata('inv_username')));
+    }
+
+    /**
+     * One bill in this outlet, checked the same way for every floor write.
+     * Answers the request itself and returns null when the caller may not work
+     * on it, so each endpoint stays about its own change.
+     */
+    private function _floor_bill_for_write($flag) {
+        $this->_floor_write_guard($flag);
+        $this->load->model('bill_adjustments_model', 'floor');
+        $bill = $this->floor->is_available()
+            ? $this->floor->bill((int) $this->input->post('sales_id', TRUE), get_current_store_id())
+            : null;
+        if (!$bill) {
+            $this->_tab_respond(['ok' => false, 'message' => 'That bill is not in this store.']);
+            return null;
+        }
+        if (!$this->_tab_warehouse_allowed((int) ($bill->warehouse_id ?? 0))) {
+            $this->_tab_denied('This round belongs to another outlet.');
+            return null;
+        }
+        return $bill;
+    }
+
+    /** Say which waiter served this round — the bill the guest was held to. */
+    public function bill_waiter() {
+        $bill = $this->_floor_bill_for_write('waiter_assignment');
+        if (!$bill) return;
+        $this->_tab_respond($this->floor->set_waiter((int) $bill->id, get_current_store_id(),
+            (int) $this->input->post('waiter_id', TRUE), (string) $this->session->userdata('inv_username')));
+    }
+
+    /**
+     * Key in the tip and record the waiter it belongs to.
+     *
+     * The amount is taken as posted and clamped in the model; it never touches
+     * grand_total, so the store's takings stay the store's and the waiter's
+     * money stays the waiter's.
+     */
+    public function bill_tip() {
+        $bill = $this->_floor_bill_for_write('tips_gratuity');
+        if (!$bill) return;
+        $raw = str_replace([',', ' ', '₦'], '', (string) $this->input->post('amount', TRUE));
+        if (!is_numeric($raw)) {
+            $this->_tab_respond(['ok' => false, 'message' => 'Enter the tip as a number, like 500.']);
+            return;
+        }
+        $this->_tab_respond($this->floor->record_tip((int) $bill->id, get_current_store_id(),
+            (float) $raw, (int) $this->input->post('for_waiter_id', TRUE),
+            (string) $this->session->userdata('inv_username')));
+    }
+
+    /** Add, change or remove the optional service charge on one round. */
+    public function bill_service_charge() {
+        $bill = $this->_floor_bill_for_write('service_charge');
+        if (!$bill) return;
+        $percent = (string) $this->input->post('percent', TRUE);
+        if ($percent === '' || !is_numeric($percent)) {
+            $this->_tab_respond(['ok' => false, 'message' => 'Choose the service charge percentage first.']);
+            return;
+        }
+        $this->_tab_respond($this->floor->set_service_charge((int) $bill->id, get_current_store_id(),
+            (float) $percent, (string) $this->session->userdata('inv_username')));
+    }
+
+    /**
+     * What the floor brought in, and what the guests left them.
+     *
+     * Takings and tips are never added together: one is store revenue, the
+     * other is money the store is holding for a person. The exceptions panel
+     * sits beside it because the same question — what happened on my floor —
+     * is asked in one sitting at the end of the night.
+     */
+    public function waiter_takings() {
+        $this->_check_feature('waiter_assignment');
+        $this->permission_check('store_view');
+        $this->load->model('bill_adjustments_model', 'floor');
+
+        $from = $this->_floor_date($this->input->get('from', TRUE), date('Y-m-d', strtotime('-6 days')));
+        $to   = $this->_floor_date($this->input->get('to', TRUE), date('Y-m-d'));
+        if ($from > $to) { $swap = $from; $from = $to; $to = $swap; }
+
+        $store_id = get_current_store_id();
+        $data = [];
+        $data['from'] = $from;
+        $data['to'] = $to;
+        $data['report'] = $this->floor->has_tip_columns()
+            ? $this->floor->waiter_report($store_id, $from, $to)
+            : ['rows' => [], 'unnamed_tips' => 0.0];
+        $data['exceptions'] = $this->floor->is_available()
+            ? $this->floor->exceptions_report($store_id, $from, $to)
+            : ['comps' => [], 'comp_total' => 0.0, 'comp_items' => 0, 'voids' => [], 'void_total' => 0.0, 'void_rounds' => 0];
+        $data['show_exceptions'] = mp_feature_enabled('sale_voids') || mp_feature_enabled('complimentary_items');
+        $this->_render('Waiter Takings', 'operations/waiter_takings', $data);
+    }
+
+    /** A date the report can trust; anything else falls back to the default. */
+    private function _floor_date($value, $default) {
+        $date = DateTime::createFromFormat('!Y-m-d', trim((string) $value));
+        return ($date && $date->format('Y-m-d') === trim((string) $value)) ? $value : $default;
+    }
+
+    /**
+     * Voids and compliments are floor actions, so a store may run either one
+     * alone. The write endpoints still gate on their own switch.
+     */
+    private function _floor_write_guard($flag) {
+        $this->_check_feature($flag);
+        $this->_tab_permission();
+        if (!$this->input->post()) {
+            set_status_header(405);
+            $this->_tab_respond(['ok' => false, 'message' => 'Use the bill screen to correct a round.']);
+            return;
+        }
+    }
+
+    /** Fixed reasons, so the report groups them instead of reading one long note. */
+    private function _floor_reasons($kind) {
+        if ($kind === 'comp') {
+            return ['Regular', 'Birthday or celebration', 'Apology for the wait',
+                'Tasting or sample', 'Promotional night', 'Other'];
+        }
+        return ['Ordered wrong', 'Guest left before it arrived', 'Broken or spilled at the bar',
+            'Wrong item rung up', 'Pulled by the manager', 'Other'];
+    }
+
+    /**
+     * 'Other' carries free text so a lounge is never forced into a reason that
+     * does not fit; everything else is stored exactly as offered, which is what
+     * lets the report group by it.
+     */
+    private function _floor_reason_text($allowed, $posted, $other = '') {
+        $posted = trim((string) $posted);
+        if ($posted === '' || !in_array($posted, $allowed, true)) return '';
+        if ($posted !== 'Other') return $posted;
+        $other = trim(preg_replace('/\s+/u', ' ', (string) $other));
+        return $other === '' ? 'Other' : mb_substr($other, 0, 200);
+    }
+
+    /** Is a manager required for this action? Mirrors the POS approval rules. */
+    private function _floor_approval_gate($type, $amount = 0) {
+        $out = ['required' => false, 'reason' => 'Approval system disabled', 'method' => 'none'];
+        // approval_helper is not autoloaded, so its own functions have to be
+        // pulled in before they can be asked anything.
+        $this->load->helper('approval');
+        if (!mp_feature_enabled('manager_approvals') || !function_exists('is_approval_system_enabled')
+            || !is_approval_system_enabled()) {
+            return $out;
+        }
+        $this->load->model('approval_settings_model', 'mp_approvals');
+        $settings = $this->mp_approvals->getSettings();
+        $enabled = $type . '_approval_enabled';
+        $method = $type . '_approval_method';
+        if (!$settings || empty($settings->$enabled)) {
+            $out['reason'] = 'Approval type disabled';
+            return $out;
+        }
+        $out['method'] = $settings->$method ?? 'none';
+        if ($out['method'] === 'none' || $out['method'] === '') {
+            $out['reason'] = 'No approval method set';
+            return $out;
+        }
+        $out['required'] = true;
+        $out['reason'] = 'Approval required';
+        $out['amount'] = (float) $amount;
+        return $out;
+    }
+
+    /** The manager at the bar keys their PIN; verifyApprover does the rest. */
+    private function _floor_approval_passes($gate, $type) {
+        if (empty($gate['required'])) return true;
+        $approver_id = (int) $this->input->post('approver_id', TRUE);
+        $input = (string) $this->input->post('approver_pin', TRUE);
+        if ($approver_id <= 0 || $input === '') return false;
+        $this->load->model('approval_settings_model', 'mp_approvals');
+        $field = $type . '_approval_method';
+        $settings = $this->mp_approvals->getSettings();
+        return (bool) $this->mp_approvals->verifyApprover($approver_id, $input, $settings->$field ?? 'none');
+    }
+
+    /** First names for the people recorded on this bill — never logins. */
+    private function _floor_names($bill) {
+        $usernames = [];
+        foreach ((array) ($bill->lines ?? []) as $line) {
+            if (!empty($line->comp_by)) $usernames[] = (string) $line->comp_by;
+        }
+        if (!empty($bill->voided_by)) $usernames[] = (string) $bill->voided_by;
+        if (!empty($bill->created_by)) $usernames[] = (string) $bill->created_by;
+        $out = [];
+        if (!$usernames || !$this->db->table_exists('db_users')) return $out;
+        $this->db->select('username, first_name')->where('store_id', get_current_store_id())
+            ->where_in('username', array_unique($usernames));
+        foreach ($this->db->get('db_users')->result() as $row) {
+            $out[(string) $row->username] = trim((string) $row->first_name) ?: (string) $row->username;
+        }
+        return $out;
     }
 
     /* ===================== DELIVERY SCHEDULING ===================== */
@@ -2622,10 +3250,19 @@ class Operations extends MY_Controller {
         $this->permission_check('service_jobs_view');
         $this->load->model('equipment_model', 'equipment');
         $status = $this->input->get('status', TRUE);
-        $data['jobs'] = $this->equipment->get_job_list(array(
+        $filters = array(
             'status' => $status,
             'open_only' => ($status === 'open_list'),
-        ));
+        );
+        // A fuel company runs the same jobs from several sites, and staff are
+        // only meant to see their own. Other trades see the whole store.
+        if(function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace()){
+            $assigned = function_exists('mp_location_assigned_ids') ? mp_location_assigned_ids((int)get_current_store_id()) : null;
+            if(is_array($assigned)) $filters['scope_location_ids'] = $assigned;
+            $site = (int)$this->input->get('warehouse_id', TRUE);
+            if($site > 0) $filters['warehouse_id'] = $site;
+        }
+        $data['jobs'] = $this->equipment->get_job_list($filters);
         $data['status'] = $status;
         $this->_render('Service Jobs', 'operations/service_jobs', $data);
     }
@@ -2641,6 +3278,14 @@ class Operations extends MY_Controller {
         $data['prefill_job_type']=is_string($requestedType)&&in_array($requestedType,$data['job_types'],true)?$requestedType:($data['job_types'][0] ?? 'installation');
         $data['job_statuses'] = $this->equipment->job_statuses();
         $data['engineers'] = $this->equipment->get_engineers();
+        // A multi-location fuel company also chooses which site the work happens at.
+        $data['work_sites'] = array();
+        if(function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace()){
+            $this->load->model('oil_gas_model', 'oilgas_sites');
+            foreach($this->oilgas_sites->locations($store_id) as $site){
+                $data['work_sites'][(int)$site->id] = $site->warehouse_name;
+            }
+        }
         $data['customers'] = $this->db->select('id, customer_name')->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();
         // Prefill from equipment when arriving from the register
         $equipment_id = (int)$this->input->get('equipment_id', TRUE);
