@@ -3,6 +3,15 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Quotation_model extends CI_Model {
 
+    private function selected_quote_account_id($store_id) {
+        $account_id = (int)$this->input->post('invoice_account_id', TRUE);
+        if (!$account_id) return 0;
+        $valid = $this->db->select('id')->from('ac_accounts')->where('id', $account_id)
+            ->where('store_id', (int)$store_id)->where('status', 1)
+            ->where('bank_account_number !=', '')->get()->row();
+        return $valid ? $account_id : false;
+    }
+
     /** Reuses the public quotation response controller; only hashes are persisted. */
     public function issue_customer_response_token($id) {
         $store=(int)get_current_store_id();$this->db->trans_begin();
@@ -267,6 +276,11 @@ class Quotation_model extends CI_Model {
 			'discount_to_all_input' => null,
 			'tot_discount_to_all_amt' => null,
 		);
+		if($this->db->field_exists('invoice_account_id', 'db_quotation')){
+			$account_id = $this->selected_quote_account_id($store_id);
+			if($account_id === false) return 'Select an active bank account from this store.';
+			$header['invoice_account_id'] = $account_id ?: null;
+		}
 		$this->db->trans_begin();
 		if($quote_id){
 			$before = $this->db->select('lifecycle_status')->where('id',$quote_id)->where('store_id',$store_id)->get('db_quotation')->row();
@@ -336,6 +350,11 @@ class Quotation_model extends CI_Model {
 		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
 		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 		$store_id = $this->input->post('store_id', TRUE);
+        $quote_account_id = 0;
+        if($this->db->field_exists('invoice_account_id', 'db_quotation')){
+            $quote_account_id = $this->selected_quote_account_id(get_current_store_id());
+            if($quote_account_id === false) return 'Select an active bank account from this store.';
+        }
         $pricingHistory = $command === 'update' ? mp_customer_pricing()->history('db_quotationitems','db_quotation',$quotation_id,get_current_store_id(),$customer_id) : [];
 		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
 		
@@ -387,6 +406,7 @@ class Quotation_model extends CI_Model {
 		    				'system_name' 				=> $SYSTEM_NAME,
 		    				'status' 					=> 1,
 		    			);
+		    if($this->db->field_exists('invoice_account_id', 'db_quotation')) $quotation_entry['invoice_account_id'] = $quote_account_id ?: null;
 		    $quotation_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 		    $quotation_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$q1 = $this->db->insert('db_quotation', $quotation_entry);
@@ -414,6 +434,7 @@ class Quotation_model extends CI_Model {
 		    				'grand_total' 				=> $tot_total_amt,
 		    				'quotation_note' 			=> $quotation_note,
 		    			);
+			if($this->db->field_exists('invoice_account_id', 'db_quotation')) $quotation_entry['invoice_account_id'] = $quote_account_id ?: null;
 			$quotation_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
 			$quotation_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
 			$before = $this->db->select('lifecycle_status')->where('id',$quotation_id)->where('store_id',$quotation_entry['store_id'])->get('db_quotation')->row();

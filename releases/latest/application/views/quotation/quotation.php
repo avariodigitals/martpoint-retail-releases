@@ -171,6 +171,8 @@ input#item_search.mp-form-control { border-radius: 0 !important; }
   </div>
 </div>
 
+<?php $this->load->view('sales/invoice_payment_account'); ?>
+
 <!-- Items -->
 <div class="mp-card-form garden-quote-lines">
   <div class="mp-card-head">

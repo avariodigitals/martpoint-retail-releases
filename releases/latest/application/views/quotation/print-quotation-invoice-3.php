@@ -83,6 +83,13 @@ $store_logo_path = mp_get_store_theme_setting(get_current_store_id(), 'store_log
 $store_logo = !empty($store_logo_path) ? $store_logo_path : store_demo_logo();
 $store_website = $res1->store_website;
 $bank_details = mp_get_store_payment_setting(get_current_store_id(), 'bank_details', '');
+$quote_bank_account = null;
+if ($this->db->field_exists('invoice_account_id', 'db_quotation')) {
+    $quote_bank_account = $this->db->select('a.account_name,a.bank_name,a.bank_account_name,a.bank_account_number')
+        ->from('db_quotation q')->join('ac_accounts a', 'a.id=q.invoice_account_id AND a.store_id=q.store_id', 'inner')
+        ->where('q.id', (int)$quotation_id)->where('q.store_id', (int)get_current_store_id())
+        ->where('a.status', 1)->get()->row();
+}
 $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', '');
 
 $q3 = $this->db->query("SELECT b.expire_date,b.customer_previous_due,b.customer_total_due,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
@@ -279,9 +286,12 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 <table class="totals">
   <tr>
     <td width="100%" valign="top" style="padding-right: 10px; font-size: 9pt; color: #374151;">
-      <?php if(!empty($bank_details)): ?>
+      <?php if($quote_bank_account): ?>
         <strong><?= $this->lang->line('bank_details'); ?>:</strong><br>
-        <?= nl2br($bank_details); ?>
+        <?= htmlspecialchars($quote_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
+        <?= htmlspecialchars($quote_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?>
+        <?= htmlspecialchars($quote_bank_account->bank_account_name, ENT_QUOTES, 'UTF-8'); ?><br>
+        <?= htmlspecialchars($quote_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?>
       <?php endif; ?>
     </td>
     <td align="right" valign="top">

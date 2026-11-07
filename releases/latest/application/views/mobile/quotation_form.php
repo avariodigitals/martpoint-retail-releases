@@ -131,6 +131,8 @@
           </div>
         </div>
 
+        <?php $invoice_account_mobile = true; $invoice_account_page_select = true; $this->load->view('sales/invoice_payment_account'); ?>
+
         <div class="card"><strong>Catalogue shortcuts</strong><?php $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'brand')); $this->load->view('sales/quick_catalogue',array('lookup_kind'=>'category')); ?></div>
         <div class="section-title">Item</div>
         <div class="card">

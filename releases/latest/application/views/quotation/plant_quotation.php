@@ -52,6 +52,7 @@ $esc = function($value){ return htmlspecialchars((string)$value, ENT_QUOTES, 'UT
       <div class="pq-field"><label for="pq-date">Quotation date *</label><input id="pq-date" name="quotation_date" class="datepicker" required value="<?= $esc($quote ? show_date($quote->quotation_date) : show_date(date('Y-m-d'))) ?>"></div>
       <div class="pq-field"><label for="pq-expiry">Valid until</label><input id="pq-expiry" name="expire_date" class="datepicker" value="<?= $esc($quote && $quote->expire_date ? show_date($quote->expire_date) : '') ?>"></div>
     </div></div>
+    <?php $invoice_account_mobile = !empty($plant_mobile); $this->load->view('sales/invoice_payment_account'); ?>
     <div class="pq-card"><div class="pq-head"><span class="pq-step">2</span> Quotation lines</div><div class="pq-body">
       <p class="pq-note">Give each group a heading once. Search for saved items or add custom lines inside that group. <?= $esc(mp_label('sku')) ?>s stay on individual lines.</p>
       <p class="pq-note">Need to reuse a new part later? <a href="<?= base_url(!empty($plant_mobile) ? 'mobile/product' : 'items/add') ?>" target="_blank" rel="noopener">Create a material / product with its <?= $esc(strtolower(mp_label('sku'))) ?></a>, then search for it here.</p>

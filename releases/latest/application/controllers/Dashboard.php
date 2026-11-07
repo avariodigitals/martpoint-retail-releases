@@ -495,16 +495,15 @@ class Dashboard extends MY_Controller {
 		$installs = $this->db->order_by('last_seen', 'desc')->get('db_fleet_installs')->result();
 		$now = time();
 		$s = $empty;
-		// The "latest release" baseline is the manifest Central itself published
-		// (release_build/release-manifest.json) — a local file read, not a live
-		// GitHub fetch, so this page never waits on the network. Falls back to
-		// the highest install-reported version when no manifest exists yet.
+		// Use the same published release channel that fleet updates use. Central
+		// packages do not always include the builder's local manifest, so falling
+		// back straight to the newest fleet-reported version can hide outdated
+		// installs entirely.
 		$latest = '';
 		$data['channel_version'] = null;
-		$manifestFile = FCPATH . 'release_build/release-manifest.json';
-		if (is_file($manifestFile)) {
-			$m = json_decode((string) @file_get_contents($manifestFile), true);
-			$data['channel_version'] = $m['version'] ?? null;
+		$releaseManifest = $this->centralReleaseManifest();
+		if (is_array($releaseManifest)) {
+			$data['channel_version'] = $releaseManifest['version'] ?? null;
 		}
 		foreach ($installs as $r) {
 			if ($latest === '' && !empty($r->version)) { $latest = $r->version; }
@@ -588,6 +587,66 @@ class Dashboard extends MY_Controller {
 		$data['content'] = $this->load->view('central_dashboard', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
+
+	/**
+	 * Resolve the published fleet release for the Central dashboard. Reuses the
+	 * updater's short-lived cache, refreshes it from the configured channel when
+	 * needed, and falls back to a stale cache or the local build manifest if the
+	 * release host is temporarily unavailable.
+	 */
+	private function centralReleaseManifest(){
+		$cacheFile = FCPATH . 'release_build/channel-manifest-cache.json';
+		$cached = null;
+		if (is_file($cacheFile)) {
+			$decoded = json_decode((string) @file_get_contents($cacheFile), true);
+			if (is_array($decoded) && !empty($decoded['version'])) {
+				$cached = $decoded;
+				if ((time() - (int) @filemtime($cacheFile)) < 300) {
+					return $cached;
+				}
+			}
+		}
+
+		try {
+			if ($this->db->table_exists('db_sitesettings')
+				&& $this->db->field_exists('update_channel_url', 'db_sitesettings')) {
+				$setting = $this->db->select('update_channel_url')->where('id', 1)->get('db_sitesettings')->row();
+				$channel = $setting ? trim((string) $setting->update_channel_url) : '';
+				if ($channel !== '') {
+					$url = rtrim($channel, '/') . '/release-manifest.json?t=' . time();
+					$context = stream_context_create([
+						'http' => ['timeout' => 3, 'user_agent' => 'MartPointCentral/1.0'],
+						'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+					]);
+					$json = @file_get_contents($url, false, $context);
+					$manifest = $json !== false ? json_decode($json, true) : null;
+					if (is_array($manifest) && !empty($manifest['version']) && !empty($manifest['files'])) {
+						$smallCache = [
+							'version' => $manifest['version'],
+							'migrations' => $manifest['migrations'] ?? [],
+							'cached_at' => date('Y-m-d H:i:s'),
+						];
+						$dir = dirname($cacheFile);
+						if (is_dir($dir) && is_writable($dir)) {
+							@file_put_contents($cacheFile, json_encode($smallCache));
+						}
+						return $smallCache;
+				}
+			}
+			}
+		} catch (Throwable $e) {
+			log_message('error', 'Central release manifest lookup failed: ' . $e->getMessage());
+		}
+
+		if ($cached) { return $cached; }
+		$localFile = FCPATH . 'release_build/release-manifest.json';
+		if (is_file($localFile)) {
+			$local = json_decode((string) @file_get_contents($localFile), true);
+			if (is_array($local) && !empty($local['version'])) { return $local; }
+		}
+		return null;
+	}
+
 	public function get_storewise_details($from='All'){
 
 			//$from= $this->input->get_post('from');

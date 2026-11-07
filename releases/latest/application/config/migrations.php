@@ -627,4 +627,6 @@ return [
           '4.0.9.253v' => '4.0.9.253_nigeria_bulk_sms.sql',
           // .254 lets each standard invoice select a bank destination from Account List.
           '4.0.9.254v' => '4.0.9.254_invoice_payment_accounts.sql',
+          // .255 stores the selected Account List destination on quotations.
+          '4.0.9.255v' => '4.0.9.255_quotation_payment_accounts.sql',
 ];

@@ -148,6 +148,13 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'sales/update/';
 .totals-row.grand .value { font-size: 22px; font-weight: 800; color: var(--mp-primary); }
 .notes-card { max-width: 420px; }
 .notes-card p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--mp-text); }
+.notes-card .notes-row { align-items: flex-start; gap: 16px; }
+.notes-card .notes-row .label { flex: 0 0 112px; width: 112px; align-self: flex-start; white-space: normal; }
+.notes-card .notes-row .value { flex: 1 1 auto; min-width: 0; text-align: left !important; line-height: 1.55; overflow-wrap: anywhere; }
+.invoice-account-summary { margin: 0 0 16px; padding: 12px 14px; border: 1px solid rgba(0,87,255,.18); border-radius: 10px; background: rgba(0,87,255,.045); color: var(--mp-text); line-height: 1.5; }
+.invoice-account-summary strong { display: block; margin-bottom: 3px; color: var(--mp-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.invoice-account-summary span { font-weight: 700; overflow-wrap: anywhere; }
+@media(max-width:640px){.notes-card .notes-row{display:block}.notes-card .notes-row .label{display:inline-flex;width:auto;margin-bottom:8px}.notes-card .notes-row .value{display:block}}
 @media print {
   .mp-page-head .mp-quick-actions, .mp-form-actions, .mp-sidebar, .mp-header, .mp-footer { display: none !important; }
   .mp-section { padding: 0 !important; }
@@ -429,6 +436,12 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
     <div class="mp-card-form notes-card">
       <div class="mp-card-head"><h3>Notes, Terms & Coupon</h3></div>
       <div class="mp-card-body">
+        <?php if($invoice_bank_account && !empty($invoice_bank_account->bank_account_number)): ?>
+        <div class="invoice-account-summary">
+          <strong>Account to receive payment</strong>
+          <span><?= htmlspecialchars(implode(' · ', array_filter([$invoice_bank_account->account_name, $invoice_bank_account->bank_name, ($invoice_bank_account->bank_account_name && $invoice_bank_account->bank_account_name !== $invoice_bank_account->account_name) ? $invoice_bank_account->bank_account_name : null, $invoice_bank_account->bank_account_number])), ENT_QUOTES, 'UTF-8'); ?></span>
+        </div>
+        <?php endif; ?>
         <?php if(!empty($coupon_code)) { ?>
         <div class="totals-row">
           <span class="label"><?= $this->lang->line('discountCouponCode'); ?></span>
@@ -441,11 +454,11 @@ $invoiceIsDraft=$invoiceDocumentState==='draft';
           <span class="value"><?= store_number_format($discount_to_all_input); ?> (<?= $discount_to_all_type ?>)</span>
         </div>
         <?php } ?>
-        <div class="totals-row" style="border-bottom:1px solid var(--mp-border);">
+        <div class="totals-row notes-row" style="border-bottom:1px solid var(--mp-border);">
           <span class="label"><?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8'); ?></span>
           <span class="value" style="text-align:right;"><?= nl2br(htmlspecialchars($sales_note)); ?></span>
         </div>
-        <div class="totals-row" style="border-bottom:none;">
+        <div class="totals-row notes-row" style="border-bottom:none;">
           <span class="label"><?= $this->lang->line('invoiceTerms'); ?></span>
           <span class="value" style="text-align:right;"><?= nl2br(htmlspecialchars(html_entity_decode(trim((string)$invoice_terms), ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8')); ?></span>
         </div>

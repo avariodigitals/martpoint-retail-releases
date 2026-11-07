@@ -24,6 +24,13 @@ $q3=$this->db->query("SELECT b.expire_date, b.sales_status, b.store_id,COALESCE(
                            WHERE b.`id`='$quotation_id' AND b.store_id=".get_current_store_id());
 
 $res3=$q3->row();
+$quoteBankAccount = null;
+if($this->db->field_exists('invoice_account_id', 'db_quotation')){
+  $quoteBankAccount = $this->db->select('a.account_name,a.bank_name,a.bank_account_name,a.bank_account_number')
+    ->from('db_quotation q')->join('ac_accounts a','a.id=q.invoice_account_id AND a.store_id=q.store_id','inner')
+    ->where('q.id',(int)$quotation_id)->where('q.store_id',(int)get_current_store_id())
+    ->where('a.status',1)->get()->row();
+}
 if($res3->store_id!=get_current_store_id()){
   $CI->show_access_denied_page();exit();
 }
@@ -175,6 +182,7 @@ $str2 = ($pos==1) ? 'pos/edit/' : 'quotation/update/';
           <ul class="invoice-meta">
             <li><strong><?= $this->lang->line('reference_no'); ?>:</strong> <?= htmlspecialchars($reference_no); ?></li>
             <li><strong><?= $this->lang->line('expire_date'); ?>:</strong> <?= $expire_date; ?></li>
+            <?php if($quoteBankAccount): ?><li><strong>Account to receive payment:</strong> <?= htmlspecialchars($quoteBankAccount->account_name, ENT_QUOTES, 'UTF-8'); ?> · <?= htmlspecialchars($quoteBankAccount->bank_name, ENT_QUOTES, 'UTF-8'); ?> · <?= htmlspecialchars($quoteBankAccount->bank_account_number, ENT_QUOTES, 'UTF-8'); ?></li><?php endif; ?>
             <li><strong><?= $this->lang->line('payment_status'); ?>:</strong> <?= ucfirst($payment_status); ?></li>
             <?php if($sales_status=='Converted'){ ?>
             <li><strong><?= $this->lang->line('sales_status'); ?>:</strong> <?= $this->lang->line('converted'); ?> &mdash; <a href="<?= base_url('sales/invoice/'.get_sales_id_of_quotation($quotation_id)); ?>">View Sales Invoice</a></li>

@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.254",
+    "version": "4.0.9.255",
     "previous_version": "4.0.9.194",
-    "release_date": "2026-11-06",
+    "release_date": "2026-11-07",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -561,8 +561,8 @@
         },
         {
             "path": "application/views/quotation/quotation.php",
-            "hash": "346f11acb5c0ee4967193516302caa79ad1bf8994f88c99693380269681fceba",
-            "size": 34350
+            "hash": "23fe0df38cabf1ace25a0c6217ccdbb74ad5316335df73c1d216b0835b770a13",
+            "size": 34412
         },
         {
             "path": "application/views/quotation/_items_table.php",
@@ -576,13 +576,13 @@
         },
         {
             "path": "application/views/quotation/quotation-invoice.php",
-            "hash": "315e52bf6d37e9ce8ac338f9141e2026bf974b6ad3704dad3d90788b2766ccd2",
-            "size": 22550
+            "hash": "4383771f6fe48c1c74b76868dbba47ffc02de7ae02fb1fcf43e8fadae11b3f38",
+            "size": 23359
         },
         {
             "path": "application/views/quotation/print-quotation-invoice-3.php",
-            "hash": "179e4b1137a3c6bbf75df776d64a43b8682898cef89a7084bf10eeb069405d34",
-            "size": 17630
+            "hash": "4ad5631d957f57226cae493aab90bb30bb439b8387dc0322b1dff6e331c59cfb",
+            "size": 18439
         },
         {
             "path": "application/views/quotation/quotation_list.php",
@@ -591,8 +591,8 @@
         },
         {
             "path": "application/views/quotation/plant_quotation.php",
-            "hash": "e6c46c8ff24341b071ff14516f112d1d58833157c194665465428e6b4e146e83",
-            "size": 23775
+            "hash": "31571b54473fce1a4109ff8c280b3b142695123b53077829bf66bda0618ca5f1",
+            "size": 23889
         },
         {
             "path": "application/views/store_credit/list.php",
@@ -2951,8 +2951,8 @@
         },
         {
             "path": "application/views/mobile/quotation_form.php",
-            "hash": "6dbd38876298e7adbc6f41f3655403288daa764e512fda6409a83d13e49258a3",
-            "size": 22449
+            "hash": "f91dd2af5be43793dba17d142a8faf1912c159bb237c515bed400d481a765c13",
+            "size": 22588
         },
         {
             "path": "application/views/mobile/table_management.php",
@@ -5911,8 +5911,8 @@
         },
         {
             "path": "application/views/sal-invoice.php",
-            "hash": "dbf53d3c60dc97c474fd5f110a65a931f04e9b1dca70e7e705d7fc11f7c8a1f7",
-            "size": 30235
+            "hash": "c0e3408bed9a25a0e5eb70b2e8b2c99edc04c7cb359cb3196c83bff2e6eecc47",
+            "size": 31823
         },
         {
             "path": "application/views/package-list.php",
@@ -6506,8 +6506,8 @@
         },
         {
             "path": "application/views/sales/invoice_payment_account.php",
-            "hash": "7be4881893f9ec111bf01f54fa54f9a5d530cc71f5a60c489d49cbe56fde26ad",
-            "size": 4160
+            "hash": "efd753ccc17eeb18128c946d5a1ed064792105dc1822db37509a7b100e926c1d",
+            "size": 6200
         },
         {
             "path": "application/views/sales/invoice_controls.php",
@@ -7041,8 +7041,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "59cd86b4fe91deea21004b122f69cc71e7db4ee4161fc9ca692f44a53bf752ca",
-            "size": 41454
+            "hash": "cb3c6753b228584c8020f766002b1d47d41be1f6acb87945e769b59b1835a91a",
+            "size": 41602
         },
         {
             "path": "application/config/routes.php",
@@ -7356,8 +7356,8 @@
         },
         {
             "path": "application/models/Quotation_model.php",
-            "hash": "22a1dd2e1ad98d8df19a817cd5828d59e7867d460e4cb1895e1077ee15e2d5d7",
-            "size": 43403
+            "hash": "94a96cd4d3c10a42f8fdec9a542ed2ce0560e05099ba1b7424acad4adb4b93d9",
+            "size": 44708
         },
         {
             "path": "application/models/Batch_reconciliation_model.php",
@@ -8456,8 +8456,8 @@
         },
         {
             "path": "application/controllers/Dashboard.php",
-            "hash": "7ff5894ab8425c46305d3be07147fc2cf09a74d01eb0848f8dd0f3eccb8f3225",
-            "size": 58061
+            "hash": "8b1a20632227a5df91e01a7975b4b981ea104c7e0cd0bf12a93557356329e301",
+            "size": 60314
         },
         {
             "path": "application/controllers/Feedback.php",
@@ -13501,7 +13501,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "17b1d06560992225780f25ba675f789650c6c1849c66a0b29bfd93a9e826ff9d",
+            "hash": "17b7564288b99f01384ae4a91602257c7477473eb997195ee2d5837fb5277117",
             "size": 135777
         },
         {
@@ -20512,7 +20512,8 @@
         "4.0.9.251_oil_gas_service_jobs.sql",
         "4.0.9.252_communications_vat_mode_and_minimum.sql",
         "4.0.9.253_nigeria_bulk_sms.sql",
-        "4.0.9.254_invoice_payment_accounts.sql"
+        "4.0.9.254_invoice_payment_accounts.sql",
+        "4.0.9.255_quotation_payment_accounts.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20521,6 +20522,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "08c04ccb223b144af2c5200aab82e0f1d30022b591f98dd98fa4bad74630ad36ec78a07e3b5af603bb847b2915f88e47a200657aa9dcea45cef06114d2a5c507",
-    "changelog": "Release 4.0.9.254"
+    "signature": "934ff5bc9c58a7ac2ba2aa61c66e495f7fe93bd34216d406904937f397d0c10d7712251e52699448fd6db2430989c0a65f585935cb5c89f8bb2ebf2df4b23108",
+    "changelog": "Release 4.0.9.255"
 }
