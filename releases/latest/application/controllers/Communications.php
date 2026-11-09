@@ -120,7 +120,7 @@ class Communications extends MY_Controller {
         if(!in_array($action,array('communication_request','communication_toggle','purchase','verify_purchase'),true)){show_error('Unknown action.',400);return;}
         $p=array();foreach(array('module_key','purpose','period','plan_key','package_id','amount','vat_mode','email','provider','request_key','enabled','reference') as $field)$p[$field]=$this->input->post($field);
         $r=$this->messaging_client->request($action,get_current_store_id(),$p);
-        if($action==='purchase' && !empty($r['success']) && parse_url($r['checkout_url']??'',PHP_URL_SCHEME)==='https'){redirect($r['checkout_url']);return;}
+        if(in_array($action,array('purchase','communication_request'),true) && !empty($p['provider']) && !empty($r['success']) && parse_url($r['checkout_url']??'',PHP_URL_SCHEME)==='https'){redirect($r['checkout_url']);return;}
         $this->session->set_flashdata(!empty($r['success'])?'success':'failed',$r['message']??'Request saved.');$this->go($key,$action==='verify_purchase'?'requests':($p['purpose']==='recharge'?'recharge':'subscription'));
     }
     public function import_contacts(){
@@ -216,6 +216,10 @@ class Communications extends MY_Controller {
     public function manual_credit(){
         $this->post();$key=$this->input->post('module_key')==='email'?'email':'sms';$this->guard($key);
         try{$this->load->library('communication_documents');$p=array('module_key'=>$key,'purpose'=>'recharge','amount'=>$this->input->post('amount'),'vat_mode'=>$this->input->post('vat_mode'),'package_id'=>$this->input->post('package_id'),'email'=>$this->input->post('email'),'request_key'=>$this->input->post('request_key'),'receipt'=>Communication_documents::upload('receipt'));$r=$this->messaging_client->request('manual_credit',get_current_store_id(),$p);if(empty($r['success']))throw new RuntimeException($r['message']??'Administrator did not confirm the receipt.');$this->session->set_flashdata('success',$r['message']);}catch(Throwable $e){$this->session->set_flashdata('failed',$e->getMessage());}$this->go($key,'requests');
+    }
+    public function manual_subscription(){
+        $this->post();$this->guard('automation');
+        try{$this->load->library('communication_documents');$p=array('module_key'=>'automation','purpose'=>'subscription','period'=>$this->input->post('period'),'plan_key'=>$this->input->post('plan_key'),'email'=>$this->input->post('email'),'request_key'=>$this->input->post('request_key'),'receipt'=>Communication_documents::upload('receipt'));$r=$this->messaging_client->request('manual_subscription',get_current_store_id(),$p);if(empty($r['success']))throw new RuntimeException($r['message']??'Administrator did not confirm the receipt.');$this->session->set_flashdata('success',$r['message']);}catch(Throwable $e){$this->session->set_flashdata('failed',$e->getMessage());}$this->go('automation','subscription');
     }
     public function sender_request(){
         $this->post();$this->guard('sms');

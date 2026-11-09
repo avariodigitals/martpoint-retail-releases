@@ -11,6 +11,18 @@ class Communications_model extends CI_Model {
     private function central() { if (!mp_is_central() || !$this->ready()) throw new RuntimeException('Communications is not available yet. Contact your Administrator.'); }
     public function review(){ $this->load->model('communication_review_model');$ci =& get_instance();return isset($ci->communication_review_model) && $ci->communication_review_model->ready()?$ci->communication_review_model:null; }
     public function catalogue() { $out=array(); foreach($this->db->get('db_communication_catalogue')->result_array() as $r) { $r['packages']=json_decode($r['packages_json'],true) ?: array(); $r['name']=self::$modules[$r['module_key']]; $r['development']=in_array($r['module_key'],array('whatsapp','socials'),true);if(in_array($r['module_key'],array('sms','email'),true)){$r['monthly_kobo']=0;$r['annual_kobo']=0;} $out[$r['module_key']]=$r; } $review=$this->review();if($review)foreach(array('sms','email') as $key)if(isset($out[$key])){$out[$key]['minimum_kobo']=$review->minimum($key);$out[$key]['credit_bundles']=$review->bundles($key);}return $out; }
+    public function nextBillingEnabled(){if(!$this->db->table_exists('db_communication_settings'))return false;$s=$this->db->where('id',1)->get('db_communication_settings')->row_array();return !empty($s['next_billing_enabled']);}
+    public function ensureCanonicalInvoice(array $a,array $r){
+        $credit=($r['purpose']??'')==='recharge' && in_array($r['module_key']??'',array('sms','email'),true);
+        $addon=($r['purpose']??'')==='subscription' && ($r['module_key']??'')==='automation';
+        if(!$this->nextBillingEnabled() || (!$credit && !$addon))return $r;
+        if(!empty($r['central_intent_id']))return $r;
+        $this->load->library('central_billing_client');$this->load->model('communication_review_model');
+        $f=$this->db->select('a.fleet_id,a.store_id,f.install_url')->from('db_messaging_accounts a')->join('db_fleet_installs f','f.id=a.fleet_id')->where('a.id',$a['id'])->get()->row_array();if(!$f)throw new RuntimeException('Fleet installation mapping is unavailable.');
+        if($addon){$policy=$this->automationPlans(true);$planKey=$policy->requestPlan($r['id']);$key='central-addon:'.substr(hash('sha256',$f['fleet_id'].':'.$f['store_id'].':'.$r['request_key']),0,40);$canonical=$this->central_billing_client->post('addon-invoices',array('idempotency_key'=>$key,'fleet_install_id'=>(int)$f['fleet_id'],'store_id'=>(int)$f['store_id'],'install_url'=>$f['install_url'],'product_code'=>'automation-'.$planKey.'-'.$r['billing_period'],'amount_kobo'=>(int)$r['total_kobo'],'tax_kobo'=>(int)$r['tax_kobo']));$values=array('billing_mode'=>'next','canonical_product_type'=>'ADDON','canonical_addon_key'=>$planKey,'canonical_business_id'=>$canonical['business_id'],'canonical_invoice_id'=>$canonical['invoice_id'],'canonical_invoice_number'=>$canonical['invoice_number'],'canonical_invoice_item_id'=>$canonical['invoice_item_id'],'central_intent_id'=>$canonical['intent_id']);}
+        else{$packageId=$this->communication_review_model->requestPackage($r['id']);$key='central-credit:'.substr(hash('sha256',$f['fleet_id'].':'.$f['store_id'].':'.$r['request_key']),0,40);$canonical=$this->central_billing_client->post('invoices',array('idempotency_key'=>$key,'fleet_install_id'=>(int)$f['fleet_id'],'store_id'=>(int)$f['store_id'],'install_url'=>$f['install_url'],'channel'=>$r['module_key'],'credit_units'=>(int)$r['credit_units'],'amount_kobo'=>(int)$r['total_kobo'],'tax_kobo'=>(int)$r['tax_kobo'],'package_id'=>(int)$packageId));$values=array('billing_mode'=>'next','canonical_product_type'=>'CREDIT','canonical_business_id'=>$canonical['business_id'],'canonical_invoice_id'=>$canonical['invoice_id'],'canonical_invoice_number'=>$canonical['invoice_number'],'canonical_invoice_item_id'=>$canonical['invoice_item_id'],'central_intent_id'=>$canonical['intent_id']);}
+        $this->db->where('id',$r['id'])->update('db_communication_requests',$values);return array_merge($r,$values);
+    }
     public function provision($id) {
         foreach(self::$modules as $key=>$name) $this->db->query('INSERT IGNORE INTO db_communication_modules (account_id,module_key) VALUES (?,?)',array($id,$key));
         foreach(array('sms','email') as $channel) $this->db->query('INSERT IGNORE INTO db_communication_wallets (account_id,channel) VALUES (?,?)',array($id,$channel));
@@ -51,7 +63,7 @@ class Communications_model extends CI_Model {
         $auto=$this->automationPlans();
         $requests=$this->db->select('r.*,p.checkout_url')->from('db_communication_requests r')->join('db_messaging_purchases p','p.reference=r.payment_reference COLLATE utf8mb4_unicode_ci','left',false)->where('r.account_id',$id)->order_by('r.id','desc')->limit(50)->get()->result_array();
         if($auto)foreach($requests as &$request)if($request['module_key']==='automation')$request['automation_plan_key']=$auto->requestPlan($request['id']);unset($request);
-        return array('review'=>$this->review()?$this->review()->snapshot($id):array(),'automation'=>$auto?$auto->snapshot($id):array('available'=>false,'message'=>'Automation plans are not available yet. Contact your Administrator.'),'history_page'=>$page,'history_has_more'=>$more,'tax_bps'=>$this->taxBps(),'catalogue'=>$this->catalogue(),'modules'=>$mods,'wallets'=>$wallets,'bank_instructions'=>$settings['bank_instructions'],
+        return array('review'=>$this->review()?$this->review()->snapshot($id):array(),'automation'=>$auto?$auto->snapshot($id):array('available'=>false,'message'=>'Automation plans are not available yet. Contact your Administrator.'),'history_page'=>$page,'history_has_more'=>$more,'tax_bps'=>$this->taxBps(),'catalogue'=>$this->catalogue(),'modules'=>$mods,'wallets'=>$wallets,'next_billing_enabled'=>$this->nextBillingEnabled(),'bank_instructions'=>$settings['bank_instructions'],
             'requests'=>$requests,
             'ledger'=>array_slice($history,0,100));
     }
@@ -150,6 +162,15 @@ class Communications_model extends CI_Model {
         $start=max(time(),empty($m['subscribed_until'])?0:strtotime($m['subscribed_until'].' UTC'));
         $this->db->where('account_id',$id)->where('module_key',$key)->update('db_communication_modules',array('allowed'=>$allowed?1:0,'merchant_enabled'=>1,'subscribed_until'=>gmdate('Y-m-d H:i:s',$start+($period==='annual'?365:30)*86400),'billing_period'=>$period,'billing_source'=>$source,'updated_by'=>$actor,'updated_at'=>gmdate('Y-m-d H:i:s')));
     }
+    /** Apply a verified Next invoice line inside the caller's locked transaction. */
+    public function fulfillAutomationPurchase($request) {
+        if (($request['module_key']??'')!=='automation' || ($request['purpose']??'')!=='subscription' || !in_array($request['billing_period']??'',array('monthly','annual'),true) || empty($request['canonical_addon_key'])) throw new RuntimeException('Automation invoice contract is incomplete.');
+        $m=$this->db->where('account_id',$request['account_id'])->where('module_key','automation')->get('db_communication_modules')->row_array();
+        if(!$m || !$m['allowed'] || !$this->fleetAllowed($request['account_id'],'automation') || empty($this->catalogue()['automation']['enabled'])) throw new RuntimeException('Automation is disabled for this account.');
+        $this->grantSubscription($request['account_id'],'automation',$request['billing_period'],'next_invoice',true,'Next finance',$request['canonical_addon_key']);
+        $this->db->where('id',$request['id'])->update('db_communication_requests',array('status'=>'approved','resolved_by'=>'Next finance','resolved_at'=>gmdate('Y-m-d H:i:s')));
+        $this->event('next-addon:'.$request['canonical_invoice_item_id'],$request['account_id'],'Automation plan payment fulfilled','Canonical invoice '.$request['canonical_invoice_number'].'; plan '.$request['canonical_addon_key'].'; '.$request['billing_period'].'.');
+    }
     public function allow($id,$key,$allowed,$actor) {
         $this->central();if(!isset(self::$modules[$key]) || in_array($key,array('whatsapp','socials'),true))throw new RuntimeException('This module is under development.');
         $this->db->trans_begin();try{$this->lock($id);$this->provision($id);$this->db->where('account_id',$id)->where('module_key',$key)->update('db_communication_modules',array('allowed'=>$allowed?1:0,'updated_by'=>$actor,'updated_at'=>gmdate('Y-m-d H:i:s')));$this->event('allow:'.bin2hex(random_bytes(12)),$id,'Communications availability changed',$key.' '.($allowed?'enabled':'disabled').' by '.$actor);$this->commit();}catch(Throwable $e){$this->db->trans_rollback();throw $e;}
@@ -161,13 +182,21 @@ class Communications_model extends CI_Model {
         if($legacyChannelSubscription && $r['status']==='paid')throw new RuntimeException('This legacy subscription request has a verified payment. Arrange a provider refund before rejecting it; do not activate the subscription.');
         if($legacyChannelSubscription && $r['status']!=='requested')throw new RuntimeException('This legacy subscription request is not eligible for approval. Verify or cancel its payment with the provider first.');
         if(mb_strlen(trim($note))<5)throw new InvalidArgumentException('Record payment evidence or a reason.');
+        if($approve && ($r['billing_mode']??'legacy')==='next' && empty($r['payment_reference'])){
+            if(empty($r['central_intent_id']))$r=$this->ensureCanonicalInvoice($this->db->where('id',$r['account_id'])->get('db_messaging_accounts')->row_array(),$r);
+            $evidence=$this->db->where('account_id',$r['account_id'])->where('kind','receipt')->where('reference_id',$r['id'])->where('slot','receipt')->get('db_communication_documents')->row_array();
+            if(!$evidence || empty($r['central_intent_id']))throw new RuntimeException('The canonical invoice or manual payment evidence is missing.');
+            $this->load->library('central_billing_client');$manual=$this->central_billing_client->post('payments/manual-confirm',array('intent_id'=>$r['central_intent_id'],'manual_payment_key'=>'central-manual:'.$r['id'],'proof_sha256'=>$evidence['sha256'],'note'=>mb_substr($note,0,500),'confirmed_by'=>'Central administrator '.$actor));
+            if(($manual['fulfillment']??'')!=='acknowledged')throw new RuntimeException('Payment is confirmed in Next Admin, but purchase fulfilment is still pending. Retry this review after Central reconnects; do not collect payment again.');
+            return;
+        }
         $this->db->trans_begin();try{$this->lock($r['account_id']);$r=$this->db->where('id',$r['id'])->get('db_communication_requests')->row_array();
             if(in_array($r['status'],array('approved','rejected'),true)){$this->commit();return;}
             if(!empty($r['payment_reference']) && $r['status']!=='paid')throw new RuntimeException('Verify the card payment before approving or rejecting this request.');
             if(!$approve && $r['status']==='paid')throw new RuntimeException('A verified payment needs fulfilment. Refund at the provider before resolving outside this workflow.');
             if($approve){$m=$this->db->where('account_id',$r['account_id'])->where('module_key',$r['module_key'])->get('db_communication_modules')->row_array();if(!$m || !$m['allowed'] || !$this->fleetAllowed($r['account_id'],$r['module_key']) || !$this->catalogue()[$r['module_key']]['enabled'])throw new RuntimeException('Enable this module before approving.');
                 if($r['purpose']==='subscription')$this->grantSubscription($r['account_id'],$r['module_key'],$r['billing_period'],$r['status']==='paid'?'card':'manual_payment',true,$actor,$r['module_key']==='automation'?$this->automationPlans(true)->requestPlan($r['id']):null);
-                else $this->changeUnits($r['account_id'],$r['module_key'],(int)$r['credit_units'],'request:'.$r['id'],null,'Manual payment confirmed: '.$note,$actor,true);
+                elseif(($r['billing_mode']??'legacy')!=='next')$this->changeUnits($r['account_id'],$r['module_key'],(int)$r['credit_units'],'request:'.$r['id'],null,'Manual payment confirmed: '.$note,$actor,true);
             }
             $this->db->where('id',$r['id'])->update('db_communication_requests',array('status'=>$approve?'approved':'rejected','note'=>mb_substr($note,0,500),'resolved_by'=>$actor,'resolved_at'=>gmdate('Y-m-d H:i:s')));
             $this->event('resolve:'.$r['id'],$r['account_id'],'Communications request '.($approve?'approved':'rejected'),'Request #'.$r['id'].'; '.$r['module_key'].'; by '.$actor.'. '.$note);$this->commit();

@@ -2957,7 +2957,7 @@ class Operations extends MY_Controller {
             // Use UNION ALL so each branch can use the right index for a prefix LIKE search.
             $like_term = $this->db->escape_like_str($term) . '%';
 
-            $base_sold = "SELECT si.*, s.sales_date, s.customer_id, s.sales_code, i.item_name, i.warranty_months, c.customer_name, c.mobile
+            $base_sold = "SELECT si.*, s.sales_date, s.customer_id, s.sales_code, i.item_name, si.warranty_months_snapshot AS warranty_months, si.warranty_start AS effective_warranty_start, si.warranty_end AS effective_warranty_end, c.customer_name, c.mobile
                 FROM db_salesitems si
                 LEFT JOIN db_sales s ON s.id = si.sales_id
                 LEFT JOIN db_items i ON i.id = si.item_id
@@ -2967,6 +2967,7 @@ class Operations extends MY_Controller {
             $sold_conditions = [
                 "si.sold_serial_number LIKE ?",
                 "si.sold_imei_number LIKE ?",
+                "si.sold_imei_number_2 LIKE ?",
                 "s.sales_code LIKE ?",
                 "c.customer_name LIKE ?",
                 "c.mobile LIKE ?",
@@ -2984,7 +2985,7 @@ class Operations extends MY_Controller {
             $sold_results = $this->db->query($sold_sql, $sold_bind)->result();
 
             // Also search unsold units in db_item_barcodes
-            $base_unsold = "SELECT b.id as barcode_id, b.item_id, b.serial_number as sold_serial_number, b.imei_number as sold_imei_number, b.warranty_months, b.created_date as sales_date, i.item_name, 'In Stock' as sales_code, NULL as customer_id, NULL as customer_name, NULL as mobile, 0 as sales_id
+            $base_unsold = "SELECT b.id as barcode_id, b.item_id, b.serial_number as sold_serial_number, b.imei_number as sold_imei_number, b.imei_number_2 as sold_imei_number_2, b.warranty_months, b.created_date as sales_date, NULL as effective_warranty_start, NULL as effective_warranty_end, i.item_name, 'In Stock' as sales_code, NULL as customer_id, NULL as customer_name, NULL as mobile, 0 as sales_id
                 FROM db_item_barcodes b
                 LEFT JOIN db_items i ON i.id = b.item_id
                 WHERE i.store_id = ? AND b.status = 1 AND %s";
@@ -2992,6 +2993,7 @@ class Operations extends MY_Controller {
             $unsold_conditions = [
                 "b.serial_number LIKE ?",
                 "b.imei_number LIKE ?",
+                "b.imei_number_2 LIKE ?",
                 "i.item_name LIKE ?",
             ];
 
@@ -3008,6 +3010,47 @@ class Operations extends MY_Controller {
             $results = array_merge($sold_results, $unsold_results);
         }
         $this->_render('Warranty Lookup', 'operations/warranty_lookup', ['results' => $results, 'search' => $search]);
+    }
+
+    public function warranty_claims() {
+        if (!mp_feature_enabled('warranty_tracking') && !mp_feature_enabled('serial_number_tracking') && !mp_feature_enabled('imei_tracking')) {
+            $this->_render_feature_not_activated('warranty_tracking', 'Warranty claims require warranty, serial number, or IMEI tracking.');
+        }
+        $this->permission_check('store_view');
+        $this->load->model('Warranty_claim_model','warranty_claims_model');
+        $error=''; $success='';
+        if ($this->input->method()==='post') {
+            try {
+                $this->warranty_claims_model->create($this->input->post('salesitems_id',TRUE),$this->input->post('issue',FALSE));
+                $this->session->set_flashdata('success','Warranty claim opened.');
+                redirect('operations/warranty_claims'); return;
+            } catch (Throwable $e) { $error=$e->getMessage(); }
+        }
+        $unit=null;
+        $unit_id=(int)$this->input->get('new',TRUE);
+        if ($unit_id>0) {
+            $unit=$this->db->select('si.id,si.sold_serial_number,si.sold_imei_number,si.sold_imei_number_2,si.warranty_end,s.sales_code,s.sales_date,c.customer_name,i.item_name',false)
+                ->from('db_salesitems si')->join('db_sales s','s.id=si.sales_id AND s.store_id=si.store_id','inner')
+                ->join('db_items i','i.id=si.item_id AND i.store_id=si.store_id','left')->join('db_customers c','c.id=s.customer_id AND c.store_id=s.store_id','left')
+                ->where('si.id',$unit_id)->where('si.store_id',(int)get_current_store_id())->where('s.sales_status','Final')->get()->row();
+        }
+		$claims=$this->warranty_claims_model->list_claims($this->input->get('search',TRUE));
+		foreach($claims as $claim) $claim->next_statuses=$this->warranty_claims_model->next_statuses($claim->status);
+		$data=['claims'=>$claims,'search'=>$this->input->get('search',TRUE),'unit'=>$unit,'error'=>$error,'success'=>$success];
+        $this->_render('Warranty Claims','operations/warranty_claims',$data);
+    }
+
+    public function warranty_claim_update($claim_id=0) {
+        if (!mp_feature_enabled('warranty_tracking') && !mp_feature_enabled('serial_number_tracking') && !mp_feature_enabled('imei_tracking')) {
+            $this->_render_feature_not_activated('warranty_tracking', 'Warranty claim management requires warranty, serial number, or IMEI tracking.');
+        }
+        $this->permission_check('store_view');
+        $this->load->model('Warranty_claim_model','warranty_claims_model');
+        try {
+            $this->warranty_claims_model->update_status((int)$claim_id,$this->input->post('status',TRUE),$this->input->post('decision_note',FALSE),$this->input->post('resolution_note',FALSE));
+            $this->session->set_flashdata('success','Warranty claim updated.');
+        } catch (Throwable $e) { $this->session->set_flashdata('error',$e->getMessage()); }
+        redirect('operations/warranty_claims');
     }
 
     /* ===================== RECIPE CATEGORIES ===================== */

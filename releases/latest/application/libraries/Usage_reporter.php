@@ -6,6 +6,9 @@ class Usage_reporter {
     protected $directory;
     protected $payload = [];
     public function __construct() {$this->directory=APPPATH.'cache';}
+    protected function diagnostic(string $message): void {
+        if(function_exists('log_message')) log_message('error','Client retention reporter: '.$message);
+    }
     protected function eligible(string $url): bool {
         $host=strtolower((string)parse_url($url,PHP_URL_HOST));
         return preg_match('~^https?://~i',$url) && $host && strpos($host,'.')!==false
@@ -17,7 +20,7 @@ class Usage_reporter {
     /** Successful authentication records a timestamp, without contacting another server. */
     public function recordLogin(string $url): bool {
         if(!$this->eligible($url))return false;
-        $f=@fopen($this->path($url).'.login','c+');if(!$f)return false;
+        $f=@fopen($this->path($url).'.login','c+');if(!$f){$this->diagnostic('could not write login marker; application/cache is unavailable or not writable.');return false;}
         try{if(!flock($f,LOCK_EX))return false;$prior=(int)stream_get_contents($f);rewind($f);ftruncate($f,0);fwrite($f,(string)max($prior,time()));fflush($f);@chmod($this->path($url).'.login',0600);return true;}finally{fclose($f);}
     }
     protected function identity(): array {
@@ -26,14 +29,20 @@ class Usage_reporter {
         return ['install_key'=>(string)($row->install_key ?? '')];
     }
     protected function transport(string $endpoint,array $body): ?array {
-        if(!function_exists('curl_init'))return null;
-        $ch=curl_init('https://martpoint.com.ng/api/usage/'.$endpoint);
-        curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>json_encode($body),CURLOPT_HTTPHEADER=>['Content-Type: application/json','Accept: application/json'],CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT_MS=>800,CURLOPT_TIMEOUT_MS=>2000,CURLOPT_NOSIGNAL=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2]);
-        $raw=curl_exec($ch);$status=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-        if($raw===false||$status!==200)return null;$data=json_decode($raw,true);return is_array($data)?$data:null;
+        if(!function_exists('curl_init')){$this->diagnostic('PHP cURL is unavailable for '.$endpoint.'.');return null;}
+        $ch=@curl_init('https://martpoint.com.ng/api/usage/'.$endpoint);
+        if($ch===false){$this->diagnostic('could not initialize PHP cURL for '.$endpoint.'.');return null;}
+        // This runs from a separate browser request, never from login or sale
+        // submission. Enrollment nests a Fleet proof and database writes, so a
+        // two-second total timeout was too short for normal cold/remote calls.
+        $timeout=$endpoint==='enroll'?10000:5000;
+        curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>json_encode($body),CURLOPT_HTTPHEADER=>['Content-Type: application/json','Accept: application/json'],CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT_MS=>1500,CURLOPT_TIMEOUT_MS=>$timeout,CURLOPT_NOSIGNAL=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2]);
+        $raw=curl_exec($ch);$status=curl_getinfo($ch,CURLINFO_HTTP_CODE);$errno=curl_errno($ch);$error=curl_error($ch);curl_close($ch);
+        if($raw===false||$status!==200){$this->diagnostic($endpoint.' request failed (HTTP '.$status.', cURL '.$errno.($error!==''?': '.substr($error,0,180):'').').');return null;}
+        $data=json_decode($raw,true);if(!is_array($data)){$this->diagnostic($endpoint.' returned a non-JSON response.');return null;}return $data;
     }
     protected function enrol(string $url): ?string {
-        $id=$this->identity();if(strlen($id['install_key'])<32)return null;
+        $id=$this->identity();if(strlen($id['install_key'])<32){$this->diagnostic('local Fleet install_key is missing or too short.');return null;}
         $r=$this->transport('enroll',['install_url'=>$url,'install_key'=>$id['install_key']]);
         $token=$r['token'] ?? '';return !empty($r['ok'])&&is_string($token)&&preg_match('/^[A-Za-z0-9_-]{24,128}$/D',$token)?$token:null;
     }
@@ -42,7 +51,7 @@ class Usage_reporter {
     public function reportSystem(string $url): bool {return $this->deliver($url,true);}
     protected function deliver(string $url,bool $system): bool {
         if(!$this->eligible($url))return false;
-        $path=$this->path($url);$file=@fopen($path,'c+');if(!$file)return false;
+        $path=$this->path($url);$file=@fopen($path,'c+');if(!$file){$this->diagnostic('could not open reporter state; application/cache is unavailable or not writable.');return false;}
         try{
             if(!flock($file,LOCK_EX|LOCK_NB))return false;
             @chmod($path,0600);$state=json_decode(stream_get_contents($file),true) ?: [];$now=time();
@@ -53,7 +62,7 @@ class Usage_reporter {
             $state[$clock.'_attempt']=$now;$this->writeState($file,$state);
             if(empty($state['token'])){
                 $state['token']=$this->enrol($url);$this->writeState($file,$state);
-                if(!$state['token'])return false; // No anonymous hostname attribution for new clients.
+                if(!$state['token']){$this->diagnostic('private install enrollment was rejected; anonymous hostname reporting is disabled.');return false;} // No anonymous hostname attribution for new clients.
             }
             $this->payload=['token'=>$state['token'],'type'=>$system?'system':'usage'];
             $this->payload[$system?'system_at':'activity_at']=gmdate('c',$now);
@@ -62,10 +71,11 @@ class Usage_reporter {
             if(($response['ok'] ?? false)===true && ($matched===true||(is_array($matched)&&($matched['matched'] ?? false)===true))){
                 $state[$clock.'_success']=$now;if($pending)$state['login_sent']=$login;$this->writeState($file,$state);return true;
             }
+            $this->diagnostic('MartPoint usage API did not confirm the '.$clock.' report.');
             // Revoked/rotated tokens are re-enrolled on the next throttled attempt.
             if(is_array($response)&&($response['ok'] ?? false)===true && $matched===false){unset($state['token']);$this->writeState($file,$state);}
             return false;
-        }catch(Throwable $e){return false;}finally{fclose($file);}
+        }catch(Throwable $e){$type=get_class($e);$this->diagnostic('unexpected local reporting error ('.$type.').');return false;}finally{fclose($file);}
     }
     protected function writeState($file,array $state): void {rewind($file);ftruncate($file,0);fwrite($file,json_encode($state));fflush($file);}
 }

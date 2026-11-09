@@ -699,7 +699,7 @@ class Items extends MY_Controller {
 
 			// Also search db_item_barcodes for barcode, serial, or imei matches
 			if(!empty($name)){
-				$this->db->select('b.id as barcode_id, b.item_id, b.barcode, b.batch_lot, b.serial_number, b.imei_number, b.warranty_months, b.purchase_price as bc_purchase_price, b.sales_price as bc_sales_price, b.mrp as bc_mrp, b.qty as bc_qty, a.item_name, a.item_code, a.service_bit, a.tax_id, a.tax_type, a.discount_type, a.discount, a.stock as item_stock');
+				$this->db->select('b.id as barcode_id, b.item_id, b.barcode, b.batch_lot, b.serial_number, b.imei_number, b.imei_number_2, b.warranty_months, b.purchase_price as bc_purchase_price, b.sales_price as bc_sales_price, b.mrp as bc_mrp, b.qty as bc_qty, a.item_name, a.item_code, a.service_bit, a.tax_id, a.tax_type, a.discount_type, a.discount, a.stock as item_stock');
 				$this->db->from('db_item_barcodes b');
 				$this->db->join('db_items a', 'a.id = b.item_id', 'left');
 				$this->db->where('a.status', 1);
@@ -708,7 +708,8 @@ class Items extends MY_Controller {
 					$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
 				}
 				$this->db->where('b.status', 1);
-				$this->db->where("(LOWER(b.barcode) LIKE '%$name_sql%' OR LOWER(b.serial_number) LIKE '%$name_sql%' OR LOWER(b.imei_number) LIKE '%$name_sql%')", null, false);
+				if(isset($search_for) && $search_for==='sales' && $this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('b.warehouse_id',(int)$warehouse_id);
+				$this->db->where("(LOWER(b.barcode) LIKE '%$name_sql%' OR LOWER(b.serial_number) LIKE '%$name_sql%' OR LOWER(b.imei_number) LIKE '%$name_sql%' OR LOWER(b.imei_number_2) LIKE '%$name_sql%')", null, false);
 				$this->db->limit(20);
 				$bc_sql = $this->db->get();
 				foreach ($bc_sql->result() as $bres) {
@@ -720,6 +721,7 @@ class Items extends MY_Controller {
 					if($bres->batch_lot) $label_extra .= ($label_extra ? ' / ' : '') . $bres->batch_lot;
 					if($bres->serial_number) $label_extra .= ($label_extra ? ' / ' : '') . 'S/N:' . $bres->serial_number;
 					if($bres->imei_number) $label_extra .= ($label_extra ? ' / ' : '') . 'IMEI:' . $bres->imei_number;
+					if($bres->imei_number_2) $label_extra .= ($label_extra ? ' / ' : '') . 'IMEI2:' . $bres->imei_number_2;
 					$json_arr["label"] = $bres->item_name . ($label_extra ? ' [' . $label_extra . ']' : '');
 					$json_arr["item_code"] = $bres->item_code;
 					$json_arr["stock"] = ($bres->bc_qty > 0) ? $bres->bc_qty : $bres->item_stock;
@@ -736,6 +738,7 @@ class Items extends MY_Controller {
 					$json_arr["barcode_id"] = $bres->barcode_id;
 					$json_arr["serial_number"] = $bres->serial_number;
 					$json_arr["imei_number"] = $bres->imei_number;
+					$json_arr["imei_number_2"] = $bres->imei_number_2;
 					$json_arr["warranty_months"] = $bres->warranty_months;
 					if(isset($search_for) && $search_for=='sales'){
 						$json_arr["expired"] = false;

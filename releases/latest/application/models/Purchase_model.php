@@ -235,6 +235,19 @@ class Purchase_model extends CI_Model {
 		if (!$this->db->table_exists('db_item_barcodes') || !$this->db->field_exists('received_qty', 'db_purchaseitems')) return true;
 		$lines = $this->db->where('purchase_id', (int)$purchase_id)->get('db_purchaseitems')->result();
 		foreach ($lines as $line) {
+			// Serialised stock is one physical unit per barcode row. It may be
+			// removed while editing a receipt only while every linked unit remains
+			// available; sold/quarantined units must not silently disappear.
+			if ($this->db->field_exists('purchaseitems_id','db_item_barcodes')) {
+				$units = $this->db->where('purchaseitems_id',(int)$line->id)->get('db_item_barcodes')->result();
+				foreach ($units as $unit) {
+					if ((int)$unit->status !== 1) return false;
+				}
+				if (!empty($units)) {
+					$this->db->where('purchaseitems_id',(int)$line->id)->delete('db_item_barcodes');
+					continue;
+				}
+			}
 			$received = (float)($line->received_qty ?? 0);
 			$factor = (float)($line->conversion_factor ?? 1);
 			if ($factor <= 0) $factor = 1;
@@ -541,6 +554,7 @@ class Purchase_model extends CI_Model {
 				$barcode			=$this->xss_html_filter(trim($_REQUEST['barcode_'.$i] ?? ''));
 				$serial_number		=$this->xss_html_filter(trim($_REQUEST['serial_number_'.$i] ?? ''));
 				$imei_number		=$this->xss_html_filter(trim($_REQUEST['imei_number_'.$i] ?? ''));
+				$unit_identity_text = trim((string)($_REQUEST['unit_identities_'.$i] ?? ''));
 				$expire_date		=$this->xss_html_filter(trim($_REQUEST['expire_date_'.$i] ?? ''));
 				$mfg_date			=$this->xss_html_filter(trim($_REQUEST['mfg_date_'.$i] ?? ''));
 				$received_qty		=$this->xss_html_filter(trim($_REQUEST['received_qty_'.$i] ?? ''));
@@ -564,6 +578,53 @@ class Purchase_model extends CI_Model {
 				}
 				$stock_qty = ($received_qty_clean !== null) ? $received_qty_clean : $purchase_qty_clean;
 				$base_unit_qty = $stock_qty * $conversion_factor;
+				$unit_identities = array();
+				$item_tracking = $this->db->select('track_serial,track_imei,warranty_months')->where('id',(int)$item_id)->get('db_items')->row();
+				$requires_unit_identity = $item_tracking && ((int)$item_tracking->track_serial === 1 || (int)$item_tracking->track_imei === 1 || (int)$item_tracking->warranty_months > 0);
+				if ($requires_unit_identity && $received_qty_clean !== null && $received_qty_clean > 0) {
+					$raw_lines = preg_split('/\r\n|\r|\n/', $unit_identity_text);
+					foreach ($raw_lines as $raw_line) {
+						$raw_line = trim($raw_line);
+						if ($raw_line === '') continue;
+						$parts = preg_split('/\s*(?:\||,|\t)\s*/', $raw_line);
+						$unit_identities[] = array(
+							'serial_number' => trim((string)($parts[0] ?? '')),
+							'imei_number' => trim((string)($parts[1] ?? '')),
+							'imei_number_2' => trim((string)($parts[2] ?? '')),
+						);
+					}
+					// Keep the legacy one-unit form usable for older clients and saved purchase edits.
+					if (empty($unit_identities) && ($serial_number !== '' || $imei_number !== '')) {
+						$unit_identities[] = array('serial_number'=>$serial_number,'imei_number'=>$imei_number,'imei_number_2'=>'');
+					}
+					if ((int)$base_unit_qty !== $base_unit_qty || count($unit_identities) !== (int)$base_unit_qty) {
+						$this->db->trans_rollback(); return 'failed: Enter one identifier row for each received device. Use Serial, IMEI 1, IMEI 2 columns separated by tabs, commas, or |.';
+					}
+					$seen = array();
+					foreach ($unit_identities as $unit_identity) {
+						if (strlen($unit_identity['serial_number'])>100 || strlen($unit_identity['imei_number'])>50 || strlen($unit_identity['imei_number_2'])>50) { $this->db->trans_rollback(); return 'failed: Serial numbers are limited to 100 characters and IMEIs to 50 characters.'; }
+						if (((int)$item_tracking->track_serial === 1 || ((int)$item_tracking->warranty_months > 0 && (int)$item_tracking->track_imei !== 1)) && $unit_identity['serial_number'] === '') { $this->db->trans_rollback(); return 'failed: Serial number is required for every received unit.'; }
+						if ((int)$item_tracking->track_imei === 1 && $unit_identity['imei_number'] === '') { $this->db->trans_rollback(); return 'failed: IMEI 1 is required for every received unit.'; }
+						$unit_imeis = array_filter(array($unit_identity['imei_number'],$unit_identity['imei_number_2']));
+						if (count(array_unique(array_map('strtoupper',$unit_imeis))) !== count($unit_imeis)) { $this->db->trans_rollback(); return 'failed: IMEI 1 and IMEI 2 must be different.'; }
+						foreach ($unit_imeis as $unit_imei) {
+							$imei_key = strtoupper($unit_imei);
+							if (isset($seen['imei_any'][$imei_key])) { $this->db->trans_rollback(); return 'failed: Duplicate IMEI in received units.'; }
+							$seen['imei_any'][$imei_key] = true;
+							$this->db->group_start()->where('imei_number',$unit_imei)->or_where('imei_number_2',$unit_imei)->group_end();
+							if ($this->db->get('db_item_barcodes')->row()) { $this->db->trans_rollback(); return 'failed: IMEI '.$unit_imei.' is already registered.'; }
+						}
+						foreach (array('serial_number','imei_number','imei_number_2') as $identity_key) {
+							$value = strtoupper($unit_identity[$identity_key]);
+							if ($value === '') continue;
+							if ($identity_key === 'imei_number_2' && !$this->db->field_exists('imei_number_2','db_item_barcodes')) continue;
+							if (isset($seen[$identity_key][$value])) { $this->db->trans_rollback(); return 'failed: Duplicate '.str_replace('_',' ',$identity_key).' in received units.'; }
+							$seen[$identity_key][$value] = true;
+							$existing_identity = $this->db->where($identity_key, $unit_identity[$identity_key])->get('db_item_barcodes')->row();
+							if ($existing_identity) { $this->db->trans_rollback(); return 'failed: '.str_replace('_',' ',$identity_key).' '.$unit_identity[$identity_key].' is already registered.'; }
+						}
+					}
+				}
 				// Per-base purchase price for updating item cost ledger
 				$price_per_unit_clean = (float)str_replace(',','',$price_per_unit);
 				$base_price_per_unit = ($conversion_factor > 0) ? ($price_per_unit_clean / $conversion_factor) : $price_per_unit_clean;
@@ -616,8 +677,8 @@ class Purchase_model extends CI_Model {
 		    				'expire_date' 		=> !empty($expire_date) ? $expire_date : null,
 		    				'mfg_date' 			=> !empty($mfg_date) ? $mfg_date : null,
 		    				'received_qty' 		=> $received_qty,
-							'sold_serial_number' => !empty($serial_number) ? $serial_number : null,
-							'sold_imei_number' 	=> !empty($imei_number) ? $imei_number : null,
+							'sold_serial_number' => !$requires_unit_identity && !empty($serial_number) ? $serial_number : null,
+							'sold_imei_number' 	=> !$requires_unit_identity && !empty($imei_number) ? $imei_number : null,
 		    				'status'			=> 1,
 		    			);
 				$purchaseitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
@@ -632,6 +693,7 @@ class Purchase_model extends CI_Model {
 				if(!$q2){
 					return "failed";
 				}
+				$purchaseitem_id = (int)$this->db->insert_id();
 				
 				// Only update stock and create barcode records if stock is being received
 				if($purchase_status == 'Received' || $purchase_status == 'Partially Received'){
@@ -643,7 +705,34 @@ class Purchase_model extends CI_Model {
 					}
 
 					// Create or update barcode/batch record in db_item_barcodes
-					$hasBatchIdentity = !empty($barcode) || !empty($batch_lot) || !empty($expire_date) || !empty($serial_number) || !empty($imei_number);
+					$hasBatchIdentity = !empty($barcode) || !empty($batch_lot) || !empty($expire_date) || !empty($serial_number) || !empty($imei_number) || !empty($unit_identities);
+					if ($requires_unit_identity && !empty($unit_identities) && $received_qty > 0) {
+						foreach ($unit_identities as $unit_identity) {
+							$item_prices = $this->db->select('sales_price,mrp')->where('id',$item_id)->get('db_items')->row();
+							$unit_row = array(
+								'item_id' => (int)$item_id,
+								'barcode' => '',
+								'batch_lot' => !empty($batch_lot) ? $batch_lot : null,
+								'serial_number' => $unit_identity['serial_number'] !== '' ? $unit_identity['serial_number'] : null,
+								'imei_number' => $unit_identity['imei_number'] !== '' ? $unit_identity['imei_number'] : null,
+								'warranty_months' => (int)($item_tracking->warranty_months ?? 0),
+								'purchase_price' => store_number_format($base_price_per_unit,0),
+								'sales_price' => store_number_format($item_prices->sales_price ?? 0,0),
+								'mrp' => store_number_format($item_prices->mrp ?? 0,0),
+								'qty' => 1,
+								'expire_date' => !empty($expire_date) ? $expire_date : null,
+								'mfg_date' => !empty($mfg_date) ? $mfg_date : null,
+								'warehouse_id' => $warehouse_id,
+								'status' => 1,
+								'created_date' => date('Y-m-d'),
+								'created_time' => date('H:i:s'),
+							);
+							if ($this->db->field_exists('imei_number_2','db_item_barcodes')) $unit_row['imei_number_2'] = $unit_identity['imei_number_2'] !== '' ? $unit_identity['imei_number_2'] : null;
+							if ($this->db->field_exists('purchase_id','db_item_barcodes')) $unit_row['purchase_id'] = (int)$purchase_id;
+							if ($this->db->field_exists('purchaseitems_id','db_item_barcodes')) $unit_row['purchaseitems_id'] = $purchaseitem_id;
+							if (!$this->db->insert('db_item_barcodes',$unit_row)) { $this->db->trans_rollback(); return 'failed: Could not register received device identifiers.'; }
+						}
+					} else {
 					if($hasBatchIdentity && $received_qty > 0){
 						$this->db->where('item_id',$item_id)->where('warehouse_id',$warehouse_id);
 						if(!empty($barcode)) $this->db->where('barcode',$barcode);
@@ -699,6 +788,7 @@ class Purchase_model extends CI_Model {
 								'expiry' => !empty($expire_date) ? $expire_date : null,
 							);
 						}
+					}
 					}
 
 					// Keep the item's default cost current for non-barcoded sales (normalize to base unit)
@@ -1248,6 +1338,7 @@ class Purchase_model extends CI_Model {
 							'item_tax' 					=> $tax_rate,
 							'item_tax_type' 			=> $res1->tax_type, 
 							'item_tax_amt' 				=> $item_tax_amt, 
+							'warranty_months' 		=> $res1->warranty_months ?? 0,
 							'item_discount' 			=> 0, 
 							'item_discount_type' 		=> 'Percentage', 
 							'item_discount_input' 		=> 0, 
@@ -1274,6 +1365,13 @@ class Purchase_model extends CI_Model {
 			$unit_id = (!empty($res1->unit_id)) ? $res1->unit_id : ($res2 ? $res2->unit_id : null);
 			$unit_name = (!empty($res1->unit_name)) ? $res1->unit_name : ($base_unit ? ($base_unit->shortcode ?: $base_unit->unit_name) : '');
 			$conversion_factor = (isset($res1->conversion_factor) && $res1->conversion_factor > 0) ? (float)$res1->conversion_factor : 1;
+			$unit_identity_text = '';
+			if (($res2->track_serial ?? 0) || ($res2->track_imei ?? 0) || (int)($res2->warranty_months ?? 0) > 0) {
+				if ($this->db->field_exists('purchaseitems_id','db_item_barcodes')) {
+					$known_units = $this->db->where('purchaseitems_id',(int)$res1->id)->order_by('id','ASC')->get('db_item_barcodes')->result();
+					foreach ($known_units as $known_unit) $unit_identity_text .= (string)($known_unit->serial_number ?? '')." | ".(string)($known_unit->imei_number ?? '')." | ".(string)($known_unit->imei_number_2 ?? '')."\n";
+				}
+			}
 
 			$info = array(
 							'item_id' 					=> $res1->item_id,
@@ -1302,8 +1400,10 @@ class Purchase_model extends CI_Model {
 							'received_qty' 				=> $res1->received_qty,
 							'serial_number' 				=> $res1->sold_serial_number,
 							'imei_number' 				=> $res1->sold_imei_number,
+							'unit_identities' 			=> trim($unit_identity_text),
 							'track_serial' 				=> $res2->track_serial ?? 0,
 							'track_imei' 				=> $res2->track_imei ?? 0,
+							'warranty_months' 		=> $res2->warranty_months ?? 0,
 						);
 
 			$result = $this->return_row_with_data($rowcount++,$info);
@@ -1335,8 +1435,10 @@ class Purchase_model extends CI_Model {
 		$received_qty = isset($info['received_qty']) ? $info['received_qty'] : '';
 		$serial_number = isset($info['serial_number']) ? $info['serial_number'] : '';
 		$imei_number = isset($info['imei_number']) ? $info['imei_number'] : '';
+		$unit_identities = isset($info['unit_identities']) ? (string)$info['unit_identities'] : '';
 		$track_serial = isset($info['track_serial']) ? $info['track_serial'] : 0;
 		$track_imei = isset($info['track_imei']) ? $info['track_imei'] : 0;
+		$warranty_months = isset($info['warranty_months']) ? (int)$info['warranty_months'] : 0;
 
 		// Purchase unit selection (Pack/Piece/Carton) for multi-unit selling
 		$item_purchase_unit_id = isset($info['item_purchase_unit_id']) ? $info['item_purchase_unit_id'] : null;
@@ -1455,7 +1557,7 @@ class Purchase_model extends CI_Model {
                <input type="hidden" id="td_data_<?=$rowcount;?>_10" name="td_data_<?=$rowcount;?>_10" value="<?=store_number_format($item_unit_cost,0);?>">
                <span style="display:none;" id="td_data_<?=$rowcount;?>_15"><?=$item_tax_name;?></span>
 
-			   <?php if($is_pharmacy_store || mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number){ ?>
+			   <?php if($is_pharmacy_store || mp_feature_enabled('batch_tracking') || $batch_lot || $barcode || $expire_date || $mfg_date || $received_qty || $serial_number || $imei_number || $track_serial || $track_imei || $warranty_months){ ?>
 			   <button type="button" class="mp-pi-expand<?= $is_pharmacy_store ? ' expanded' : ''; ?>"><i class="fa fa-chevron-down"></i> <?= $is_pharmacy_store ? 'Batch / Expiry Details' : 'Additional Details'; ?></button>
 
                <!-- BATCH / RECEIPT ROW -->
@@ -1469,15 +1571,12 @@ class Purchase_model extends CI_Model {
                         <label>Barcode</label>
                         <input type="text" name="barcode_<?=$rowcount;?>" id="barcode_<?=$rowcount;?>" class="form-control" value="<?=$barcode;?>" placeholder="Barcode">
                      </div>
-                     <?php if($track_serial || $track_imei || $serial_number || $imei_number){ ?>
-                     <div class="mp-pi-field">
-                        <label>Serial Number</label>
-                        <input type="text" name="serial_number_<?=$rowcount;?>" id="serial_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial">
-                     </div>
-                     <div class="mp-pi-field">
-                        <label>IMEI</label>
-                        <input type="text" name="imei_number_<?=$rowcount;?>" id="imei_number_<?=$rowcount;?>" class="form-control" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI">
-                     </div>
+				   <?php if($track_serial || $track_imei || $warranty_months || $serial_number || $imei_number){ ?>
+					 <div class="mp-pi-field" style="grid-column:1/-1;">
+						<label>Device identities <small>(one row per received unit)</small></label>
+						<textarea name="unit_identities_<?=$rowcount;?>" id="unit_identities_<?=$rowcount;?>" class="form-control" rows="4" placeholder="Serial number | IMEI 1 | IMEI 2"><?=htmlspecialchars($unit_identities);?></textarea>
+						<small>Paste one device per line. Separate Serial, IMEI 1 and IMEI 2 with a tab, comma, or |. A dual-SIM phone is still one unit.</small>
+					 </div>
                      <?php } ?>
                      <div class="mp-pi-field">
                         <label>Rcv Qty</label>
@@ -1928,12 +2027,19 @@ class Purchase_model extends CI_Model {
 		                  <th style="width:15%">Batch/Lot</th>
 		                  <th style="width:15%">Barcode</th>
 		                  <th style="width:12%">Expiry</th>
-		                  <th style="width:12%">MFG Date</th>
+				          <th style="width:12%">MFG Date</th>
+				          <th>Serial / IMEI per unit</th>
 		                </tr>
 		              </thead>
 		              <tbody>
-		                <?php foreach($q2->result() as $res2):
-		                  $item_name = $this->db->query("select item_name from db_items where id=".$res2->item_id)->row()->item_name;
+			        <?php foreach($q2->result() as $res2):
+			          $tracked_item = $this->db->select('item_name,track_serial,track_imei,warranty_months,sales_price,mrp')->where('id',(int)$res2->item_id)->get('db_items')->row();
+			          $item_name = $tracked_item->item_name ?? '';
+			          $unit_identity_text = '';
+						if ($tracked_item && ((int)$tracked_item->track_serial || (int)$tracked_item->track_imei || (int)$tracked_item->warranty_months>0) && $this->db->field_exists('purchaseitems_id','db_item_barcodes')) {
+			            $known_units = $this->db->where('purchaseitems_id',(int)$res2->id)->order_by('id','ASC')->get('db_item_barcodes')->result();
+			            foreach ($known_units as $known_unit) $unit_identity_text .= (string)($known_unit->serial_number ?? '')." | ".(string)($known_unit->imei_number ?? '')." | ".(string)($known_unit->imei_number_2 ?? '')."\n";
+			          }
 		                ?>
 		                <tr>
 		                  <td>
@@ -1956,6 +2062,12 @@ class Purchase_model extends CI_Model {
 		                  </td>
 		                  <td>
 		                    <input type="text" name="cs_mfg_date[]" class="form-control text-center datepicker" value="<?= is_valid_date($res2->mfg_date) ? show_date($res2->mfg_date) : ''; ?>" placeholder="dd-mm-yyyy" readonly>
+		                  </td>
+		                  <td>
+					            <?php if($tracked_item && ((int)$tracked_item->track_serial || (int)$tracked_item->track_imei || (int)$tracked_item->warranty_months>0)): ?>
+		                    <textarea name="cs_unit_identities[]" class="form-control cs-unit-identities" rows="3" placeholder="Serial | IMEI 1 | IMEI 2"><?= htmlspecialchars(trim($unit_identity_text)); ?></textarea>
+		                    <small>One row per received device. Tabs, commas, or | separate columns.</small>
+		                    <?php else: ?><input type="hidden" name="cs_unit_identities[]" value=""><?php endif; ?>
 		                  </td>
 		                </tr>
 		                <?php endforeach; ?>
@@ -2009,6 +2121,7 @@ class Purchase_model extends CI_Model {
 		$barcodes = $this->input->post('cs_barcode', TRUE);
 		$expire_dates = $this->input->post('cs_expire_date', TRUE);
 		$mfg_dates = $this->input->post('cs_mfg_date', TRUE);
+		$unit_identity_texts = $this->input->post('cs_unit_identities', TRUE) ?: array();
 
 		$this->db->trans_begin();
 		$purchaseHeader = $this->db->select('warehouse_id, purchase_status, reference_no, store_id')->where('id', (int)$purchase_id)->get('db_purchase')->row();
@@ -2029,19 +2142,15 @@ class Purchase_model extends CI_Model {
 		if($new_status == 'Partially Received' || $new_status == 'Received'){
 			for($i=0; $i<count($item_row_ids); $i++){
 				$row_id = $item_row_ids[$i];
-				$item_result = $this->db->query("select item_id from db_purchaseitems where id=$row_id");
+				$item_result = $this->db->where('id',(int)$row_id)->where('purchase_id',(int)$purchase_id)->get('db_purchaseitems');
 				if(!$item_result || $item_result->num_rows() == 0){
 					$this->db->trans_rollback();
 					return "failed";
 				}
-				$item_id = $item_result->row()->item_id;
-				$qty_result = $this->db->query("select purchase_qty, conversion_factor from db_purchaseitems where id=$row_id");
-				if(!$qty_result || $qty_result->num_rows() == 0){
-					$this->db->trans_rollback();
-					return "failed";
-				}
-				$purchase_qty = $qty_result->row()->purchase_qty;
-				$conversion_factor = (float)($qty_result->row()->conversion_factor ?? 1);
+				$line = $item_result->row();
+				$item_id = (int)$line->item_id;
+				$purchase_qty = $line->purchase_qty;
+				$conversion_factor = (float)($line->conversion_factor ?? 1);
 				if($conversion_factor <= 0){ $conversion_factor = 1; }
 
 				$rcv_raw = trim($received_qtys[$i] ?? '');
@@ -2053,6 +2162,38 @@ class Purchase_model extends CI_Model {
 					return 'failed: Received quantity cannot exceed the ordered quantity for a purchased line.';
 				}
 				$base_unit_qty = $rcv_qty * $conversion_factor;
+				$item = $this->db->select('track_serial,track_imei,warranty_months,sales_price,mrp')->where('id',$item_id)->get('db_items')->row();
+				$tracked = $item && ((int)$item->track_serial || (int)$item->track_imei || (int)$item->warranty_months>0);
+				$identities = array();
+				if ($tracked && $rcv_qty > 0) {
+					$raw_lines = preg_split('/\r\n|\r|\n/', (string)($unit_identity_texts[$i] ?? ''));
+					foreach ($raw_lines as $raw_line) {
+						$raw_line = trim($raw_line);
+						if ($raw_line === '') continue;
+						$parts = preg_split('/\s*(?:\||,|\t)\s*/',$raw_line);
+						$identities[] = array('serial_number'=>trim((string)($parts[0] ?? '')),'imei_number'=>trim((string)($parts[1] ?? '')),'imei_number_2'=>trim((string)($parts[2] ?? '')));
+					}
+					if ((int)$base_unit_qty !== $base_unit_qty || count($identities) !== (int)$base_unit_qty) {
+						$this->db->trans_rollback(); return 'failed: Enter one identifier row for each received device.';
+					}
+					$seen_imei_batch=array();
+					foreach ($identities as $identity) {
+						if(strlen($identity['serial_number'])>100 || strlen($identity['imei_number'])>50 || strlen($identity['imei_number_2'])>50){ $this->db->trans_rollback(); return 'failed: Serial numbers are limited to 100 characters and IMEIs to 50 characters.'; }
+						if (((int)$item->track_serial || ((int)$item->warranty_months>0 && (int)$item->track_imei!==1)) && $identity['serial_number'] === '') { $this->db->trans_rollback(); return 'failed: Serial number is required for every received unit.'; }
+						if ((int)$item->track_imei && $identity['imei_number'] === '') { $this->db->trans_rollback(); return 'failed: IMEI 1 is required for every received unit.'; }
+						$unit_imeis=array_filter(array($identity['imei_number'],$identity['imei_number_2']));
+						if(count(array_unique(array_map('strtoupper',$unit_imeis)))!==count($unit_imeis)){ $this->db->trans_rollback(); return 'failed: IMEI 1 and IMEI 2 must be different.'; }
+						foreach($unit_imeis as $unit_imei){$key=strtoupper($unit_imei);if(isset($seen_imei_batch[$key])){$this->db->trans_rollback();return 'failed: Duplicate IMEI in received units.';}$seen_imei_batch[$key]=true;}
+						foreach (array('serial_number','imei_number','imei_number_2') as $identity_key) {
+							$value = $identity[$identity_key]; if ($value === '') continue;
+							if ($identity_key === 'imei_number_2' && !$this->db->field_exists('imei_number_2','db_item_barcodes')) continue;
+							$this->db->group_start()->where($identity_key,$value);
+							if ($identity_key==='imei_number' && $this->db->field_exists('imei_number_2','db_item_barcodes')) $this->db->or_where('imei_number_2',$value);
+							if ($identity_key==='imei_number_2') $this->db->or_where('imei_number',$value);
+							if ($this->db->group_end()->get('db_item_barcodes')->row()) { $this->db->trans_rollback(); return 'failed: Identifier '.$value.' is already registered.'; }
+						}
+					}
+				}
 
 				$exp_date = (!empty($expire_dates[$i])) ? system_fromatted_date($expire_dates[$i]) : null;
 				$mfg_date_val = (!empty($mfg_dates[$i])) ? system_fromatted_date($mfg_dates[$i]) : null;
@@ -2077,7 +2218,15 @@ class Purchase_model extends CI_Model {
 
 				// Create/update barcode record
 				$hasBatchIdentity = !empty($barcode_val) || !empty($batch_lot_val) || !empty($exp_date);
-				if($hasBatchIdentity && !empty($rcv_qty) && $rcv_qty > 0){
+				if ($tracked && $identities && $rcv_qty > 0) {
+					foreach ($identities as $identity) {
+						$unit = array('item_id'=>$item_id,'barcode'=>'','batch_lot'=>$batch_lot_val,'serial_number'=>$identity['serial_number'] ?: null,'imei_number'=>$identity['imei_number'] ?: null,'warranty_months'=>(int)($item->warranty_months ?? 0),'purchase_price'=>$line->price_per_unit,'sales_price'=>$item->sales_price ?? 0,'mrp'=>$item->mrp ?? 0,'qty'=>1,'expire_date'=>$exp_date,'mfg_date'=>$mfg_date_val,'warehouse_id'=>$warehouse_id,'status'=>1,'created_date'=>date('Y-m-d'),'created_time'=>date('H:i:s'));
+						if ($this->db->field_exists('imei_number_2','db_item_barcodes')) $unit['imei_number_2'] = $identity['imei_number_2'] ?: null;
+						if ($this->db->field_exists('purchase_id','db_item_barcodes')) $unit['purchase_id'] = (int)$purchase_id;
+						if ($this->db->field_exists('purchaseitems_id','db_item_barcodes')) $unit['purchaseitems_id'] = (int)$row_id;
+						if (!$this->db->insert('db_item_barcodes',$unit)) { $this->db->trans_rollback(); return 'failed: Could not register received device.'; }
+					}
+				} elseif($hasBatchIdentity && !empty($rcv_qty) && $rcv_qty > 0){
 					$this->db->where('item_id',$item_id);
 					if(!empty($barcode_val)) $this->db->where('barcode',$barcode_val);
 					if(!empty($batch_lot_val)) $this->db->where('batch_lot',$batch_lot_val);

@@ -1017,6 +1017,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
           <?php if(mp_feature_enabled('batch_tracking')): ?><th>Batch / Lot</th><?php endif; ?>
           <?php if(mp_feature_enabled('serial_number_tracking')): ?><th>Serial Number</th><?php endif; ?>
           <?php if(mp_feature_enabled('imei_tracking')): ?><th>IMEI Number</th><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><th>IMEI 2 (Dual SIM)</th><?php endif; ?>
           <th><?= $is_plant ? 'Unit Purchase Cost' : 'Purchase Price'; ?></th>
           <th><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Wholesale Price'; ?></th>
           <th><?= $is_plant ? 'List Price' : 'Retail Price (MRP)'; ?></th>
@@ -1032,10 +1033,11 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
           $bi = 0;
           foreach($item_barcodes as $brow): $bi++; ?>
         <tr id="barcode_row_<?=$bi;?>">
-          <td><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($brow->barcode);?>" placeholder="Scan or enter barcode"></td>
+          <td><input type="hidden" name="barcode_id[]" value="<?= (int)$brow->id; ?>"><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($brow->barcode);?>" placeholder="Scan or enter barcode"></td>
           <?php if(mp_feature_enabled('batch_tracking')): ?><td><input type="text" name="barcode_batch[]" value="<?=htmlspecialchars($brow->batch_lot);?>" placeholder="Batch / Lot"></td><?php endif; ?>
           <?php if(mp_feature_enabled('serial_number_tracking')): ?><td><input type="text" name="barcode_serial[]" value="<?=htmlspecialchars($brow->serial_number ?? '');?>" placeholder="Serial"></td><?php endif; ?>
           <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei[]" value="<?=htmlspecialchars($brow->imei_number ?? '');?>" placeholder="IMEI"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei_2[]" value="<?=htmlspecialchars($brow->imei_number_2 ?? '');?>" placeholder="IMEI 2 (optional)"></td><?php endif; ?>
           <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($brow->purchase_price,0);?>" placeholder="0.00"></td>
           <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($brow->sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
           <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($brow->mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
@@ -1047,10 +1049,11 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
         </tr>
         <?php endforeach; else: ?>
         <tr id="barcode_row_1">
-          <td><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($custom_barcode);?>" placeholder="Scan or enter barcode"></td>
+          <td><input type="hidden" name="barcode_id[]" value="0"><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($custom_barcode);?>" placeholder="Scan or enter barcode"></td>
           <?php if(mp_feature_enabled('batch_tracking')): ?><td><input type="text" name="barcode_batch[]" value="<?=htmlspecialchars($batch_lot);?>" placeholder="Batch / Lot"></td><?php endif; ?>
           <?php if(mp_feature_enabled('serial_number_tracking')): ?><td><input type="text" name="barcode_serial[]" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial"></td><?php endif; ?>
           <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei[]" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei_2[]" placeholder="IMEI 2 (optional)"></td><?php endif; ?>
           <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($purchase_price,0);?>" placeholder="0.00"></td>
           <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
           <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
@@ -1391,10 +1394,11 @@ var barcodeRowIndex = <?= (!empty($item_barcodes) && is_array($item_barcodes)) ?
 function addBarcodeRow(){
   barcodeRowIndex++;
   var html = '<tr id="barcode_row_'+barcodeRowIndex+'">'+
-    '<td><input type="text" name="barcode_barcode[]" placeholder="Scan or enter barcode"></td>'+
+    '<td><input type="hidden" name="barcode_id[]" value="0"><input type="text" name="barcode_barcode[]" placeholder="Scan or enter barcode"></td>'+
     <?php if(mp_feature_enabled('batch_tracking')): ?>'<td><input type="text" name="barcode_batch[]" placeholder="Batch / Lot"></td>'+
     <?php endif; ?><?php if(mp_feature_enabled('serial_number_tracking')): ?>'<td><input type="text" name="barcode_serial[]" placeholder="Serial"></td>'+
     <?php endif; ?><?php if(mp_feature_enabled('imei_tracking')): ?>'<td><input type="text" name="barcode_imei[]" placeholder="IMEI"></td>'+
+    '<td><input type="text" name="barcode_imei_2[]" placeholder="IMEI 2 (optional)"></td>'+
     <?php endif; ?>'<td><input type="text" class="only_currency" name="barcode_pprice[]" placeholder="0.00"></td>'+
     '<td><input type="text" class="only_currency" name="barcode_sprice[]" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>'+
     '<td><input type="text" class="only_currency" name="barcode_mrp[]" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>'+

@@ -163,8 +163,7 @@ class Assist_knowledge_model extends CI_Model {
 		$userLevel = $this->roleHierarchy[$userRole] ?? 0;
 		foreach($this->knowledgeBase as $entry){
 			if($entry['id'] === $id){
-				$requiredLevel = $this->roleHierarchy[$entry['required_role']] ?? 0;
-				if($userLevel < $requiredLevel) return null;
+				if(!$this->_entryVisible($entry, $userLevel)) return null;
 				return $entry;
 			}
 		}
@@ -184,8 +183,7 @@ class Assist_knowledge_model extends CI_Model {
 		$results = [];
 
 		foreach($this->knowledgeBase as $entry){
-			$requiredLevel = $this->roleHierarchy[$entry['required_role']] ?? 0;
-			if($userLevel < $requiredLevel) continue;
+			if(!$this->_entryVisible($entry, $userLevel)) continue;
 
 			$score = 0;
 			$haystack = strtolower($entry['answer'] . ' ' . ($entry['preview'] ?? '') . ' ' . ($entry['category'] ?? ''));
@@ -235,8 +233,7 @@ class Assist_knowledge_model extends CI_Model {
 		$topics = [];
 
 		foreach($this->knowledgeBase as $entry){
-			$requiredLevel = $this->roleHierarchy[$entry['required_role']] ?? 0;
-			if($userLevel >= $requiredLevel){
+			if($this->_entryVisible($entry, $userLevel)){
 				$topics[] = [
 					'id' => $entry['id'],
 					'category' => $entry['category'] ?? 'general',

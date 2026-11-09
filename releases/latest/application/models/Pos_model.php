@@ -25,6 +25,8 @@ class Pos_model extends CI_Model {
       $barcode = $this->input->post('barcode', TRUE) ?? '';
       $barcode_id = $this->input->post('barcode_id', TRUE) ?? 0;
       $customer_id = $this->input->post('customer_id', TRUE) ?? 0;
+      $warehouse_id = $this->input->post('warehouse_id');
+      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
 
       // Multi-unit selling lookup
       $selected_unit = null;
@@ -67,6 +69,7 @@ class Pos_model extends CI_Model {
         $this->db->join('db_tax t', 't.id = a.tax_id', 'left');
         $this->db->where('b.item_id', $item_id);
         $this->db->where('b.status', 1);
+        if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('b.warehouse_id',(int)$warehouse_id);
         if(!empty($barcode_id)){
           $this->db->where('b.id', $barcode_id);
         } else {
@@ -92,6 +95,7 @@ class Pos_model extends CI_Model {
             'barcode_id' => $bc_data->id,
             'serial_number' => $bc_data->serial_number,
             'imei_number' => $bc_data->imei_number,
+            'imei_number_2' => $bc_data->imei_number_2 ?? '',
             'warranty_months' => $bc_data->warranty_months,
             'track_serial' => $bc_data->track_serial ?? 0,
             'track_imei' => $bc_data->track_imei ?? 0,
@@ -102,8 +106,6 @@ class Pos_model extends CI_Model {
       // Resolve the soonest-expiring batch for this item (if batch/expiry tracking enabled)
       $effective_expire = $res1->expire_date;
       $effective_batch = $res1->batch_lot;
-      $warehouse_id = $this->input->post('warehouse_id');
-      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
       if($this->db->table_exists('db_item_barcodes')){
         $this->db->select('expire_date, batch_lot, created_date')
           ->where('item_id', $item_id)->where('status', 1)->where('qty >', 0);
@@ -234,6 +236,7 @@ class Pos_model extends CI_Model {
 	      				'barcode_id' 			=> 0,
 	      				'serial_number' 		=> $res1->serial_number ?? '',
 	      				'imei_number' 			=> $res1->imei_number ?? '',
+	       'imei_number_2' 		=> '',
 	      				'warranty_months' 		=> $res1->warranty_months ?? 0,
 				'track_serial' 			=> $res1->track_serial ?? 0,
 				'track_imei' 			=> $res1->track_imei ?? 0,

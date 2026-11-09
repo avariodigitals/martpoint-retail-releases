@@ -629,4 +629,9 @@ return [
           '4.0.9.254v' => '4.0.9.254_invoice_payment_accounts.sql',
           // .255 stores the selected Account List destination on quotations.
           '4.0.9.255v' => '4.0.9.255_quotation_payment_accounts.sql',
+          '4.0.9.256v' => '4.0.9.256_central_credit_billing_foundation.sql',
+          '4.0.9.257v' => '4.0.9.257_central_billing_addons.sql',
+          // .258 adds per-unit second IMEI identity and store-scoped retail warranty claims.
+          '4.0.9.258v' => '4.0.9.258_retail_warranty_unit_identity.sql',
+          '4.0.9.259v' => '4.0.9.259_central_billing_catalogue_control.sql',
 ];

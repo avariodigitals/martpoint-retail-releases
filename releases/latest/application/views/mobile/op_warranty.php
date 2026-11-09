@@ -60,6 +60,7 @@
           <input type="search" name="search" placeholder="Serial / IMEI / invoice / customer…" value="<?= htmlspecialchars($search ?? ''); ?>" autofocus>
           <button type="submit"><i class="fa fa-search"></i></button>
         </form>
+        <p style="margin:10px 0 0;"><a href="<?= base_url('mobile/warranty_claims'); ?>" style="color:var(--mp-primary);font-weight:700;text-decoration:none;"><i class="fa fa-wrench"></i> Warranty cases</a></p>
       </div>
 
       <?php if(!empty($search)): ?>
@@ -67,8 +68,9 @@
           <?php foreach($results as $r):
             $is_stock = ($r->sales_code === 'In Stock');
             $warranty_ok = null;
-            if(!$is_stock && !empty($r->warranty_months) && (int)$r->warranty_months > 0 && !empty($r->sales_date)){
-              $expiry = strtotime($r->sales_date.' +'.(int)$r->warranty_months.' months');
+            $expiry_date = $r->effective_warranty_end ?? null;
+            if(!$is_stock && !empty($r->warranty_months) && (int)$r->warranty_months > 0 && !empty($expiry_date)){
+              $expiry = strtotime($expiry_date);
               $warranty_ok = time() <= $expiry;
             }
           ?>
@@ -91,11 +93,13 @@
             <div class="serials">
               <?php if(!empty($r->sold_serial_number)): ?><span class="serial"><i class="fa fa-barcode"></i> SN: <?= htmlspecialchars($r->sold_serial_number); ?></span><?php endif; ?>
               <?php if(!empty($r->sold_imei_number)): ?><span class="serial"><i class="fa fa-mobile"></i> IMEI: <?= htmlspecialchars($r->sold_imei_number); ?></span><?php endif; ?>
+              <?php if(!empty($r->sold_imei_number_2)): ?><span class="serial"><i class="fa fa-mobile"></i> IMEI 2: <?= htmlspecialchars($r->sold_imei_number_2); ?></span><?php endif; ?>
             </div>
             <div class="meta">
               <?php if(!empty($r->customer_name)): ?><span><i class="fa fa-user"></i> <?= htmlspecialchars($r->customer_name); ?><?= !empty($r->mobile) ? ' · '.htmlspecialchars($r->mobile) : ''; ?></span><?php endif; ?>
               <?php if(!empty($r->sales_date)): ?><span><i class="fa fa-calendar-o"></i> <?= $is_stock ? 'Stocked' : 'Sold'; ?> <?= show_date($r->sales_date); ?></span><?php endif; ?>
               <?php if(!empty($r->warranty_months) && (int)$r->warranty_months > 0): ?><span><i class="fa fa-shield"></i> <?= (int)$r->warranty_months; ?>-month warranty</span><?php endif; ?>
+              <?php if(!$is_stock && $warranty_ok && !empty($r->id) && (int)($r->barcode_id ?? 0)>0): ?><a href="<?= base_url('mobile/warranty_claims?new='.(int)$r->id); ?>" style="color:var(--mp-primary);font-weight:700;text-decoration:none;"><i class="fa fa-wrench"></i> Open warranty case</a><?php endif; ?>
             </div>
           </div>
           <?php endforeach; ?>

@@ -881,6 +881,7 @@ function addrow(id='',item_obj=''){
     var barcode       =(item_obj=='') ? '' : (item_obj.barcode || '');
     var serial_number =(item_obj=='') ? ($('#div_'+id).attr('data-item-serial-number')||'') : (item_obj.serial_number || '');
     var imei_number   =(item_obj=='') ? ($('#div_'+id).attr('data-item-imei-number')||'') : (item_obj.imei_number || '');
+    var imei_number_2 =(item_obj=='') ? '' : (item_obj.imei_number_2 || '');
     var warranty_months =(item_obj=='') ? (parseInt($('#div_'+id).attr('data-item-warranty-months'))||0) : (parseInt(item_obj.warranty_months)||0);
     var track_serial  =(item_obj=='') ? (parseInt($('#div_'+id).attr('data-item-track-serial'))||0) : (parseInt(item_obj.track_serial)||0);
     var track_imei    =(item_obj=='') ? (parseInt($('#div_'+id).attr('data-item-track-imei'))||0) : (parseInt(item_obj.track_imei)||0);
@@ -936,6 +937,7 @@ function addrow(id='',item_obj=''){
         str+='<input type="hidden" id="conversion_factor_'+rowcount+'" name="conversion_factor_'+rowcount+'" value="'+(item_obj=="" ? 1:item_obj.conversion_factor)+'">';
         str+='<input type="hidden" id="sold_serial_number_'+rowcount+'" name="sold_serial_number_'+rowcount+'" value="">';
         str+='<input type="hidden" id="sold_imei_number_'+rowcount+'" name="sold_imei_number_'+rowcount+'" value="">';
+        str+='<input type="hidden" id="sold_imei_number_2_'+rowcount+'" name="sold_imei_number_2_'+rowcount+'" value="">';
         str+='<input id="item_discount_type_'+rowcount+'" name="item_discount_type_'+rowcount+'" type="hidden" value="'+discount_type+'">';
          str+='<input id="item_discount_input_'+rowcount+'" name="item_discount_input_'+rowcount+'" type="hidden" value="'+discount+'">';
         str+='<input type="hidden" id="commission_type_'+rowcount+'" name="commission_type_'+rowcount+'" value="'+commission_type+'">';
@@ -958,6 +960,7 @@ function addrow(id='',item_obj=''){
           <?php } ?>
           <?php if(mp_feature_enabled('imei_tracking')) { ?>
           if(imei_number){ $('#sold_imei_number_'+rowcount).val(imei_number); }
+          if(imei_number_2){ $('#sold_imei_number_2_'+rowcount).val(imei_number_2); }
           <?php } ?>
         } else {
           // Grid click: prompt cashier to enter serial/IMEI
@@ -971,6 +974,8 @@ function addrow(id='',item_obj=''){
           if(track_imei || imei_number){
             var imeiVal = prompt('Enter IMEI for: ' + item_name, imei_number);
             if(imeiVal){ $('#sold_imei_number_'+rowcount).val(imeiVal); }
+            var imeiVal2 = prompt('Enter second IMEI if this phone has one (optional):', imei_number_2);
+            if(imeiVal2){ $('#sold_imei_number_2_'+rowcount).val(imeiVal2); }
           }
           <?php } ?>
         }
@@ -1020,6 +1025,7 @@ function buildPosItemObjFromDiv(id, selectedUnit){
     barcode_id: 0,
     serial_number: $div.attr('data-item-serial-number') || '',
     imei_number: $div.attr('data-item-imei-number') || '',
+    imei_number_2: '',
     warranty_months: $div.attr('data-item-warranty-months') || 0,
     track_serial: $div.attr('data-item-track-serial') || 0,
     track_imei: $div.attr('data-item-track-imei') || 0,

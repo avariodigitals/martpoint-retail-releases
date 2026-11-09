@@ -46,6 +46,36 @@ class Sms extends MY_Controller {
     	echo $this->sms_model->api_update();
 	}
 
+	/** Run a Nigeria Bulk SMS voice or account-data API action from the settings UI. */
+	public function nigeriabulksms_action(){
+		$this->permission_check_with_msg('sms_settings');
+		if(!$this->permissions('sms_settings')){
+			$this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Access denied']));
+			return;
+		}
+		$this->load->model('nigeriabulksms_model');
+		$operation=(string)$this->input->post('operation',TRUE);
+		$store_id=get_current_store_id();
+		switch($operation){
+			case 'call':
+				$result=$this->nigeriabulksms_model->send_voice($this->input->post('mobiles',TRUE),$this->input->post('message',TRUE),'call',$this->input->post('sender',TRUE),$store_id); break;
+			case 'tts':
+				$result=$this->nigeriabulksms_model->send_voice($this->input->post('mobiles',TRUE),$this->input->post('message',TRUE),'tts',$this->input->post('sender',TRUE),$store_id); break;
+			case 'audio':
+				$result=$this->nigeriabulksms_model->send_audio($this->input->post('mobiles',TRUE),$this->input->post('audio_reference',TRUE),$this->input->post('sender',TRUE),$store_id); break;
+			case 'upload':
+				$result=$this->nigeriabulksms_model->upload_audio($this->input->post('audio_url',TRUE),$store_id); break;
+			case 'data':
+				$action=(string)$this->input->post('data_action',TRUE);
+				$filters=[];
+				foreach(['type','contacts','groups','numbers'] as $key){ $filters[$key]=(string)$this->input->post($key,TRUE); }
+				$result=$this->nigeriabulksms_model->fetch_data($action,$filters,$store_id); break;
+			default:
+				$result=['ok'=>false,'error'=>'Unsupported Nigeria Bulk SMS operation'];
+		}
+		$this->output->set_content_type('application/json')->set_output(json_encode($result));
+	}
+
 	/**
 	 * Validate BulkSMSNigeria credentials without spending credit.
 	 * Tests the POSTed values first (so an unsaved token can be checked),

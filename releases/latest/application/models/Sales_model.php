@@ -812,6 +812,7 @@ class Sales_model extends CI_Model {
 				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
 				$sold_serial_number =$this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
 				$sold_imei_number   =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$sold_imei_number_2 =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_2_'.$i] ?? ''));
 				$barcode_id         =intval($_REQUEST['barcode_id_'.$i] ?? 0);
 				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'wholesale'));
 				$unit_id			=$this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
@@ -867,18 +868,37 @@ class Sales_model extends CI_Model {
 				$track_imei   = $isInvoiceDraft ? 0 : ($item_details->track_imei ?? 0);
 
 				// Resolve the serial/IMEI strings from the selected unit row
+				$barcode_rec = null;
 				if($barcode_id > 0){
-					$barcode_rec = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					$this->db->where('id',$barcode_id)->where('item_id',(int)$item_id)->where('status',1);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$barcode_rec = $this->db->get('db_item_barcodes')->row();
 					if($barcode_rec){
 						if(!empty($barcode_rec->serial_number)) $sold_serial_number = $barcode_rec->serial_number;
 						if(!empty($barcode_rec->imei_number))  $sold_imei_number  = $barcode_rec->imei_number;
+						if(!empty($barcode_rec->imei_number_2)) $sold_imei_number_2 = $barcode_rec->imei_number_2;
 						if(!empty($barcode_rec->batch_lot))     $batch_lot         = $barcode_rec->batch_lot;
+					}
+				}
+                if(($track_serial || $track_imei || (int)($item_details->warranty_months ?? 0) > 0) && $barcode_id <= 0 && (!empty($sold_serial_number) || !empty($sold_imei_number) || !empty($sold_imei_number_2))){
+					$this->db->where('item_id',(int)$item_id)->where('status',1);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number',$sold_serial_number);
+					if(!empty($sold_imei_number)) $this->db->where('imei_number',$sold_imei_number);
+					if(!empty($sold_imei_number_2) && $this->db->field_exists('imei_number_2','db_item_barcodes')) $this->db->where('imei_number_2',$sold_imei_number_2);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$matched_unit = $this->db->get('db_item_barcodes')->row();
+					if($matched_unit) {
+						$barcode_id = (int)$matched_unit->id; $barcode_rec = $matched_unit;
+						$sold_serial_number = $matched_unit->serial_number ?: $sold_serial_number;
+						$sold_imei_number = $matched_unit->imei_number ?: $sold_imei_number;
+						$sold_imei_number_2 = ($matched_unit->imei_number_2 ?? '') ?: $sold_imei_number_2;
 					}
 				}
 
 				// Serialised equipment MUST carry an exact unit — this is what feeds
 				// warranty, equipment register and delivery traceability.
-				if($track_serial && empty($sold_serial_number)){
+				$requires_device_unit = !$isInvoiceDraft && (bool)($track_serial || $track_imei || (int)($item_details->warranty_months ?? 0) > 0);
+				if(($track_serial || (!$isInvoiceDraft && (int)($item_details->warranty_months ?? 0)>0 && !$track_imei)) && empty($sold_serial_number)){
 					$this->db->trans_rollback();
 					return "Serial number is required for {$item_name}. Pick the exact unit before saving the invoice.";
 				}
@@ -886,14 +906,23 @@ class Sales_model extends CI_Model {
 					$this->db->trans_rollback();
 					return "IMEI number is required for {$item_name}.";
 				}
+				if($requires_device_unit && $barcode_id <= 0){
+					$this->db->trans_rollback();
+					return "Select an available received unit of {$item_name}; identifiers must match inventory.";
+				}
 				// One physical unit = one invoice line
-				if(($track_serial || $track_imei) && $sales_qty > 1){
+				if($requires_device_unit && $sales_qty > 1){
 					$this->db->trans_rollback();
 					return "{$item_name} is serial-tracked: add each unit on its own line (qty 1) so each serial can be assigned.";
 				}
+				$warranty_months_snapshot = max(0,(int)(($barcode_rec && (int)($barcode_rec->warranty_months ?? 0) > 0) ? $barcode_rec->warranty_months : ($item_details->warranty_months ?? 0)));
+				$warranty_start_snapshot = (!$isInvoiceDraft && $warranty_months_snapshot > 0 && !empty($sales_date)) ? $sales_date : null;
+				$warranty_end_snapshot = $warranty_start_snapshot ? date('Y-m-d',strtotime($warranty_start_snapshot.' +'.$warranty_months_snapshot.' months')) : null;
 				// Unit must still be available (status 1 = in stock)
 				if(!$isInvoiceDraft && $barcode_id > 0){
-					$bc_row = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					$this->db->where('id',$barcode_id)->where('item_id',(int)$item_id)->where('status',1);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$bc_row = $this->db->get('db_item_barcodes')->row();
 					if(!$bc_row || (int)$bc_row->status !== 1){
 						$this->db->trans_rollback();
 						return "The selected unit of {$item_name} is not available (already sold or reserved).";
@@ -959,7 +988,11 @@ class Sales_model extends CI_Model {
 		    				'status'	 		=> 1,
 				'seller_points'		=> $isInvoiceDraft ? 0 : get_seller_points($item_id) * $sales_qty,
 		    				'sold_serial_number'=> $sold_serial_number,
-		    				'sold_imei_number'  => $sold_imei_number,
+							'sold_imei_number'  => $sold_imei_number,
+							'sold_imei_number_2' => $sold_imei_number_2,
+							'warranty_months_snapshot' => $warranty_months_snapshot,
+							'warranty_start' => $warranty_start_snapshot,
+							'warranty_end' => $warranty_end_snapshot,
 		    				'barcode_id'        => $barcode_id,
 
 		    			);
@@ -1610,11 +1643,11 @@ class Sales_model extends CI_Model {
         }
 
         // Also search db_item_barcodes by barcode, serial, or imei
-        $this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number');
+		$this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number, b.imei_number_2');
         $this->db->from('db_item_barcodes b');
         $this->db->join('db_items a', 'a.id = b.item_id', 'left');
         $this->db->where('b.status', 1);
-        $this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%')", null, false);
+		$this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%' OR LOWER(b.imei_number_2) LIKE '%$q%')", null, false);
         $this->db->group_by('b.item_id');
         $q2 = $this->db->get();
         if($q2->num_rows()>0){
@@ -1623,6 +1656,7 @@ class Sales_model extends CI_Model {
                 if($value->barcode) $label .= ' [BC:'.$value->barcode.']';
                 if($value->serial_number) $label .= ' [S/N:'.$value->serial_number.']';
                 if($value->imei_number) $label .= ' [IMEI:'.$value->imei_number.']';
+                if($value->imei_number_2) $label .= ' [IMEI2:'.$value->imei_number_2.']';
                 $json_array[]=['id'=>(int)$value->item_id, 'text'=>$label];
             }
         }
@@ -1886,6 +1920,7 @@ class Sales_model extends CI_Model {
 							'service_bit' 				=> $res2->service_bit, 
 							'sold_serial_number' 		=> $res1->sold_serial_number, 
 							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'sold_imei_number_2' 		=> $res1->sold_imei_number_2 ?? '',
 							'barcode_id' 				=> $res1->barcode_id, 
 						);
 
@@ -1915,16 +1950,19 @@ class Sales_model extends CI_Model {
 		$promo_name = isset($info['promo_name']) ? $info['promo_name'] : '';
 
 		// Serialised / batch-tracked unit pickers (equipment & lab consumables).
-		$row_item = (!empty($item_id)) ? $this->db->select('track_serial,track_imei')->where('id',$item_id)->get('db_items')->row() : null;
+		$row_item = (!empty($item_id)) ? $this->db->select('track_serial,track_imei,warranty_months')->where('id',$item_id)->get('db_items')->row() : null;
 		$row_track_serial = (int)($row_item->track_serial ?? 0);
 		$row_track_imei   = (int)($row_item->track_imei ?? 0);
+		$row_requires_unit = (bool)($row_track_serial || $row_track_imei || (int)($row_item->warranty_months ?? 0) > 0);
+		if (!$row_track_serial && !$row_track_imei && $row_requires_unit) $row_track_serial = 1;
 		$sel_barcode_id   = isset($info['barcode_id']) ? (int)$info['barcode_id'] : 0;
 		$sel_serial       = isset($info['sold_serial_number']) ? $info['sold_serial_number'] : '';
 		$sel_imei         = isset($info['sold_imei_number']) ? $info['sold_imei_number'] : '';
+		$sel_imei_2       = isset($info['sold_imei_number_2']) ? $info['sold_imei_number_2'] : '';
 		$avail_units = array();
-		if(($row_track_serial || $row_track_imei) && !empty($item_id)){
+		if($row_requires_unit && !empty($item_id)){
 			$this->db->where('item_id',$item_id)->where('status',1);
-			$this->db->group_start()->where('serial_number IS NOT NULL')->where("serial_number != ''")->group_end();
+			$this->db->group_start()->where('serial_number IS NOT NULL')->where("serial_number != ''")->or_where('imei_number IS NOT NULL')->or_where("imei_number != ''")->group_end();
 			$avail_units = $this->db->get('db_item_barcodes')->result();
 			// On update, the unit already bound to this line was released — allow it to be re-picked
 			if($sel_barcode_id > 0){
@@ -1949,18 +1987,19 @@ class Sales_model extends CI_Model {
                         <span class="si-promo"><?= htmlspecialchars($promo_name); ?></span>
                      <?php endif; ?>
                      <span class="si-meta">In stock: <span id="tr_available_qty_<?=$rowcount;?>_13_disp"><?= $item_available_qty; ?></span></span>
-                     <?php if($row_track_serial || $row_track_imei): ?>
+					<?php if($row_requires_unit): ?>
                         <select id="barcode_id_<?=$rowcount;?>" name="barcode_id_<?=$rowcount;?>" class="cell-input serial-pick" data-row="<?=$rowcount;?>" style="margin-top:4px;font-size:11px;width:100%;">
                            <option value="">— Select <?= $row_track_serial ? 'serial' : 'IMEI'; ?> unit * —</option>
                            <?php foreach($avail_units as $u):
                               $ulabel = $row_track_serial ? $u->serial_number : $u->imei_number;
                               if(!empty($u->batch_lot)) $ulabel .= ' (batch '.$u->batch_lot.')';
                            ?>
-                              <option value="<?=$u->id;?>" data-serial="<?=htmlspecialchars($u->serial_number ?? '');?>" data-imei="<?=htmlspecialchars($u->imei_number ?? '');?>" <?=($sel_barcode_id==$u->id)?'selected':'';?>><?=htmlspecialchars($ulabel);?></option>
+                              <option value="<?=$u->id;?>" data-serial="<?=htmlspecialchars($u->serial_number ?? '');?>" data-imei="<?=htmlspecialchars($u->imei_number ?? '');?>" data-imei2="<?=htmlspecialchars($u->imei_number_2 ?? '');?>" <?=($sel_barcode_id==$u->id)?'selected':'';?>><?=htmlspecialchars($ulabel);?><?=!empty($u->imei_number_2)?' / IMEI2:'.htmlspecialchars($u->imei_number_2):'';?></option>
                            <?php endforeach; ?>
                         </select>
                         <input type="hidden" id="sold_serial_number_<?=$rowcount;?>" name="sold_serial_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_serial);?>">
                         <input type="hidden" id="sold_imei_number_<?=$rowcount;?>" name="sold_imei_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_imei);?>">
+                        <input type="hidden" id="sold_imei_number_2_<?=$rowcount;?>" name="sold_imei_number_2_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_imei_2);?>">
                      <?php endif; ?>
                      <?php if(!empty($avail_batches)): ?>
                         <select id="batch_pick_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" class="cell-input batch-pick" style="margin-top:4px;font-size:11px;width:100%;">

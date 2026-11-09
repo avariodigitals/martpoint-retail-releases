@@ -296,6 +296,20 @@
               <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_username">Portal username</label><div class="col-sm-5"><input class="form-control" id="nigeriabulksms_username" name="nigeriabulksms_username" value="<?= htmlspecialchars($nigeriabulksms_username,ENT_QUOTES,'UTF-8'); ?>" autocomplete="username"></div></div>
               <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_password">Portal password</label><div class="col-sm-5"><input type="password" class="form-control" id="nigeriabulksms_password" name="nigeriabulksms_password" value="" autocomplete="new-password" placeholder="<?= $nigeriabulksms_password !== '' ? 'Saved — leave blank to keep it' : 'Enter portal password'; ?>"></div></div>
               <div class="form-group"><label class="col-sm-4 control-label" for="nigeriabulksms_sender_id">Sender ID</label><div class="col-sm-5"><input class="form-control" id="nigeriabulksms_sender_id" name="nigeriabulksms_sender_id" maxlength="20" value="<?= htmlspecialchars($nigeriabulksms_sender_id,ENT_QUOTES,'UTF-8'); ?>"></div></div>
+              <div class="callout callout-info" style="margin-top:18px">
+                <h4>Voice and account tools</h4>
+                <p>Save your credentials above first. Calls, text-to-speech and audio playback may incur provider charges. Use only numbers that have agreed to receive these messages.</p>
+                <div class="row">
+                  <div class="col-sm-4"><label for="nb_action">Gateway action</label><select class="form-control" id="nb_action"><option value="call">Voice call (recorded message)</option><option value="tts">Voice call (text-to-speech)</option><option value="upload">Upload audio from HTTPS URL</option><option value="audio">Play uploaded audio reference</option><option value="data">Fetch account data</option></select></div>
+                  <div class="col-sm-4 nb-target"><label for="nb_mobiles">Phone number(s)</label><input class="form-control" id="nb_mobiles" placeholder="2348030000000, 2348020000000"></div>
+                  <div class="col-sm-4 nb-caller"><label for="nb_sender">Caller ID</label><input class="form-control" id="nb_sender" placeholder="Approved phone number"></div>
+                  <div class="col-sm-8 nb-message"><label for="nb_message">Message or audio reference</label><textarea class="form-control" id="nb_message" rows="2" placeholder="Call code, or words to speak"></textarea></div>
+                  <div class="col-sm-8 nb-upload" style="display:none"><label for="nb_audio_url">Public HTTPS audio URL</label><input class="form-control" id="nb_audio_url" type="url" placeholder="https://example.com/recording.mp3"></div>
+                  <div class="col-sm-8 nb-audio" style="display:none"><label for="nb_audio_reference">Uploaded audio reference</label><input class="form-control" id="nb_audio_reference" placeholder="Reference returned by audio upload"></div>
+                  <div class="col-sm-8 nb-data" style="display:none"><label for="nb_data_action">Account data</label><select class="form-control" id="nb_data_action"><option>balance</option><option>profile</option><option>login</option><option>contacts</option><option>numbers</option><option>groups</option><option>audios</option><option>history</option><option>scheduled</option><option>reports</option><option>payments</option></select></div>
+                  <div class="col-sm-12" style="margin-top:12px"><button type="button" class="btn btn-primary" id="nb_run_action">Run gateway action</button><pre id="nb_action_result" style="display:none;white-space:pre-wrap;margin-top:12px"></pre></div>
+                </div>
+              </div>
             </div>
 
             <!-- /.tab-pane -->
@@ -572,6 +586,32 @@
    //UPDATE current sms_status — structured notification setting wins, with
    //db_store as the fallback for installs that predate that table.
    $("#sms_status").val("<?= (int)(function_exists('mp_get_store_notification_setting') ? mp_get_store_notification_setting(get_current_store_id(),'sms_status',($store_rec->sms_status ?? 0)) : ($store_rec->sms_status ?? 0)); ?>").select2();
+
+   function nigeriaBulkSmsActionFields(){
+     var action = $('#nb_action').val();
+     $('.nb-target,.nb-caller,.nb-message,.nb-upload,.nb-audio,.nb-data').hide();
+     if(action === 'call' || action === 'tts') $('.nb-target,.nb-caller,.nb-message').show();
+     if(action === 'upload') $('.nb-upload').show();
+     if(action === 'audio') $('.nb-target,.nb-caller,.nb-audio').show();
+     if(action === 'data') $('.nb-data').show();
+   }
+   $('#nb_action').on('change', nigeriaBulkSmsActionFields);
+   nigeriaBulkSmsActionFields();
+   $('#nb_run_action').on('click', function(){
+     var action=$('#nb_action').val(), payload={operation:action,'<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'};
+     if(action==='call'||action==='tts') Object.assign(payload,{mobiles:$('#nb_mobiles').val(),sender:$('#nb_sender').val(),message:$('#nb_message').val()});
+     if(action==='audio') Object.assign(payload,{mobiles:$('#nb_mobiles').val(),sender:$('#nb_sender').val(),audio_reference:$('#nb_audio_reference').val()});
+     if(action==='upload') payload.audio_url=$('#nb_audio_url').val();
+     if(action==='data') payload.data_action=$('#nb_data_action').val();
+     var $button=$(this), $result=$('#nb_action_result');
+     $button.prop('disabled',true).text('Working…'); $result.show().text('Waiting for Nigeria Bulk SMS…');
+     $.post('<?= base_url('sms/nigeriabulksms_action'); ?>',payload).done(function(response){
+       var data=(typeof response==='string')?JSON.parse(response):response;
+       $result.text(JSON.stringify(data,null,2));
+     }).fail(function(xhr){
+       var data=xhr.responseJSON||{ok:false,error:'Gateway request failed'}; $result.text(JSON.stringify(data,null,2));
+     }).always(function(){ $button.prop('disabled',false).text('Run gateway action'); });
+   });
 
    //Test BulkSMSNigeria credentials without spending credit (wallet balance).
    function bulksmsngTest(){

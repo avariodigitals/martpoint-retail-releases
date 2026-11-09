@@ -40,6 +40,7 @@ class Communication_review_model extends CI_Model {
         $this->load->library('communication_documents');Communication_documents::validate($p['receipt']??array());$this->load->model('communications_model');
         $this->db->trans_begin();try{
             $r=$this->communications_model->request($a,$p);
+            if($this->communications_model->nextBillingEnabled())$r=$this->communications_model->ensureCanonicalInvoice($a,$r);
             if(!empty($r['payment_reference']) || in_array($r['status'],array('approved','rejected'),true))throw new RuntimeException('Use an unresolved manual request for this receipt.');
             $id=$this->communication_documents->store($a['id'],'receipt',$r['id'],'receipt',$p['receipt']);
             $this->communications_model->event('receipt:'.$r['id'],$a['id'],'Manual credit payment receipt — '.$a['store_name'],'Request #'.$r['id'].'; '.$r['module_key'].'; ₦'.number_format($r['amount_kobo']/100,2).'; '.$r['credit_units'].' credits. Receipt #'.$id.'. Contact: '.$r['contact_email'].'. Review the private receipt at '.base_url('communications_admin?account='.$a['id']).'. Confirm the bank payment before adding credits.');

@@ -145,10 +145,12 @@
         <div class="field"><strong>Brand</strong><span>Optional brand grouping</span></div>
         <div class="field"><strong>Unit</strong><span>Pieces, kg, litres, etc.</span></div>
         <div class="field"><strong>SKU / Barcode</strong><span>Scan or type code</span></div>
+        <div class="field"><strong>Serial Number / IMEI Tracking</strong><span>First enable the store feature under Settings → Business Profile → Feature Flags. Then in Unit / Variant Details turn on Require Serial Number or Require IMEI for this product.</span></div>
+        <div class="field"><strong>Warranty (Mo)</strong><span>Set the warranty duration your store offers. A final sale saves the effective duration and coverage dates against the sold unit.</span></div>
         <div class="field"><strong>Description</strong><span>Notes or product details</span></div>
         <div class="field"><strong>Cost Price</strong><span>What you pay per unit</span></div>
         <div class="field"><strong>Selling Price</strong><span>What you charge per unit</span></div>
-        <div class="field"><strong>Opening Stock</strong><span>How many you have now</span></div>
+        <div class="field"><strong>Opening Stock</strong><span>Initial stock only. Use Purchases → New Purchase for supplier deliveries and restocks.</span></div>
         <div class="field"><strong>Alert Quantity</strong><span>Low-stock warning level</span></div>
         <div class="field"><strong>Branch</strong><span>Where stock is stored</span></div>
         <div class="field"><strong>Track Expiry</strong><span>Enable for medicines/food</span></div>
@@ -165,9 +167,15 @@
         <li>Enter opening stock and alert quantity.</li>
         <li>Add the barcode or SKU if you have one. MartPoint can also generate a barcode.</li>
         <li>Select the branch where stock is kept.</li>
+        <li>For phones, computers and other warrantied devices, first enable the store tracking features. In <strong>Unit / Variant Details</strong>, turn on <strong>Require IMEI</strong> or <strong>Require Serial Number</strong> and set the warranty months. Receive individually tracked units through Purchases so each device gets its own identity.</li>
         <li>Enable expiry tracking if the product has an expiry date.</li>
         <li>Tap <strong>Save</strong>. The product is now available in POS and sales.</li>
       </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Already have this product?</h3>
+      <p class="small">Open the catalogue, edit the existing product, and enable the needed tracking option; do not create a duplicate product for another shipment. Use <strong>Purchases → New Purchase</strong> to add the new delivery. If old stock is already on hand as one untracked quantity, product settings will not create unit identities for it; ask an administrator to arrange an audited backfill instead of recording a duplicate purchase.</p>
     </div>
 
     <div class="spacer"></div>

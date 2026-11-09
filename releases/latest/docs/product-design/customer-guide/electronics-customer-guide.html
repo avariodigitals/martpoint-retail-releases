@@ -95,13 +95,13 @@
       <div class="screen-flow">
         <div class="flow-step"><strong>Set up</strong> categories, brands, serialized and bulk products, branches, staff <em>(once)</em></div>
         <div class="flow-step"><strong>Buy</strong> &mdash; supplier receipts capture serial/IMEI per unit and accessory quantities by carton</div>
-        <div class="flow-step"><strong>Sell</strong> &mdash; POS scans the unit&rsquo;s serial, receipt prints the warranty; resellers invoice at wholesale</div>
-        <div class="flow-step"><strong>Support</strong> &mdash; warranty claims looked up by serial, replacements tracked</div>
+        <div class="flow-step"><strong>Sell</strong> &mdash; POS assigns the exact unit to the sale; the invoice prints its serial/IMEI</div>
+        <div class="flow-step"><strong>Support</strong> &mdash; Warranty Lookup confirms saved coverage and opens a case for eligible sales</div>
         <div class="flow-step"><strong>Ship</strong> &mdash; online orders fulfil from a chosen branch, delivered by city fees</div>
-        <div class="flow-step"><strong>Watch</strong> &mdash; serialized stock, low stock, warranty register, margin by brand</div>
+        <div class="flow-step"><strong>Watch</strong> &mdash; serialized stock, low stock, warranty cases and margin by brand</div>
       </div>
     </div>
-    <div class="tip"><strong>Enable the profile:</strong> <em>Settings &rarr; Business Profile &rarr; Electronics Store</em> (or <em>Gadget Store</em> / <em>Computer Store</em> &mdash; the cousins). On save the storefront takes the <strong>Tech Hub</strong> theme, the dashboard switches to the electronics template, and <strong>Serial Number</strong> / <strong>IMEI</strong> fields appear wherever they matter &mdash; product forms, purchase rows, the POS sale and the warranty register. This guide uses those words throughout.</div>
+    <div class="tip"><strong>Enable tracking:</strong> under <em>Settings &rarr; Business Profile &rarr; Feature Flags</em>, switch on <strong>IMEI Tracking</strong>, <strong>Serial Number Tracking</strong> and <strong>Warranty Tracking</strong> as needed. The Electronics profile already enables some of these; serial tracking may need to be enabled separately. On each product, use the matching <strong>Require IMEI</strong> or <strong>Require Serial Number</strong> option. The Electronics profile also applies the Tech Hub storefront and electronics dashboard.</div>
     <div class="screen-card">
       <div class="card-title">What you set up on day one</div>
       <table class="blend-table">
@@ -121,7 +121,7 @@
     <div class="section-head">
       <span class="label">Setup &mdash; step 1</span>
       <h2>Products: serialized vs bulk</h2>
-      <p class="lead"><em>Catalog &rarr; Product List &rarr; Add Product.</em> The single most important decision on this screen is whether the item is <strong>tracked by serial/IMEI</strong>. Everything else follows from that.</p>
+      <p class="lead"><em>Items &rarr; Items List &rarr; Add Item</em> (or <strong>Edit</strong> an existing item). Decide which products need an individual serial number or IMEI before receiving stock.</p>
     </div>
     <div class="screen-card">
       <div class="card-title">Add a serialized product &middot; Fill in each field</div>
@@ -131,8 +131,8 @@
         <div class="field"><div class="lbl">Product Code / SKU / Barcode</div><div class="val"><code>IPH15-128-BLK</code> &mdash; your own code; the box barcode scans here if the distributor prints one</div></div>
         <div class="field"><div class="lbl">Brand / Category</div><div class="val"><code>Apple</code> &middot; <code>Phones</code> &mdash; the brand also powers margin-by-brand reports and the online store&rsquo;s brand row</div></div>
         <div class="field"><div class="lbl">Base / Stock Unit</div><div class="val"><code>Piece</code> &mdash; always. One unit = one physical device</div></div>
-        <div class="field"><div class="lbl">Serial / IMEI tracking</div><div class="val"><strong>On</strong> &mdash; each unit gets its own identity. IMEI for phones and cellular devices; serial number for laptops, TVs and anything else with a printed serial</div></div>
-        <div class="field"><div class="lbl">Warranty Period</div><div class="val"><code>12 months</code> &mdash; starts counting on the sale date and prints on the receipt; the warranty register reads it</div></div>
+        <div class="field"><div class="lbl">Require IMEI / Require Serial Number</div><div class="val">In <strong>Unit / Variant Details</strong>, enable <strong>Require IMEI</strong> for phones or <strong>Require Serial Number</strong> for laptops, TVs and equipment. A dual-SIM phone has two IMEIs on one unit.</div></div>
+        <div class="field"><div class="lbl">Warranty (Mo)</div><div class="val">Set the product/unit warranty duration to the terms you offer. A final sale saves the effective duration and coverage dates against that sold unit.</div></div>
         <div class="field"><div class="lbl">Purchase Price / Sale Price / MRP</div><div class="val"><code>1,180,000</code> &middot; <code>1,295,000</code> &middot; <code>1,350,000</code> &mdash; MRP shows as the strike-through on the online store</div></div>
         <div class="field"><div class="lbl">Wholesale Price</div><div class="val"><code>1,210,000</code> &mdash; what the reseller pays; the POS wholesale button and account invoices use it without negotiation</div></div>
         <div class="field"><div class="lbl">Opening Stock / Alert Qty</div><div class="val"><code>0</code> &mdash; phones enter through purchases so every unit gets its serial captured &middot; alert <code>3</code> (you always want a few in hand)</div></div>
@@ -210,7 +210,7 @@
     <div class="section-head">
       <span class="label">Procurement</span>
       <h2>Purchases &mdash; serials enter here</h2>
-      <p class="lead"><em>Purchases &rarr; New Purchase.</em> A shipment of ten phones is ten individual units, not &ldquo;quantity 10&rdquo;. The receipt is where each one gets its identity.</p>
+      <p class="lead"><em>Purchases &rarr; New Purchase.</em> A purchase order/receipt is the correct way to add supplier stock. Use the existing catalogue product, then record one identity for every physical device received.</p>
     </div>
     <div class="screen-card">
       <div class="card-title">New Purchase &rarr; Fill in each field</div>
@@ -218,7 +218,7 @@
         <div class="field"><div class="lbl">Supplier</div><div class="val"><code>Stellar Devices Ltd</code> &mdash; their invoice number goes on the record too</div></div>
         <div class="field"><div class="lbl">Purchase Status</div><div class="val"><code>Received</code> adds stock now &mdash; <em>Ordered / Draft</em> hold the order without touching stock; <em>Partially Received</em> posts only what arrived</div></div>
         <div class="field"><div class="lbl">Branch (Warehouse)</div><div class="val"><code>Stockroom</code> for bulk inbound; transfer to Showroom as you display</div></div>
-        <div class="field"><div class="lbl">Items &mdash; serialized line</div><div class="val">iPhone 15 128GB Black &times;<code>10</code> @ &#8358;1,180,000. On the serial/IMEI row beneath, enter <strong>each unit&rsquo;s IMEI</strong> (or serial) &mdash; scan or type from the box labels. Ten units = ten identities</div></div>
+        <div class="field"><div class="lbl">Items &mdash; serialized line</div><div class="val">For each tracked product line, expand <strong>Additional Details</strong> to show <strong>Device identities</strong>. For ten phones received, enter ten rows in <code>Serial | IMEI 1 | IMEI 2</code> order. IMEI 2 is optional; a dual-SIM phone is still one physical unit and one row. For a partial receipt, enter rows only for units received now.</div></div>
         <div class="field"><div class="lbl">Items &mdash; bulk line</div><div class="val">Anker USB-C Cable 1m &times;<code>200</code> @ &#8358;1,800 &mdash; quantity only, no identity row</div></div>
         <div class="field"><div class="lbl">Payment</div><div class="val">Paid now or on account &mdash; the supplier balance tracks through supplier payments as usual</div></div>
       </div>
@@ -228,13 +228,13 @@
       <table class="blend-table">
         <thead><tr><th>You capture</th><th>MartPoint uses it for</th></tr></thead>
         <tbody>
-          <tr><td>Serial / IMEI per unit</td><td>Which exact device went to which customer on which date &mdash; the answer to every &ldquo;is this ours?&rdquo;</td></tr>
+          <tr><td>Serial / IMEI per unit</td><td>Which exact device entered stock, which device left on a sale, and which identifiers belong to its coverage record.</td></tr>
           <tr><td>Unit cost on the same row</td><td>True cost basis per unit &mdash; a discounted supplier batch doesn&rsquo;t blur the margin on older stock</td></tr>
           <tr><td>Missing-swap protection</td><td>A &ldquo;returned&rdquo; phone whose IMEI never shipped from you can&rsquo;t be argued &mdash; it simply isn&rsquo;t in the register</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="tip"><strong>Serialized stock position:</strong> after the receipt posts, <em>Product List</em> shows iPhone 15 128GB Black with <code>10</code> in stock &mdash; and the serial register lists all ten identities. A sale can only complete when the rep picks which physical unit leaves.</div>
+    <div class="tip"><strong>Serialized stock position:</strong> after the receipt posts, <em>Product List</em> shows iPhone 15 128GB Black with <code>10</code> in stock. Each identity row is a separate available unit. A sale can only complete when the rep picks the exact physical unit that leaves.</div>
     <div class="chat">
       <div class="chat-left"><div class="chat-avatar">Ngozi &middot; Stock control</div><div class="chat-bubble">Distributor sent 10 iPhones but one box has no IMEI printed on it.</div></div>
       <div class="chat-right"><div class="chat-bubble">Boot it &mdash; Settings &rarr; About Phone shows the IMEI. Enter that. If it&rsquo;s a refurb with no IMEI at all, it doesn&rsquo;t belong in this profile&rsquo;s serialized stock.</div></div>
@@ -253,7 +253,7 @@
       <table class="blend-table">
         <thead><tr><th>Sale</th><th>On screen</th><th>What happens</th></tr></thead>
         <tbody>
-          <tr><td>One iPhone</td><td>Scan box barcode / tap iPhone 15 128GB Black &rarr; pick the unit&rsquo;s IMEI</td><td>That exact unit leaves stock; its serial, IMEI and 12-month warranty print on the receipt</td></tr>
+          <tr><td>One iPhone</td><td>Scan or search the product, then pick the exact received unit by serial/IMEI</td><td>One phone is one sale line with quantity 1; the selected serial, IMEI 1 and optional IMEI 2 are saved and printed on the invoice</td></tr>
           <tr><td>Accessory bundle</td><td>Anker USB-C Cable &rarr; <code>Pack of 10</code></td><td>&minus;10 pieces at pack price &mdash; stock still counts in pieces</td></tr>
           <tr><td>Mixed cart</td><td>iPhone + case + cable + 20W charger</td><td>One receipt &mdash; serialized line picks its unit, bulk lines take quantity</td></tr>
           <tr><td>Wholesale</td><td>POS &rarr; wholesale button &rarr; customer <code>Jumla Gadgets (Ikeja)</code></td><td>Cart flips to wholesale prices; balance sits on their account until paid</td></tr>
@@ -273,7 +273,7 @@
       <div class="card-title">Returns &amp; swaps</div>
       <div class="screen-flow">
         <div class="flow-step">Customer returns a unit within policy &mdash; look up the original sale (receipt number or customer)</div>
-        <div class="flow-step">Process the return on that sale; the serialized unit&rsquo;s IMEI returns to sellable stock &mdash; same identity, full trail</div>
+        <div class="flow-step">Process a commercial return against the original sale; the returned device keeps its recorded identity and the return stores that identity</div>
         <div class="flow-step">Refund as cash-out or <strong>store credit</strong> &mdash; PrimeVolt&rsquo;s policy on opened boxes is credit</div>
       </div>
     </div>
@@ -284,32 +284,42 @@
   <section class="page">
     <div class="section-head">
       <span class="label">After-sales</span>
-      <h2>Warranty &mdash; the claim</h2>
-      <p class="lead">Six weeks after purchase a customer walks in: &ldquo;the phone won&rsquo;t charge.&rdquo; This is the moment the serial discipline either pays off or embarrasses you.</p>
+      <h2>Serial, IMEI &amp; Warranty &mdash; setup to after-sales</h2>
+      <p class="lead">Use this workflow for a new product, a model already in the catalogue, and the customer who returns with a device for service.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Choose the right starting point</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>New product</strong> &mdash; add the model once under <em>Items &rarr; Items List</em>. In <em>Unit / Variant Details</em>, enable <strong>Require IMEI</strong> for phones or <strong>Require Serial Number</strong> for other devices; set the warranty months to your store&rsquo;s actual terms.</div>
+        <div class="flow-step"><strong>Product already in the catalogue</strong> &mdash; edit that same item, set the tracking options and warranty months, and save. Do not create a duplicate product for another shipment.</div>
+        <div class="flow-step"><strong>Add new stock</strong> &mdash; go to <em>Purchases &rarr; New Purchase</em>, select the existing item and choose <strong>Received</strong> when goods arrive. Expand <strong>Additional Details</strong> on each tracked line; enter one identity row for every received device.</div>
+      </div>
+      <p class="small"><strong>Existing shelf stock without unit records:</strong> product settings do not retroactively attach identities to an old total quantity. Don&rsquo;t create a duplicate purchase or adjust stock to force it; ask an administrator for an audited backfill.</p>
     </div>
     <div class="screen-card">
       <div class="card-title">The claim, step by step</div>
       <div class="screen-flow">
-        <div class="flow-step"><strong>Look it up</strong> &mdash; enter the IMEI/serial (from the device, the box, or the receipt) &mdash; the register shows the sale date, the customer, the branch, and the warranty end date</div>
-        <div class="flow-step"><strong>Decide</strong> &mdash; inside warranty &rarr; repair, replace or send to the distributor per your policy; outside &rarr; quote a paid repair, no argument needed</div>
-        <div class="flow-step"><strong>Record it</strong> &mdash; the claim and its resolution sit on the unit&rsquo;s history, so a second claim on the same device is visible, not fresh news</div>
-        <div class="flow-step"><strong>Replacement (if it happens)</strong> &mdash; the swapped unit&rsquo;s serial returns to the claim record; the new unit&rsquo;s serial attaches to the customer &mdash; one clean line of custody</div>
+        <div class="flow-step"><strong>Look it up</strong> &mdash; in <em>Operations &rarr; Warranty Lookup</em>, search the serial, IMEI 1, IMEI 2, invoice, customer or product. Check the final sale and its saved coverage end date.</div>
+        <div class="flow-step"><strong>Open a case</strong> &mdash; an eligible final sale with active recorded coverage offers <em>Open case</em>. Record the customer&rsquo;s reported fault.</div>
+        <div class="flow-step"><strong>Inspect and decide</strong> &mdash; move the case through reported, inspecting, approved/rejected or awaiting parts. Enter a decision note to approve or reject.</div>
+        <div class="flow-step"><strong>Resolve</strong> &mdash; record repair, replacement, refund or another resolution and add the required resolution note. Case status changes are logged with staff, time and notes.</div>
       </div>
     </div>
+    <div class="tip"><strong>Coverage and stock are separate:</strong> the case records service handling; it does not automatically issue a refund, move stock or bind a replacement unit to the original sale. Use the normal return, refund and replacement-sale workflows for those inventory and accounting actions. The saved warranty duration is the store&rsquo;s recorded term, so keep it aligned with the supplier/manufacturer terms you honour.</div>
     <div class="screen-card">
       <div class="card-title">What the register answers &mdash; instantly</div>
       <table class="blend-table">
         <thead><tr><th>Customer says</th><th>You verify</th></tr></thead>
         <tbody>
-          <tr><td>&ldquo;I bought it here last month&rdquo;</td><td>Serial lookup: sold here, that date, that branch &mdash; or <em>not in the register</em> (grey-market unit, politely declined)</td></tr>
-          <tr><td>&ldquo;It&rsquo;s still under warranty&rdquo;</td><td>Sale date + warranty period = in or out, in one glance &mdash; no box receipt archaeology</td></tr>
-          <tr><td>&ldquo;You already repaired this twice&rdquo;</td><td>The unit&rsquo;s claim history is attached to its serial &mdash; the third claim is a different conversation</td></tr>
+          <tr><td>&ldquo;I bought it here last month&rdquo;</td><td>Identity lookup: the sale and customer are shown when the device was sold through this store with its identity recorded.</td></tr>
+          <tr><td>&ldquo;It&rsquo;s still under warranty&rdquo;</td><td>The saved sale coverage end date determines whether a case can be opened.</td></tr>
+          <tr><td>&ldquo;What happened last time?&rdquo;</td><td>Search Warranty Cases by device identity to review saved cases, decisions and resolution notes.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="chat">
       <div class="chat-left"><div class="chat-avatar">Customer</div><div class="chat-bubble">I lost my receipt, but I definitely bought this TV from you.</div></div>
-      <div class="chat-right"><div class="chat-bubble">Turn it on &mdash; we read the serial. If we sold it, the register shows your name and the exact date. If we didn&rsquo;t&hellip; it doesn&rsquo;t.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Turn it on &mdash; we read the serial. If we sold it, Warranty Lookup shows the sale, customer and date. If we didn&rsquo;t&hellip; it doesn&rsquo;t.</div></div>
     </div>
     <div class="next"><strong>Next &rarr;</strong> the online shop &mdash; same stock, open all night.</div>
   </section>
@@ -358,7 +368,7 @@
     </div>
     <div class="screen-card">
       <div class="card-title">Getting products online &mdash; Online Store &rarr; Online Products</div>
-      <p class="small">Toggle each sellable product into the store. A device earns its slot with: a clean product photo, a real spec description (screen, storage, battery, warranty line &mdash; the questions every WhatsApp customer asks anyway), a price, and stock &gt; 0. Flag hero devices <strong>Featured</strong> and new stock <strong>New Arrival</strong> to feed the homepage rails. Serialized units sell by quantity &mdash; the customer doesn&rsquo;t pick an IMEI online; fulfilment picks the physical unit.</p>
+      <p class="small">Toggle each sellable product into the store. A device earns its slot with: a clean product photo, a real spec description (screen, storage, battery, warranty line &mdash; the questions every WhatsApp customer asks anyway), a price, and stock &gt; 0. Flag hero devices <strong>Featured</strong> and new stock <strong>New Arrival</strong> to feed the homepage rails. The online checkout asks for product quantity, not a unit IMEI; staff must select the exact physical unit when recording its final sale during fulfilment.</p>
     </div>
     <div class="screen-card">
       <div class="card-title">Homepage Builder &mdash; the sections that matter</div>
@@ -381,9 +391,9 @@
       <div class="screen-flow">
         <div class="flow-step"><strong>Customer checks out</strong> &mdash; Tecno Camon + case, &#8358;215,000 + delivery fee via Paystack (or a WhatsApp order message)</div>
         <div class="flow-step"><strong>Order lands</strong> &mdash; Orders list + the Online Orders dashboard card pings</div>
-        <div class="flow-step"><strong>Fulfil</strong> &mdash; Chidi confirms, picks the physical unit from Showroom stock (its IMEI stamps the invoice), packs and prints</div>
+        <div class="flow-step"><strong>Fulfil</strong> &mdash; Chidi confirms the order, selects the physical unit as the final sale is recorded, checks the printed identity and packs it</div>
         <div class="flow-step"><strong>Deliver</strong> &mdash; rider assigned, status tracked to the customer&rsquo;s door</div>
-        <div class="flow-step"><strong>Follow up</strong> &mdash; the customer&rsquo;s record now holds the serial &mdash; any future warranty visit starts with proof already in hand</div>
+        <div class="flow-step"><strong>Follow up</strong> &mdash; when the final sale records the selected unit, staff can use its serial/IMEI to find coverage and any warranty cases</div>
       </div>
     </div>
     <div class="tip"><strong>QR ordering:</strong> print the store&rsquo;s QR code for the counter and the flyer &mdash; a walk-in who says &ldquo;I&rsquo;ll think about it&rdquo; becomes an online browser with your catalogue already open.</div>
@@ -419,7 +429,7 @@
           <tr><td>Sales Report</td><td>Revenue by product, category, brand and channel &mdash; is Tecno or Apple paying the rent?</td></tr>
           <tr><td>Profit / margin by product &amp; brand</td><td>Real unit costs vs sale prices &mdash; a discounted supplier batch shows honestly</td></tr>
           <tr><td>Stock Report / register</td><td>Serialized units on hand per branch; bulk stock counts; transfer history</td></tr>
-          <tr><td>Warranty register</td><td>Claims lodged, in/out of warranty splits, repeat offenders</td></tr>
+          <tr><td>Warranty Lookup / Warranty Cases</td><td>Find recorded sale coverage and manage case status, inspection decisions and resolution notes.</td></tr>
           <tr><td>Customer balances</td><td>Reseller accounts overdue on invoices</td></tr>
           <tr><td>Stock Adjustments</td><td>Every correction and transfer &mdash; the audit trail when a unit&rsquo;s count doesn&rsquo;t add up</td></tr>
         </tbody>
@@ -448,7 +458,7 @@
       <div class="screen-flow">
         <div class="flow-step">POS all day &mdash; scans serials on serialized lines, pack sizes on accessories, wholesale button for resellers</div>
         <div class="flow-step">Warranty lookups at the counter when claims walk in &mdash; serial first, answers second</div>
-        <div class="flow-step">Fulfils online orders as they land &mdash; pick, IMEI stamp, pack, schedule delivery</div>
+        <div class="flow-step">Fulfils online orders as they land &mdash; select a physical unit when recording the final sale, verify its identity, pack and schedule delivery</div>
         <div class="flow-step">End of day: sales history vs till count; returns logged against the original sales</div>
       </div>
     </div>
@@ -474,12 +484,12 @@
       <div class="card-title">The complete week</div>
       <div class="screen-flow">
         <div class="flow-step"><strong>Mon &mdash; Receive:</strong> Stellar Devices delivers 10 &times; iPhone 15 128GB Black @ &#8358;1,180,000 + 200 &times; cables @ &#8358;1,800. Ngozi posts the receipt into Stockroom, all 10 IMEIs on the line; transfer 4 units to Showroom Floor</div>
-        <div class="flow-step"><strong>Tue &mdash; Sell:</strong> walk-in buys 1 iPhone + cable. Chidi scans the box, picks IMEI <code>&hellip;4421</code>, takes payment &mdash; receipt prints the 12-month warranty and the serial. Stock: 9 total / 3 showroom</div>
+        <div class="flow-step"><strong>Tue &mdash; Sell:</strong> walk-in buys 1 iPhone + cable. Chidi selects IMEI <code>&hellip;4421</code>, takes payment and prints the invoice with the phone&rsquo;s identity. Its sale line saves the 12-month coverage dates. Stock: 9 total / 3 showroom</div>
         <div class="flow-step"><strong>Wed &mdash; Wholesale:</strong> Jumla Gadgets takes 5 iPhones @ &#8358;1,210,000 + 50 cables @ &#8358;150,000 carton &mdash; invoice on account, &#8358;6.2m balance. Each serialized unit&rsquo;s IMEI stamps the invoice lines</div>
         <div class="flow-step"><strong>Wed &mdash; Approval:</strong> a customer negotiates &#8358;30,000 off a TV &mdash; over Chidi&rsquo;s limit, sale sits in Pending Approvals; Kelechi approves &#8358;20,000 from his phone, sale completes</div>
         <div class="flow-step"><strong>Thu &mdash; Online:</strong> Paystack order &mdash; Tecno Camon + case, &#8358;215,000 + &#8358;3,000 same-day rider. Chidi picks a sealed unit from Showroom, its IMEI lands on the invoice; rider delivers by 5pm</div>
-        <div class="flow-step"><strong>Fri &mdash; Claim:</strong> customer returns a week-old iPhone that won&rsquo;t charge. IMEI lookup: sold here Tue, in warranty &rarr; swap for a fresh sealed unit &mdash; old unit&rsquo;s serial moves to the claim record, new unit attaches to the customer</div>
-        <div class="flow-step"><strong>Fri &mdash; Close:</strong> serialized stock counts clean (4 showroom + 6 stockroom &minus; 1 claim = 9 on register); margin report shows the week; Jumla balance visible for follow-up</div>
+        <div class="flow-step"><strong>Fri &mdash; Claim:</strong> customer reports a fault on an iPhone sold Tue. Staff look up its IMEI, confirm the saved coverage end date, open a case, and record the decision and resolution. Any refund or replacement is entered through its regular stock/sales workflow.</div>
+        <div class="flow-step"><strong>Fri &mdash; Close:</strong> review the actual showroom and stockroom balances after the recorded sales, transfers and any separately entered return/replacement; the warranty case itself does not adjust stock. The margin report shows the week and Jumla&rsquo;s balance is ready for follow-up.</div>
       </div>
     </div>
     <div class="screen-card">
@@ -505,12 +515,12 @@
     </div>
     <table class="glossary-table">
       <tr><td>Serial Number</td><td>The manufacturer&rsquo;s unique ID on a device &mdash; laptops, TVs, consoles. One per physical unit; captured on the purchase row and picked at the sale.</td></tr>
-      <tr><td>IMEI</td><td>The cellular device&rsquo;s unique ID &mdash; phones and LTE tablets. Same discipline as serials; read it off the box or the device&rsquo;s own About screen.</td></tr>
+      <tr><td>IMEI 1 / IMEI 2</td><td>Cellular-device identifiers. A dual-SIM phone can have two IMEIs but remains one physical stock unit; record both on the same identity row.</td></tr>
       <tr><td>Serialized item</td><td>A product flagged for serial/IMEI tracking. Stock counts units, but each unit carries identity &mdash; required for phones, laptops and anything warranty-worthy.</td></tr>
       <tr><td>Bulk item</td><td>An untracked product &mdash; cables, cases, chargers. Stock is a number; sales take a quantity.</td></tr>
       <tr><td>Selling Unit</td><td>A declared pack on a bulk product &mdash; <code>Pack of 10</code>, <code>Carton of 50</code> &mdash; with its own price. Stock always counts in the base unit (pieces).</td></tr>
-      <tr><td>Warranty Period</td><td>Months of cover from the sale date, set on the product. Prints on the receipt; the claim register shows the end date instantly.</td></tr>
-      <tr><td>Warranty register</td><td>The per-unit claim history &mdash; sale date, customer, warranty end, claims lodged, resolutions. Looked up by serial/IMEI, not by receipt drawer.</td></tr>
+      <tr><td>Warranty Period</td><td>The product default duration. A final sale snapshots that duration and its start/end dates; cases can be opened only for an eligible final sale with active recorded coverage.</td></tr>
+      <tr><td>Warranty Case</td><td>A store-scoped service record with reported issue, current status, decision and resolution notes. Refunds, stock changes and replacement sales still use their normal workflows.</td></tr>
       <tr><td>Wholesale price</td><td>The reseller rate on each product. The POS wholesale button and account invoices apply it &mdash; no hand-typed discounts.</td></tr>
       <tr><td>Manager approval</td><td>The guard on discounts above a rep&rsquo;s limit &mdash; the sale waits in Pending Approvals for an owner decision.</td></tr>
       <tr><td>Branch / Warehouse</td><td>Where a unit physically sits &mdash; Showroom Floor sells, Stockroom holds. Transfers move stock between them with a full trail.</td></tr>

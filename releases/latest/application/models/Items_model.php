@@ -656,11 +656,15 @@ class Items_model extends CI_Model {
 
 			// Save barcode / batch / lot records (also unit tracking for electronics)
 			$barcode_save_ok = true;
-			$this->db->where('item_id', $item_id)->delete('db_item_barcodes');
+			// Keep physical-unit history intact. Updating an item used to delete
+			// every barcode row (including sold units referenced by invoices and
+			// warranty cases), then recreate only the rows still visible in the form.
+			$barcode_ids     = $this->input->post('barcode_id', TRUE) ?? [];
 			$barcode_barcodes = $this->input->post('barcode_barcode', TRUE) ?? [];
 			$barcode_batches  = $this->input->post('barcode_batch', TRUE) ?? [];
 			$barcode_serials  = $this->input->post('barcode_serial', TRUE) ?? [];
 			$barcode_imeis    = $this->input->post('barcode_imei', TRUE) ?? [];
+			$barcode_imei_2s  = $this->input->post('barcode_imei_2', TRUE) ?? [];
 			$barcode_pprices  = $this->input->post('barcode_pprice', TRUE) ?? [];
 			$barcode_sprices  = $this->input->post('barcode_sprice', TRUE) ?? [];
 			$barcode_mrps     = $this->input->post('barcode_mrp', TRUE) ?? [];
@@ -674,8 +678,10 @@ class Items_model extends CI_Model {
 				$bc_batch   = trim($barcode_batches[$bc] ?? '');
 				$bc_serial  = trim($barcode_serials[$bc] ?? '');
 				$bc_imei    = trim($barcode_imeis[$bc] ?? '');
+				$bc_imei_2  = trim($barcode_imei_2s[$bc] ?? '');
+				$bc_id      = (int)($barcode_ids[$bc] ?? 0);
 				// Skip completely empty rows (no barcode, no batch, no serial, no imei)
-				if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '') continue;
+				if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '' && $bc_imei_2 === '') continue;
 				$bc_data = array(
 					'item_id'        => $item_id,
 					'barcode'        => $bc_barcode,
@@ -691,10 +697,22 @@ class Items_model extends CI_Model {
 					'created_date'   => date('Y-m-d'),
 					'created_time'   => date('H:i:s'),
 				);
+				if($this->db->field_exists('imei_number_2','db_item_barcodes')) $bc_data['imei_number_2'] = $bc_imei_2 !== '' ? $bc_imei_2 : null;
 				if(!empty($barcode_expires[$bc])) $bc_data['expire_date'] = $barcode_expires[$bc];
 				if(!empty($barcode_mfgs[$bc]))    $bc_data['mfg_date']    = $barcode_mfgs[$bc];
 				if(!empty($barcode_warranties[$bc])) $bc_data['warranty_months'] = (int)$barcode_warranties[$bc];
-				$bc_insert = $this->db->insert('db_item_barcodes', $bc_data);
+				$known_bc = $bc_id ? $this->db->where('id',$bc_id)->where('item_id',(int)$item_id)->get('db_item_barcodes')->row() : null;
+				$existing_bc = ($known_bc && (int)$known_bc->status === 1) ? $known_bc : null;
+				if($known_bc && !$existing_bc){
+					// Sold, returned, or quarantined identities are historical records.
+					// Never recreate them as fresh stock from an item-edit form.
+					continue;
+				}elseif($existing_bc){
+					unset($bc_data['item_id'],$bc_data['created_date'],$bc_data['created_time']);
+					$bc_insert = $this->db->where('id',$bc_id)->where('item_id',(int)$item_id)->where('status',1)->update('db_item_barcodes',$bc_data);
+				}else{
+					$bc_insert = $this->db->insert('db_item_barcodes', $bc_data);
+				}
 				if(!$bc_insert){
 					$barcode_save_ok = false;
 					$error = $this->db->error();

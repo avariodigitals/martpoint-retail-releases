@@ -47,7 +47,7 @@
   <section class="page">
     <span class="label">Purchase module map</span>
     <h2 class="mb-2">The purchase screens at a glance</h2>
-    <p class="lead mb-3">Purchases start with a supplier and a list of items. Once saved, stock enters the catalog and the amount owed is tracked until you pay.</p>
+    <p class="lead mb-3">Use a purchase order to record supplier goods and receipt. Stock enters the selected branch when the purchase status becomes <strong>Received</strong> or <strong>Partially Received</strong>; payment status is tracked separately.</p>
 
     <div class="screen-flow">
       <div class="flow-step"><i class="fa fa-plus-square"></i> New Purchase</div>
@@ -62,7 +62,7 @@
     <div class="grid cols-2">
       <div class="card no-break">
         <h3><i class="fa fa-plus-square" style="color:var(--mp-primary);margin-right:8px;"></i>New Purchase</h3>
-        <p class="small">Record what you bought, from whom, and at what cost. Stock is added when you save.</p>
+        <p class="small">Record what you ordered, from whom, and at what cost. Receive the goods to add stock.</p>
       </div>
       <div class="card no-break">
         <h3><i class="fa fa-list" style="color:var(--mp-primary);margin-right:8px;"></i>Purchase History</h3>
@@ -84,12 +84,12 @@
 
   <section class="page">
     <span class="label">Screen 1 of 4</span>
-    <h2 class="mb-2">New Purchase</h2>
-    <p class="lead mb-3">This is where you record a delivery or a supplier bill. The items you enter are added to your catalog once the purchase is saved.</p>
+    <h2 class="mb-2">New Purchase / Purchase Order</h2>
+    <p class="lead mb-3">Use <strong>Purchases → New Purchase</strong> as the normal way to add received stock, including restocks of products already in the catalogue. Add the existing product to the purchase; don’t increase its opening stock to record a new delivery.</p>
 
     <div class="screen-card no-break">
       <h3>How to open</h3>
-      <p class="small"><strong>More → Purchase → New Purchase</strong> or tap the <strong>Purchase Stock</strong> quick action on the dashboard.</p>
+      <p class="small">On desktop, open <strong>Purchases → New Purchase</strong>. On mobile, use <strong>More → Purchase → New Purchase</strong> or tap the <strong>Purchase Stock</strong> dashboard action.</p>
     </div>
 
     <div class="screen-card no-break">
@@ -98,11 +98,14 @@
         <div class="field"><strong>Supplier</strong><span>Pick an existing supplier or add new</span></div>
         <div class="field"><strong>Reference No</strong><span>Supplier invoice or delivery note number</span></div>
         <div class="field"><strong>Purchase date</strong><span>When stock was received</span></div>
-        <div class="field"><strong>Status</strong><span>Paid or Unpaid</span></div>
+        <div class="field"><strong>Purchase status</strong><span>Draft / Ordered do not add stock; Partially Received adds only the received quantity; Received adds the full received quantity.</span></div>
+        <div class="field"><strong>Payment status</strong><span>Paid, Unpaid or Partial is separate from whether the goods have been received.</span></div>
         <div class="field"><strong>Item search</strong><span>Find products in catalog</span></div>
         <div class="field"><strong>Quantity</strong><span>How many units arrived</span></div>
         <div class="field"><strong>Purchase price</strong><span>Cost per unit</span></div>
         <div class="field"><strong>Batch / Expiry</strong><span>Optional tracking numbers and dates</span></div>
+        <div class="field"><strong>Additional Details</strong><span>Expand this on each tracked product line. The Device identities box appears when IMEI/serial tracking or warranty is set on the product.</span></div>
+        <div class="field"><strong>Device identities</strong><span>Enter one row for every received unit: Serial | IMEI 1 | IMEI 2. IMEI 2 is optional; one dual-SIM phone is still one row.</span></div>
         <div class="field"><strong>Other charges</strong><span>Shipping, handling</span></div>
         <div class="field"><strong>Discount</strong><span>Supplier discount</span></div>
         <div class="field"><strong>Totals</strong><span>Subtotal, total amount</span></div>
@@ -117,10 +120,16 @@
         <li>Enter the supplier’s reference number (invoice or delivery note) and the purchase date.</li>
         <li>Choose <strong>Paid</strong> if you already paid, or <strong>Unpaid</strong> to track the bill.</li>
         <li>Tap <strong>Add Item</strong> and search the catalog. Select the product.</li>
-        <li>Enter <strong>Quantity</strong>, <strong>Purchase Price</strong>, and batch/expiry if your business tracks them.</li>
+        <li>Set the purchase status to <strong>Received</strong> to add stock now. Choose <strong>Ordered</strong> if the goods have not arrived, or <strong>Partially Received</strong> and enter the quantity actually received.</li>
+        <li>Enter the received <strong>Quantity</strong> and <strong>Purchase Price</strong>. For each tracked product line, expand <strong>Additional Details</strong> and enter one identity row per received device in <code>Serial | IMEI 1 | IMEI 2</code> order. A dual-SIM phone is one unit and one row. If the product is bought by cartons or packs, enter an identity per base device, not per carton.</li>
         <li>Add any other charges or discounts.</li>
-        <li>Review the total and tap <strong>Save</strong>. Stock is added to the selected branch.</li>
+        <li>Review the supplier bill and selected branch. Tap <strong>Save &amp; Receive Stock</strong> when the goods have arrived. Saving as Draft or Ordered does not add stock.</li>
       </ol>
+    </div>
+
+    <div class="screen-card no-break">
+      <h3>Existing products and older stock</h3>
+      <p class="small">A product already in your catalogue can be selected on a new purchase; this creates a new receipt against the same product record. If physical units are already in stock but were recorded only as one total quantity with no unit identities, changing the product settings will not create serial/IMEI records for them. Do not create a duplicate purchase to backfill those units; ask an administrator to arrange a controlled stock backfill.</p>
     </div>
 
     <div class="next"><i class="fa fa-arrow-right"></i> Next: view the saved purchase in Purchase History, then pay the supplier when due.</div>

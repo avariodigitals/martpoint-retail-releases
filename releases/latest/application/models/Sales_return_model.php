@@ -335,6 +335,7 @@ class Sales_return_model extends CI_Model {
 				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
 				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
 				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$sold_imei_number_2 = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_2_'.$i] ?? ''));
 				$barcode_id = intval($_REQUEST['barcode_id_' . $i] ?? 0);
 
 				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
@@ -398,6 +399,7 @@ class Sales_return_model extends CI_Model {
 		    				'status'	 		=> 1,
 		    				'sold_serial_number'=> $sold_serial_number,
 		    				'sold_imei_number'  => $sold_imei_number,
+							'sold_imei_number_2' => $sold_imei_number_2,
 		    				'barcode_id'        => $barcode_id,
 
 
@@ -433,10 +435,11 @@ class Sales_return_model extends CI_Model {
 					$new_status = ($return_status == 'Warranty') ? 2 : 1;
 					if($barcode_id > 0){
 						$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => $new_status]);
-					} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+					} else if(!empty($sold_serial_number) || !empty($sold_imei_number) || !empty($sold_imei_number_2)){
 						$this->db->where('item_id', $item_id);
 						if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
 						if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+						if(!empty($sold_imei_number_2) && $this->db->field_exists('imei_number_2','db_item_barcodes')) $this->db->where('imei_number_2', $sold_imei_number_2);
 						$this->db->limit(1)->update('db_item_barcodes', ['status' => $new_status]);
 					}
 				}
@@ -1018,6 +1021,7 @@ class Sales_return_model extends CI_Model {
 							'item_discount_input' 		=> $res1->discount_input, 
 							'sold_serial_number' 		=> $res1->sold_serial_number, 
 							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'sold_imei_number_2' 	=> $res1->sold_imei_number_2 ?? '',
 							'barcode_id' 				=> $res1->barcode_id, 
 						);
 			
@@ -1069,6 +1073,7 @@ class Sales_return_model extends CI_Model {
 							'item_discount_input' 		=> $res1->discount_input, 
 							'sold_serial_number' 		=> $res1->sold_serial_number, 
 							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'sold_imei_number_2' 	=> $res1->sold_imei_number_2 ?? '',
 							'barcode_id' 				=> $res1->barcode_id, 
 						);
 
@@ -1098,6 +1103,7 @@ class Sales_return_model extends CI_Model {
 		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
 		$sold_serial_number = isset($info['sold_serial_number']) ? $info['sold_serial_number'] : '';
 		$sold_imei_number = isset($info['sold_imei_number']) ? $info['sold_imei_number'] : '';
+		$sold_imei_number_2 = isset($info['sold_imei_number_2']) ? $info['sold_imei_number_2'] : '';
 		$barcode_id = isset($info['barcode_id']) ? $info['barcode_id'] : 0;
 		$item_amount = ($item_sales_price * $item_sales_qty) + $item_tax_amt;
 		?>
@@ -1109,6 +1115,7 @@ class Sales_return_model extends CI_Model {
                   		<i onclick="show_sales_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
                   		<?php if(!empty($sold_serial_number)){ ?><br><small style="font-size:10px;">S/N: <?=htmlspecialchars($sold_serial_number);?></small><?php } ?>
                   		<?php if(!empty($sold_imei_number)){ ?><br><small style="font-size:10px;">IMEI: <?=htmlspecialchars($sold_imei_number);?></small><?php } ?>
+                   		<?php if(!empty($sold_imei_number_2)){ ?><br><small style="font-size:10px;">IMEI 2: <?=htmlspecialchars($sold_imei_number_2);?></small><?php } ?>
                   	</label>
                </td>
                <!-- Qty -->
@@ -1165,6 +1172,7 @@ class Sales_return_model extends CI_Model {
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
                <input type="hidden" id="sold_serial_number_<?=$rowcount;?>" name="sold_serial_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sold_serial_number);?>">
                <input type="hidden" id="sold_imei_number_<?=$rowcount;?>" name="sold_imei_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sold_imei_number);?>">
+               <input type="hidden" id="sold_imei_number_2_<?=$rowcount;?>" name="sold_imei_number_2_<?=$rowcount;?>" value="<?=htmlspecialchars($sold_imei_number_2);?>">
                <input type="hidden" id="barcode_id_<?=$rowcount;?>" name="barcode_id_<?=$rowcount;?>" value="<?=intval($barcode_id);?>">
 
             </tr>

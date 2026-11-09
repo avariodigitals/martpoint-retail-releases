@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.255';
+    return '4.0.9.259';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -3422,7 +3422,7 @@
       else { $CI->db->where('serial_number',$serial); }
       if($CI->db->get('db_customer_equipment')->num_rows() > 0){ return; }
 
-      $warranty_months = (int)($item->warranty_months ?? 0);
+      $warranty_months = (int)($line->warranty_months_snapshot ?? ($bc->warranty_months ?? ($item->warranty_months ?? 0)));
       $warranty_end = ($warranty_months > 0 && !empty($sale->sales_date))
         ? date('Y-m-d', strtotime($sale->sales_date." +{$warranty_months} months")) : null;
 

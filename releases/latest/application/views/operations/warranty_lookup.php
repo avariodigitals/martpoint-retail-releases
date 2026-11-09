@@ -6,6 +6,7 @@
     <h2><?= htmlspecialchars($page_title); ?></h2>
     <div class="mp-page-sub">Validate warranty by serial, IMEI, invoice, customer, or product</div>
   </div>
+  <a class="mp-btn-secondary" href="<?= base_url('operations/warranty_claims'); ?>"><i class="fa fa-wrench"></i> Warranty cases</a>
 </div>
 
 <div class="mp-card-form">
@@ -36,6 +37,7 @@
               <th>Item</th>
               <th>Serial Number</th>
               <th>IMEI</th>
+              <th>IMEI 2</th>
               <th>Sale Date</th>
               <th>Customer</th>
               <th>Warranty (Months)</th>
@@ -48,10 +50,14 @@
             <?php foreach($results as $r): 
               $warranty_months = (int)($r->warranty_months ?? 0);
               $sale_date = $r->sales_date;
+              $warranty_end = $r->effective_warranty_end ?? null;
+              $is_stock_unit = ($r->sales_code ?? '') === 'In Stock';
               $expiry_date = '';
               $status = '<span class="label label-default">No Warranty</span>';
-              if($warranty_months > 0 && is_valid_date($sale_date)){
-                $expiry = date('Y-m-d', strtotime($sale_date . ' + ' . $warranty_months . ' months'));
+              if($is_stock_unit && $warranty_months > 0){
+                $status = '<span class="label label-info">Starts at sale</span>';
+              } elseif($warranty_months > 0 && (is_valid_date($warranty_end) || is_valid_date($sale_date))){
+                $expiry = is_valid_date($warranty_end) ? $warranty_end : date('Y-m-d', strtotime($sale_date . ' + ' . $warranty_months . ' months'));
                 $expiry_date = $expiry;
                 if(strtotime($expiry) >= strtotime(date('Y-m-d'))){
                   $status = '<span class="label label-success">Under Warranty</span>';
@@ -64,6 +70,7 @@
               <td><?= htmlspecialchars($r->item_name ?? ''); ?></td>
               <td><?= htmlspecialchars($r->sold_serial_number ?? ''); ?></td>
               <td><?= htmlspecialchars($r->sold_imei_number ?? ''); ?></td>
+              <td><?= htmlspecialchars($r->sold_imei_number_2 ?? ''); ?></td>
               <td><?= is_valid_date($sale_date) ? date('d-m-Y', strtotime($sale_date)) : ''; ?></td>
               <td><?= htmlspecialchars($r->customer_name ?? 'Walk-in'); ?> <?= !empty($r->mobile) ? '<br><small>'.htmlspecialchars($r->mobile).'</small>' : ''; ?></td>
               <td><?= $warranty_months; ?></td>
@@ -72,6 +79,7 @@
               <td>
                 <?php if(!empty($r->sales_id) && $r->sales_id != 0): ?>
                   <a href="<?= base_url('sales/print_invoice_pos/'.$r->sales_id); ?>" target="_blank" class="mp-qa-btn blue" style="padding:6px 12px;font-size:13px;"><?= htmlspecialchars($r->sales_code ?? ''); ?></a>
+                  <?php if(!empty($r->id) && !empty($expiry_date) && strtotime($expiry_date)>=strtotime(date('Y-m-d'))): ?><br><a href="<?= base_url('operations/warranty_claims?new='.(int)$r->id); ?>" class="mp-qa-btn" style="padding:6px 12px;font-size:13px;margin-top:5px;"><i class="fa fa-wrench"></i> Open case</a><?php endif; ?>
                 <?php else: ?>
                   <span class="label label-info">In Stock</span>
                 <?php endif; ?>

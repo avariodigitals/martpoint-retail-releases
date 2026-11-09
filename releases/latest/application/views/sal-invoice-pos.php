@@ -258,7 +258,7 @@
                                   a.discount_input,a.discount_amt, a.unit_total_cost,
                                   a.total_cost , d.unit_name as base_unit_name,c.sku,c.hsn,
                                   a.id as salesitems_id, a.unit_id, a.unit_name as sold_unit_name, e.shortcode as sold_unit_shortcode,
-                                  a.sold_serial_number, a.sold_imei_number
+                                  a.sold_serial_number, a.sold_imei_number, a.sold_imei_number_2
                               ");
               $this->db->where("a.sales_id",$sales_id);
               $this->db->from("db_salesitems a");
@@ -278,6 +278,9 @@
                   }
                   if(!empty($res2->sold_imei_number)){
                     echo "<br><small>IMEI: ".htmlspecialchars($res2->sold_imei_number)."</small>";
+                  }
+                  if(!empty($res2->sold_imei_number_2)){
+                    echo "<br><small>IMEI 2: ".htmlspecialchars($res2->sold_imei_number_2)."</small>";
                   }
                   foreach (($sale_batches[(int)$res2->salesitems_id] ?? array()) as $saleBatch) {
                     $batchLabel = trim((string)($saleBatch->batch_lot ?? ''));
