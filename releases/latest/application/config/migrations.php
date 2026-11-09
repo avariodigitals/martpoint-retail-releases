@@ -634,4 +634,6 @@ return [
           // .258 adds per-unit second IMEI identity and store-scoped retail warranty claims.
           '4.0.9.258v' => '4.0.9.258_retail_warranty_unit_identity.sql',
           '4.0.9.259v' => '4.0.9.259_central_billing_catalogue_control.sql',
+          // .260 improves fleet usage/check-in diagnostics and reporting reliability.
+          '4.0.9.260v' => '4.0.9.260_client_retention_checkin.sql',
 ];

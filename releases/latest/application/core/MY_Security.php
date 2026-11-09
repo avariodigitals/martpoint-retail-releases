@@ -40,6 +40,8 @@ class MY_Security extends CI_Security {
                 // siblings under an underscore. Those two are keyed public
                 // endpoints exactly like intake/lead, so they were being rejected
                 // with a CSRF error before ever reaching their controller.
+                // Fleet's usage-install proof is also a machine-to-machine POST;
+                // the controller verifies its private install_key and exact URL.
                 //
                 // The path is read from REQUEST_URI, not uri_string():
                 // csrf_verify() runs while CI_Input is still being constructed,
@@ -49,7 +51,7 @@ class MY_Security extends CI_Security {
                 $mp_path = ltrim((string)$mp_path, '/');
                 // Strip a sub-directory install prefix (e.g. /app/index.php/...).
                 $mp_path = preg_replace('#^.*?index\.php/#i', '', $mp_path);
-                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase)$)#i', $mp_path))
+                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|fleet/verify_usage_install$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase)$)#i', $mp_path))
                 {
                         return $this;
                 }

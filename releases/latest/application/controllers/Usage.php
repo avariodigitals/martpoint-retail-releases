@@ -13,10 +13,20 @@ class Usage extends CI_Controller {
             $this->output->set_status_header(401)->set_output('{"ok":false}');
             return;
         }
+        try {
+            $this->load->library('Usage_reporter');
+            if ($this->usage_reporter->isAdministrativeUser()) {
+                session_write_close();
+                $this->output->set_output('{"ok":true,"excluded":true}');
+                return;
+            }
+        } catch (Throwable $e) {
+            // If role lookup fails, do not break POS activity reporting.
+        }
         // CI's database session lock must not block a simultaneous sale.
         session_write_close();
         try {
-            $this->load->library('Usage_reporter');
+            if (!isset($this->usage_reporter)) $this->load->library('Usage_reporter');
             $this->usage_reporter->report(base_url());
         } catch (Throwable $e) {
             // Telemetry has no effect on POS availability.

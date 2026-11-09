@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.259",
-    "previous_version": "4.0.9.255",
+    "version": "4.0.9.260",
+    "previous_version": "4.0.9.259",
     "release_date": "2026-11-09",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -7051,8 +7051,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "85db1397d227f3a3431e3d9b85f673da61fec3e24196f18b6bf8539f841a5094",
-            "size": 41989
+            "hash": "df09375678cbbb59be6492cae9ed3895cdf604424f962a0a6ea31b8b799eed1e",
+            "size": 42144
         },
         {
             "path": "application/config/routes.php",
@@ -7956,8 +7956,8 @@
         },
         {
             "path": "application/models/Login_model.php",
-            "hash": "f663ee96642e37132c5c391572ea7e8ac5dfe3049df6f5c23aa1cceaeda3855c",
-            "size": 11537
+            "hash": "c18657a56c0e9ea770f3faee4e4f11a9baefebd86b9985ce97c3d60996630a2f",
+            "size": 11658
         },
         {
             "path": "application/models/Expense_category_model.php",
@@ -8976,8 +8976,8 @@
         },
         {
             "path": "application/controllers/Usage.php",
-            "hash": "d4354b1209023af0f39bff2815400235bd0adb7160977d6499ba431eee645c93",
-            "size": 1071
+            "hash": "75735a2b206e348b314d6e968a2d22f0cf224fd17efd5c801bc1dda8ed7f2072",
+            "size": 1505
         },
         {
             "path": "application/controllers/Warehouse.php",
@@ -10826,8 +10826,8 @@
         },
         {
             "path": "application/libraries/Usage_reporter.php",
-            "hash": "0e18ff79ec3286cb916e77830ac6d17217ac455fa8f201fcce1d32a8ab7fc3d4",
-            "size": 6578
+            "hash": "6263042c999aa1e9dc6305f05c358efcf6167114765688298fe483ad6b6dfd72",
+            "size": 7437
         },
         {
             "path": "application/libraries/Messaging_client.php",
@@ -13511,8 +13511,8 @@
         },
         {
             "path": "application/core/MY_Security.php",
-            "hash": "1dc98a81ffc1769b43e9030fb16aa96cf12759fe04db1504d0c100f6ddc4d970",
-            "size": 6042
+            "hash": "c1924e8e4a77a6bc2ed96af54006db32a23ba662b5fa4744abd527bb1821a94f",
+            "size": 6234
         },
         {
             "path": "application/core/MY_Controller.php",
@@ -13521,7 +13521,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "80a35b26e6c6f648162ed8904c2ac4b1884a6425b85c52b5cc1e14c59f4c61bd",
+            "hash": "64087a82ddaace98b40554362878105ae0b73b0f62d21392e09ce238a7f5e578",
             "size": 135840
         },
         {
@@ -20537,7 +20537,8 @@
         "4.0.9.256_central_credit_billing_foundation.sql",
         "4.0.9.257_central_billing_addons.sql",
         "4.0.9.258_retail_warranty_unit_identity.sql",
-        "4.0.9.259_central_billing_catalogue_control.sql"
+        "4.0.9.259_central_billing_catalogue_control.sql",
+        "4.0.9.260_client_retention_checkin.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20546,6 +20547,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "16f267f0c9692f3e84e034a15951c157622d383f72d8fb6be8e974d3fc1feb9f4df3aab6792704bb26ebdc5230d8f4a74e3f0b1f65921b06a10a86a79dfc2309",
-    "changelog": "Release 4.0.9.259"
+    "signature": "f68159dc356b8489f09212180842c601c78983e369523f3d29acb00c7a44a3a7ada20ce9502050b2dac892f7a7707e0fc90d4854440f64b9025aaaa0ce9e7000",
+    "changelog": "Release 4.0.9.260"
 }

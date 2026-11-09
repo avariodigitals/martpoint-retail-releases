@@ -9,6 +9,19 @@ class Usage_reporter {
     protected function diagnostic(string $message): void {
         if(function_exists('log_message')) log_message('error','Client retention reporter: '.$message);
     }
+    /** Install-level admins use the POS for support/maintenance, not client activity. */
+    public function isAdministrativeUser(): bool {
+        $ci =& get_instance();
+        if(!$ci || !isset($ci->session))return false;
+        $roleId=(int)$ci->session->userdata('role_id');
+        $roleName=strtoupper(trim((string)$ci->session->userdata('role_name')));
+        if($roleId===1 || in_array($roleName,['ADMIN','SUPER ADMIN','STORE ADMIN'],true))return true;
+        // Store Admin can be a store-scoped role with a non-fixed role ID.
+        if(function_exists('is_store_admin')){
+            try{return (bool)is_store_admin();}catch(Throwable $ignored){}
+        }
+        return false;
+    }
     protected function eligible(string $url): bool {
         $host=strtolower((string)parse_url($url,PHP_URL_HOST));
         return preg_match('~^https?://~i',$url) && $host && strpos($host,'.')!==false
@@ -30,7 +43,9 @@ class Usage_reporter {
     }
     protected function transport(string $endpoint,array $body): ?array {
         if(!function_exists('curl_init')){$this->diagnostic('PHP cURL is unavailable for '.$endpoint.'.');return null;}
-        $ch=@curl_init('https://martpoint.com.ng/api/usage/'.$endpoint);
+        // Use the canonical host directly. The apex domain issues HTTP 308,
+        // and this client intentionally refuses redirects for API requests.
+        $ch=@curl_init('https://www.martpoint.com.ng/api/usage/'.$endpoint);
         if($ch===false){$this->diagnostic('could not initialize PHP cURL for '.$endpoint.'.');return null;}
         // This runs from a separate browser request, never from login or sale
         // submission. Enrollment nests a Fleet proof and database writes, so a

@@ -177,8 +177,8 @@ class Login_model extends CI_Model
 				}
 			}
 
-			// Local-only marker; no network request on the login path.
-            try {$this->load->library('Usage_reporter');$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
+			// Client retention tracks merchant users, not support/admin maintenance logins.
+            try {$this->load->library('Usage_reporter');if(!$this->usage_reporter->isAdministrativeUser())$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
             $this->session->set_userdata('login_attempts', 0);
 			$this->session->set_userdata('welcome_alert', 'Welcome '.ucfirst($display_name)." !");
 			if(function_exists('mp_audit_log')){
@@ -288,7 +288,7 @@ class Login_model extends CI_Model
 				         	'store_id' => trim($user->store_id),
 				        	);
 			$this->session->set_userdata($logdata);
-            try {$this->load->library('Usage_reporter');$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
+            try {$this->load->library('Usage_reporter');if(!$this->usage_reporter->isAdministrativeUser())$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
 			return true;
 		}
 		else{
