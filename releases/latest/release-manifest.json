@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.268",
+    "version": "4.0.9.269",
     "previous_version": "4.0.9.255",
     "release_date": "2026-11-11",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -7091,8 +7091,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "094b1fea7a381377ff7833caafe59657e53716fbd808362fe9417fff635c7201",
-            "size": 43632
+            "hash": "01b058b88f9d9c85d2360b7f4e4447524772de2b90e6242a07b3b323d1709dc7",
+            "size": 43784
         },
         {
             "path": "application/config/routes.php",
@@ -13591,7 +13591,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "f7d3f40e9e9e8880cf0f56902c9e52c0d6a27dc9244e51aee493d7aded4257ba",
+            "hash": "49ca9f110eaaa00d3e6751fd86b054ac0a3ce7e610289270ba3520c2c05c8497",
             "size": 137027
         },
         {
@@ -20631,7 +20631,8 @@
         "4.0.9.265_paystack_composite_platform_fee.sql",
         "4.0.9.266_martpoint_pay_acceptance_log.sql",
         "4.0.9.267_paystack_settings_save_reliability.sql",
-        "4.0.9.268_paystack_fee_columns_repair.sql"
+        "4.0.9.268_paystack_fee_columns_repair.sql",
+        "4.0.9.269_paystack_fee_columns_auto_repair.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20640,6 +20641,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "9c9a792e4fd5e62b0b7bea4bbdcde8371d7c94a0a4a699ee24267bcc1cd367d1d9ae932350265000898bc7c0fa274f23ab9b8f84034065040b5738328c3b4308",
-    "changelog": "Release 4.0.9.268"
+    "signature": "b5ca4484a3225a279cc09b7648b080ea9a52b329cbeef313d25a3e23d851e7def41e78ef3a6a2eccab055d651562a49524c0a42688c43ebd5a0388f9974f4801",
+    "changelog": "Release 4.0.9.269"
 }
