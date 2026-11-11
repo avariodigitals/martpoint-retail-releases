@@ -1,6 +1,17 @@
 <?php
 $mp_mobile_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
 $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+$mp_is_supplements = ($mp_mobile_profile['industry_type'] ?? '') === 'supplements_wellness';
+$mp_mobile_palette = $mp_is_pharmacy ? [
+  'primary'=>'#0F766E','primary_dark'=>'#0B5B55','primary_soft'=>'#E5F4F1','bg'=>'#F2F8F7',
+  'text'=>'#16323A','muted'=>'#6B7F86','border'=>'#D7E7E5','success'=>'#0F766E','danger'=>'#C94F4F','warning'=>'#B7791F','ink'=>'#16323A'
+] : ($mp_is_supplements ? [
+  'primary'=>'#15803D','primary_dark'=>'#166534','primary_soft'=>'#E8F5EC','bg'=>'#F2F8F4',
+  'text'=>'#203329','muted'=>'#6B7C70','border'=>'#DCE8DF','success'=>'#15803D','danger'=>'#C94F4F','warning'=>'#B7791F','ink'=>'#203329'
+] : [
+  'primary'=>'#0057FF','primary_dark'=>'#0044CC','primary_soft'=>'#E0E7FF','bg'=>'#F1F5F9',
+  'text'=>'#0F172A','muted'=>'#64748B','border'=>'#E2E8F0','success'=>'#10B981','danger'=>'#EF4444','warning'=>'#F59E0B','ink'=>'#1E293B'
+]);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,27 +30,28 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
   <link rel="stylesheet" href="<?= $theme_link; ?>plugins/select2/select2.min.css">
   <style>
     :root {
-      --mp-primary: <?= $mp_is_pharmacy ? '#0F766E' : '#0057FF'; ?>;
-      --mp-primary-dark: <?= $mp_is_pharmacy ? '#0B5B55' : '#0044CC'; ?>;
-      --mp-bg: <?= $mp_is_pharmacy ? '#F2F8F7' : '#F1F5F9'; ?>;
+      --mp-primary: <?= $mp_mobile_palette['primary']; ?>;
+      --mp-primary-dark: <?= $mp_mobile_palette['primary_dark']; ?>;
+      --mp-primary-soft: <?= $mp_mobile_palette['primary_soft']; ?>;
+      --mp-bg: <?= $mp_mobile_palette['bg']; ?>;
       --mp-surface: #FFFFFF;
-      --mp-text: <?= $mp_is_pharmacy ? '#16323A' : '#0F172A'; ?>;
-      --mp-muted: <?= $mp_is_pharmacy ? '#6B7F86' : '#64748B'; ?>;
-      --mp-border: <?= $mp_is_pharmacy ? '#D7E7E5' : '#E2E8F0'; ?>;
-      --mp-success: <?= $mp_is_pharmacy ? '#0F766E' : '#10B981'; ?>;
-      --mp-danger: <?= $mp_is_pharmacy ? '#C94F4F' : '#EF4444'; ?>;
-      --mp-warning: <?= $mp_is_pharmacy ? '#B7791F' : '#F59E0B'; ?>;
-      --mp-ink: <?= $mp_is_pharmacy ? '#16323A' : '#1E293B'; ?>;
+      --mp-text: <?= $mp_mobile_palette['text']; ?>;
+      --mp-muted: <?= $mp_mobile_palette['muted']; ?>;
+      --mp-border: <?= $mp_mobile_palette['border']; ?>;
+      --mp-success: <?= $mp_mobile_palette['success']; ?>;
+      --mp-danger: <?= $mp_mobile_palette['danger']; ?>;
+      --mp-warning: <?= $mp_mobile_palette['warning']; ?>;
+      --mp-ink: <?= $mp_mobile_palette['ink']; ?>;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; font-family: <?= $mp_is_pharmacy ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; font-family: <?= ($mp_is_pharmacy || $mp_is_supplements) ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--mp-bg); color: var(--mp-text); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
     #app { max-width: 430px; margin: 0 auto; background: var(--mp-surface); min-height: 100vh; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.08); }
     .screen { padding: 16px 16px 120px; min-height: 100vh; }
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-top: 8px; }
     .topbar h1 { font-size: 22px; font-weight: 700; margin: 0; }
     .topbar .sub { font-size: 13px; color: var(--mp-muted); margin-top: 2px; }
-    .avatar { width: 38px; height: 38px; border-radius: 50%; background: #E0E7FF; color: var(--mp-primary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--mp-primary-soft); color: var(--mp-primary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
     .form-group { margin-bottom: 16px; }
     .option-chips { display: flex; flex-wrap: nowrap; border: 1px solid var(--mp-border); border-radius: 14px; overflow: hidden; background: var(--mp-surface); }
     .option-chips button { flex: 1; min-width: 0; padding: 12px 6px; border: none; border-left: 1px solid var(--mp-border); border-radius: 0; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
@@ -55,10 +67,10 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
     .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
     .form-control { width: 100%; padding: 16px; border: 1px solid var(--mp-border); border-radius: 14px; font-size: 16px; background: var(--mp-surface); outline: none; min-height: 54px; }
     .form-control:focus { border-color: var(--mp-primary); }
-    select.form-control { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 42px; }
+    select.form-control { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7C70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 42px; }
     .custom-select { position: relative; }
     .custom-select select { position: absolute; opacity: 0; pointer-events: none; }
-    .custom-select-trigger { display: flex; align-items: center; width: 100%; padding: 14px 42px 14px 16px; border: 1px solid var(--mp-border); border-radius: 14px; background: var(--mp-surface); font-size: 16px; min-height: 54px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+    .custom-select-trigger { display: flex; align-items: center; width: 100%; padding: 14px 42px 14px 16px; border: 1px solid var(--mp-border); border-radius: 14px; background: var(--mp-surface); font-size: 16px; min-height: 54px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7C70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
     .custom-select-options { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid var(--mp-border); border-radius: 14px; z-index: 300; box-shadow: 0 10px 25px rgba(0,0,0,0.12); }
     .custom-select-options .optgroup-label { padding: 10px 16px; font-weight: 700; color: var(--mp-ink); background: var(--mp-bg); font-size: 13px; }
     .custom-select-options .opt { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--mp-border); }
@@ -481,7 +493,7 @@ $mp_is_pharmacy = in_array(($mp_mobile_profile['industry_type'] ?? ''), ['pharma
       </div>
       <div id="payment_rows" style="display:none;"></div>
       <div class="form-group" id="payment_split_summary" style="display:none;">
-        <div class="cart-total" style="background:#EFF6FF; border-color:var(--mp-primary); margin:0;">
+        <div class="cart-total" style="background:var(--mp-primary-soft); border-color:var(--mp-primary); margin:0;">
           <div class="label">Balance</div>
           <div class="value" id="payment_split_balance" style="color:var(--mp-primary);">₦ 0.00</div>
         </div>

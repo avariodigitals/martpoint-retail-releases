@@ -40,7 +40,7 @@
     .mp-select-trigger { width: 100%; padding: 12px 14px; border: 1px solid var(--mp-border); border-radius: 12px; background: #fff; font-size: 15px; color: var(--mp-text); cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
     .mp-select-trigger.placeholder { color: var(--mp-muted); }
     .mp-select-trigger .chev { color: var(--mp-muted); margin-left: 8px; }
-    .mp-select-options { display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200; background: #fff; border: 1px solid var(--mp-border); border-radius: 12px; max-height: 220px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .mp-select-options { display: none; position: static; z-index: 200; background: #fff; border: 1px solid var(--mp-border); border-radius: 12px; max-height: 220px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .mp-select-options.open { display: block; }
     .mp-option { padding: 12px 14px; border-bottom: 1px solid var(--mp-border); cursor: pointer; font-size: 14px; }
     .mp-option:last-child { border-bottom: none; }
@@ -103,6 +103,20 @@
               <?php endforeach; ?>
             </select>
           </div>
+          <div class='select-group'>
+            <select class='mp-select' name='status'>
+              <option value='active' <?= $status_filter === 'active' ? 'selected' : ''; ?>>Active items</option>
+              <option value='inactive' <?= $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive items</option>
+              <option value='all' <?= $status_filter === 'all' ? 'selected' : ''; ?>>All items</option>
+            </select>
+          </div>
+          <div class='select-group'>
+            <select class='mp-select' name='sort_by'>
+              <option value='code_asc' <?= $sort_by === 'code_asc' ? 'selected' : ''; ?>>Product code (A–Z)</option>
+              <option value='code_desc' <?= $sort_by === 'code_desc' ? 'selected' : ''; ?>>Product code (Z–A)</option>
+              <option value='name_asc' <?= $sort_by === 'name_asc' ? 'selected' : ''; ?>>Item name (A–Z)</option>
+            </select>
+          </div>
         </div>
       </form>
 
@@ -127,6 +141,7 @@
               <div class='left'>
                 <div class='name'>
                   <a href='<?= base_url('mobile/product_view/' . (int)$item->id); ?>'><?= htmlspecialchars($item->item_name); ?></a>
+                  <?php if((int)$item->status !== 1): ?><span class='badge' style='background:#FEF2F2;color:#B91C1C;'>Inactive</span><?php endif; ?>
                   <?php if($item->item_group == 'Variants'): ?>
                     <span class='badge variants'>Variants</span>
                   <?php endif; ?>
@@ -179,7 +194,9 @@
           $query = http_build_query(array_filter([
             'search' => $search ?? '',
             'category' => $category_id ?? '',
-            'price_type' => $price_type ?? ''
+            'price_type' => $price_type ?? '',
+            'status' => $status_filter ?? 'active',
+            'sort_by' => $sort_by ?? 'code_asc'
           ]));
           $next_url = base_url('mobile/catalogue/' . ($page + 1) . ($query ? '?' . $query : ''));
         ?>

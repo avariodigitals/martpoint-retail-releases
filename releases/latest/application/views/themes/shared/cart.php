@@ -187,13 +187,17 @@
 let CSRF_NAME = '<?= $csrf_name ?? ''; ?>';
 let CSRF_HASH = '<?= $csrf_hash ?? ''; ?>';
 let cartData = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
+const SF_TAX_ENABLED = <?= !empty($settings->storefront_tax_enabled) ? 'true' : 'false'; ?>;
+const SF_TAX_RATE = <?= json_encode((float)($settings->storefront_tax_rate ?? 0)); ?>;
+const SF_TAX_MODE = <?= json_encode(($settings->storefront_tax_mode ?? 'exclusive') === 'inclusive' ? 'inclusive' : 'exclusive'); ?>;
 let selectedPayment = 'pay_on_delivery';
 let selectedShippingMethod = '';
 let selectedCityIdx = -1;
 let cityShipMode = false;
 const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
 const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
-const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
+const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && (trim($z['city'] ?? '') !== '' || trim($z['state'] ?? '') !== '' || trim($z['country'] ?? '') !== ''); })) : []); ?>;
+const PICKUP_METHODS = SHIPPING_METHODS.filter(m => /pick[\s-]*up|collect/i.test(String(m.name||'')));
 const TABLE_NUMBER = <?= json_encode($table_number ?? ''); ?>;
 // Outlets the shopper can order from. One outlet means no choice is shown.
 const OUTLETS = <?= json_encode(array_map(function($o){
@@ -283,6 +287,18 @@ function renderCart(){
   // Step numbering adjusts as sections appear
   let stepNum = 1;
 
+  // Fulfilment location is the first customer decision, before contact data.
+  if(OUTLETS.length > 1){
+    html += '<div class="mp-checkout-card" id="outlet-card">';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Fulfilment location *</div>';
+    stepNum++;
+    html += '<input type="hidden" id="outlet" value="'+(selectedOutlet||'')+'">';
+    const currentOutlet=OUTLETS.find(function(o){return o.id===selectedOutlet;});
+    html += '<div style="display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface)"><div><strong id="selected-outlet-name">'+(currentOutlet?String(currentOutlet.name).replace(/</g,'&lt;'):'Choose a location')+'</strong><div class="mp-cart-hint" id="selected-outlet-availability" data-sf-outlet-availability="'+(selectedOutlet||'')+'">'+(selectedOutlet?'Checking availability…':'A location is required before checkout.')+'</div></div><button type="button" style="border:0;background:transparent;color:var(--mp-primary);text-decoration:underline;cursor:pointer;font-weight:600;padding:8px" onclick="sfShowLocationPicker(null)">Switch location</button></div>';
+    html += '<div class="mp-field-error" id="err-outlet">Please choose a location</div>';
+    html += '</div>';
+  }
+
   // Contact details
   html += '<div class="mp-checkout-card">';
   html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (TABLE_NUMBER ? 'Your Name for Table ' + TABLE_NUMBER + ' *' : 'Contact Details') + '</div>';
@@ -295,29 +311,11 @@ function renderCart(){
   html += '</div>';
   html += '</div>';
 
-  // Which outlet is this order for? Only asked when the store really has
-  // somewhere else to order from — a single till never sees this card.
-  if(OUTLETS.length > 1){
-    html += '<div class="mp-checkout-card" id="outlet-card">';
-    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Where Are You Ordering From? *</div>';
-    stepNum++;
-    html += '<input type="hidden" id="outlet" value="'+(selectedOutlet||'')+'">';
-    html += '<div class="mp-payment-options">';
-    OUTLETS.forEach(function(o){
-      const on = selectedOutlet === o.id;
-      html += '<div class="mp-payment-option'+(on?' active':'')+'" onclick="selOutlet(this,'+o.id+')"><input type="radio" name="outletchoice" aria-label="Order from '+String(o.name).replace(/"/g,'&quot;')+'" value="'+o.id+'"'+(on?' checked':'')+'><div><div class="mp-pay-label">'+String(o.name).replace(/</g,'&lt;')+'</div>'+(o.area?'<div class="mp-pay-desc">'+String(o.area).replace(/</g,'&lt;')+'</div>':'')+'</div></div>';
-    });
-    html += '</div>';
-    html += '<div class="mp-cart-hint">Your food comes from the location you pick here.</div>';
-    html += '<div class="mp-field-error" id="err-outlet">Please choose a location</div>';
-    html += '</div>';
-  }
-
   // Delivery — only when the cart contains a deliverable item
   cityShipMode = needsDelivery && !TABLE_NUMBER && CITY_SHIPPING.length > 0;
   if(needsDelivery && (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE)){
     html += '<div class="mp-checkout-card">';
-    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (cityShipMode ? 'Delivery City' : 'Shipping Method') + '</div>';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (cityShipMode ? 'Delivery options' : 'Shipping Method') + '</div>';
     stepNum++;
     if(SHIPPING_NOTICE){
       html += '<div class="mp-ship-notice"><i class="fa fa-info-circle"></i><span>' + SHIPPING_NOTICE.replace(/</g,'&lt;') + '</span></div>';
@@ -332,14 +330,15 @@ function renderCart(){
       html += '<div class="mp-citysel-list" id="ship-city-list">';
       const cartSubtotal = cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
       let czGroups = {};
-      CITY_SHIPPING.forEach((z,idx)=>{ const st=(z.state||'').trim()||'Other'; (czGroups[st]=czGroups[st]||[]).push(idx); });
-      Object.keys(czGroups).sort().forEach(st=>{
-        html += '<div class="mp-citysel-group">' + String(st).replace(/</g,'&lt;') + '</div>';
-        czGroups[st].forEach(idx=>{
+      CITY_SHIPPING.forEach((z,idx)=>{ const country=(z.country||'').trim()||'Other countries'; const st=(z.state||'').trim()||'Other regions'; const key=country+'|'+st; (czGroups[key]=czGroups[key]||[]).push(idx); });
+      Object.keys(czGroups).sort().forEach(key=>{
+        const parts=key.split('|');
+        html += '<div class="mp-citysel-group">' + String(parts[0]).replace(/</g,'&lt;') + (parts[1]&&parts[1]!=='Other regions'?' · '+String(parts[1]).replace(/</g,'&lt;'):'') + '</div>';
+        czGroups[key].forEach(idx=>{
           const z = CITY_SHIPPING[idx];
           const freeOver = parseFloat(z.free_over)||0;
           const minOrder = parseFloat(z.min_order)||0;
-          let lbl = (z.city === '*' ? 'Other areas' : z.city);
+          let lbl = (z.city === '*' ? 'Other areas' : (z.city||z.state||z.country||'Other areas'));
           if(minOrder > 0 && cartSubtotal < minOrder){
             lbl += ' — min order ' + formatMoney(minOrder);
             html += '<div class="mp-citysel-opt disabled" data-idx="' + idx + '">' + String(lbl).replace(/</g,'&lt;') + '</div>';
@@ -352,8 +351,20 @@ function renderCart(){
         });
       });
       html += '</div></div>';
-      html += '<div class="mp-field-error" id="err-ship-city">Please select your delivery city</div>';
-      html += '<div style="font-size:12px;color:var(--mp-gray);margin-top:6px;">Delivery fee is set by your city.</div>';
+      html += '<div class="mp-field-error" id="err-ship-city">Please select a delivery area</div>';
+      html += '<div style="font-size:12px;color:var(--mp-gray);margin-top:6px;">Delivery fee is based on the selected area.</div>';
+      if(PICKUP_METHODS.length){
+        html += '<div class="mp-cart-label" style="margin-top:14px;">Or collect in person</div><div class="mp-payment-options">';
+        PICKUP_METHODS.forEach((m)=>{
+          const feeLabel=(m.quote?'Quoted after order':(m.fee>0?formatMoney(m.fee):'Free'));
+          const active=selectedShippingMethod===m.name?' active':'';
+          const checked=selectedShippingMethod===m.name?' checked':'';
+          html += '<div class="mp-payment-option'+active+'" onclick="selShip(this,\''+m.name.replace(/'/g,"\\'")+'\')"><input type="radio" name="shipmethod" value="'+m.name.replace(/"/g,'&quot;')+'"'+checked+'><div><div class="mp-pay-label">'+m.name.replace(/</g,'&lt;')+'</div>';
+          if(m.description) html += '<div class="mp-pay-desc">'+m.description.replace(/</g,'&lt;')+'</div>';
+          html += '</div><div class="mp-pay-fee">'+feeLabel+'</div></div>';
+        });
+        html += '</div>';
+      }
     }
     else if(SHIPPING_METHODS.length > 0){
       html += '<div class="mp-payment-options">';
@@ -404,7 +415,10 @@ function renderCart(){
   html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Order &amp; Payment</div>';
   html += '<div class="mp-payment-options">';
   <?php if($settings->allow_paystack && $paystack_enabled): ?>
-  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" aria-label="Pay online with Paystack" value="paystack" checked><div><div class="mp-pay-label">Pay Online (Paystack)</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
+  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" aria-label="Pay with MartPoint Pay" value="paystack" checked><div><div class="mp-pay-label">MartPoint Pay</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
+  <?php endif; ?>
+  <?php if(!empty($paypal_enabled)): ?>
+  html += '<div class="mp-payment-option<?= !$paystack_enabled?' active':''; ?>" onclick="selPay(this,\'paypal\')"><input type="radio" name="paymethod" aria-label="Pay securely with PayPal" value="paypal"<?= !$paystack_enabled?' checked':''; ?>><div><div class="mp-pay-label">Pay securely with PayPal</div><div class="mp-pay-desc">Complete payment in <?= htmlspecialchars($store_currency['code']??'foreign currency',ENT_QUOTES); ?> through PayPal</div></div></div>';
   <?php endif; ?>
   <?php if($settings->allow_pay_on_delivery): ?>
   if(isCartPhysicalOnly()){
@@ -413,7 +427,7 @@ function renderCart(){
   <?php endif; ?>
   <?php if($settings->allow_whatsapp && $settings->whatsapp_number): ?>
   html += '<div class="mp-pay-divider">Or send your order to the store</div>';
-  html += '<div class="mp-payment-option<?= (!$settings->allow_paystack||!$paystack_enabled)?' active':''; ?>" onclick="selPay(this,\'whatsapp\')"><input type="radio" name="paymethod" aria-label="Order via WhatsApp" value="whatsapp"<?= (!$settings->allow_paystack||!$paystack_enabled)?' checked':''; ?>><div><div class="mp-pay-label">Order via WhatsApp</div><div class="mp-pay-desc">Submit your order on WhatsApp — the store confirms payment &amp; delivery with you</div></div></div>';
+  html += '<div class="mp-payment-option<?= ((!$settings->allow_paystack||!$paystack_enabled)&&empty($paypal_enabled))?' active':''; ?>" onclick="selPay(this,\'whatsapp\')"><input type="radio" name="paymethod" aria-label="Order via WhatsApp" value="whatsapp"<?= ((!$settings->allow_paystack||!$paystack_enabled)&&empty($paypal_enabled))?' checked':''; ?>><div><div class="mp-pay-label">Order via WhatsApp</div><div class="mp-pay-desc">Submit your order on WhatsApp — the store confirms payment &amp; delivery with you</div></div></div>';
   <?php endif; ?>
   html += '</div>';
   html += '</div>'; // end payment card
@@ -437,6 +451,7 @@ function renderCart(){
   }
   html += '<div class="mp-summary-totals">';
   html += '<div class="mp-cart-row"><span>Subtotal</span><span id="summary-subtotal"></span></div>';
+  if(SF_TAX_ENABLED && SF_TAX_RATE>0) html += '<div class="mp-cart-row"><span>Tax</span><span id="summary-tax"></span></div>';
   if(MP_CART_REVIEW_ONLY && needsDelivery) html += '<div class="mp-cart-row"><span>Delivery</span><span>Calculated at checkout</span></div>';
   if(!MP_CART_REVIEW_ONLY){
   html += '<div class="mp-cart-row" id="summary-discount-row" style="display:none;color:#059669;"><span>Coupon <span id="summary-coupon-code"></span> <a href="javascript:void(0)" onclick="removeCoupon()" style="color:#991B1B;font-size:11px;">[remove]</a></span><span id="summary-discount"></span></div>';
@@ -456,6 +471,7 @@ function renderCart(){
 
   html += '</div>'; // end layout
   c.innerHTML = html;
+  if(window.sfRefreshLocationAvailability) window.sfRefreshLocationAvailability(cartData);
   loadCartUpsells();
 
   // Render item rows (left column) + compact summary list (right column)
@@ -537,6 +553,10 @@ function addUpsellToCart(index){
 }
 
 function getShipFee(){
+  if(selectedShippingMethod && PICKUP_METHODS.some(m=>m.name===selectedShippingMethod)){
+    const pickup=PICKUP_METHODS.find(m=>m.name===selectedShippingMethod);
+    return pickup.quote?0:(parseFloat(pickup.fee)||0);
+  }
   if(cityShipMode){
     const z=CITY_SHIPPING[selectedCityIdx];
     if(!z) return 0;
@@ -550,7 +570,6 @@ function getShipFee(){
   return sm?(sm.quote?0:(parseFloat(sm.fee)||0)):0;
 }
 function selectedShipIsQuote(){
-  if(cityShipMode) return false;
   const sm=SHIPPING_METHODS.find(m=>m.name===selectedShippingMethod);
   return !!(sm && sm.quote);
 }
@@ -566,12 +585,12 @@ document.addEventListener('click',function(e){
 function pickCity(idx){
   const hidden=document.getElementById('ship-city');
   const lbl=document.getElementById('ship-city-label');
-  const z=CITY_SHIPPING[idx];
+    const z=CITY_SHIPPING[idx];
   if(!hidden||!z) return;
   hidden.value=idx;
   const freeOver=parseFloat(z.free_over)||0;
   const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
-  let name=(z.city==='*'?'Other areas':z.city);
+  let name=(z.city==='*'?'Other areas':(z.city||z.state||z.country||'Other areas'));
   if(freeOver>0&&subtotal>=freeOver) name+=' — Free delivery';
   else if(freeOver>0) name+=' — '+formatMoney(parseFloat(z.fee)||0)+' (free over '+formatMoney(freeOver)+')';
   else name+=(parseFloat(z.fee)>0?' — '+formatMoney(z.fee):' — Free');
@@ -585,8 +604,13 @@ function selCity(){
   const sel=document.getElementById('ship-city');
   selectedCityIdx=sel&&sel.value!==''?parseInt(sel.value):-1;
   if(selectedCityIdx>=0){
+    document.querySelectorAll('input[name="shipmethod"]').forEach(input=>{input.checked=false;input.closest('.mp-payment-option')?.classList.remove('active');});
     const z=CITY_SHIPPING[selectedCityIdx];
-    selectedShippingMethod='Delivery - '+(z.city==='*'?'Other areas':z.city)+((z.state||'').trim()?', '+z.state.trim():'');
+    const locationParts=[];
+    if(z.city&&z.city!=='*') locationParts.push(z.city);
+    if(z.state&&z.city!=='*') locationParts.push(z.state);
+    if(z.country) locationParts.push(z.country);
+    selectedShippingMethod='Delivery - '+(z.city==='*'?'Other areas':(locationParts.join(', ')||'Other areas'));
   } else {
     selectedShippingMethod='';
   }
@@ -633,17 +657,20 @@ function removeCoupon(){
 }
 function updateShipSummary(subtotal){
   const fee=getShipFee();
+  const taxBase=Math.max(0,subtotal-couponDiscountPreview);
+  const tax=SF_TAX_ENABLED&&SF_TAX_RATE>0?(SF_TAX_MODE==='inclusive'?taxBase*SF_TAX_RATE/(100+SF_TAX_RATE):taxBase*SF_TAX_RATE/100):0;
+  const taxNode=document.getElementById('summary-tax');if(taxNode)taxNode.textContent=formatMoney(tax);
   const row=document.getElementById('summary-shipping-row');
   if(row){
     if(fee>0||selectedShippingMethod||selectedCityIdx>=0){
       row.style.display='flex';
       const lbl=row.querySelector('span');
-      if(lbl) lbl.textContent=(cityShipMode&&selectedCityIdx>=0)?'Delivery ('+CITY_SHIPPING[selectedCityIdx].city+')':'Shipping';
+      if(lbl) lbl.textContent=(cityShipMode&&selectedCityIdx>=0&&!PICKUP_METHODS.some(m=>m.name===selectedShippingMethod))?'Delivery ('+(CITY_SHIPPING[selectedCityIdx].city||CITY_SHIPPING[selectedCityIdx].state||CITY_SHIPPING[selectedCityIdx].country||'Other areas')+')':'Shipping';
       document.getElementById('summary-shipping').textContent=(fee>0?formatMoney(fee):(selectedShipIsQuote()?'Quoted after order':(selectedCityIdx>=0||selectedShippingMethod?'Free':'—')));
     }
     else { row.style.display='none'; }
   }
-  const quotePending = !cityShipMode && selectedShipIsQuote();
+  const quotePending = selectedShipIsQuote();
   const note=document.getElementById('summary-quote-note');
   const totalLbl=document.getElementById('summary-total-label');
   if(note) note.style.display = quotePending ? 'block' : 'none';
@@ -656,7 +683,7 @@ function updateShipSummary(subtotal){
       document.getElementById('summary-discount').textContent='−'+formatMoney(couponDiscountPreview);
     } else { dRow.style.display='none'; }
   }
-  document.getElementById('summary-total').textContent=formatMoney(Math.max(0,subtotal+fee-couponDiscountPreview));
+  document.getElementById('summary-total').textContent=formatMoney(Math.max(0,subtotal+fee-couponDiscountPreview+(SF_TAX_MODE==='exclusive'?tax:0)));
   updateCheckoutBtn();
 }
 
@@ -666,7 +693,8 @@ function updateCheckoutBtn(){
   const btn=document.getElementById('checkout-btn');
   if(!btn || btn.disabled) return;
   const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
-  const total=Math.max(0,subtotal+getShipFee()-couponDiscountPreview);
+  const taxBase=Math.max(0,subtotal-couponDiscountPreview),tax=SF_TAX_ENABLED&&SF_TAX_RATE>0?(SF_TAX_MODE==='inclusive'?taxBase*SF_TAX_RATE/(100+SF_TAX_RATE):taxBase*SF_TAX_RATE/100):0;
+  const total=Math.max(0,subtotal+getShipFee()-couponDiscountPreview+(SF_TAX_MODE==='exclusive'?tax:0));
   if(selectedPayment==='paystack') btn.textContent='Pay '+formatMoney(total)+' securely';
   else if(selectedPayment==='whatsapp') btn.textContent='Send order via WhatsApp';
   else if(selectedPayment==='pay_on_delivery') btn.textContent='Place order — pay on delivery';
@@ -686,14 +714,26 @@ function selPay(el,m){
 }
 
 function selOutlet(el,id){
-  document.querySelectorAll('input[name="outletchoice"]').forEach(o=>o.closest('.mp-payment-option').classList.remove('active'));
-  el.classList.add('active'); el.querySelector('input').checked=true;
   selectedOutlet=id;
   const hidden=document.getElementById('outlet'); if(hidden) hidden.value=id;
   const err=document.getElementById('err-outlet'); if(err) err.classList.remove('show');
   localStorage.setItem('sf_outlet_' + STORE_ID, String(id));
   refreshCommerceCart(true).catch(error=>showToast(error.message));
 }
+
+document.addEventListener('sf:location-selected',function(event){
+  const id=Number(event.detail&&event.detail.id||0);
+  if(!id||!OUTLETS.some(function(outlet){return outlet.id===id;})) return;
+  selectedOutlet=id;
+  localStorage.setItem('sf_outlet_'+STORE_ID,String(id));
+  const hidden=document.getElementById('outlet'); if(hidden)hidden.value=String(id);
+  const name=document.getElementById('selected-outlet-name');
+  const outlet=OUTLETS.find(function(row){return row.id===id;});
+  if(name&&outlet)name.textContent=outlet.name;
+  const availability=document.getElementById('selected-outlet-availability');
+  if(availability){availability.dataset.sfOutletAvailability=String(id);availability.textContent='Checking availability…';}
+  refreshCommerceCart(true).catch(error=>showToast(error.message));
+});
 
 function setErr(id){
   const input=document.getElementById(id);
@@ -757,7 +797,7 @@ async function placeOrder(){
   let firstBad=null;
   if(!name){ setErr('cust-name'); firstBad=firstBad||'cust-name'; }
   if(!phone){ setErr('cust-phone'); firstBad=firstBad||'cust-phone'; }
-  if(cityShipMode && selectedCityIdx<0){ setErr('ship-city'); firstBad=firstBad||'ship-city'; }
+  if(cityShipMode && selectedCityIdx<0 && !PICKUP_METHODS.some(m=>m.name===selectedShippingMethod)){ setErr('ship-city'); firstBad=firstBad||'ship-city'; }
   if(firstBad){ const el=document.getElementById(firstBad); if(el&&el.focus) el.focus(); return; }
   if(OUTLETS.length>1 && !selectedOutlet){
     const err=document.getElementById('err-outlet'); if(err) err.classList.add('show');
@@ -773,7 +813,7 @@ async function placeOrder(){
     cartData.forEach(i=>{ msg+=i.qty+' x '+i.name+' — '+formatMoney(sfCartLineTotal(i))+'\n'; (i.addons||[]).forEach(addon=>{msg+='   + '+addon.qty+' x '+addon.name+'\n';}); total+=sfCartLineTotal(i); });
     const shipFee=getShipFee();
     msg+='\nSubtotal: '+formatMoney(total);
-    if(selectedShippingMethod){ msg+='\nShipping: '+selectedShippingMethod+(shipFee>0?' ('+formatMoney(shipFee)+')':(selectedShipIsQuote()?' (fee quoted by store)':' (Free)')); } else if(cityShipMode&&selectedCityIdx>=0){ msg+='\nDelivery City: '+CITY_SHIPPING[selectedCityIdx].city+(shipFee>0?' ('+formatMoney(shipFee)+')':' (Free)'); }
+    if(selectedShippingMethod){ msg+='\nShipping: '+selectedShippingMethod+(shipFee>0?' ('+formatMoney(shipFee)+')':(selectedShipIsQuote()?' (fee quoted by store)':' (Free)')); } else if(cityShipMode&&selectedCityIdx>=0){ const z=CITY_SHIPPING[selectedCityIdx]; msg+='\nDelivery Area: '+(z.city||z.state||z.country||'Other areas')+(shipFee>0?' ('+formatMoney(shipFee)+')':' (Free)'); }
     msg+='\nTotal: '+formatMoney(total+shipFee); msg+='\n\nName: '+name; msg+='\nPhone: '+phone;
     if(email) msg+='\nEmail: '+email; if(address) msg+='\nAddress: '+address; if(selectedShippingMethod) msg+='\nShipping Method: '+selectedShippingMethod; if(sDate) msg+='\nService Date: '+sDate; if(sTime) msg+='\nService Time: '+sTime; if(sNote) msg+='\nService Note: '+sNote; if(TABLE_NUMBER){ msg+='\nTable: '+TABLE_NUMBER; } if(OUTLETS.length>1){ const oc=OUTLETS.find(o=>o.id===selectedOutlet); if(oc){ msg+='\nOrdering from: '+oc.name; } } msg+='\n\nThank you.';
     const wnum='<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
@@ -791,7 +831,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   data.append('shipping_method',selectedShippingMethod||'');
   if(cityShipMode && selectedCityIdx>=0){
     const z=CITY_SHIPPING[selectedCityIdx];
-    data.append('shipping_city',(z.city||'')+'|'+(z.state||'').trim());
+    data.append('shipping_city',(z.city||'')+'|'+(z.state||'').trim()+'|'+(z.country||'').trim());
   }
   data.append('service_date',sDate); data.append('service_time',sTime); data.append('service_note',sNote);
   data.append('table_number',TABLE_NUMBER);
@@ -818,6 +858,7 @@ function submitOrder(pm,name,phone,email,address,sDate,sTime,sNote,payload,btn){
   }).then(res=>{
     if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
     if(res.status){
+      if(res.payment_required&&res.gateway==='paypal'&&res.approval_url){window.location.href=res.approval_url;return;}
       if(res.payment_required&&res.public_key){
         payWithPaystack(res.public_key,res.email,res.amount_kobo,res.reference,res.order_id,res.currency||'NGN',res.paystack_split||{});
       } else {

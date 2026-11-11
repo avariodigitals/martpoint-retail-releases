@@ -401,14 +401,20 @@ class Pharmacy_demo extends CI_Controller {
         ]);
     }
 
-    /** Local/demo operator command: refresh only one pharmacy tenant's fictional seed. */
+    /** Local/demo operator command: rebuild one Zonat showcase as pharmacy-only. */
     public function seed_demo($storeId = 0) {
         if (PHP_SAPI !== 'cli' && strpos((string)($_SERVER['HTTP_HOST'] ?? ''), '.test') === false) { show_404(); return; }
         $storeId = (int)$storeId;
         $store = $this->db->where('id', $storeId)->get('db_store')->row();
         if (!$store || !in_array(strtolower((string)$store->industry_type), ['pharmacy', 'medical_store', 'healthcare'], true)) { echo "Not a pharmacy store\n"; return; }
+        // The full seeder retires prior showcase data. Never let this local/demo
+        // operator command run against a merchant store by accident.
+        if (!preg_match('/^Zonat\b/i', trim((string)$store->store_name)) && getenv('MP_DEMO_SEED') !== '1') {
+            echo "Refusing to rebuild a non-Zonat store. Set MP_DEMO_SEED=1 only for an explicitly approved demo tenant.\n";
+            return;
+        }
         $this->load->model('Demo_seeder');
-        echo json_encode($this->Demo_seeder->seed_examples($storeId, 'pharmacy')).PHP_EOL;
+        echo json_encode($this->Demo_seeder->seed_full_demo($storeId, 'pharmacy')).PHP_EOL;
     }
 
     public function reset() {

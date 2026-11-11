@@ -142,7 +142,7 @@
         <div class="card">
           <div class="card-title">Payment Options</div>
           <div class="form-group">
-            <label class="check"><input type="checkbox" name="allow_paystack" value="1" <?= ($settings->allow_paystack ?? 1) ? 'checked' : ''; ?>> Allow Paystack Checkout <?= $paystack_enabled ? '' : '(not configured)'; ?></label>
+            <label class="check"><input type="checkbox" name="allow_paystack" value="1" <?= ($settings->allow_paystack ?? 1) ? 'checked' : ''; ?>> Allow MartPoint Pay <?= $paystack_enabled ? '' : '(not configured)'; ?></label>
             <label class="check"><input type="checkbox" name="allow_whatsapp" value="1" <?= ($settings->allow_whatsapp ?? 1) ? 'checked' : ''; ?>> Allow WhatsApp Orders</label>
             <label class="check"><input type="checkbox" name="allow_pay_on_delivery" value="1" <?= ($settings->allow_pay_on_delivery ?? 1) ? 'checked' : ''; ?>> Allow Pay on Delivery</label>
           </div>
@@ -181,21 +181,29 @@
           </div>
           <div class="form-group">
             <label class="check"><input type="checkbox" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>> Enable City-based Delivery Fees</label>
-            <div class="hint" style="margin-top:4px;">Customers pick their delivery city at checkout; the fee is added automatically and replaces the shipping methods list.</div>
+            <div class="hint" style="margin-top:4px;">Set a fee for each destination. Customers can choose delivery by area or an enabled pickup method at checkout.</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Delivery Cities &amp; States</label>
+            <label class="form-label">Delivery areas</label>
+            <div class="hint" style="margin-bottom:10px;">Set a rate at country, region/state or city level. Leave narrower fields blank for broader coverage. Use * as the city for an “Other areas” rate within that country or region.</div>
             <div id="city-zones-container">
               <?php
                 $savedZones = json_decode($settings->city_shipping_json ?? '', true);
-                if(!is_array($savedZones) || empty($savedZones)){ $savedZones = [['state'=>'','city'=>'','fee'=>'']]; }
+                if(!is_array($savedZones) || empty($savedZones)){ $savedZones = [['country'=>'','state'=>'','city'=>'','fee'=>'']]; }
                 foreach($savedZones as $z):
               ?>
               <div class="sm-card city-zone-row">
-                <input type="text" name="cz_state[]" class="form-control" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="State (e.g. Lagos)" style="margin-bottom:10px;">
+                <div class="sm-grid" style="margin-bottom:10px;">
+                  <input type="text" name="cz_country[]" class="form-control" value="<?= htmlspecialchars($z['country'] ?? ''); ?>" placeholder="Country (e.g. Nigeria)">
+                  <input type="text" name="cz_state[]" class="form-control" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="Region / State (e.g. Lagos)">
+                </div>
                 <div class="sm-grid">
                   <input type="text" name="cz_city[]" class="form-control" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja)">
                   <input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee">
+                </div>
+                <div class="sm-grid" style="margin-top:10px;">
+                  <input type="number" step="0.01" min="0" name="cz_min_order[]" class="form-control" value="<?= htmlspecialchars($z['min_order'] ?? ''); ?>" placeholder="Minimum order (optional)">
+                  <input type="number" step="0.01" min="0" name="cz_free_over[]" class="form-control" value="<?= htmlspecialchars($z['free_over'] ?? ''); ?>" placeholder="Free delivery over (optional)">
                 </div>
                 <div style="display:flex;justify-content:flex-end;margin-top:10px;">
                   <button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button>
@@ -308,8 +316,9 @@
       const c = document.getElementById('city-zones-container');
       const d = document.createElement('div');
       d.className = 'sm-card city-zone-row';
-      d.innerHTML = '<input type="text" name="cz_state[]" class="form-control" placeholder="State (e.g. Lagos)" style="margin-bottom:10px;">'
+      d.innerHTML = '<div class="sm-grid" style="margin-bottom:10px;"><input type="text" name="cz_country[]" class="form-control" placeholder="Country (e.g. Nigeria)"><input type="text" name="cz_state[]" class="form-control" placeholder="Region / State (e.g. Lagos)"></div>'
         + '<div class="sm-grid"><input type="text" name="cz_city[]" class="form-control" placeholder="City (e.g. Ikeja)"><input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" placeholder="Fee"></div>'
+        + '<div class="sm-grid" style="margin-top:10px;"><input type="number" step="0.01" min="0" name="cz_min_order[]" class="form-control" placeholder="Minimum order (optional)"><input type="number" step="0.01" min="0" name="cz_free_over[]" class="form-control" placeholder="Free delivery over (optional)"></div>'
         + '<div style="display:flex;justify-content:flex-end;margin-top:10px;">'
         + '<button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button></div>';
       c.appendChild(d);

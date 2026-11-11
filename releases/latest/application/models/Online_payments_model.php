@@ -131,6 +131,11 @@ class Online_payments_model extends CI_Model {
 			'updated_at'      => $now,
 			'dedupe_key'      => $dedupe,
 		];
+		if($this->db->field_exists('base_amount','db_online_order_payments')) $row['base_amount']=round((float)($data['base_amount']??$amount),4);
+		if($this->db->field_exists('transaction_amount','db_online_order_payments')) $row['transaction_amount']=round((float)($data['transaction_amount']??$amount),4);
+		if($this->db->field_exists('transaction_currency','db_online_order_payments')) $row['transaction_currency']=strtoupper((string)($data['transaction_currency']??$data['currency']??''));
+		if($this->db->field_exists('provider_reference','db_online_order_payments')) $row['provider_reference']=trim((string)($data['provider_reference']??$reference)) ?: null;
+		if($this->db->field_exists('provider_status','db_online_order_payments')) $row['provider_status']=isset($data['provider_status'])?mb_substr((string)$data['provider_status'],0,24):null;
 		$this->db->query('INSERT IGNORE INTO db_online_order_payments ('
 			 . implode(',', array_keys($row)) . ') VALUES ('
 			 . implode(',', array_fill(0, count($row), '?')) . ')', array_values($row));
@@ -188,6 +193,10 @@ class Online_payments_model extends CI_Model {
 			'reference' => $money['reference'] ?? '',
 			'amount'    => $charge,
 			'currency'  => $money['currency'] ?? null,
+			'base_amount' => $money['base_amount'] ?? $charge,
+			'transaction_currency' => $money['transaction_currency'] ?? $money['currency'] ?? null,
+			'provider_reference' => $money['provider_reference'] ?? ($money['reference'] ?? ''),
+			'provider_status' => $money['provider_status'] ?? 'COMPLETED',
 			'status'    => self::VERIFIED,
 			'note'      => trim((string)($money['note'] ?? '')) ?: ('Confirmed by ' . $detectedBy),
 			'settle'    => false,
@@ -431,10 +440,18 @@ class Online_payments_model extends CI_Model {
 			'covered' => false, 'any' => false, 'due' => $due, 'state' => ''];
 		if($storeId <= 0 || $orderId <= 0 || !$this->available()) return $box;
 		$box['lines']     = $this->paymentsFor($storeId, $orderId);
-		$box['verified']  = $this->verifiedTotal($storeId, $orderId);
+		$grossVerified  = $this->verifiedTotal($storeId, $orderId);
+		$box['refunded'] = 0.0;
+		if($this->db->table_exists('db_online_order_refunds')){
+			$refunds=$this->db->select('COALESCE(SUM(base_amount),0) AS total',false)->where('store_id',$storeId)->where('online_order_id',$orderId)
+				->where_in('provider_status',['completed','processed','success'])->get('db_online_order_refunds')->row();
+			$box['refunded']=round((float)($refunds->total??0),2);
+		}
+		$box['gross_verified']=$grossVerified;
+		$box['verified']=round(max(0,$grossVerified-$box['refunded']),2);
 		$box['pending']   = $this->pendingTotal($storeId, $orderId);
 		$box['outstanding'] = round(max(0, $due - $box['verified']), 2);
-		$box['covered']   = $due > 0 && $box['verified'] + 0.005 >= $due;
+		$box['covered']   = $due > 0 && $box['verified'] + 0.005 >= $due && (string)($order->payment_status??'')!=='refunded';
 		$box['any']       = $box['verified'] > 0 || $box['pending'] > 0 || (bool)$box['lines'];
 		$box['state']     = $box['covered'] ? 'fully' : ($box['verified'] > 0 ? 'short' : ($box['pending'] > 0 ? 'unconfirmed' : 'none'));
 		return $box;

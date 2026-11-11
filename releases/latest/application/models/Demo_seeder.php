@@ -922,19 +922,31 @@ class Demo_seeder extends CI_Model {
         );
         $ids = array();
         foreach ($locations as $location) {
-            $id = $this->_save('db_warehouse', array('store_id' => $store_id, 'warehouse_name' => $location['name']), array(
+            $where = array('store_id' => $store_id, 'warehouse_name' => $location['name']);
+            $existingLocation = $this->_row('db_warehouse', $where);
+            $locationData = array(
                 'store_id' => $store_id, 'warehouse_type' => 'Custom', 'warehouse_name' => $location['name'],
                 'address' => $location['address'], 'city' => $location['city'], 'state' => $location['state'], 'country' => 'Nigeria',
                 'branch_type' => $location['type'], 'is_distribution_center' => $location['type'] === 'partner' ? 1 : 0,
                 'mobile' => '08000002026', 'email' => 'demo.'.$location['type'].'.pharmacy'.$store_id.'@example.com', 'status' => 1,
                 'business_hours' => $location['hours'], 'delivery_coverage' => $location['coverage'], 'delivery_fee' => $location['fee'],
                 'pickup_enabled' => 1, 'public_enabled' => 1, 'stock_source_id' => null,
-            ));
+            );
+            // The initial pharmacy fixture is sample data. Keep fulfilment
+            // choices editable after it has been created, including the hub's
+            // linked source and public/pickup availability.
+            if ($existingLocation) {
+                foreach (array('branch_type','is_distribution_center','business_hours','delivery_coverage','delivery_fee','pickup_enabled','public_enabled','stock_source_id') as $editableField) unset($locationData[$editableField]);
+            }
+            $id = $this->_save('db_warehouse', $where, $locationData);
             if ($id) { $ids[$location['type']] = $id; $result['locations']++; }
         }
         if (empty($ids['branch']) || empty($ids['partner']) || empty($ids['pickup_hub'])) return;
         if ($this->db->field_exists('stock_source_id', 'db_warehouse')) {
-            $this->db->where('id', (int)$ids['pickup_hub'])->where('store_id', $store_id)->update('db_warehouse', array('stock_source_id' => (int)$ids['branch']));
+            $hub = $this->db->where('id', (int)$ids['pickup_hub'])->where('store_id', $store_id)->get('db_warehouse')->row();
+            if ($hub && (string)($hub->branch_type ?? '') === 'pickup_hub' && empty($hub->stock_source_id)) {
+                $this->db->where('id', (int)$ids['pickup_hub'])->where('store_id', $store_id)->update('db_warehouse', array('stock_source_id' => (int)$ids['branch']));
+            }
         }
         foreach ($items as $item) {
             // Rebuild only the seeded demo item's location ledger. This removes
@@ -1057,6 +1069,26 @@ class Demo_seeder extends CI_Model {
             array('name' => 'Delivery', 'fee' => 1800, 'description' => 'Delivery from the selected eligible location', 'enabled' => 1, 'quote' => 0),
             array('name' => 'Pickup', 'fee' => 0, 'description' => 'Collect from the selected pharmacy or hub', 'enabled' => 1, 'quote' => 0)
         ));
+        // Give the main physical-goods demo storefronts a realistic, editable
+        // delivery-zone example. Do not replace a merchant's configured zones
+        // when the demo data is seeded again.
+        $zoneDemoIndustries = array('general_retail', 'fashion', 'restaurant', 'bar_lounge', 'frozen');
+        if (in_array($industry_key, $zoneDemoIndustries, true)) {
+            $existingSettings = $this->storefront_model->getSettings($store_id);
+            if (!$existingSettings || trim((string)($existingSettings->city_shipping_json ?? '')) === '') {
+                $storefrontData['city_shipping_enabled'] = 1;
+                $storefrontData['city_shipping_json'] = json_encode(array(
+                    array('country' => 'Nigeria', 'state' => 'Lagos', 'city' => 'Ikeja', 'fee' => 1800, 'free_over' => 50000),
+                    array('country' => 'Nigeria', 'state' => 'Lagos', 'city' => 'Lekki', 'fee' => 2500, 'free_over' => 75000),
+                    array('country' => 'Nigeria', 'state' => 'Federal Capital Territory', 'city' => 'Abuja', 'fee' => 3500, 'free_over' => 100000),
+                    array('country' => 'Nigeria', 'state' => 'Lagos', 'city' => '*', 'fee' => 4000)
+                ));
+                $storefrontData['shipping_methods_json'] = json_encode(array(
+                    array('name' => 'Pickup', 'fee' => 0, 'description' => 'Collect your order from the store', 'enabled' => 1, 'quote' => 0)
+                ));
+                $storefrontData['shipping_notice'] = 'Choose delivery by area or collect your order from the store.';
+            }
+        }
         $this->storefront_model->saveSettings($store_id, $this->_filter('db_storefront_settings', $storefrontData));
     }
 

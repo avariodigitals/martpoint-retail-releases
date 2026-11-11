@@ -126,7 +126,7 @@
       <a href="<?= base_url('paystack/settings'); ?>" class="cr-type-card">
         <div class="icon" style="background:rgba(5,150,105,.1);color:var(--mp-success);"><i class="fa fa-credit-card"></i></div>
         <div class="title">Connect payments</div>
-        <div class="meta">Accept cards and transfers with Paystack</div>
+        <div class="meta">Accept cards and transfers with MartPoint Pay</div>
       </a>
     </div>
   </div>

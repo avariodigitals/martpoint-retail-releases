@@ -160,7 +160,7 @@
       <div class="ig-body">
         <p class="ig-note" style="margin:0;">
           This form captures a <strong>booking request</strong>; it does not take money.
-          Card payment needs a Paystack key, and today that is a standard checkout
+          Card payment needs a MartPoint Pay setup, and today that is a standard checkout
           only — there is no virtual-account (dedicated account) support, so you
           cannot yet generate a per-customer account number for a patient to pay
           into and have it swept automatically.

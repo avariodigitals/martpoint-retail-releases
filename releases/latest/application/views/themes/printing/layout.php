@@ -106,6 +106,7 @@
 ?>
 </head>
 <body class="<?= is_array($storefront_navigation_rows ?? null)?'sf-dual-menus':''; ?>">
+<?php $this->load->view('themes/shared/currency_selector'); ?>
 <?= $category_navigation ?? ''; ?>
 <?= $content; ?>
 <?php

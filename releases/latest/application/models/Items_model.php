@@ -56,7 +56,7 @@ class Items_model extends CI_Model {
 								'a.oem_reference',
 								'a.cross_reference',
 								); //set column field database for datatable searchable 
-	var $order = array('a.id' => 'desc'); // default order 
+	var $order = array('a.item_code' => 'asc'); // stable catalogue order; the code header remains user-sortable
 
 	public function __construct()
 	{
@@ -99,6 +99,18 @@ class Items_model extends CI_Model {
 		
 		// Show parent products and single items only — hide child variant rows from the catalog list
 		$this->db->where("a.child_bit", 0);
+
+		// The shared item catalogue defaults to active records for every industry.
+		// Inactive and all-item views remain available through the status filter.
+		$status_filter = strtolower(trim((string)$this->input->post('status_filter')));
+		if(!in_array($status_filter, array('active', 'inactive', 'all'), true)){
+			$status_filter = 'active';
+		}
+		if($status_filter === 'active'){
+			$this->db->where('a.status', 1);
+		}elseif($status_filter === 'inactive'){
+			$this->db->where('a.status', 0);
+		}
 		//	echo $this->db->get_compiled_select();exit();
 		$i = 0;
 		// Part references are searched too; the columns arrive with 4.0.9.243,

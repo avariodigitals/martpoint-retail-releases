@@ -192,7 +192,8 @@ class Sales extends MY_Controller {
 			          $str="<span class='label label-success' style='cursor:pointer'> Paid </span>";
 
 			$row[] = $str;
-			$row[] = !empty($sales->payment_type) ? $sales->payment_type : '-';
+			$paymentLabel = trim((string)($sales->payment_type ?? ''));
+			$row[] = $paymentLabel !== '' ? htmlspecialchars($paymentLabel, ENT_QUOTES, 'UTF-8') : '-';
 			$row[] = ($sales->created_by);
 
 					 if($sales->pos ==1):

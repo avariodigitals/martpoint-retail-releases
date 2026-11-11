@@ -366,12 +366,10 @@ class Reports extends MY_Controller {
 	//Expired Items Report 
 	public function expired_items(){
 		$this->permission_check('expired_items_report');
-		$data=$this->data;
-		$data['page_title']=$this->lang->line('expired_items_report');
-		$data['content'] = $this->load->view('reports/desktop/expired_items', $data, TRUE);
-		$this->load->view('mp_layout', $data);
+		redirect('expired_items_report');
 	}
 	public function show_expired_items_report(){
+		$this->permission_check('expired_items_report');
 		echo $this->reports->show_expired_items_report();
 	}
 	public function get_profit_loss_report(){
@@ -557,6 +555,7 @@ class Reports extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 	public function show_stock_transfer_report(){
+		$this->permission_check('stock_transfer_report');
 		echo $this->reports->show_stock_transfer_report();
 	}
 

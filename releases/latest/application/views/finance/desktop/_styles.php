@@ -167,6 +167,49 @@ textarea.mp-form-control{min-height:80px!important;resize:vertical!important}
 .mp-form-actions .mp-btn-secondary{border:1px solid var(--mp-border)!important;background:var(--mp-surface)!important;color:var(--mp-ink)!important;border-radius:10px!important;font-weight:600!important;padding:11px 22px!important;font-size:14px!important;cursor:pointer!important;transition:all .15s ease!important;text-decoration:none!important}
 .mp-form-actions .mp-btn-secondary:hover{background:var(--mp-bg)!important;text-decoration:none!important}
 
+/* Shared settings form structure for gateway and workspace configuration screens. */
+.mp-settings-form{width:min(100%,1080px)!important;margin:0 auto!important;padding:4px 8px 12px!important}
+.mp-settings-form .mp-settings-section{border:1px solid var(--mp-border)!important;border-radius:14px!important;background:var(--mp-surface)!important;padding:20px!important;margin:20px 0!important}
+.mp-settings-form .mp-settings-section-title{display:flex!important;align-items:center!important;justify-content:center!important;gap:10px!important;margin:0 0 16px!important;padding-bottom:14px!important;border-bottom:1px solid var(--mp-border)!important;color:var(--mp-ink)!important;font-size:17px!important;font-weight:700!important}
+.mp-settings-form .mp-settings-section-title i{color:var(--mp-primary)!important}
+.mp-settings-form .form-group{display:grid!important;grid-template-columns:minmax(170px,230px) minmax(0,1fr)!important;align-items:start!important;gap:10px 18px!important;margin:0 0 16px!important;padding:0!important}
+.mp-settings-form .form-group:last-child{margin-bottom:0!important}
+.mp-settings-form .control-label{display:block!important;width:auto!important;margin:0!important;padding:11px 0 0!important;text-align:left!important;line-height:1.4!important}
+.mp-settings-form .form-group>[class*="col-"]{float:none!important;width:auto!important;min-width:0!important;padding:0!important}
+.mp-settings-form .mp-settings-inline-fields{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;min-width:0!important}
+.mp-settings-form .mp-fee-component-label{display:block!important;margin:0 0 6px!important;color:var(--mp-muted)!important;font-size:12px!important;font-weight:650!important}
+.mp-settings-form .form-control,.mp-settings-form .select2-container{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.mp-settings-form .settings-help{display:block!important;margin-top:6px!important;line-height:1.45!important;color:var(--mp-muted)!important}
+.mp-settings-form .mp-settings-note{padding:14px 16px!important;margin:0 0 16px!important;line-height:1.5!important}
+.mp-settings-form .mp-settings-actions{display:flex!important;justify-content:center!important;align-items:center!important;flex-wrap:wrap!important;gap:12px!important;border-top:1px solid var(--mp-border)!important;padding:20px 0 4px!important;margin:18px 0 0!important}
+.mp-settings-form .mp-settings-actions .mp-btn-primary,.mp-settings-form .mp-settings-actions .mp-btn-secondary{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:128px!important;min-height:42px!important;padding:10px 18px!important;margin:0!important;border-radius:9px!important;text-decoration:none!important;white-space:nowrap!important}
+.mp-settings-form .mp-settings-actions .mp-btn-primary{background:var(--mp-primary)!important;border:1px solid var(--mp-primary)!important;color:#fff!important}
+.mp-settings-form .mp-settings-actions .mp-btn-secondary{background:var(--mp-surface)!important;border:1px solid var(--mp-border)!important;color:var(--mp-ink)!important}
+.mp-settings-form .mp-settings-actions a{display:inline-flex!important;text-decoration:none!important}
+.mp-paystack-settings{width:min(100%,1040px)!important;padding:4px 0 24px!important}
+.mp-paystack-settings .mp-settings-section{padding:24px!important;margin:20px 0!important;background:#fff!important}
+.mp-paystack-settings .mp-settings-section-title{justify-content:flex-start!important;text-align:left!important;font-size:18px!important;margin-bottom:20px!important}
+.mp-paystack-settings .mp-settings-status{display:flex!important;align-items:flex-start!important;gap:12px!important;padding:16px 18px!important;border-radius:12px!important;margin:0 0 14px!important;line-height:1.5!important}
+.mp-paystack-settings .mp-settings-status i{flex:0 0 auto!important;margin-top:3px!important}
+.mp-paystack-settings .mp-managed-note{padding:13px 16px!important;background:#f7f9fc!important;border-color:#e5eaf0!important;color:#526174!important;font-size:13px!important}
+.mp-paystack-settings .mp-managed-note strong{color:#344256!important}
+.mp-paystack-settings .form-group{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:7px!important;margin:0 0 18px!important;padding:0!important;text-align:left!important}
+.mp-paystack-settings .form-group>.control-label{width:100%!important;padding:0!important;margin:0!important;text-align:left!important;font-size:13px!important;font-weight:650!important}
+.mp-paystack-settings .form-group>[class*="col-"]{display:block!important;float:none!important;width:100%!important;max-width:100%!important;min-width:0!important;padding:0!important;text-align:left!important}
+.mp-paystack-settings .form-control,.mp-paystack-settings .select2-container{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.mp-paystack-settings .mp-settings-inline-fields{width:100%!important}
+.mp-paystack-settings .mp-payout-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:18px 20px!important;align-items:start!important}
+.mp-paystack-settings .mp-payout-field{display:flex!important;flex-direction:column!important;gap:7px!important;min-width:0!important}
+.mp-paystack-settings .mp-payout-field.full{grid-column:1/-1!important}
+.mp-paystack-settings .mp-payout-field>label{margin:0!important;color:var(--mp-ink)!important;font-size:13px!important;font-weight:650!important;text-align:left!important}
+.mp-paystack-settings .mp-payout-field .form-control,.mp-paystack-settings .mp-payout-field .select2-container{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.mp-paystack-settings .mp-payout-help{margin:0!important;color:var(--mp-muted)!important;font-size:12px!important;line-height:1.45!important}
+.mp-paystack-settings .mp-payout-actions{display:flex!important;justify-content:flex-start!important;padding-top:18px!important;margin-top:20px!important;border-top:1px solid var(--mp-border)!important}
+.mp-paystack-settings .mp-payout-actions .mp-btn-primary{min-height:44px!important;padding:11px 18px!important;border:1px solid var(--mp-primary)!important;border-radius:9px!important;background:var(--mp-primary)!important;color:#fff!important;font-size:14px!important;font-weight:700!important;cursor:pointer!important}
+.mp-paystack-settings .mp-payout-actions .mp-btn-primary:disabled{border-color:#d5dbe3!important;background:#e9edf2!important;color:#718096!important;cursor:not-allowed!important;box-shadow:none!important}
+@media(max-width:700px){.mp-paystack-settings{padding:0!important}.mp-paystack-settings .mp-settings-section{padding:18px!important}.mp-paystack-settings .mp-payout-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}.mp-paystack-settings .mp-payout-field.full{grid-column:auto!important}.mp-paystack-settings .mp-payout-actions .mp-btn-primary{width:100%!important}}
+@media(max-width:700px){.mp-settings-form{padding:0!important}.mp-settings-form .mp-settings-section{padding:16px!important;margin:16px 0!important}.mp-settings-form .form-group{grid-template-columns:minmax(0,1fr)!important;gap:6px!important}.mp-settings-form .control-label{padding:0!important}.mp-settings-form .mp-settings-inline-fields{grid-template-columns:minmax(0,1fr)!important}.mp-settings-form .mp-settings-actions{align-items:stretch!important}.mp-settings-form .mp-settings-actions>*{flex:1 1 100%!important}.mp-settings-form .mp-settings-actions a,.mp-settings-form .mp-settings-actions a button{width:100%!important}}
+
 /* ===== QUICK LINKS GRID ===== */
 .mp-quick-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important;gap:12px!important}
 .mp-quick-grid .mp-qa-btn{display:flex!important;justify-content:center!important;width:100%!important}

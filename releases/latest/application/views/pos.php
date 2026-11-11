@@ -2081,7 +2081,7 @@ function generatePaystackLink(){
 
       if(!email){
         // Prompt for email if not available
-        email = prompt('Customer email is required for Paystack. Enter email:');
+        email = prompt('Customer email is required for MartPoint Pay. Enter email:');
         if(!email) { return; }
       }
 

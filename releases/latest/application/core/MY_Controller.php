@@ -425,8 +425,13 @@ class MY_Controller extends CI_Controller{
         }
       }
       public function permissions($permissions=''){
-          //If he the Admin (user_id 1 or 2 get full access)
+          // Platform Admin accounts and the recognized tenant Admin roles
+          // receive full workspace permissions. Business Owner and staff roles
+          // remain controlled by their explicit grants.
           if($this->session->userdata('inv_userid')==1 || $this->session->userdata('inv_userid')==2){
+            return true;
+          }
+          if((function_exists('is_admin') && is_admin()) || (function_exists('is_store_admin') && is_store_admin())){
             return true;
           }
 

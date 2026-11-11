@@ -97,7 +97,7 @@ $esc = function ($url) { return htmlspecialchars((string)$url, ENT_QUOTES, 'UTF-
     <form class="pay" method="post" action="<?= $esc($pay_url); ?>">
       <input type="hidden" name="<?= $e($csrf_name); ?>" value="<?= $e($csrf); ?>">
       <button class="pay" type="submit">Pay <?= $e($money($order->grand_total)); ?></button>
-      <div class="secure">Card payment is handled securely by Paystack. <?= $e($store_name); ?> never sees your card details.</div>
+      <div class="secure">Card payment is handled securely by our payment partner. <?= $e($store_name); ?> never sees your card details.</div>
     </form>
   <?php else: ?>
     <div class="strip warn">This store has not switched on card payment yet. Pay at collection, or ask them for transfer details.</div>

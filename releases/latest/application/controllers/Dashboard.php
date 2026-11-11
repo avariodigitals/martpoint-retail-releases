@@ -149,6 +149,87 @@ class Dashboard extends MY_Controller {
 	}
 
 	/**
+	 * Supplements & Wellness gets a product and member focused workspace.
+	 * Its purchasing, location and online-store tools use the existing retail rails.
+	 */
+	private function supplementsWellnessWorkspace(){
+		if(!$this->permissions('dashboard_view')){
+			$this->load->view('role/dashboard_empty', $this->data);
+			return;
+		}
+		$storeId = (int)get_current_store_id();
+		$today = date('Y-m-d');
+		$range = strtolower(trim((string)$this->input->get('range', TRUE)));
+		$rangeDays = ['today'=>0, '7d'=>6, '30d'=>29];
+		if (!isset($rangeDays[$range])) $range = 'today';
+		$fromDate = $range === 'today' ? $today : date('Y-m-d', strtotime('-'.$rangeDays[$range].' days', strtotime($today)));
+		$previousTo = date('Y-m-d', strtotime('-1 day', strtotime($fromDate)));
+		$previousDays = $rangeDays[$range];
+		$previousFrom = $range === 'today' ? $previousTo : date('Y-m-d', strtotime('-'.$previousDays.' days', strtotime($previousTo)));
+		$workspace = ['sales_today'=>0.0,'invoices_today'=>0,'members'=>0,'low_stock'=>0,'expiring_soon'=>0,'expired'=>0,'online_orders'=>0,'branch_count'=>0,'recent_sales'=>[], 'range'=>$range,'range_from'=>$fromDate,'range_to'=>$today,'financial'=>['sales'=>0,'previous_sales'=>0,'receipts'=>0,'online_receipts'=>0,'expenses'=>0], 'communications'=>['sms'=>0,'email'=>0], 'license'=>null];
+		try {
+			if($this->db->table_exists('db_sales')){
+				$sales = $this->db->select('COALESCE(SUM(grand_total),0) AS amount, COUNT(*) AS invoices', false)
+					->where('store_id', $storeId)->where('sales_date', $today)->where('sales_status', 'Final')->get('db_sales')->row();
+				$workspace['sales_today'] = (float)($sales->amount ?? 0);
+				$workspace['invoices_today'] = (int)($sales->invoices ?? 0);
+				$workspace['recent_sales'] = $this->db->select('s.sales_code, s.grand_total, s.created_time, c.customer_name', false)
+					->from('db_sales s')->join('db_customers c', 'c.id=s.customer_id AND c.store_id=s.store_id', 'left')
+					->where('s.store_id', $storeId)->where('s.sales_status', 'Final')->order_by('s.id', 'desc')->limit(5)->get()->result();
+				$rangeSales = $this->db->select('COALESCE(SUM(grand_total),0) AS amount', false)->where('store_id',$storeId)->where('sales_status','Final')->where('sales_date >=',$fromDate)->where('sales_date <=',$today)->get('db_sales')->row();
+				$workspace['financial']['sales'] = (float)($rangeSales->amount ?? 0);
+				$previousSales = $this->db->select('COALESCE(SUM(grand_total),0) AS amount',false)->where('store_id',$storeId)->where('sales_status','Final')->where('sales_date >=',$previousFrom)->where('sales_date <=',$previousTo)->get('db_sales')->row();
+				$workspace['financial']['previous_sales'] = (float)($previousSales->amount ?? 0);
+			}
+			if($this->db->table_exists('db_salespayments') && $this->db->field_exists('payment_date','db_salespayments')){
+				$receipts = $this->db->select('COALESCE(SUM(payment),0) AS amount',false)->where('store_id',$storeId)->where('status',1)->where('payment_date >=',$fromDate)->where('payment_date <=',$today)->get('db_salespayments')->row();
+				$workspace['financial']['receipts'] = (float)($receipts->amount ?? 0);
+			}
+			if($this->db->table_exists('db_online_order_payments') && $this->db->field_exists('verified_at','db_online_order_payments')){
+				$online = $this->db->select('COALESCE(SUM(amount),0) AS amount',false)->where('store_id',$storeId)->where('status','verified')->where('verified_at >=',$fromDate.' 00:00:00')->where('verified_at <=',$today.' 23:59:59')->get('db_online_order_payments')->row();
+				$workspace['financial']['online_receipts'] = (float)($online->amount ?? 0);
+			}
+			if($this->db->table_exists('db_expense') && $this->db->field_exists('expense_date','db_expense')){
+				$expense = $this->db->select('COALESCE(SUM(expense_amt),0) AS amount',false)->where('store_id',$storeId)->where('expense_date >=',$fromDate)->where('expense_date <=',$today)->get('db_expense')->row();
+				$workspace['financial']['expenses'] = (float)($expense->amount ?? 0);
+			}
+			if($this->db->table_exists('db_email_logs') && $this->db->field_exists('created_at','db_email_logs')){
+				$emailDate = $this->db->field_exists('sent_at','db_email_logs') ? 'sent_at' : 'created_at';
+				$emails = $this->db->select('COUNT(*) AS total',false)->where('store_id',$storeId)->where('status','sent')->where($emailDate.' >=',$fromDate.' 00:00:00')->where($emailDate.' <=',$today.' 23:59:59')->get('db_email_logs')->row();
+				$workspace['communications']['email'] = (int)($emails->total ?? 0);
+			}
+			if($this->db->table_exists('db_messaging_accounts') && $this->db->table_exists('db_messaging_dispatches')){
+				$sms = $this->db->query("SELECT COALESCE(SUM(d.units),0) AS total FROM db_messaging_dispatches d JOIN db_messaging_accounts a ON a.id=d.account_id WHERE a.store_id=? AND d.channel='sms' AND d.status='accepted' AND d.created_at >= ? AND d.created_at <= ?",[$storeId,$fromDate.' 00:00:00',$today.' 23:59:59'])->row();
+				$workspace['communications']['sms'] = (int)($sms->total ?? 0);
+			}
+			if($this->db->table_exists('db_customers')){
+				$customerQuery = $this->db->where('store_id', $storeId);
+				if($this->db->field_exists('status', 'db_customers')) $customerQuery->where('status', 1);
+				$workspace['members'] = (int)$customerQuery->count_all_results('db_customers');
+			}
+			if($this->db->table_exists('db_items') && $this->db->field_exists('stock', 'db_items') && $this->db->field_exists('alert_qty', 'db_items')){
+				$workspace['low_stock'] = (int)$this->db->where('store_id', $storeId)->where('status', 1)->where('alert_qty >', 0)->where('stock <= alert_qty', null, false)->count_all_results('db_items');
+			}
+			if(function_exists('mp_feature_enabled') && mp_feature_enabled('expiry_tracking')){
+				$this->load->model('expiry_settings_model');
+				$workspace['expired'] = (int)$this->expiry_settings_model->count_expired();
+				$workspace['expiring_soon'] = (int)$this->expiry_settings_model->count_expiring();
+			}
+			if($this->db->table_exists('db_online_orders')){
+				$orderStatusField = $this->db->field_exists('order_status', 'db_online_orders') ? 'order_status' : ($this->db->field_exists('status', 'db_online_orders') ? 'status' : null);
+				if($orderStatusField) $workspace['online_orders'] = (int)$this->db->where('store_id', $storeId)->where_in($orderStatusField, ['pending','paid','processing','confirmed'])->count_all_results('db_online_orders');
+			}
+			if($this->db->table_exists('db_warehouse')) $workspace['branch_count'] = (int)$this->db->where('store_id', $storeId)->where('status', 1)->count_all_results('db_warehouse');
+			if(function_exists('mp_get_license_usage_summary')) $workspace['license'] = mp_get_license_usage_summary($storeId);
+		} catch(Throwable $e) {
+			log_message('error', 'Supplements & Wellness workspace data failed: ' . $e->getMessage());
+		}
+		$data = array_merge($this->data, ['page_title'=>'Supplements & Wellness Workspace', 'supplements_workspace'=>$workspace]);
+		$this->load->helper('supplements_workspace');
+		supplements_workspace_render($data, 'supplements/dashboard');
+	}
+
+	/**
 	 * Pharmacy gets an operations-first workspace instead of the generic
 	 * retail KPI wall. The cards are deliberately composed from existing
 	 * pharmacy tables and link back to the same workflows staff already use.
@@ -290,6 +371,10 @@ class Dashboard extends MY_Controller {
 			}
 			if(in_array(($bp_print['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true)){
 				$this->pharmacyWorkspace();
+				return;
+			}
+			if(($bp_print['industry_type'] ?? '') === 'supplements_wellness'){
+				$this->supplementsWellnessWorkspace();
 				return;
 			}
 			if(($bp_print['industry_type'] ?? '') === 'oil_processing_plant'

@@ -53,6 +53,10 @@ $route['default_controller'] = 'login';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
+// Public Fashion measurement request links
+$route['size-request/(:any)'] = 'size_request/index/$1';
+$route['size-request/(:any)/submit'] = 'size_request/submit/$1';
+
 /* Online Storefront Routes */
 $route['store'] = 'storefront/index';
 $route['store/(:any)'] = 'storefront/index/$1';
@@ -102,6 +106,8 @@ $route['store/(:any)/pharmacy/orders/action'] = 'pharmacy_demo/hub_action/$1';
 $route['store/(:any)/pharmacy/order/status'] = 'pharmacy_demo/order_status/$1';
 $route['pharmacy_workspace/more'] = 'pharmacy_workspace/more';
 $route['pharmacy_workspace/locations'] = 'pharmacy_workspace/locations';
+$route['supplements_workspace/more'] = 'supplements_workspace/more';
+$route['supplements_workspace/locations'] = 'supplements_workspace/locations';
 $route['store/(:any)/account'] = 'storefront/account/$1';
 $route['store/(:any)/account/orders'] = 'storefront/account_orders/$1';
 $route['store/(:any)/account/logout'] = 'storefront/account_logout/$1';
@@ -117,6 +123,7 @@ $route['storefront/theme_asset/(:num)/(:num)/(.+)'] = 'storefront/theme_asset/$1
 $route['sitemap.xml'] = 'storefront/sitemap';
 $route['robots.txt'] = 'storefront/robots';
 $route['store/(:any)/about'] = 'storefront/about/$1';
+$route['store/(:any)/page/(:any)'] = 'storefront/page/$1/$2';
 $route['image/([0-9]+)/(.+)'] = 'storefront/image/$1/$2';
 
 /* Online Store Admin Routes */
@@ -141,6 +148,8 @@ $route['online_store/settings'] = 'online_store/settings';
 $route['online_store/save_settings'] = 'online_store/save_settings';
 $route['online_store/appearance'] = 'online_store/appearance';
 $route['online_store/html_themes'] = 'online_store/html_themes';
+$route['online_store/html_theme_content/(:num)'] = 'online_store/html_theme_content/$1';
+$route['online_store/save_html_theme_content/(:num)'] = 'online_store/save_html_theme_content/$1';
 $route['online_store/upload_theme'] = 'online_store/upload_theme';
 $route['online_store/activate_html_theme/(:num)'] = 'online_store/activate_html_theme/$1';
 $route['online_store/restore_previous_theme'] = 'online_store/restore_previous_theme';

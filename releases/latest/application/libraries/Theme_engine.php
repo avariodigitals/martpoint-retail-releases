@@ -322,6 +322,7 @@ class Theme_engine {
 
     public function isBuildingMaterialsTheme(): bool {
         $key = (string) ($this->theme->theme_key ?? '');
+        if (($this->theme->theme_source ?? '') === 'html_zip' && $this->industry === 'building_materials') return true;
         return in_array($key, ['framework_atelier', 'vector_systems'], true);
     }
 
@@ -367,6 +368,10 @@ class Theme_engine {
      * decision and overrides it — that is the whole point of the mode.
      */
     public function cartEnabled(): bool {
+        // Uploaded designs consume store policy; their generated key grants no commerce powers.
+        if (($this->theme->theme_source ?? '') === 'html_zip') {
+            if ($this->industry === 'printing' || $this->sellingMode() === 'catalogue') return false;
+        }
         // Printing designs are quote-first even when a legacy catalogue mode
         // says "both". A skincare theme on a test slug retains its product bag.
         $key = $this->theme->theme_key ?? '';
@@ -602,6 +607,54 @@ class Theme_engine {
             'theme_key' => $themeKey,
             'logo_url' => $this->logoUrl()
         ]);
+        // Resolve the shopper's per-store currency once for every built-in and
+        // uploaded theme. Product records and source prices remain base-currency
+        // data; only the values exposed to storefront presentation are converted.
+        $this->CI->load->library('storefront_currency');
+        $currencyStoreId=(int)($this->settings->store_id ?? 0);
+        $selectedCurrency=$this->CI->storefront_currency->selectedCode($currencyStoreId);
+        $baseCurrency=$this->CI->storefront_currency->baseCode($currencyStoreId);
+        $currencyRate=$this->CI->storefront_currency->rate($currencyStoreId,$selectedCurrency);
+        $currencyInfo=$this->getStoreCurrency($currencyStoreId);
+        // Prefix code on the shared dollar symbol so shoppers can distinguish
+        // CAD and USD on listings, product pages and cart totals.
+        $currencySymbols=['NGN'=>'₦','CAD'=>'CAD $','USD'=>'USD $','EUR'=>'€','GBP'=>'£'];
+        $currencyInfo['base_code']=$baseCurrency;
+        $currencyInfo['code']=$selectedCurrency;
+        $currencyInfo['symbol']=$currencySymbols[$selectedCurrency] ?? ($currencyInfo['symbol'] ?? $selectedCurrency);
+        $currencyInfo['label']=$this->CI->storefront_currency->label($selectedCurrency);
+        $merged['store_currency']=$currencyInfo;
+        $merged['currency_conversion_rate']=$currencyRate;
+        $merged['currency_choices']=[];
+        foreach($this->CI->storefront_currency->enabledCurrencies($currencyStoreId) as $cc){
+            try{$this->CI->storefront_currency->rate($currencyStoreId,$cc);$merged['currency_choices'][$cc]=$this->CI->storefront_currency->label($cc);}catch(Throwable $e){}
+        }
+        $merged['currency_store_id']=$currencyStoreId;
+        $merged['currency_store_slug']=(string)($this->settings->store_slug ?? '');
+        $merged['currency_select_url']=base_url('storefront/select_currency');
+        $merged['currency_selector_enabled']=count($merged['currency_choices'])>1 && !empty($this->settings->multicurrency_enabled);
+        $merged['currency_selected']=$selectedCurrency;
+        $merged['currency_country_selected']=$this->CI->storefront_currency->selectedCountry($currencyStoreId);
+        $countryLabels=['NG'=>'Nigeria','CA'=>'Canada','US'=>'United States','GB'=>'United Kingdom','DE'=>'Germany','FR'=>'France','IE'=>'Ireland','IT'=>'Italy','ES'=>'Spain','NL'=>'Netherlands','BE'=>'Belgium','AT'=>'Austria','PT'=>'Portugal','FI'=>'Finland','GR'=>'Greece','LU'=>'Luxembourg','CY'=>'Cyprus','EE'=>'Estonia','LV'=>'Latvia','LT'=>'Lithuania','MT'=>'Malta','SK'=>'Slovakia','SI'=>'Slovenia','HR'=>'Croatia'];
+        $countryMap=json_decode((string)($this->settings->currency_country_defaults_json??''),true)?:[];
+        $merged['currency_country_options']=[];
+        foreach($countryLabels as $cc=>$label){
+            $suggested=strtoupper((string)($countryMap[$cc]??''));
+            if($suggested==='' || !in_array($suggested,array_keys($merged['currency_choices']),true))$suggested=$this->CI->storefront_currency->countryDefault($currencyStoreId,$cc);
+            try{$this->CI->storefront_currency->rate($currencyStoreId,$suggested);}catch(Throwable $e){$suggested=$baseCurrency;}
+            $merged['currency_country_options'][$cc]=['label'=>$label,'currency'=>$suggested];
+        }
+        $merged['currency_conversion_rate']=$currencyRate;
+        $this->convertPresentationPrices($merged,$currencyRate);
+        if(in_array($view,['cart','checkout'],true) && $currencyRate!=1.0){
+            $viewSettings=clone $this->settings;
+            foreach(['shipping_methods_json','city_shipping_json'] as $feeJson){
+                $rows=json_decode((string)($viewSettings->$feeJson ?? ''),true);if(!is_array($rows))continue;
+                foreach($rows as &$feeRow){foreach(['fee','min_order','free_over'] as $feeField)if(isset($feeRow[$feeField]))$feeRow[$feeField]=$this->CI->storefront_currency->convertBaseToTransaction($feeRow[$feeField],$currencyRate);}unset($feeRow);
+                $viewSettings->$feeJson=json_encode($rows);
+            }
+            $merged['settings']=$viewSettings;
+        }
         // Supplemental product photos are store-scoped and additive: the
         // existing item_image remains the primary image and fallback source.
         if ($view === 'product_detail' && !empty($merged['product']->id)
@@ -621,14 +674,26 @@ class Theme_engine {
         // storefront without gaining PHP execution privileges. Commerce
         // bindings still come from the controller data assembled above.
         $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout'];
+        $htmlManifest = json_decode((string)($this->theme->manifest_json ?? ''), true);
+        foreach(['about','privacy','contact','blog','services','service_detail','branches'] as $optionalView){
+            if(isset($htmlManifest['templates'][$optionalView])) $htmlThemeViews[] = $optionalView;
+        }
+        if($view === 'page' && isset($htmlManifest['templates'][$data['html_template'] ?? ''])) $htmlThemeViews[] = 'page';
         if($this->theme && ($this->theme->theme_source ?? '') === 'html_zip' && in_array($view, $htmlThemeViews, true)){
             $this->CI->load->library('html_theme_renderer');
+            $merged['html_theme_preview'] = !empty($data['html_theme_preview']) ||
+                ((int)$this->CI->input->get('mp_theme_preview') === (int)$this->theme->id &&
+                 (int)$this->CI->session->userdata('html_theme_preview_theme_id') === (int)$this->theme->id);
+            $categories = (array)($merged['categories'] ?? []);
+            $merged['storefront_nav'] = $this->configuredNav($categories);
+            $tree = function_exists('mp_category_tree_model') ? mp_category_tree_model()->public_tree((int)$this->settings->store_id, $categories) : [];
+            $merged['storefront_navigation_rows'] = $this->navigationRows($categories, $tree);
             $merged['html_theme_primary'] = $this->resolveBrandColor('primary');
             $merged['html_theme_secondary'] = $this->resolveBrandColor('secondary');
             // load->library() attaches the instance to the controller, not to
             // this library, so reading $this->html_theme_renderer here resolved
             // to nothing and every uploaded-theme page died.
-            $html = $this->CI->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => (bool)$this->CI->input->get('mp_theme_preview') || !empty($data['html_theme_preview'])]);
+            $html = $this->CI->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => $merged['html_theme_preview']]);
             // Uploaded themes get shared retail footer branding without gaining
             // PHP execution privileges.
             require_once APPPATH . 'helpers/storefront_footer_helper.php';
@@ -1247,6 +1312,22 @@ class Theme_engine {
             return ['symbol' => '&#8358;', 'code' => 'NGN', 'placement' => 'Left'];
         }
         return ['symbol' => $row->symbol, 'code' => $row->code, 'placement' => $row->placement];
+    }
+
+    /** Convert only explicit storefront selling-price fields; source DB prices stay intact. */
+    private function convertPresentationPrices(&$value,$rate){
+        if(is_object($value)){
+            if(isset($value->effective_price) && empty($value->_mp_currency_converted)){
+                $value->_mp_base_effective_price=(float)$value->effective_price;
+                $value->effective_price=$this->CI->storefront_currency->convertBaseToTransaction($value->effective_price,$rate);
+                if(isset($value->original_price)) $value->original_price=$this->CI->storefront_currency->convertBaseToTransaction($value->original_price,$rate);
+                if(isset($value->price) && isset($value->service_name)) $value->price=$this->CI->storefront_currency->convertBaseToTransaction($value->price,$rate);
+                $value->_mp_currency_converted=true;
+            }
+            foreach(get_object_vars($value) as $key=>&$child) $this->convertPresentationPrices($child,$rate);
+            unset($child);return;
+        }
+        if(is_array($value)){foreach($value as &$child)$this->convertPresentationPrices($child,$rate);unset($child);}
     }
 
     /**

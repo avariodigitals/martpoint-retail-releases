@@ -3,6 +3,78 @@
   let cart = JSON.parse(localStorage.getItem('sf_cart_' + STORE_ID) || '[]');
   let modalProduct = null;
   let modalQty = 1;
+  const SF_OUTLETS = <?= json_encode(array_map(function($o){ return ['id'=>(int)$o->id,'name'=>(string)$o->warehouse_name,'address'=>(string)($o->address??''),'city'=>(string)($o->city??'')]; }, (isset($outlets)&&is_array($outlets))?$outlets:[]), JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;
+  const SF_LOCATION_KEY = 'sf_outlet_' + STORE_ID;
+  const SF_LOCATION_URL = '<?= base_url('storefront/location_availability'); ?>';
+  const SF_LOCATION_CSRF_NAME = <?= json_encode($this->security->get_csrf_token_name()); ?>;
+  let sfLocationCsrfHash = <?= json_encode($this->security->get_csrf_hash()); ?>;
+  let sfPendingAdd = null;
+
+  function sfSelectedLocation(){
+    const id=parseInt(localStorage.getItem(SF_LOCATION_KEY)||'0',10);
+    return SF_OUTLETS.find(o=>o.id===id) || null;
+  }
+  function sfLocationEsc(value){return String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+  function sfLocationCart(pending){
+    const rows=cart.map(i=>({id:i.id,type:i.type==='service'?'service':'product',qty:i.qty||1}));
+    if(pending) rows.push({id:pending.id,type:pending.type==='service'?'service':'product',qty:pending.qty||1});
+    return rows;
+  }
+  function sfShowLocationPicker(pending){
+    if(SF_OUTLETS.length<2){if(SF_OUTLETS.length===1)localStorage.setItem(SF_LOCATION_KEY,String(SF_OUTLETS[0].id));return false;}
+    sfPendingAdd=pending||null;
+    let overlay=document.getElementById('sf-location-picker-overlay');
+    if(!overlay){
+      overlay=document.createElement('div'); overlay.id='sf-location-picker-overlay'; overlay.setAttribute('role','presentation');
+      overlay.style.cssText='position:fixed;inset:0;z-index:100100;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:16px;';
+      overlay.innerHTML='<section role="dialog" aria-modal="true" aria-labelledby="sf-location-picker-title" style="width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;border-radius:18px;padding:24px;color:#172033;box-shadow:0 24px 80px rgba(15,23,42,.3);font:inherit"><h2 id="sf-location-picker-title" style="margin:0 0 8px;font-size:21px">Choose a store location</h2><p style="margin:0 0 16px;color:#64748b">Check item availability at each location before choosing where your order will be fulfilled.</p><div id="sf-location-picker-list"></div><div id="sf-location-picker-error" role="status" style="color:#b91c1c;margin-top:10px"></div><div style="display:flex;justify-content:flex-end;margin-top:16px"><button type="button" id="sf-location-picker-confirm" disabled style="border:0;border-radius:9px;padding:12px 18px;background:var(--mp-primary,#0f766e);color:#fff;font-weight:700;opacity:.55">Use this location</button></div></section>';
+      document.body.appendChild(overlay);
+      document.getElementById('sf-location-picker-confirm').addEventListener('click',function(){
+        const chosen=overlay.querySelector('input[name="sf-location-choice"]:checked');
+        if(!chosen){document.getElementById('sf-location-picker-error').textContent='Choose a location to continue.';return;}
+        localStorage.setItem(SF_LOCATION_KEY,chosen.value);
+        overlay.remove();
+        const pendingItem=sfPendingAdd;sfPendingAdd=null;
+        document.dispatchEvent(new CustomEvent('sf:location-selected',{detail:{id:Number(chosen.value)}}));
+        if(pendingItem){window.SF_LOCATION_BYPASS=true;addToCart(pendingItem.id,pendingItem.type,pendingItem.name,pendingItem.price,pendingItem.image,pendingItem.qty,pendingItem.stock,pendingItem.options);window.SF_LOCATION_BYPASS=false;}
+      });
+    }
+    const list=document.getElementById('sf-location-picker-list');
+    const confirm=document.getElementById('sf-location-picker-confirm');
+    const err=document.getElementById('sf-location-picker-error');
+    const hasSavedLocation=!!sfSelectedLocation();
+    confirm.disabled=!hasSavedLocation;confirm.style.opacity=hasSavedLocation?'1':'.55';err.textContent='Checking availability…';
+    list.innerHTML=SF_OUTLETS.map((o,i)=>'<label style="display:flex;gap:12px;align-items:flex-start;border:1px solid #dbe3ee;border-radius:12px;padding:14px;margin:10px 0;cursor:pointer"><input type="radio" name="sf-location-choice" value="'+o.id+'" '+(sfSelectedLocation()&&sfSelectedLocation().id===o.id?'checked':'')+' style="margin-top:4px"><span style="flex:1"><strong>'+sfLocationEsc(o.name)+'</strong><small style="display:block;color:#64748b;margin-top:3px">'+sfLocationEsc([o.address,o.city].filter(Boolean).join(' · '))+'</small><span id="sf-location-status-'+o.id+'" style="display:block;color:#64748b;font-size:13px;margin-top:7px">Checking item availability…</span></span></label>').join('');
+    list.onchange=function(e){if(e.target&&e.target.name==='sf-location-choice'){confirm.disabled=false;confirm.style.opacity='1';err.textContent='';}};
+    overlay.style.display='flex';
+    const form=new URLSearchParams({store_id:String(STORE_ID),cart:JSON.stringify(sfLocationCart(sfPendingAdd))});
+    if(SF_LOCATION_CSRF_NAME&&sfLocationCsrfHash)form.set(SF_LOCATION_CSRF_NAME,sfLocationCsrfHash);
+    fetch(SF_LOCATION_URL,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form.toString()}).then(r=>r.json()).then(res=>{
+      if(res.csrf_hash){sfLocationCsrfHash=res.csrf_hash;if(typeof CSRF_HASH!=='undefined')CSRF_HASH=res.csrf_hash;if(typeof MPCommerce!=='undefined'&&MPCommerce.config)MPCommerce.config.csrfHash=res.csrf_hash;}
+      if(!res.status)throw new Error(res.message||'Availability is temporarily unavailable.');
+      (res.locations||[]).forEach(loc=>{const node=document.getElementById('sf-location-status-'+loc.id);if(!node)return;const unavailable=(loc.items||[]).filter(x=>!x.available);node.textContent=loc.note||(!loc.items||!loc.items.length?'Availability will be confirmed by the store.':unavailable.length?'Unavailable here: '+unavailable.map(x=>x.name).join(', '):(loc.items.length===1?'Available for this order':'All '+loc.items.length+' cart items available'));node.style.color=unavailable.length?'#b45309':'#047857';});
+      err.textContent='';
+    }).catch(e=>{err.textContent=e.message||'Could not check stock. You can still choose a location; stock will be checked again before ordering.';});
+    return true;
+  }
+  function sfRefreshLocationAvailability(items){
+    if(SF_OUTLETS.length<2||!Array.isArray(items)||!items.length)return;
+    const form=new URLSearchParams({store_id:String(STORE_ID),cart:JSON.stringify(items.map(i=>({id:i.id,type:i.type==='service'?'service':'product',qty:i.qty||1})))});
+    if(SF_LOCATION_CSRF_NAME&&sfLocationCsrfHash)form.set(SF_LOCATION_CSRF_NAME,sfLocationCsrfHash);
+    fetch(SF_LOCATION_URL,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form.toString()}).then(r=>r.json()).then(res=>{
+      if(res.csrf_hash){sfLocationCsrfHash=res.csrf_hash;if(typeof CSRF_HASH!=='undefined')CSRF_HASH=res.csrf_hash;}
+      if(!res.status)return;
+      (res.locations||[]).forEach(loc=>{const nodes=document.querySelectorAll('[data-sf-outlet-availability="'+loc.id+'"]');const unavailable=(loc.items||[]).filter(x=>!x.available);const label=loc.note||(!loc.items||!loc.items.length?'Availability will be confirmed by the store.':unavailable.length?'Unavailable: '+unavailable.map(x=>x.name).join(', '):(loc.items.length===1?'All cart items available':'All '+loc.items.length+' cart items available'));nodes.forEach(node=>{node.textContent=label;node.style.color=unavailable.length?'#b45309':'#047857';});});
+    }).catch(function(){});
+  }
+  window.sfRefreshLocationAvailability=sfRefreshLocationAvailability;
+
+  document.addEventListener('DOMContentLoaded',function(){
+    if(SF_OUTLETS.length>1 && !sfSelectedLocation() && /\/(cart|checkout)\/?$/.test(location.pathname) && cart.length){
+      sfRefreshLocationAvailability(cart);
+      sfShowLocationPicker(null);
+    }
+  });
 
   // Persisted-cart token — identifies this browser session server-side so
   // the merchant can list and recover abandoned checkouts. Always 128-bit
@@ -148,6 +220,10 @@
       showToast('Please choose an option first');
       const pk = document.querySelector('.sf-variant-picker');
       if(pk) pk.scrollIntoView({behavior:'smooth', block:'center'});
+      return false;
+    }
+    if(SF_OUTLETS.length>1 && !window.SF_LOCATION_BYPASS && !sfSelectedLocation()){
+      sfShowLocationPicker({id:id,type:type,name:name,price:price,image:image,qty:qty,stock:stock,options:options});
       return false;
     }
     const cartType = type === 'physical' ? 'product' : type;

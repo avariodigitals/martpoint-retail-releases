@@ -296,7 +296,7 @@ $heroSubtle = $isHeroDark ? 'rgba(255,255,255,.85)' : $c['muted'];
   </div>
   <div class="crf-faq-item">
     <div class="crf-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('span').textContent=this.nextElementSibling.classList.contains('open')?'−':'+'">What payment methods are accepted? <span style="font-size:22px;">+</span></div>
-    <div class="crf-faq-a">Card, bank transfer, USSD and mobile wallets via Paystack, plus WhatsApp checkout and pay-on-delivery for physical items.</div>
+    <div class="crf-faq-a">Card, bank transfer, USSD and mobile wallets via MartPoint Pay, plus WhatsApp checkout and pay-on-delivery for physical items.</div>
   </div>
 </section>
 

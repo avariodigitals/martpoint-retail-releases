@@ -86,6 +86,7 @@ $consentKey = 'mp_track_consent_' . (int)($settings->store_id ?? 0);
 </head>
 <body class="theme-pharma_mediq">
 <?php $this->load->view('themes/pharma_mediq/header'); ?>
+<?php $this->load->view('themes/shared/currency_selector'); ?>
 <?= $content; ?>
 <?php if (!empty($product_addons) || !empty($service_addons)): ?>
   <?php $this->load->view('themes/shared/product_addons', [

@@ -90,6 +90,17 @@ if ($this->db->field_exists('invoice_account_id', 'db_quotation')) {
         ->where('q.id', (int)$quotation_id)->where('q.store_id', (int)get_current_store_id())
         ->where('a.status', 1)->get()->row();
 }
+$quote_bank_name = $quote_bank_account && !empty($quote_bank_account->bank_name) ? trim($quote_bank_account->bank_name) : '';
+$quote_bank_number = $quote_bank_account && !empty($quote_bank_account->bank_account_number) ? trim($quote_bank_account->bank_account_number) : '';
+$quote_account_name = '';
+if ($quote_bank_account) {
+    $quote_account_name = trim((string)$quote_bank_account->bank_account_name);
+    // Some older records stored the account number in both bank fields. Prefer
+    // the ledger account label in that case so the number is not shown twice.
+    if ($quote_account_name === '' || ($quote_bank_number !== '' && strcasecmp($quote_account_name, $quote_bank_number) === 0)) {
+        $quote_account_name = trim((string)$quote_bank_account->account_name);
+    }
+}
 $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', '');
 
 $q3 = $this->db->query("SELECT b.expire_date,b.customer_previous_due,b.customer_total_due,COALESCE(a.customer_name,'Walk-in Customer') as customer_name,a.mobile,a.phone,a.gstin,a.tax_number,a.email,
@@ -286,12 +297,11 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 <table class="totals">
   <tr>
     <td width="100%" valign="top" style="padding-right: 10px; font-size: 9pt; color: #374151;">
-      <?php if($quote_bank_account): ?>
+      <?php if($quote_bank_account && ($quote_bank_name !== '' || $quote_account_name !== '' || $quote_bank_number !== '')): ?>
         <strong><?= $this->lang->line('bank_details'); ?>:</strong><br>
-        <?= htmlspecialchars($quote_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
-        <?= htmlspecialchars($quote_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?>
-        <?= htmlspecialchars($quote_bank_account->bank_account_name, ENT_QUOTES, 'UTF-8'); ?><br>
-        <?= htmlspecialchars($quote_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?>
+        <?php if($quote_bank_name !== ''): ?><div><strong>Bank Name:</strong> <?= htmlspecialchars($quote_bank_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if($quote_account_name !== ''): ?><div><strong>Account Name:</strong> <?= htmlspecialchars($quote_account_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if($quote_bank_number !== ''): ?><div><strong>Account Number:</strong> <?= htmlspecialchars($quote_bank_number, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
       <?php endif; ?>
     </td>
     <td align="right" valign="top">

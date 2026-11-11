@@ -178,13 +178,20 @@ class Pharmacy_batch_report_model extends CI_Model {
 		if ((string)$filters['show'] !== 'all') $where .= ' AND b.qty > 0';
 		if ((string)$filters['search'] !== '') $where .= ' AND ' . $this->_searchSql($filters['search'], ['i.item_name', 'i.item_code', 'b.batch_lot']);
 
-		$sql = "SELECT b.id, b.item_id, b.warehouse_id, b.batch_lot, b.expire_date, b.qty, b.status,"
+		$purchaseJoin = '';
+		$originalQty = 'b.qty';
+		if ($this->db->field_exists('purchaseitems_id', 'db_item_barcodes') && $this->db->field_exists('received_qty', 'db_purchaseitems')) {
+			$purchaseJoin = " LEFT JOIN db_purchaseitems pi ON pi.id = b.purchaseitems_id AND pi.item_id = b.item_id AND pi.store_id = " . $storeId;
+			$originalQty = 'COALESCE(pi.received_qty, b.qty)';
+		}
+		$sql = "SELECT b.id, b.item_id, b.warehouse_id, b.batch_lot, b.expire_date, b.qty, b.status, " . $originalQty . " AS original_qty,"
 			. " b.purchase_price, b.created_date, i.item_name, i.item_code, w.warehouse_name,"
 			. " CASE WHEN {$rules['eligible']} THEN 1 ELSE 0 END AS sellable,"
 			. " (b.qty * COALESCE(b.purchase_price, 0)) AS cost_value"
 			. " FROM db_item_barcodes b"
 			. " JOIN db_items i ON i.id = b.item_id AND i.store_id = " . $storeId
 			. " LEFT JOIN db_warehouse w ON w.id = b.warehouse_id"
+			. $purchaseJoin
 			. " WHERE " . $where
 			. " ORDER BY (b.qty <= 0) ASC, b.expire_date IS NULL, b.expire_date ASC, b.id DESC";
 		$sql .= " LIMIT " . (int)$filters['per_page'] . " OFFSET " . (int)$filters['offset'];

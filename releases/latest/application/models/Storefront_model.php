@@ -359,6 +359,10 @@ class Storefront_model extends CI_Model {
 				'allow_whatsapp' => 1,
 				'allow_pay_on_delivery' => 1,
 				'partner_marketplace_enabled' => 0,
+				'customer_pricing_notice_enabled' => 1,
+				'customer_pricing_notice_title' => 'Customer pricing',
+				'customer_pricing_notice_text' => 'Sign in to My Account to check whether the store has assigned your account to a customer pricing group.',
+				'customer_pricing_notice_link_text' => 'Sign in to My Account',
 			'shipping_notice' => '',
 			'shipping_methods_json' => '',
 				'city_shipping_enabled' => 0,
@@ -453,7 +457,7 @@ class Storefront_model extends CI_Model {
 			}
 		}
 		// Drop keys for columns that may not exist yet on un-migrated installs
-		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color', 'nav_json', 'partner_marketplace_enabled'] as $col){
+		foreach(['marquee_items', 'city_shipping_enabled', 'city_shipping_json', 'background_color', 'nav_json', 'partner_marketplace_enabled', 'multicurrency_enabled', 'checkout_currencies_json', 'currency_rates_json', 'currency_country_defaults_json', 'currency_gateway_map_json', 'currency_default_code', 'currency_rates_updated_at', 'currency_rates_updated_by', 'storefront_tax_enabled', 'storefront_tax_rate', 'storefront_tax_mode', 'customer_pricing_notice_enabled', 'customer_pricing_notice_title', 'customer_pricing_notice_text', 'customer_pricing_notice_link_text'] as $col){
 			if(isset($data[$col]) && !$this->db->field_exists($col, 'db_storefront_settings')) unset($data[$col]);
 		}
 		$exists = $this->db->where('store_id', $storeId)->get('db_storefront_settings')->num_rows() > 0;
@@ -1010,6 +1014,13 @@ class Storefront_model extends CI_Model {
 	// ============== ONLINE ORDERS ==============
 	public $last_order_duplicate = false;
 
+	/** Drop optional rollout columns that have not reached this fleet's schema yet. */
+	private function _existingColumnsOnly($table, array $data){
+		if(!$this->db->table_exists($table)) return $data;
+		$available = array_flip($this->db->list_fields($table));
+		return array_intersect_key($data, $available);
+	}
+
 	public function createOrder($data){
 		$this->last_order_duplicate = false;
 		if(!empty($data['idempotency_key']) && $this->db->field_exists('idempotency_key', 'db_online_orders')){
@@ -1023,6 +1034,9 @@ class Storefront_model extends CI_Model {
 			$data['idempotency_key'] = substr((string)$data['idempotency_key'], 0, 96);
 		}
 		$data['order_code'] = $this->generateOrderCode();
+		// Online checkout spans independently deployed fleets. Keep additive
+		// currency/tax snapshot fields optional until that fleet has migrated.
+		$data = $this->_existingColumnsOnly('db_online_orders', $data);
 		$this->db->insert('db_online_orders', $data);
 		return $this->db->insert_id();
 	}
@@ -1095,6 +1109,8 @@ class Storefront_model extends CI_Model {
 				'status' => 1,
 			];
 			if($this->db->field_exists('pricing_snapshot', 'db_salesitems')) $saleLine['pricing_snapshot'] = $line->pricing_snapshot ?? null;
+			if($this->db->field_exists('tax_amt','db_salesitems')) $saleLine['tax_amt']=(float)($line->base_tax_amount??0);
+			if($this->db->field_exists('tax_type','db_salesitems')) $saleLine['tax_type']=(string)($locked->tax_mode_snapshot??'exclusive')==='inclusive'?'Inclusive':'Exclusive';
 			if($this->db->field_exists('price_type', 'db_salesitems')){
 				$pricing = json_decode((string)($line->pricing_snapshot ?? ''), true);
 				$saleLine['price_type'] = ($pricing['effective_tier'] ?? '') === 'wholesale' ? 'wholesale' : 'retail';
@@ -1259,6 +1275,7 @@ class Storefront_model extends CI_Model {
 	}
 
 	public function addOrderItem($data){
+		$data = $this->_existingColumnsOnly('db_online_order_items', $data);
 		return $this->db->insert('db_online_order_items', $data);
 	}
 
@@ -2235,6 +2252,7 @@ class Storefront_model extends CI_Model {
 		if($status){
 			$this->db->where('order_status', $status);
 		}
+		if($this->db->field_exists('created_at', 'db_online_orders')) $this->db->order_by('created_at', 'desc');
 		$this->db->order_by('id', 'desc');
 		$this->db->limit($limit, $offset);
 		return $this->db->get('db_online_orders')->result();
@@ -2410,10 +2428,12 @@ class Storefront_model extends CI_Model {
 	}
 
 	/** Reject stale or tampered cart prices before creating an order or payment. */
-	public function validateProductQuote($product, array $line){
+	public function validateProductQuote($product, array $line, $exchangeRate = 1.0){
 		$q = $this->productPriceQuote($product);
+		$expected=(float)$q['price'];
+		if(is_numeric($exchangeRate) && (float)$exchangeRate>0) $expected=round($expected/(float)$exchangeRate,2,PHP_ROUND_HALF_UP);
 		if(!isset($line['price']) || !is_scalar($line['price']) || !is_numeric($line['price'])
-			|| !is_finite((float)$line['price']) || abs((float)$line['price'] - $q['price']) > 0.00001
+			|| !is_finite((float)$line['price']) || abs((float)$line['price'] - $expected) > 0.011
 			|| (!empty($line['pricing_version']) && !hash_equals($q['version'], (string)$line['pricing_version']))){
 			throw new RuntimeException('Prices or membership have changed. Refresh your cart and review the total before placing the order.');
 		}

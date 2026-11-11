@@ -57,3 +57,9 @@ body.pharmacy-mobile{margin:0;min-height:100vh;padding-bottom:calc(126px + env(s
 .pharmacy-mobile .pharma-panel-head a{white-space:nowrap}
 .pharmacy-mobile .mp-mobile-bottom-nav .nav-item.active{color:var(--pharma-teal)}
 @media(min-width:769px){.pharmacy-mobile .pharma-action-card{flex-wrap:nowrap}.pharmacy-mobile .pharma-action-card>span:nth-child(2){flex-basis:auto}}
+
+/* Supplements dashboard: green workspace accent, blue text links. */
+body.supplements-workspace-shell{--mp-primary:#15803d!important;--mp-primary-dark:#166534!important;--mp-success:#15803d!important;--pharma-teal:#15803d!important;--pharma-blue:#15803d!important;--mp-ink:#16323a!important}
+body.supplements-workspace-shell .mp-main .pharma-workspace a:not(.pharma-btn):not(.pharma-action-card){color:#2563eb}
+body.supplements-workspace-shell .mp-main .pharma-workspace a:not(.pharma-btn):not(.pharma-action-card):hover,
+body.supplements-workspace-shell .mp-main .pharma-workspace a:not(.pharma-btn):not(.pharma-action-card):focus{color:#1d4ed8;text-decoration:underline}

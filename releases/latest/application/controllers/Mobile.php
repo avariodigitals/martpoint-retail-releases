@@ -2280,6 +2280,10 @@ class Mobile extends MY_Controller {
 		$customer = $this->db->where('id', $id)->get('db_customers')->row();
 		if(!$customer) redirect('mobile/customers');
 		$data['customer'] = $customer;
+		if (mp_feature_enabled('fashion_measurements') && $this->db->table_exists('db_fashion_measurements')) {
+			$data['fashion_measurements'] = $this->db->where('store_id',(int)$store_id)->where('customer_id',(int)$id)->order_by('created_at','desc')->limit(30)->get('db_fashion_measurements')->result();
+			$data['fashion_dress_types'] = $this->db->where('is_active',1)->where_in('store_id',[0,(int)$store_id])->order_by('sort_order')->order_by('name')->get('db_fashion_dress_types')->result();
+		} else { $data['fashion_measurements']=[]; $data['fashion_dress_types']=[]; }
 
 		$opening_balance = $customer->opening_balance ?? 0;
 		$opening_balance -= get_paid_cob($id);
@@ -3408,6 +3412,7 @@ class Mobile extends MY_Controller {
 			$_POST['unit_id_'.$i] = $item['unit_id'] ?? '';
 			$_POST['unit_name_'.$i] = $item['unit_name'] ?? '';
 			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
+			$_POST['batch_id_'.$i] = max(0, (int)($item['batch_id'] ?? 0));
 			$_POST['weight_lines_'.$i] = max(0, (int)($item['weight_lines'] ?? 0));
 		}
 
@@ -4714,16 +4719,23 @@ class Mobile extends MY_Controller {
 	{
 		$item_id = (int)$this->input->post('id', TRUE);
 		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		$store_id = (int)get_current_store_id();
 		if(!$item_id || !$warehouse_id){
 			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
 			return;
 		}
-		$item = $this->db->where('id', $item_id)->get('db_items')->row();
+		$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+		$warehouse_ok = $this->db->where('id', $warehouse_id)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+		if(!$warehouse_ok || ($allowed !== null && !in_array($warehouse_id, $allowed, true))){
+			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
+			return;
+		}
+		$item = $this->db->where('id', $item_id)->where('store_id', $store_id)->where('status', 1)->where('service_bit', 0)->get('db_items')->row();
 		if(!$item){
 			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
 			return;
 		}
-		$available = total_available_qty_items_of_warehouse($warehouse_id, '', $item_id);
+		$available = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $item_id);
 		echo json_encode(['id' => $item->id, 'item_name' => $item->item_name, 'available_qty' => (float)$available]);
 	}
 
@@ -4767,10 +4779,16 @@ class Mobile extends MY_Controller {
 		$offset = ($page - 1) * $limit;
 		$search = trim($this->input->get('search', TRUE) ?? '');
 		$category_id = (int)($this->input->get('category', TRUE) ?? 0);
+		$status_filter = strtolower(trim((string)($this->input->get('status', TRUE) ?? 'active')));
+		if(!in_array($status_filter, array('active', 'inactive', 'all'), true)) $status_filter = 'active';
+		$sort_by = strtolower(trim((string)($this->input->get('sort_by', TRUE) ?? 'code_asc')));
+		if(!in_array($sort_by, array('code_asc', 'code_desc', 'name_asc'), true)) $sort_by = 'code_asc';
 		$price_type = $this->input->get('price_type', TRUE);
 		$price_type = ($price_type === 'wholesale') ? 'wholesale' : 'retail';
 		$data['search'] = $search;
 		$data['category_id'] = $category_id;
+		$data['status_filter'] = $status_filter;
+		$data['sort_by'] = $sort_by;
 		$data['price_type'] = $price_type;
 
 		$data['categories'] = $this->db->where('store_id', $store_id)->where('status', 1)
@@ -4782,7 +4800,8 @@ class Mobile extends MY_Controller {
 		$this->db->join('db_category b', 'b.id = a.category_id', 'left');
 		$this->db->join('db_brands c', 'c.id = a.brand_id', 'left');
 		$this->db->where('a.store_id', $store_id);
-		$this->db->where('a.status', 1);
+		if($status_filter === 'active') $this->db->where('a.status', 1);
+		elseif($status_filter === 'inactive') $this->db->where('a.status', 0);
 		if($search){
 			$this->db->group_start();
 			$this->db->like('a.item_name', $search);
@@ -4793,7 +4812,9 @@ class Mobile extends MY_Controller {
 		if($category_id){
 			mp_category_filter('a.category_id',$category_id,$store_id);
 		}
-		$this->db->order_by('a.item_name', 'asc');
+		if($sort_by === 'code_desc') $this->db->order_by('a.item_code', 'desc');
+		elseif($sort_by === 'name_asc') $this->db->order_by('a.item_name', 'asc');
+		else $this->db->order_by('a.item_code', 'asc');
 		$this->db->limit($limit, $offset);
 		$data['products'] = $this->db->get()->result();
 		$data['page'] = $page;
@@ -5371,6 +5392,8 @@ class Mobile extends MY_Controller {
 				['title' => 'Website leads', 'desc' => 'Enquiry capture and conversion to patients', 'icon' => 'fa-globe', 'url' => 'leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'blue'],
 				['title' => 'Legacy imports', 'desc' => 'Reconciliation, exceptions and rollback', 'icon' => 'fa-database', 'url' => 'imports', 'physio_perm' => 'imports_view', 'color' => 'orange'],
 				['title' => 'Audit trail', 'desc' => 'Configuration, clinical and finance events', 'icon' => 'fa-history', 'url' => 'audit_trail', 'perm' => 'audit_trail_view', 'color' => 'yellow'],
+				['title' => 'License & usage', 'desc' => 'License status, plan and limits', 'icon' => 'fa-id-card-o', 'url' => 'subscription_license', 'perm' => 'license_management', 'admin_role_only' => true, 'color' => 'blue'],
+				['title' => 'System updates', 'desc' => 'Review and apply application updates', 'icon' => 'fa-cloud-download', 'url' => 'system_updates', 'perm' => 'system_updates', 'admin_role_only' => true, 'color' => 'teal'],
 			];
 		}
 
@@ -5392,7 +5415,8 @@ class Mobile extends MY_Controller {
 		foreach($menu_groups as $group => $items){
 			$visible = [];
 			foreach($items as $item){
-				if(!empty($item['admin_role_only']) && $this->session->userdata('role_id') != 1 && !is_store_admin()) continue;
+				$is_workspace_admin = (int)$this->session->userdata('role_id') === 1 || is_store_admin() || is_admin();
+				if(!empty($item['admin_role_only']) && !$is_workspace_admin) continue;
 				if(!empty($item['feature'])){
 					$feature_ok = false;
 					foreach((array)$item['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
@@ -5403,7 +5427,9 @@ class Mobile extends MY_Controller {
 					if(function_exists('physio_can') && physio_can($item['physio_perm'])){ $visible[] = $item; }
 					continue;
 				}
-			$hasMenuPermission = empty($item['perm']) || $this->permissions($item['perm']);
+			$hasMenuPermission = !empty($item['admin_role_only']) && $is_workspace_admin
+				? true
+				: (empty($item['perm']) || $this->permissions($item['perm']));
 			if(!empty($item['perm_any'])){
 				$hasMenuPermission = false;
 				foreach((array)$item['perm_any'] as $anyPermission){ if($this->permissions($anyPermission)){ $hasMenuPermission = true; break; } }
@@ -7440,8 +7466,8 @@ class Mobile extends MY_Controller {
 			'sales_and_payments' => ['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'perm' => 'sales_report', 'endpoint' => 'reports/sales_and_payments_report'],
 			'sales_tax' => ['title' => 'Tax Report', 'perm' => 'sales_tax_report', 'endpoint' => 'reports/show_sales_tax_report'],
 			'sales_return_payments' => ['title' => 'Sales Return Payments', 'perm' => 'sales_payments_report', 'endpoint' => 'reports/show_sales_return_payments_report'],
-			'stock_transfer' => ['title' => 'Stock Transfer Report', 'perm' => 'stock_transfer_report', 'endpoint' => 'reports/show_stock_transfer_report'],
-			'expired_items' => ['title' => 'Expired Items Report', 'perm' => 'expired_items_report', 'endpoint' => 'reports/show_expired_items_report'],
+			'stock_transfer' => ['title' => 'Stock Transfer Report', 'perm' => 'stock_transfer_report', 'endpoint' => 'reports/show_stock_transfer_report', 'headers' => ['#', 'Date', 'From Branch', 'To Branch', 'Product', 'Category', 'Brand', 'Qty']],
+			'expired_items' => ['title' => 'Expired Items Report', 'perm' => 'expired_items_report', 'endpoint' => 'reports/show_expired_items_report', 'headers' => ['#', 'Status', 'Item Code', 'Item Name', 'Location', 'Batch / Lot', 'Expiry', 'Stock']],
 		];
 		if(!isset($map[$type])){
 			show_404(); exit;

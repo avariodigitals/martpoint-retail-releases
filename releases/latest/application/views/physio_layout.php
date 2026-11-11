@@ -521,7 +521,7 @@ body{display:block!important;height:auto!important;min-height:100%!important;ove
         // had no route to its own payment configuration even when the role
         // held paystack_settings. Gated on the same permission the retail
         // sidebar uses, so behaviour is identical for anyone who had it.
-        array('Paystack settings', 'paystack/settings', 'fa-credit-card',
+        array('MartPoint Pay', 'paystack/settings', 'fa-credit-card',
               $CI->permissions('paystack_settings')),
         array('Audit trail', 'audit_trail', 'fa-history', $CI->permissions('audit_trail_view')),
       ));

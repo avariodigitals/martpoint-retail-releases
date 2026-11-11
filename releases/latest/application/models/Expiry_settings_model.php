@@ -25,6 +25,10 @@ class Expiry_settings_model extends CI_Model {
 		// answer with the behaviour it had before them — no WhatsApp channel, no
 		// number, nothing sent yet — instead of an undefined property.
 		$row->whatsapp_alerts_enabled = (int)($row->whatsapp_alerts_enabled ?? 0);
+		// Expiry reports and daily alerts share the same supported horizon. Older
+		// installs can contain values posted before the form's 365-day limit was
+		// enforced; clamp those rows so distant lots do not appear as "soon".
+		$row->alert_before_days = min(365, max(1, (int)($row->alert_before_days ?? 30)));
 		$row->alert_phone = trim((string)($row->alert_phone ?? ''));
 		$row->last_alert_slot = trim((string)($row->last_alert_slot ?? ''));
 		$this->load->model('Inventory_rotation_model', 'inventory_rotation');
@@ -34,6 +38,8 @@ class Expiry_settings_model extends CI_Model {
 
 	public function save_settings() {
 		$alert_before_days = $this->input->post('alert_before_days', TRUE);
+		if (!is_numeric($alert_before_days) || (int)$alert_before_days < 1 || (int)$alert_before_days > 365) return 'failed';
+		$alert_before_days = (int)$alert_before_days;
 		$stop_selling_expired = (int)($this->input->post('stop_selling_expired', TRUE) == '1');
 		$email_alerts_enabled = (int)($this->input->post('email_alerts_enabled', TRUE) == '1');
 		$alert_email = trim((string)$this->input->post('alert_email', TRUE));
@@ -131,39 +137,81 @@ class Expiry_settings_model extends CI_Model {
 		}
 	}
 
-	public function get_expiring_items($store_id = null, $days = null) {
+	public function get_expiring_items($store_id = null, $days = null, $warehouse_id = 0) {
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
 		if(empty($days)) {
 			$settings = $this->get_settings($store_id);
 			$days = $settings->alert_before_days;
 		}
-		$future = date('Y-m-d', strtotime("+{$days} days"));
-		$today = date('Y-m-d');
-
-		return $this->db->where('store_id', $store_id)
-						->where('expire_date IS NOT NULL')
-						->where('expire_date <=', $future)
-						->where('expire_date >=', $today)
-						->where('status', 1)
-						->get('db_items')
-						->result();
+		return $this->_expiry_rows((int)$store_id, false, min(365, max(1, (int)$days)), (int)$warehouse_id);
 	}
 
-	public function get_expired_items($store_id = null) {
+	public function get_expired_items($store_id = null, $warehouse_id = 0) {
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
+		return $this->_expiry_rows((int)$store_id, true, 0, (int)$warehouse_id);
+	}
+
+	/** Expiry rows come from positive-stock batches first, then unbatched item stock. */
+	private function _expiry_rows($store_id, $expired, $days, $warehouse_id = 0) {
 		$today = date('Y-m-d');
-		return $this->db->where('store_id', $store_id)
-						->where('expire_date IS NOT NULL')
-						->where('expire_date <', $today)
-						->where('status', 1)
-						->get('db_items')
-						->result();
+		$until = date('Y-m-d', strtotime($today.' +'.(int)$days.' days'));
+		$batchDate = $expired ? 'b.expire_date < ?' : 'b.expire_date >= ? AND b.expire_date <= ?';
+		$itemDate = $expired ? 'i.expire_date < ?' : 'i.expire_date >= ? AND i.expire_date <= ?';
+		// The store_id predicate in the batch SELECT is interpolated from the
+		// already-cast integer above, so only expiry-date placeholders belong here.
+		$batchParams = array();
+		if(!$expired) $batchParams[] = $today;
+		$batchParams[] = $expired ? $today : $until;
+
+		$batchSql = '';
+		if($this->db->table_exists('db_item_barcodes')){
+			$batchWarehouse = $warehouse_id > 0 ? ' AND b.warehouse_id = '.(int)$warehouse_id : '';
+			$batchSql = "SELECT i.id, i.item_code, i.item_name, b.expire_date, b.mfg_date, b.qty AS stock,
+				b.batch_lot, w.warehouse_name, b.id AS batch_id, 'batch' AS expiry_source
+				FROM db_item_barcodes b
+				JOIN db_items i ON i.id = b.item_id AND i.store_id = ".(int)$store_id."
+				LEFT JOIN db_warehouse w ON w.id = b.warehouse_id AND w.store_id = i.store_id
+				WHERE i.status = 1 AND b.qty > 0
+				AND b.expire_date IS NOT NULL AND YEAR(b.expire_date) > 0
+				AND {$batchDate}{$batchWarehouse}";
+		}
+
+		$itemStockExpr = 'i.stock';
+		$itemWarehouseJoin = '';
+		$itemWarehouseWhere = 'i.stock > 0';
+		$itemWarehouseName = 'NULL';
+		if($warehouse_id > 0 && $this->db->table_exists('db_warehouseitems')){
+			$itemStockExpr = 'COALESCE(wi.available_qty,0)';
+			$itemWarehouseJoin = ' LEFT JOIN db_warehouseitems wi ON wi.item_id=i.id AND wi.store_id=i.store_id AND wi.warehouse_id='.(int)$warehouse_id;
+			$itemWarehouseWhere = 'COALESCE(wi.available_qty,0) > 0';
+			$itemWarehouseName = '(SELECT warehouse_name FROM db_warehouse WHERE id='.(int)$warehouse_id.' AND store_id=i.store_id LIMIT 1)';
+		}
+		$notInBatch = $this->db->table_exists('db_item_barcodes')
+			? " AND NOT EXISTS (SELECT 1 FROM db_item_barcodes bx WHERE bx.item_id=i.id AND bx.qty>0 AND bx.expire_date IS NOT NULL AND YEAR(bx.expire_date) > 0)"
+			: '';
+		$itemSql = "SELECT i.id, i.item_code, i.item_name, i.expire_date, i.mfg_date, {$itemStockExpr} AS stock,
+			NULL AS batch_lot, {$itemWarehouseName} AS warehouse_name, NULL AS batch_id, 'item' AS expiry_source
+			FROM db_items i{$itemWarehouseJoin}
+			WHERE i.store_id = ? AND i.status = 1 AND {$itemWarehouseWhere}
+			AND i.expire_date IS NOT NULL AND YEAR(i.expire_date) > 0 AND {$itemDate}{$notInBatch}";
+		$itemParams = array((int)$store_id);
+		if(!$expired) $itemParams[] = $today;
+		$itemParams[] = $expired ? $today : $until;
+
+		$sql = $batchSql !== '' ? '('.$batchSql.') UNION ALL ('.$itemSql.')' : $itemSql;
+		$params = $batchSql !== '' ? array_merge($batchParams, $itemParams) : $itemParams;
+		$query = $this->db->query($sql.' ORDER BY expire_date ASC, item_name ASC, batch_id ASC', $params);
+		if(!$query){
+			log_message('error', 'Expiry report query failed for store '.$store_id.': '.json_encode($this->db->error()));
+			return array();
+		}
+		return $query->result();
 	}
 
 	public function count_expiring($store_id = null) {
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
 		$settings = $this->get_settings($store_id);
-		$days = $settings->alert_before_days;
+		$days = min(365, max(1, (int)$settings->alert_before_days));
 		$future = date('Y-m-d', strtotime("+{$days} days"));
 		$today = date('Y-m-d');
 		return $this->_count_expiry_union($store_id, $today, $future);
@@ -186,13 +234,13 @@ class Expiry_settings_model extends CI_Model {
 		} else {
 			$sql = "SELECT COUNT(DISTINCT item_id) AS total FROM (";
 		}
-		$sql .= " SELECT a.id AS item_id FROM db_items a WHERE a.store_id = ? AND a.status = 1 AND a.expire_date IS NOT NULL AND a.expire_date <= ?";
+		$sql .= " SELECT a.id AS item_id FROM db_items a WHERE a.store_id = ? AND a.status = 1 AND a.stock > 0 AND a.expire_date IS NOT NULL AND YEAR(a.expire_date) > 0 AND a.expire_date <= ?";
 		if ($from_date) {
 			$sql .= " AND a.expire_date >= ?";
 			$params[] = $from_date;
 		}
 		if ($table_barcodes) {
-			$sql .= " UNION SELECT b.item_id FROM db_item_barcodes b JOIN db_items a ON a.id = b.item_id WHERE a.store_id = ? AND a.status = 1 AND b.status = 1 AND b.qty > 0 AND b.expire_date IS NOT NULL AND b.expire_date <= ?";
+			$sql .= " UNION SELECT b.item_id FROM db_item_barcodes b JOIN db_items a ON a.id = b.item_id WHERE a.store_id = ? AND a.status = 1 AND b.qty > 0 AND b.expire_date IS NOT NULL AND YEAR(b.expire_date) > 0 AND b.expire_date <= ?";
 			$params[] = $store_id;
 			$params[] = $to_date;
 			if ($from_date) {

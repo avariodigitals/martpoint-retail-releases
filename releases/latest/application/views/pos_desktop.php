@@ -13,6 +13,7 @@
 $mp_pos_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
 $mp_is_clinic = function_exists('physio_enabled') && $this->session->userdata('logged_in') && (($mp_pos_profile['industry_type'] ?? '') === 'physiotherapy_rehabilitation');
 $mp_is_pharmacy = in_array(($mp_pos_profile['industry_type'] ?? ''), ['pharmacy', 'medical_store'], true);
+$mp_is_supplements = ($mp_pos_profile['industry_type'] ?? '') === 'supplements_wellness';
 $mp_is_restaurant = function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace();
 // The walk-in desk signs itself with the word the store uses for its own
 // workspace, so a lounge's POS never announces itself as a restaurant.
@@ -30,11 +31,15 @@ $mp_pos_palette = $mp_is_restaurant ? [
     'primary' => '#0F766E', 'primary_dark' => '#0B5B55', 'bg' => '#F2F8F7',
     'text' => '#16323A', 'muted' => '#6B7F86', 'border' => '#D7E7E5',
     'success' => '#0F766E', 'danger' => '#C94F4F', 'warning' => '#B7791F', 'ink' => '#16323A',
+] : ($mp_is_supplements ? [
+    'primary' => '#15803D', 'primary_dark' => '#166534', 'bg' => '#F2F8F4',
+    'text' => '#203329', 'muted' => '#6B7C70', 'border' => '#DCE8DF',
+    'success' => '#15803D', 'danger' => '#C94F4F', 'warning' => '#B7791F', 'ink' => '#203329',
 ] : [
     'primary' => '#0057FF', 'primary_dark' => '#0044CC', 'bg' => '#F5F4F0',
     'text' => '#292524', 'muted' => '#78716C', 'border' => '#E7E5E4',
     'success' => '#059669', 'danger' => '#DC2626', 'warning' => '#F59E0B', 'ink' => '#44403C',
-]));
+])));
 // Database text imported from older fleets is not always valid UTF-8.
 // Never allow one name to turn an inline assignment into `const products = ;`.
 $pos_json = static function ($value) {
@@ -57,6 +62,8 @@ $pos_json = static function ($value) {
     :root {
       --mp-primary: <?= $mp_pos_palette['primary'] ?>;
       --mp-primary-dark: <?= $mp_pos_palette['primary_dark'] ?>;
+      --mp-primary-08: <?= $mp_pos_palette['primary'] ?>14;
+      --mp-primary-10: <?= $mp_pos_palette['primary'] ?>1A;
       --mp-pay: #D97706;
       --mp-pay-dark: #B45309;
       --mp-bg: <?= $mp_pos_palette['bg'] ?>;
@@ -83,7 +90,7 @@ $pos_json = static function ($value) {
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; height: 100%; }
     body {
-      font-family: <?= $mp_is_pharmacy ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: <?= ($mp_is_pharmacy || $mp_is_supplements) ? "'Manrope'" : "'Inter'" ?>, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--mp-bg);
       color: var(--mp-text);
       display: flex;
@@ -831,6 +838,15 @@ $pos_json = static function ($value) {
     .cart-item .item-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-item .item-meta { font-size: 12px; color: var(--mp-muted); margin-top: 2px; }
     .cart-item .item-total { font-weight: 700; font-size: 14px; white-space: nowrap; }
+    .batch-picker-backdrop { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,.55); }
+    .batch-picker { width:min(480px,100%); max-height:85vh; overflow:auto; padding:22px; border-radius:16px; background:var(--mp-surface,#fff); box-shadow:0 24px 70px rgba(0,0,0,.25); }
+    .batch-picker h3 { margin:0 0 6px; color:var(--mp-ink); font-size:18px; }
+    .batch-picker p { margin:0 0 14px; color:var(--mp-muted); font-size:13px; }
+    .batch-picker-options { display:grid; gap:8px; }
+    .batch-picker-option { display:flex; justify-content:space-between; gap:12px; align-items:center; width:100%; padding:12px; border:1px solid var(--mp-border); border-radius:10px; background:var(--mp-bg); color:var(--mp-ink); text-align:left; cursor:pointer; }
+    .batch-picker-option:hover { border-color:var(--mp-primary); background:var(--mp-primary-soft,#eef8f5); }
+    .batch-picker-option span { color:var(--mp-muted); font-size:12px; text-align:right; }
+    .batch-picker-cancel { margin-top:12px; padding:9px 14px; border:1px solid var(--mp-border); border-radius:9px; background:#fff; color:var(--mp-ink); cursor:pointer; }
     .cart-item.weight-cart-item {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -1202,7 +1218,7 @@ $pos_json = static function ($value) {
     .bnpl-input:focus,
     .bnpl-select:focus {
       border-color: var(--mp-primary);
-      box-shadow: 0 0 0 3px rgba(0,87,255,0.10);
+      box-shadow: 0 0 0 3px var(--mp-primary-10);
     }
     .bnpl-select {
       cursor: pointer;
@@ -1286,13 +1302,13 @@ $pos_json = static function ($value) {
     }
     .mp-dselect__option:last-child { border-bottom: none; }
     .mp-dselect__option:hover { background: var(--mp-bg); }
-    .mp-dselect__option.active { background: rgba(0,87,255,0.08); color: var(--mp-primary); font-weight: 700; }
+    .mp-dselect__option.active { background: var(--mp-primary-08); color: var(--mp-primary); font-weight: 700; }
 
     .payment-method-row { border-radius: 12px !important; border: 1px solid var(--mp-border) !important; background: var(--mp-surface) !important; padding: 12px !important; }
     .payment-amount,
     .payment-ref { width: 100%; padding: 10px 12px; border: 1px solid var(--mp-border); border-radius: 10px; font-size: 13px; outline: none; box-sizing: border-box; }
     .payment-amount:focus,
-    .payment-ref:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,0.10); }
+    .payment-ref:focus { border-color: var(--mp-primary); box-shadow: 0 0 0 3px var(--mp-primary-10); }
 
     /* Compact POS layout for 1366x768 and similar POS terminals */
     @media (min-width: 901px) and (max-height: 900px) {
@@ -1513,7 +1529,7 @@ $pos_json = static function ($value) {
     <?php endif; ?>
   </style>
 </head>
-<body data-pos-build="4.0.9.195" class="<?= $mp_is_pharmacy ? 'pharmacy-pos ' : ''; ?><?= $mp_is_restaurant ? 'restaurant-pos' : ''; ?>">
+<body data-pos-build="4.0.9.195" class="<?= $mp_is_pharmacy ? 'pharmacy-pos ' : ''; ?><?= $mp_is_supplements ? 'supplements-pos ' : ''; ?><?= $mp_is_restaurant ? 'restaurant-pos' : ''; ?>">
   <div id="posStartupError" role="alert" hidden style="position:fixed;top:8px;left:8px;right:8px;z-index:10000;padding:14px;background:#fff1f2;color:#9f1239;border:1px solid #fda4af;border-radius:8px;">
     POS could not finish loading. Reload this page. If this continues, contact your administrator.
     <button type="button" onclick="window.location.reload()" style="margin-left:12px;">Reload POS</button>
@@ -2715,7 +2731,32 @@ $pos_json = static function ($value) {
       return product && baseQty > (Number(product.stock) || 0);
     }
 
-    function addToCart(id, selectedUnit = null) {
+    function openBatchPicker(product, onSelect) {
+      const options = (product.batch_candidates || []).filter(batch => Number(batch.qty || 0) > 0);
+      if (!options.length) {
+        showToast('No available batch', 'There is no sellable batch recorded for ' + product.name + ' at this location.', 'warning');
+        return;
+      }
+      const backdrop = document.createElement('div');
+      backdrop.className = 'batch-picker-backdrop';
+      backdrop.innerHTML = '<div class="batch-picker" role="dialog" aria-modal="true" aria-label="Select batch">'
+        + '<h3>Choose the batch to pick</h3><p>' + escapeHtml(product.name) + ' · choose the same lot you will take from the shelf.</p>'
+        + '<div class="batch-picker-options">' + options.map((batch, index) => {
+          const lot = batch.batch_lot ? 'Batch ' + batch.batch_lot : 'Stock lot #' + batch.id;
+          const expiry = batch.expire_date ? ' · expires ' + batch.expire_date : '';
+          return '<button type="button" class="batch-picker-option" data-index="' + index + '"><strong>' + escapeHtml(lot) + '</strong><span>' + escapeHtml('Available: ' + Number(batch.qty).toFixed(2).replace(/\.?0+$/, '') + expiry) + '</span></button>';
+        }).join('') + '</div><button type="button" class="batch-picker-cancel">Cancel</button></div>';
+      document.body.appendChild(backdrop);
+      backdrop.querySelectorAll('.batch-picker-option').forEach(button => button.addEventListener('click', () => {
+        const batch = options[Number(button.dataset.index)];
+        backdrop.remove();
+        if (batch) onSelect(batch);
+      }));
+      backdrop.querySelector('.batch-picker-cancel').addEventListener('click', () => backdrop.remove());
+      backdrop.addEventListener('click', event => { if (event.target === backdrop) backdrop.remove(); });
+    }
+
+    function addToCart(id, selectedUnit = null, selectedBatch = null, manualEntry = true) {
       const product = products.find(p => p.id === id);
       if (!product) return;
       if (product.outOfStock) {
@@ -2729,19 +2770,29 @@ $pos_json = static function ($value) {
 
       // Show unit picker if product has multiple selling units and no unit selected yet
       if (!selectedUnit && product.selling_units && product.selling_units.length > 1) {
-        openUnitPicker(product, (unit) => addToCart(id, unit));
+        openUnitPicker(product, (unit) => addToCart(id, unit, selectedBatch, manualEntry));
         return;
       }
       if (!selectedUnit && product.selling_units && product.selling_units.length === 1) {
         selectedUnit = product.selling_units[0];
       }
 
+      if (!selectedBatch && manualEntry && Array.isArray(product.batch_candidates) && product.batch_candidates.length) {
+        openBatchPicker(product, batch => addToCart(id, selectedUnit, batch));
+        return;
+      }
+
       const unitId = selectedUnit ? (selectedUnit.unit_id || '') : '';
       const unitName = selectedUnit ? (selectedUnit.unit_shortcode || selectedUnit.unit_name || '') : (product.unit || '');
       const conversionFactor = selectedUnit ? (parseFloat(selectedUnit.conversion_factor) || 1) : 1;
 
-      const existing = cart.find(c => c.id === id && c.unit_id === unitId);
+      const selectedBatchId = selectedBatch ? Number(selectedBatch.id || 0) : 0;
+      const existing = cart.find(c => c.id === id && c.unit_id === unitId && Number(c.selectedBatchId || 0) === selectedBatchId);
       const nextBaseQty = ((existing ? existing.qty : 0) + 1) * conversionFactor;
+      if (selectedBatch && nextBaseQty > Number(selectedBatch.qty || 0) + 0.00001) {
+        showToast('Not enough in this batch', product.name + ' has only ' + Number(selectedBatch.qty || 0) + ' available in this batch.', 'warning');
+        return;
+      }
       if (exceedsStock(product, nextBaseQty)) {
         showToast('Not enough stock', product.name + ': 1 ' + (unitName || 'unit') + ' uses ' + conversionFactor + ' stock units — only ' + product.stock + ' available', 'warning');
         return;
@@ -2771,6 +2822,10 @@ $pos_json = static function ($value) {
           unit_id: unitId,
           unit_name: unitName,
           conversion_factor: conversionFactor,
+          selectedBatchId: selectedBatchId,
+          selectedBatchLot: selectedBatch ? (selectedBatch.batch_lot || '') : '',
+          selectedBatchExpiry: selectedBatch ? (selectedBatch.expire_date || '') : '',
+          selectedBatchQty: selectedBatch ? Number(selectedBatch.qty || 0) : 0,
           unitPrice: unitPrice,
           qty: 1,
           weight_base_qty: product.weight_pricing_enabled && WEIGHT_SCALE_MODE === 'analog' ? 1 : undefined,
@@ -2789,7 +2844,10 @@ $pos_json = static function ($value) {
       q = (q || '').trim();
       if (!q) return;
       const qLower = q.toLowerCase();
+      let scannedBatch = null;
       let product = products.find(p => {
+        const batch = (p.batch_candidates || []).find(b => b.barcode && b.barcode.toLowerCase() === qLower);
+        if (batch) { scannedBatch = batch; return true; }
         if (p.sku && p.sku.toLowerCase() === qLower) return true;
         if (p.item_code && p.item_code.toLowerCase() === qLower) return true;
         return (p.selling_units || []).some(u => u.barcode && u.barcode.toLowerCase() === qLower);
@@ -2813,7 +2871,11 @@ $pos_json = static function ($value) {
       if (!selectedUnit && product.selling_units && product.selling_units.length > 0) {
         selectedUnit = product.selling_units.find(u => u.is_default) || product.selling_units[0];
       }
-      addToCart(product.id, selectedUnit);
+      // A scanned lot barcode identifies its exact row. A normal item barcode
+      // lets Manual stores auto-pick the first available lot (FEFO order).
+      const barcodeBatch = scannedBatch || (product.batch_rotation_method === 'MANUAL' && (product.batch_candidates || []).length
+        ? product.batch_candidates[0] : null);
+      addToCart(product.id, selectedUnit, barcodeBatch, false);
       const input = document.getElementById('searchInput');
       if (input) input.value = '';
       searchQuery = '';
@@ -2829,6 +2891,10 @@ $pos_json = static function ($value) {
       const nextQty = item.weight_pricing_enabled ? ((parseFloat(item.weight_base_qty || 0) + delta) * (parseFloat(item.weight_pricing_base_kg) || 1)) + ((parseInt(item.weight_lines, 10) || 0) * weightStep) : item.qty + (delta * weightStep);
       if (exceedsStock(product, nextQty * conversion)) {
         showToast('Not enough stock', product.name + ': 1 ' + (item.unit_name || 'unit') + ' uses ' + conversion + ' stock units — only ' + product.stock + ' available', 'warning');
+        return;
+      }
+      if (item.selectedBatchId && nextQty * conversion > Number(item.selectedBatchQty || 0) + 0.00001) {
+        showToast('Not enough in this batch', product.name + ': choose another batch for the extra quantity.', 'warning');
         return;
       }
       if (item.weight_pricing_enabled) item.weight_base_qty = Math.max(0, (parseFloat(item.weight_base_qty || 0) + delta));
@@ -2862,6 +2928,11 @@ $pos_json = static function ($value) {
         updateCart();
         return;
       }
+      if (item.selectedBatchId && rounded * conversion > Number(item.selectedBatchQty || 0) + 0.00001) {
+        showToast('Not enough in this batch', product.name + ': choose another batch for the extra quantity.', 'warning');
+        updateCart();
+        return;
+      }
       item.qty = rounded;
       updateCart();
     }
@@ -2875,6 +2946,10 @@ $pos_json = static function ($value) {
       if (!isFinite(qty) || qty <= 0) { cart.splice(index, 1); updateCart(); return; }
       if (exceedsStock(product, qty * conversion)) {
         showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
+        updateCart(); return;
+      }
+      if (item.selectedBatchId && qty * conversion > Number(item.selectedBatchQty || 0) + 0.00001) {
+        showToast('Not enough in this batch', product.name + ': choose another batch for the extra quantity.', 'warning');
         updateCart(); return;
       }
       item.qty = qty;
@@ -2902,6 +2977,14 @@ $pos_json = static function ($value) {
         item.weight_digital_kg = previous.weight_digital_kg;
         item.weight_lines = previous.weight_lines;
         showToast('Not enough stock', product.name + ': only ' + product.stock + ' available', 'warning');
+        updateCart(); return;
+      }
+      if (item.selectedBatchId && item.qty * (parseFloat(item.conversion_factor || 1)) > Number(item.selectedBatchQty || 0) + 0.00001) {
+        item.qty = previous.qty;
+        item.weight_base_qty = previous.weight_base_qty;
+        item.weight_digital_kg = previous.weight_digital_kg;
+        item.weight_lines = previous.weight_lines;
+        showToast('Not enough in this batch', product.name + ': choose another batch for the extra quantity.', 'warning');
         updateCart(); return;
       }
       updateCart();
@@ -3338,12 +3421,35 @@ $pos_json = static function ($value) {
           }
 
           const unitLabel = item.unit_name ? ' • ' + item.unit_name : '';
+          let batchPick = '';
+          if (Array.isArray(item.batch_candidates) && item.batch_candidates.length) {
+            if (item.selectedBatchId) {
+              batchPick = '<div class="item-meta"><strong>Selected batch:</strong> ' + escapeHtml((item.selectedBatchLot ? 'Batch ' + item.selectedBatchLot : 'Stock lot #' + item.selectedBatchId) + ' · ' + Number(item.qty || 0) * Number(item.conversion_factor || 1) + ' to pick' + (item.selectedBatchExpiry ? ' · exp ' + item.selectedBatchExpiry : '')) + '</div>';
+            } else if (item.batch_rotation_method === 'MANUAL') {
+              batchPick = '<div class="item-meta"><strong>Batch rotation is Manual:</strong> scan a batch barcode or choose a lot when adding manually.</div>';
+            } else {
+              let remaining = Math.max(0, Number(item.qty || 0) * Number(item.conversion_factor || 1));
+              const picks = [];
+              item.batch_candidates.forEach(batch => {
+                if (remaining <= 0.00001) return;
+                const take = Math.min(remaining, Number(batch.qty || 0));
+                if (take <= 0) return;
+                const lot = batch.batch_lot ? 'Batch ' + batch.batch_lot : 'Stock lot #' + batch.id;
+                const expiry = batch.expire_date ? ' · exp ' + batch.expire_date : '';
+                const shownQty = Number(take).toFixed(2).replace(/\.?0+$/, '');
+                picks.push(escapeHtml(lot + ' × ' + shownQty + expiry));
+                remaining -= take;
+              });
+              if (picks.length) batchPick = '<div class="item-meta"><strong>Pick from:</strong> ' + picks.join(' → ') + '</div>';
+            }
+          }
 
           return `
           <div class="cart-item${item.weight_pricing_enabled ? ' weight-cart-item' : ''}">
             <div class="item-info">
               <div class="item-name">${escapeHtml(item.name)}</div>
               <div class="item-meta">${formatMoney(displayPrice)} each • ${priceType === 'wholesale' ? (isPharmacyPos ? 'Trade' : 'Wholesale') : (isPharmacyPos ? 'Standard' : 'Retail')}${unitLabel}</div>
+              ${batchPick}
             </div>
             <div class="qty-control">
               ${item.weight_pricing_enabled ? (WEIGHT_SCALE_MODE === 'analog' ? '<span class="weight-entry"><span class="weight-part"><span class="weight-label">KG</span><input type="number" min="0" step="1" value="' + (item.weight_base_qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'kg\', this.value)"></span><span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span><span class="weight-total">= ' + Number(item.qty || 0).toFixed(2) + ' kg</span></span>' : '<span class="weight-entry"><span class="weight-part"><span class="weight-label">Measured kg</span><input type="number" min="0.001" step="0.001" value="' + (item.weight_digital_kg ?? item.qty ?? 0) + '" onchange="setWeightParts(' + index + ', \'digital_kg\', this.value)"></span>' + (WEIGHT_SCALE_MODE === 'hybrid' ? '<span class="weight-part"><span class="weight-label">Lines</span><input type="number" min="0" step="1" value="' + (item.weight_lines ?? 0) + '" onchange="setWeightParts(' + index + ', \'lines\', this.value)"></span>' : '') + '<span class="weight-total">= ' + Number(item.qty || 0).toFixed(3) + ' kg</span></span>') : '<button onclick="changeQty(' + index + ', -POS_QTY_STEP)">-</button><input class="pos-qty-input" aria-label="Quantity for ' + escapeHtml(item.name) + '" type="number" min="' + POS_QTY_STEP + '" step="' + POS_QTY_STEP + '" value="' + Number(item.qty || 0).toFixed(POS_QTY_DECIMALS) + '" onchange="setRegularQty(' + index + ', this.value)"><button onclick="changeQty(' + index + ', POS_QTY_STEP)">+</button>'}
@@ -4751,7 +4857,8 @@ $pos_json = static function ($value) {
         tax_id: item.tax_id || 0,
         unit_id: item.unit_id || '',
         unit_name: item.unit_name || '',
-        conversion_factor: item.conversion_factor || 1
+        conversion_factor: item.conversion_factor || 1,
+        batch_id: item.selectedBatchId || 0
       }));
       const payload = {
         command: 'save',

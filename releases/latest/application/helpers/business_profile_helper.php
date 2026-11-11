@@ -46,6 +46,7 @@ if (!function_exists('mp_get_business_types')) {
             'butcher'               => 'Butcher / Meat Shop',
             'frozen_foods_retailer' => 'Frozen Foods Retailer',
             'medical_store'         => 'Medical Store',
+            'supplements_wellness'  => 'Supplements & Wellness',
             'clinic'                => 'Clinic',
             'hospital'              => 'Hospital',
             'diagnostic_centre'     => 'Diagnostic Centre',
@@ -169,6 +170,8 @@ if (!function_exists('mp_get_feature_flags')) {
             'leads'                     => 'Leads / CRM',
             'manual_shipping'           => 'Manual Shipping (POS Delivery Fee)',
             'fashion_variants_default'  => 'Fashion: Default New Items to Variants',
+            'fashion_measurements'      => 'Fashion: Customer Measurement Notebook',
+            'fashion_size_requests'     => 'Fashion: Shareable Size Requests',
             'auto_retail_markup'        => 'Automatic Retail Pricing (Wholesale + Markup)',
             'pos_retail_button'         => 'POS Retail Price Button',
             'pos_wholesale_button'      => 'POS Wholesale Price Button',
@@ -230,7 +233,7 @@ if (!function_exists('mp_get_business_families')) {
      */
     function mp_get_business_families() {
         return [
-            'retail'   => ['general_retail','supermarket','mini_mart','grocery_store','provision_store','convenience_store','fashion','boutique','shoe_store','jewellery_store','bookshop','electronics','computer_store','gadget_store','appliance_store','phone_accessories','furniture','building_materials','paint_store','plumbing_store','perfume_shop','skincare','beauty_cosmetics','makeup_studio','multi_branch_retail','online_store','agro_dealer','feed_store','medical_store','pharmacy'],
+            'retail'   => ['general_retail','supermarket','mini_mart','grocery_store','provision_store','convenience_store','fashion','boutique','shoe_store','jewellery_store','bookshop','electronics','computer_store','gadget_store','appliance_store','phone_accessories','furniture','building_materials','paint_store','plumbing_store','perfume_shop','skincare','beauty_cosmetics','makeup_studio','multi_branch_retail','online_store','agro_dealer','feed_store','medical_store','pharmacy','supplements_wellness'],
             'food'     => ['restaurant','fast_food','cafe','pizza_shop','shawarma','juice_bar','buka','canteen','bar_lounge','bakery_cake_studio','butcher','frozen_foods_retailer','supermarket','mini_mart','grocery_store','provision_store','convenience_store'],
             'pharmacy' => ['pharmacy','medical_store'],
             'clinical' => ['clinic','hospital','diagnostic_centre','physiotherapy_rehabilitation'],
@@ -287,7 +290,7 @@ if (!function_exists('mp_get_feature_sections')) {
             'counter'    => ['label'=>'Counter (POS)', 'blurb'=>'Switches that change what the till offers.'],
             'inventory'  => ['label'=>'Products & inventory', 'blurb'=>'How stock is recorded, packed and tracked.'],
             'pharmacy'   => ['label'=>'Pharmacy & dispensing', 'blurb'=>'Prescription checks and medicine safety.', 'families'=>['pharmacy']],
-            'rotation'   => ['label'=>'Stock rotation', 'blurb'=>'Choose which recorded batch is used when stock sells.', 'families'=>['pharmacy'], 'industries'=>['frozen_foods_retailer'], 'controls'=>['rotation_method']],
+            'rotation'   => ['label'=>'Stock rotation', 'blurb'=>'Choose which recorded batch is used when stock sells.', 'families'=>['pharmacy'], 'industries'=>['frozen_foods_retailer','supplements_wellness'], 'controls'=>['rotation_method']],
             'clinical'   => ['label'=>'Clinic & patient care', 'blurb'=>'Patient records, episodes, plans and beds.', 'families'=>['clinical']],
             'services'   => ['label'=>'Services & appointments', 'blurb'=>'Work you book, quote and carry out for customers.', 'families'=>['services','clinical','beauty','auto']],
             'food'       => ['label'=>'Food & drink operations', 'blurb'=>'Kitchen, tables, tabs and service rounds.', 'families'=>['food']],
@@ -340,11 +343,13 @@ if (!function_exists('mp_get_feature_registry')) {
         // Products & inventory.
         'item_variants'            => ['section'=>'inventory', 'families'=>['retail','beauty','food','auto']],
         'fashion_variants_default' => ['section'=>'inventory', 'industries'=>['fashion','boutique','shoe_store','tailoring']],
+        'fashion_measurements'     => ['section'=>'services', 'industries'=>['fashion','boutique','tailoring'], 'label'=>'Fashion Measurement Notebook', 'hint'=>'Save dated measurement snapshots against each customer, including dress type and size standard.'],
+        'fashion_size_requests'    => ['section'=>'selling', 'industries'=>['fashion','boutique','tailoring'], 'label'=>'Shareable Size Request Links', 'hint'=>'Let a customer submit measurements remotely. Size standards can be set to UK or US.'],
         'multi_unit_inventory'     => ['section'=>'inventory', 'families'=>['retail','food','trade','production','pharmacy','clinical']],
         'multi_unit_selling'       => ['section'=>'inventory', 'families'=>['pharmacy','food','trade','retail','production'], 'hint'=>'Sell the pack, the box and the loose piece, and stock counts itself in base units.'],
-        'batch_tracking'           => ['section'=>'inventory', 'families'=>['pharmacy','food','production','clinical'], 'hint'=>'Record the batch number on every unit that arrives, so one shelf date can be traced and pulled.'],
-        'expiry_tracking'          => ['section'=>'inventory', 'families'=>['pharmacy','food','production','beauty']],
-        'mfg_tracking'             => ['section'=>'inventory', 'families'=>['pharmacy','food','production']],
+        'batch_tracking'           => ['section'=>'inventory', 'families'=>['pharmacy','food','production','clinical'], 'industries'=>['supplements_wellness'], 'hint'=>'Record the batch number on every unit that arrives, so one shelf date can be traced and pulled.'],
+        'expiry_tracking'          => ['section'=>'inventory', 'families'=>['pharmacy','food','production','beauty'], 'industries'=>['supplements_wellness']],
+        'mfg_tracking'             => ['section'=>'inventory', 'families'=>['pharmacy','food','production'], 'industries'=>['supplements_wellness']],
         'serial_number_tracking'   => ['section'=>'inventory', 'families'=>['retail','auto']],
         'imei_tracking'            => ['section'=>'inventory', 'industries'=>['electronics','computer_store','gadget_store','phone_accessories','appliance_store']],
         'warranty_tracking'        => ['section'=>'inventory', 'industries'=>['electronics','computer_store','gadget_store','appliance_store','phone_accessories','furniture','car_dealership','auto_parts','tyre_shop']],
@@ -758,7 +763,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'fashion' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default','fashion_measurements','fashion_size_requests'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
             ],
@@ -942,6 +947,12 @@ if (!function_exists('mp_get_business_presets')) {
                 'theme_key'=>'healthcare_pro','dashboard_template'=>'pharmacy','workflow_template'=>'pharmacy_standard',
                 'labels'=>['item'=>'Medical Item','batch'=>'Batch','expiry'=>'Expiry Date','customer'=>'Patient'],
             ],
+            'supplements_wellness' => [
+                'business_model'=>'product_based',
+                'features'=>['accounts','warehouse','online_store','loyalty','memberships','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling'],
+                'theme_key'=>'general_retail','dashboard_template'=>'supplements_wellness','workflow_template'=>'retail_standard',
+                'labels'=>['item'=>'Product','customer'=>'Member','warehouse'=>'Branch','batch'=>'Batch','expiry'=>'Best Before'],
+            ],
             'clinic' => [
                 'business_model'=>'service_based',
                 'features'=>['accounts','online_store','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','treatment_notes','medical_notes','public_catalogue','leads'],
@@ -968,7 +979,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'boutique' => [
                 'business_model'=>'product_based',
-                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default'],
+                'features'=>['accounts','warehouse','item_variants','online_store','qr_ordering','loyalty','gift_cards','store_credit','multi_unit_inventory','public_catalogue','fashion_variants_default','fashion_measurements','fashion_size_requests'],
                 'theme_key'=>'urban_fashion','dashboard_template'=>'fashion','workflow_template'=>'retail_standard',
                 'labels'=>['item'=>'Item','category'=>'Collection','customer'=>'Customer','warehouse'=>'Branch'],
             ],
@@ -1106,7 +1117,7 @@ if (!function_exists('mp_get_business_presets')) {
             ],
             'tailoring' => [
                 'business_model'=>'product_and_service',
-                'features'=>['accounts','online_store','custom_orders','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads'],
+                'features'=>['accounts','online_store','custom_orders','appointments','service_workflow','loyalty','gift_cards','store_credit','staff_assignment','staff_commission','public_catalogue','pos_retail_button','pos_wholesale_button','leads','fashion_measurements','fashion_size_requests'],
                 'theme_key'=>'general_retail','dashboard_template'=>'service_business','workflow_template'=>'service_standard',
                 'labels'=>['service'=>'Tailoring Job','service_order'=>'Order','item'=>'Fabric','customer'=>'Client','staff'=>'Tailor'],
             ],

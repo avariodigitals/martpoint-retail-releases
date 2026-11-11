@@ -10,14 +10,35 @@ class Warehouse_model extends CI_Model {
 	public function xss_html_filter($input){
 		return $this->security->xss_clean(html_escape($input));
 	}
+	private function fulfilment_error($branchType, $sourceId, $storeId, $currentId = 0){
+		$allowed = array('branch','depot','hub','store','partner','pickup_hub','outlet');
+		if (!in_array($branchType, $allowed, true)) return 'Choose a valid branch / fulfilment type.';
+		if ($branchType !== 'pickup_hub') return '';
+		if (!$this->db->field_exists('stock_source_id', 'db_warehouse')) return 'Run migration 4.0.9.186 before creating pickup-only hubs.';
+		if ((int)$sourceId < 1) return 'Choose a stock / preparation source for this pickup-only hub.';
+		$this->db->where('id', (int)$sourceId)->where('store_id', (int)$storeId)->where('status', 1);
+		if ((int)$currentId > 0) $this->db->where('id !=', (int)$currentId);
+		$source = $this->db->get('db_warehouse')->row();
+		if (!$source) return 'The selected stock source is not an active branch in this store.';
+		if ((string)($source->branch_type ?? '') === 'pickup_hub') return 'A pickup-only hub cannot be another pickup-only hub’s stock source.';
+		return '';
+	}
+	private function fulfilment_fields($info){
+		$optional = array('stock_source_id','pickup_enabled','public_enabled','delivery_fee','business_hours','delivery_coverage');
+		foreach ($optional as $field) if (!$this->db->field_exists($field, 'db_warehouse')) unset($info[$field]);
+		return $info;
+	}
 	public function verify_and_save($data){
 		if (!$this->db->field_exists('address', 'db_warehouse')) return 'Please run the branch address database update before saving.';
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
-		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
+		$branch_type = trim((string)$this->input->post('branch_type', TRUE)) ?: 'branch';
 		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
 		$store_id=get_current_store_id();
+		$sourceId = (int)$this->input->post('stock_source_id');
+		$error = $this->fulfilment_error($branch_type, $sourceId, $store_id);
+		if ($error !== '') return $error;
 
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_warehouses','db_warehouse');
@@ -38,7 +59,7 @@ class Warehouse_model extends CI_Model {
 			if($this->db->get('db_warehouse')->num_rows()>0){ return "This Email ID already exist.";}
 		}
 		
-		$info = array(
+		$info = $this->fulfilment_fields(array(
 			'store_id' => $store_id,
 			'warehouse_type' => 'Custom',
 			'warehouse_name' => $warehouse_name,
@@ -50,11 +71,17 @@ class Warehouse_model extends CI_Model {
 
 			'branch_type' => $branch_type,
 			'is_distribution_center' => $is_distribution_center,
+			'stock_source_id' => $sourceId > 0 ? $sourceId : null,
+			'pickup_enabled' => $branch_type === 'pickup_hub' ? 1 : ($this->input->post('pickup_enabled') ? 1 : 0),
+			'public_enabled' => $this->input->post('public_enabled') ? 1 : 0,
+			'delivery_fee' => max(0, (float)$this->input->post('delivery_fee')),
+			'business_hours' => trim((string)$this->input->post('business_hours', TRUE)),
+			'delivery_coverage' => trim((string)$this->input->post('delivery_coverage', TRUE)),
 			'mobile' => $mobile,
 			'email' => $email,
 			'status' => 1,
 			'created_date' => $data['CUR_DATE']
-		);
+		));
 		
 		if ($this->db->insert('db_warehouse', $info)){
 				$this->session->set_flashdata('success', 'Success!! New Branch Created Succssfully!!');
@@ -69,11 +96,17 @@ class Warehouse_model extends CI_Model {
 		$q_id = $this->input->post('q_id', TRUE);
 		if (!$this->db->field_exists('address', 'db_warehouse')) return 'Please run the branch address database update before saving.';
 		$warehouse_name = $this->input->post('warehouse_name', TRUE);
-		$branch_type = $this->input->post('branch_type', TRUE) ?: 'branch';
+		$branch_type = trim((string)$this->input->post('branch_type', TRUE)) ?: 'branch';
 		$is_distribution_center = $this->input->post('is_distribution_center', TRUE) ? 1 : 0;
 		$mobile = $this->input->post('mobile', TRUE);
 		$email = $this->input->post('email', TRUE);
 		$store_id=get_current_store_id();
+		$currentLocation = $this->db->where('id', (int)$q_id)->where('store_id', (int)$store_id)->get('db_warehouse')->row();
+		if (!$currentLocation) return 'Branch not found.';
+		if ($this->input->post('branch_type') === null) $branch_type = (string)($currentLocation->branch_type ?? 'branch');
+		$sourceId = $this->input->post('stock_source_id') === null ? (int)($currentLocation->stock_source_id ?? 0) : (int)$this->input->post('stock_source_id');
+		$error = $this->fulfilment_error($branch_type, $sourceId, $store_id, (int)$q_id);
+		if ($error !== '') return $error;
 
 		$this->db->where('warehouse_name', $warehouse_name);
 		$this->db->where('id !=', $q_id);
@@ -92,7 +125,7 @@ class Warehouse_model extends CI_Model {
 			if($this->db->get('db_warehouse')->num_rows()>0){ return "This Email ID already exist.";}
 		}
 		
-		$info = array(
+		$info = $this->fulfilment_fields(array(
 			'warehouse_name' => $warehouse_name,
 			'address' => trim((string)$this->input->post('address', TRUE)),
 			'city' => trim((string)$this->input->post('city', TRUE)),
@@ -102,9 +135,15 @@ class Warehouse_model extends CI_Model {
 
 			'branch_type' => $branch_type,
 			'is_distribution_center' => $is_distribution_center,
+			'stock_source_id' => $sourceId > 0 ? $sourceId : null,
+			'pickup_enabled' => $branch_type === 'pickup_hub' ? 1 : ($this->input->post('pickup_enabled') ? 1 : 0),
+			'public_enabled' => $this->input->post('public_enabled') ? 1 : 0,
+			'delivery_fee' => max(0, (float)$this->input->post('delivery_fee')),
+			'business_hours' => trim((string)$this->input->post('business_hours', TRUE)),
+			'delivery_coverage' => trim((string)$this->input->post('delivery_coverage', TRUE)),
 			'mobile' => $mobile,
 			'email' => $email
-		);
+		));
         // Older forms/integrations may not send the new location fields.
         foreach (['address','city','state','country','postcode'] as $field) {
             if ($this->input->post($field) === null) unset($info[$field]);
@@ -112,7 +151,9 @@ class Warehouse_model extends CI_Model {
         if ($this->input->post('branch_type') === null) {
             unset($info['branch_type'], $info['is_distribution_center']);
         }
-        if (!$this->db->where('id', $q_id)->where('store_id', $store_id)->get('db_warehouse')->row()) return 'Branch not found.';
+		foreach (['stock_source_id','pickup_enabled','public_enabled','delivery_fee','business_hours','delivery_coverage'] as $field) {
+			if ($this->input->post($field) === null) unset($info[$field]);
+		}
 		$this->db->where('id', $q_id);
 		$this->db->where('store_id', $store_id);
 		
@@ -167,6 +208,12 @@ class Warehouse_model extends CI_Model {
 			$data['warehouse_name']=$query->warehouse_name;
 			$data['branch_type']=$query->branch_type ?? 'branch';
 			$data['is_distribution_center']=$query->is_distribution_center ?? 0;
+			$data['stock_source_id']=$query->stock_source_id ?? '';
+			$data['pickup_enabled']=$query->pickup_enabled ?? 1;
+			$data['public_enabled']=$query->public_enabled ?? 1;
+			$data['delivery_fee']=$query->delivery_fee ?? 0;
+			$data['business_hours']=$query->business_hours ?? '';
+			$data['delivery_coverage']=$query->delivery_coverage ?? '';
 			$data['mobile']=$query->mobile;
 			$data['email']=$query->email;
 			$data['address']=$query->address ?? '';

@@ -1361,7 +1361,8 @@ subscription to receive updates.';
                     if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {
                         return $this->writeSettingFields('db_payment_gateway_accounts', ['provider' => 'paystack'], [
                             'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
-                            'platform_fee_type', 'platform_fee_value', 'fee_bearer', 'callback_url',
+                            'platform_fee_type', 'platform_fee_value', 'platform_fee_percent',
+                            'platform_fee_fixed', 'fee_bearer', 'callback_url',
                         ], $fields, 'Paystack central account', true);
                     }
                     return $this->writeSettingFields('db_paystack_settings', ['store_id' => $storeId], [

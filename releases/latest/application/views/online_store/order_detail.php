@@ -1,6 +1,8 @@
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
 <?php
+  $orderCurrency=strtoupper((string)($order->transaction_currency??$order->base_currency??'NGN'));
+  $orderMoney=function($amount)use($orderCurrency){return $orderCurrency.' '.number_format((float)$amount,2);};
   $statusLabels = [
     'pending' => 'label-warning', 'paid' => 'label-success', 'processing' => 'label-info',
     'ready' => 'label-primary', 'completed' => 'label-success', 'cancelled' => 'label-danger'
@@ -61,7 +63,8 @@
           <?php if($order->shipping_method): ?><tr><th>Shipping Method</th><td><?= htmlspecialchars($order->shipping_method); ?></td></tr><?php endif; ?>
           <?php if(!empty($order->warehouse_id) && !empty($order->fulfilment_branch)): ?><tr><th>Fulfilment Location</th><td><?= htmlspecialchars($order->fulfilment_branch); ?></td></tr><?php endif; ?>
           <?php if(!empty($order->prescription_file)): ?><tr><th>Prescription</th><td><a href="<?= base_url($order->prescription_file); ?>" target="_blank" rel="noopener"><i class="fa fa-file-pdf-o"></i> View uploaded prescription</a></td></tr><?php endif; ?>
-          <?php if($order->paystack_reference): ?><tr><th>Paystack Ref</th><td><code><?= htmlspecialchars($order->paystack_reference); ?></code></td></tr><?php endif; ?>
+          <?php if($order->paystack_reference): ?><tr><th>MartPoint Pay Ref</th><td><code><?= htmlspecialchars($order->paystack_reference); ?></code></td></tr><?php endif; ?>
+          <?php if(!empty($order->paypal_order_id)): ?><tr><th>PayPal Order</th><td><code><?= htmlspecialchars($order->paypal_order_id); ?></code></td></tr><?php endif; ?>
           <?php if($order->service_date): ?><tr><th>Service Date</th><td><?= show_date($order->service_date); ?> <?= htmlspecialchars($order->service_time); ?></td></tr><?php endif; ?>
           <?php if($order->service_note): ?><tr><th>Service Note</th><td><?= nl2br(htmlspecialchars($order->service_note)); ?></td></tr><?php endif; ?>
           <?php if($order->table_number): ?><tr><th>Table</th><td><?= htmlspecialchars($order->table_number); ?></td></tr><?php endif; ?>
@@ -76,24 +79,34 @@
       <div class="mp-card-body" style="padding:0!important;">
         <div class="mp-dt-scroll">
           <table class="table mp-dt-table" width="100%">
-            <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+            <thead><tr><th>Item</th><th>Type</th><th>Qty</th><?php if(!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)): ?><th>Batch to pick</th><?php endif; ?><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody>
               <?php foreach($items as $it): ?>
               <tr>
                 <td><?= htmlspecialchars($it->item_name); ?></td>
                 <td><?= ucfirst($it->item_type); ?></td>
                 <td><?= (int)$it->qty; ?></td>
-                <td class="amt"><?= $CI->currency($it->unit_price); ?></td>
-                <td class="amt"><?= $CI->currency($it->total_price); ?></td>
+                <?php if(!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)): ?><td>
+                  <?php if(!empty($it->batch_picks)): ?>
+                    <?php foreach($it->batch_picks as $pick): ?>
+                      <div><strong><?= !empty($pick->batch_lot) ? 'Batch ' . htmlspecialchars($pick->batch_lot) : 'Unlabelled batch'; ?></strong> × <?= format_qty((float)$pick->qty_allocated); ?><?= !empty($pick->expire_date) ? ' · exp ' . htmlspecialchars(show_date($pick->expire_date)) : ''; ?></div>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <span style="color:#92400E;">No batch reserved; check the shelf before packing.</span>
+                  <?php endif; ?>
+                </td><?php endif; ?>
+                <td class="amt"><?= $orderMoney($it->transaction_unit_price??$it->unit_price); ?></td>
+                <td class="amt"><?= $orderMoney($it->transaction_total_price??$it->total_price); ?></td>
               </tr>
               <?php endforeach; ?>
             </tbody>
             <tfoot>
-              <tr><th colspan="4" class="text-right">Subtotal</th><th class="amt"><?= $CI->currency($order->subtotal); ?></th></tr>
+              <tr><th colspan="<?= (!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)) ? '5' : '4'; ?>" class="text-right">Subtotal</th><th class="amt"><?= $orderMoney($order->transaction_subtotal??$order->subtotal); ?></th></tr>
+              <?php if((float)($order->transaction_tax_amount??$order->tax_amount??0)>0): ?><tr><th colspan="<?= (!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)) ? '5' : '4'; ?>" class="text-right">Tax<?= ($order->tax_mode_snapshot??'')==='inclusive'?' (included)':''; ?></th><th class="amt"><?= $orderMoney($order->transaction_tax_amount??$order->tax_amount); ?></th></tr><?php endif; ?>
               <?php if($order->delivery_fee > 0): ?>
-              <tr><th colspan="4" class="text-right"><?= $order->shipping_method ? 'Shipping Fee' : 'Delivery Fee'; ?></th><th class="amt"><?= $CI->currency($order->delivery_fee); ?></th></tr>
+              <tr><th colspan="<?= (!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)) ? '5' : '4'; ?>" class="text-right"><?= $order->shipping_method ? 'Shipping Fee' : 'Delivery Fee'; ?></th><th class="amt"><?= $orderMoney($order->transaction_delivery_fee??$order->delivery_fee); ?></th></tr>
               <?php endif; ?>
-              <tr><th colspan="4" class="text-right">Grand Total</th><th class="amt"><?= $CI->currency($order->grand_total); ?></th></tr>
+              <tr><th colspan="<?= (!empty($batch_tracking_enabled) || !empty($has_order_batch_picks)) ? '5' : '4'; ?>" class="text-right">Grand Total</th><th class="amt"><?= $orderMoney($order->transaction_grand_total??$order->grand_total); ?></th></tr>
             </tfoot>
           </table>
         </div>
@@ -105,8 +118,9 @@
     <div class="mp-card-form">
       <div class="mp-card-head"><h3>Order Summary</h3></div>
       <div class="mp-card-body">
-        <div class="os-summary-total"><?= $CI->currency($order->grand_total); ?></div>
-        <div class="os-summary-label">Grand Total</div>
+        <div class="os-summary-total"><?= $orderMoney($order->transaction_grand_total??$order->grand_total); ?></div>
+        <div class="os-summary-label">Grand Total · <?= htmlspecialchars($orderCurrency); ?></div>
+        <?php if($orderCurrency!==(string)($order->base_currency??$orderCurrency)): ?><div class="os-summary-label">Base ledger: <?= $CI->currency($order->base_grand_total??$order->grand_total); ?> · rate: 1 <?= htmlspecialchars($orderCurrency); ?> = <?= number_format((float)$order->exchange_rate,4); ?> <?= htmlspecialchars((string)$order->base_currency); ?></div><?php endif; ?>
       </div>
     </div>
 
@@ -308,12 +322,40 @@
             <option value="paid" <?= $order->payment_status=='paid'?'selected':''; ?>>Paid</option>
             <option value="partially_paid" <?= $order->payment_status=='partially_paid'?'selected':''; ?>>Partially Paid</option>
             <option value="failed" <?= $order->payment_status=='failed'?'selected':''; ?>>Failed</option>
-            <option value="refunded" <?= $order->payment_status=='refunded'?'selected':''; ?>>Refunded</option>
+            <?php if($order->payment_status=='refunded'): ?><option value="refunded" selected disabled>Refunded</option><?php endif; ?>
           </select>
-          <small style="display:block;margin-top:6px;color:var(--mp-muted,#64748b);">Refunds are full-order only (<?= $CI->currency($order->grand_total); ?>). Marking an order refunded records <strong>bookkeeping only — it does not return money</strong>. You must enter the refund reference from your payment provider and confirm the money was actually sent. Stock is only restocked when the goods came back or the order never shipped. Partial returns/refunds are not supported.</small>
+          <small style="display:block;margin-top:6px;color:var(--mp-muted,#64748b);">Use the refund panel below to issue provider refunds and keep partial refunds tied to the original captured currency.</small>
         </div>
       </div>
     </div>
+
+    <?php if(!empty($can_record_money) && in_array((string)$order->payment_status,['paid','partially_paid'],true)): ?>
+    <div class="mp-card-form" style="margin-top:20px!important;">
+      <div class="mp-card-head"><h3>Issue a refund</h3></div>
+      <div class="mp-card-body">
+        <?php $verifiedCaptures=array_filter($payment_lines??[],function($line){return (string)$line->status==='verified' && (float)($line->transaction_amount??0)>0;}); ?>
+        <?php if(empty($verifiedCaptures)): ?>
+          <p>No verified captured payment is available for provider refund.</p>
+        <?php else: ?>
+          <div class="mp-form-group"><label for="refund_payment">Captured payment</label><select class="mp-form-control" id="refund_payment">
+            <?php foreach($verifiedCaptures as $line): ?>
+              <option value="<?= (int)$line->id; ?>" data-provider="<?= htmlspecialchars((string)$line->provider,ENT_QUOTES,'UTF-8'); ?>" data-currency="<?= htmlspecialchars((string)($line->transaction_currency??$orderCurrency),ENT_QUOTES,'UTF-8'); ?>" data-amount="<?= (float)($line->transaction_amount??0); ?>"><?= htmlspecialchars((string)$line->channel_name,ENT_QUOTES,'UTF-8'); ?> — <?= htmlspecialchars((string)($line->transaction_currency??$orderCurrency),ENT_QUOTES,'UTF-8'); ?> <?= number_format((float)$line->transaction_amount,2); ?> · <?= htmlspecialchars((string)($line->provider_reference??$line->reference??''),ENT_QUOTES,'UTF-8'); ?></option>
+            <?php endforeach; ?>
+          </select></div>
+          <div class="mp-form-group"><label for="refund_amount">Refund amount (<span id="refund_currency_label"><?= htmlspecialchars((string)($order->transaction_currency??$orderCurrency),ENT_QUOTES,'UTF-8'); ?></span>)</label><input class="mp-form-control" type="number" min="0.01" step="0.01" id="refund_amount" inputmode="decimal"><small id="refund_remaining_hint" class="os-money-hint"></small></div>
+          <div class="mp-form-group"><label for="refund_disposition">What happened to the goods?</label><select class="mp-form-control" id="refund_disposition"><option value="returned">Returned to us</option><option value="not_shipped">Never shipped</option><option value="kept">Customer kept them</option></select></div>
+          <div class="mp-form-group" id="refund_external_wrap" style="display:none"><label for="refund_external_reference">External refund reference</label><input class="mp-form-control" id="refund_external_reference" maxlength="120"><small class="os-money-hint">For this payment channel, send the refund through its provider first; MartPoint records it as unverified.</small></div>
+          <button type="button" class="btn btn-primary" onclick="submitOrderRefund()">Refund captured payment</button>
+        <?php endif; ?>
+        <ul class="os-money-lines" id="refund_history">
+          <?php foreach(($refund_lines??[]) as $refund): ?>
+            <li><div><strong><?= htmlspecialchars(strtoupper((string)$refund->transaction_currency).' '.number_format((float)$refund->transaction_amount,2),ENT_QUOTES,'UTF-8'); ?></strong><span><?= htmlspecialchars((string)$refund->provider_status,ENT_QUOTES,'UTF-8'); ?></span></div><div class="os-money-meta"><?= htmlspecialchars((string)$refund->provider,ENT_QUOTES,'UTF-8'); ?> · <?= htmlspecialchars((string)$refund->provider_refund_reference?:'reference pending',ENT_QUOTES,'UTF-8'); ?> · <?= htmlspecialchars((string)$refund->requested_at,ENT_QUOTES,'UTF-8'); ?><?php if(in_array((string)$refund->provider_status,['requested','pending','unknown'],true) && in_array((string)$refund->provider,['paypal','paystack'],true)): ?> <button type="button" class="btn btn-xs btn-default" onclick="refreshOrderRefund(<?= (int)$refund->id; ?>)">Refresh status</button><?php endif; ?></div></li>
+          <?php endforeach; ?>
+          <?php if(empty($refund_lines)): ?><li class="os-money-empty">No refunds recorded.</li><?php endif; ?>
+        </ul>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -338,38 +380,13 @@ function updateStatus(type){
     status: status,
     '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'
   };
-  if(type === 'payment' && status === 'refunded'){
-    window.mpConfirmAsync(
-      'Confirming this records a FULL-ORDER refund of <?= $CI->currency($order->grand_total); ?> in MartPoint. It does NOT send money back. Only continue if you have already refunded the customer through your payment provider.',
-      {title:'Refund this order', okText:'Record the refund', danger:true}
-    ).then(function(ok){
-      if(!ok){ revertPayment(); return; }
-      window.mpPrompt({
-        title:'Provider refund reference',
-        message:'The transaction ID from your payment provider, for the money you have already sent back.',
-        placeholder:'e.g. 800123456789', required:true
-      }).then(function(ref){
-        if(!ref){ revertPayment(); return; }
-        window.mpPrompt({
-          title:'What happened to the goods?',
-          message:'Restocking depends on this, so please pick the one that matches.',
-          options:[
-            {value:'returned', label:'Returned to us — restock the stock'},
-            {value:'not_shipped', label:'Never shipped — restock the stock'},
-            {value:'kept', label:'Customer kept them — do NOT restock'}
-          ]
-        }).then(function(disp){
-          if(!disp){ revertPayment(); return; }
-          payload.refund_reference = ref;
-          payload.refund_disposition = disp;
-          postStatus(url, payload);
-        });
-      });
-    });
-    return;
-  }
   postStatus(url, payload);
 }
+function selectedRefundCapture(){return $('#refund_payment option:selected');}
+function updateRefundCapture(){var o=selectedRefundCapture(),currency=o.data('currency')||'<?= htmlspecialchars($orderCurrency,ENT_QUOTES,'UTF-8'); ?>',amount=parseFloat(o.data('amount'))||0,provider=String(o.data('provider')||'').toLowerCase();$('#refund_currency_label').text(currency);$('#refund_amount').attr('max',amount.toFixed(2));$('#refund_remaining_hint').text('Captured: '+currency+' '+amount.toFixed(2)+'. Enter the amount you have approved for this refund.');$('#refund_external_wrap').toggle(provider!=='paypal'&&provider!=='paystack');}
+function submitOrderRefund(){var o=selectedRefundCapture(),amount=parseFloat($('#refund_amount').val());if(!o.length||!amount||amount<=0){toastr.error('Enter a valid refund amount.');return;}var payload={order_id:<?= (int)$order->id; ?>,payment_id:o.val(),amount:amount,disposition:$('#refund_disposition').val(),external_reference:$('#refund_external_reference').val(),'<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'};$.post('<?=base_url("online_store/refund_order");?>',payload,function(res){if(res.status==='success'){toastr.success(res.message);setTimeout(function(){location.reload();},1200);}else toastr.error(res.message);},'json').fail(function(){toastr.error('Refund request failed. Check the refund history before retrying.');});}
+function refreshOrderRefund(id){$.post('<?=base_url("online_store/refresh_order_refund");?>/'+id,{'<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'},function(res){if(res.status==='success'){toastr.success(res.message);setTimeout(function(){location.reload();},900);}else toastr.error(res.message);},'json').fail(function(){toastr.error('Refund status could not be refreshed.');});}
+$(function(){if($('#refund_payment').length){$('#refund_payment').on('change',updateRefundCapture);updateRefundCapture();}});
 function sendOut(){
   window.mpPrompt({
     title:'Who is taking it?',
@@ -476,8 +493,9 @@ $(function(){ $('#money_channel').on('change', moneyChannelHint); moneyChannelHi
 (function(){
   var box = document.createElement('div');
   box.style.cssText = 'margin-top:12px;padding:12px 14px;border:1px solid #E2E8F0;border-radius:8px;background:#F8FAFC;font-size:13px;line-height:1.6;color:#334155;';
-  box.innerHTML = '<strong>External refund recorded</strong><br>Provider reference: <code><?= htmlspecialchars((string)$order->refund_reference, ENT_QUOTES, 'UTF-8'); ?></code><br>'
-    + 'Amount: <?= $CI->currency($order->refund_amount); ?><br>'
+  box.innerHTML = '<strong><?= in_array(strtolower((string)($order->refund_provider_status??'')),['completed','processed','success'],true)?'Provider refund confirmed':'External refund recorded'; ?></strong><br>Provider reference: <code><?= htmlspecialchars((string)$order->refund_reference, ENT_QUOTES, 'UTF-8'); ?></code><br>'
+    + 'Amount recorded: <?= htmlspecialchars((string)($order->refund_currency??$orderCurrency)); ?> <?= number_format((float)$order->refund_amount,2); ?><br>'
+    + 'Status: <?= htmlspecialchars((string)($order->refund_provider_status??'recorded_unverified')); ?><br>'
     + 'Goods: <?= htmlspecialchars((string)$order->refund_disposition, ENT_QUOTES, 'UTF-8'); ?> — '
     + <?= !empty($order->refund_restocked) ? "'stock was returned to inventory.'" : "'stock was NOT restocked.'" ; ?> + '<br>'
     + 'Confirmed by <?= htmlspecialchars((string)($order->refund_confirmed_by ?? 'system'), ENT_QUOTES, 'UTF-8'); ?> at <?= htmlspecialchars((string)$order->refund_confirmed_at, ENT_QUOTES, 'UTF-8'); ?>';

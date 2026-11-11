@@ -304,9 +304,28 @@ class Stock_transfer extends MY_Controller {
 
 	//Table ajax code
 	public function search_item(){
-		$q=$this->input->get('q');
-		$result=$this->stock_transfer->search_item($q);
-		echo $result;
+		$store_id = (int)get_current_store_id();
+		$warehouse_id = (int)$this->input->get('warehouse_id', TRUE);
+		$q = trim((string)$this->input->get('q', TRUE));
+		$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+		$warehouse_ok = $warehouse_id > 0
+			&& $this->db->where('id', $warehouse_id)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+		if(!$warehouse_ok || ($allowed !== null && !in_array($warehouse_id, $allowed, true)) || $q === ''){
+			$this->output->set_content_type('application/json')->set_output('[]');
+			return;
+		}
+		$this->db->select('i.id, i.item_name, i.item_code, COALESCE(SUM(wi.available_qty),0) AS available_qty', false);
+		$this->db->from('db_items i');
+		$this->db->join('db_warehouseitems wi', 'wi.item_id=i.id AND wi.store_id=i.store_id AND wi.warehouse_id='.(int)$warehouse_id, 'left', false);
+		$this->db->where('i.store_id', $store_id)->where('i.status', 1)->where('i.service_bit', 0);
+		$this->db->group_start()->like('i.item_name', $q)->or_like('i.item_code', $q)->or_like('i.custom_barcode', $q)->group_end();
+		$this->db->group_by('i.id')->order_by('i.item_name', 'asc')->limit(20);
+		$rows = $this->db->get()->result();
+		$result = array();
+		foreach($rows as $row){
+			$result[] = array('id'=>(int)$row->id, 'text'=>$row->item_name.' — Available: '.store_number_format($row->available_qty), 'available_qty'=>(float)$row->available_qty);
+		}
+		$this->output->set_content_type('application/json')->set_output(json_encode($result));
 	}
 	public function find_item_details(){
 		$id=$this->input->post('id');

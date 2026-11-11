@@ -115,6 +115,7 @@ class Html_theme_manager {
         if((int)($manifest['schema_version'] ?? 0) !== self::SCHEMA_VERSION){
             $result['errors'][] = 'Unsupported theme schema. Expected schema_version 1.';
         }
+        if(isset($manifest['connector_version']) && $manifest['connector_version'] !== 1) $result['errors'][] = 'Unsupported website connector version. Expected connector_version 1.';
         $key = (string)($manifest['theme_key'] ?? '');
         if(!preg_match('/^[a-z0-9][a-z0-9_-]{1,39}$/', $key)){
             $result['errors'][] = 'theme_key must be 2–40 lowercase letters, numbers, dashes or underscores.';
@@ -133,7 +134,10 @@ class Html_theme_manager {
         $industry = (string)($manifest['industry'] ?? 'general');
         if(!preg_match('/^[a-z0-9_-]{2,50}$/', $industry)) $result['errors'][] = 'industry must be a lowercase compatibility key.';
         $templates = is_array($manifest['templates'] ?? null) ? $manifest['templates'] : [];
-        $required = ['header','footer','home','catalogue','product','cart','checkout'];
+        $required = ['header','footer','home'];
+        foreach(['catalogue'=>'catalogue','search'=>'catalogue','product_detail'=>'product','cart'=>'cart','checkout'=>'checkout'] as $capability=>$template){
+            if(in_array($capability, (array)($manifest['capabilities'] ?? []), true)) $required[] = $template;
+        }
         foreach($required as $name){
             $relative = (string)($templates[$name] ?? '');
             if($relative === ''){
@@ -151,8 +155,26 @@ class Html_theme_manager {
                 }
             }
         }
+        foreach($templates as $key=>$relative){
+            if(!is_string($key) || !preg_match('/^[a-z][a-z0-9_-]{0,59}$/D',$key) || !is_string($relative) || !$this->safeRelative($relative)
+                || !in_array($root.$relative,$files,true) || !in_array(strtolower(pathinfo($relative,PATHINFO_EXTENSION)),['html','htm'],true)){
+                $result['errors'][] = 'Invalid HTML template binding.';
+            }
+        }
+        $pages = $manifest['pages'] ?? [];
+        if(!is_array($pages) || count($pages)>50){ $result['errors'][] = 'pages must contain at most 50 entries.'; }
+        else foreach($pages as $slug=>$page){
+            if(!is_string($slug) || !preg_match('/^[a-z0-9][a-z0-9-]{0,79}$/D',$slug) || !is_array($page)
+                || !is_string($page['template'] ?? null) || !isset($templates[$page['template']])
+                || !is_string($page['title'] ?? null) || mb_strlen($page['title'])>150){
+                $result['errors'][] = 'Each page needs a lowercase slug, template binding and title.';
+            }
+        }
         if(isset($manifest['settings']) && !is_array($manifest['settings'])) $result['errors'][] = 'settings must be an object.';
         if(isset($manifest['capabilities']) && !is_array($manifest['capabilities'])) $result['errors'][] = 'capabilities must be an array.';
+        $this->CI->load->library('html_theme_content');
+        try { $this->CI->html_theme_content->fields($manifest); }
+        catch(InvalidArgumentException $e){ $result['errors'][] = $e->getMessage(); }
     }
 
     private function safeRelative($path){
@@ -181,8 +203,19 @@ class Html_theme_manager {
         if(!$validation['ok']) throw new InvalidArgumentException(implode(' ', $validation['errors']));
         if(!$this->CI->db->table_exists('db_storefront_uploaded_themes')) throw new RuntimeException('Run migration 4.0.9.179 before uploading HTML themes.');
         $manifest = $validation['manifest'];
+        $contentValues = (array)($manifest['settings'] ?? []);
+        // Package identity is stable across versions; generated row keys are not.
+        $this->CI->load->library('html_theme_content');
+        foreach($this->listForStore($storeId) as $previous){
+            $previousManifest = json_decode((string)$previous->manifest_json,true);
+            if(($previousManifest['theme_key'] ?? '') !== $manifest['theme_key']) continue;
+            $contentValues = $this->CI->html_theme_content->values((object)['id'=>(int)$previous->theme_id,'owner_store_id'=>(int)$storeId],$manifest);
+            break;
+        }
         $tmp = sys_get_temp_dir() . '/mp-html-theme-' . bin2hex(random_bytes(8));
         $storageRelative = 'themes/' . (int)$storeId . '/' . $manifest['theme_key'] . '-' . preg_replace('/[^0-9A-Za-z._-]/', '-', (string)$manifest['version']) . '-' . bin2hex(random_bytes(4));
+        $target = null;
+        $transaction = false;
         try{
             if(!mkdir($tmp, 0700, true) && !is_dir($tmp)) throw new RuntimeException('Could not create theme staging directory.');
             $zip = new ZipArchive();
@@ -195,6 +228,8 @@ class Html_theme_manager {
             $this->copyTree($source, $target);
 
             $manifestJson = json_encode($manifest, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+            $this->CI->db->trans_begin();
+            $transaction = true;
             $rowKey = 'upload_' . (int)$storeId . '_' . substr(hash('sha256', $manifest['theme_key'] . '|' . $manifest['version'] . '|' . microtime(true)), 0, 12);
             $theme = [
                 'theme_key' => $rowKey, 'theme_source' => 'html_zip', 'owner_store_id' => (int)$storeId,
@@ -216,10 +251,17 @@ class Html_theme_manager {
             ]);
             if($this->CI->db->table_exists('db_storefront_uploaded_theme_settings')){
                 $this->CI->db->insert('db_storefront_uploaded_theme_settings', [
-                    'store_id' => (int)$storeId, 'theme_id' => $themeId, 'settings_json' => json_encode((array)($manifest['settings'] ?? [])),
+                    'store_id' => (int)$storeId, 'theme_id' => $themeId, 'settings_json' => json_encode($contentValues),
                 ]);
             }
+            if(!$this->CI->db->trans_status()) throw new RuntimeException('Could not register the theme package.');
+            $this->CI->db->trans_commit();
+            $transaction = false;
             return ['theme_id' => $themeId, 'theme' => (object)$theme, 'manifest' => $manifest, 'warnings' => $validation['warnings']];
+        } catch(Throwable $e){
+            if($transaction) $this->CI->db->trans_rollback();
+            if($target) $this->removeTree($target);
+            throw $e;
         } finally {
             $this->removeTree($tmp);
         }
@@ -227,7 +269,7 @@ class Html_theme_manager {
 
     public function listForStore($storeId){
         if(!$this->CI->db->table_exists('db_storefront_uploaded_themes')) return [];
-        return $this->CI->db->where('store_id', (int)$storeId)->where('status', 1)->order_by('created_at', 'desc')->get('db_storefront_uploaded_themes')->result();
+        return $this->CI->db->where('store_id', (int)$storeId)->where('status', 1)->order_by('created_at', 'desc')->order_by('id', 'desc')->get('db_storefront_uploaded_themes')->result();
     }
 
     public function getTheme($themeId, $storeId = null){

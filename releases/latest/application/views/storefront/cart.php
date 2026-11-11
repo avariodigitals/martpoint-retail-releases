@@ -102,6 +102,9 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   const STORE_SLUG = '<?= $settings->store_slug ?? ''; ?>';
   const STORE_ID = <?= $settings->store_id ?? 0; ?>;
   const CURRENCY = '<?= $CURRENCY ?? '&#8358;'; ?>';
+  const SF_TAX_ENABLED = <?= !empty($settings->storefront_tax_enabled) ? 'true' : 'false'; ?>;
+  const SF_TAX_RATE = <?= json_encode((float)($settings->storefront_tax_rate ?? 0)); ?>;
+  const SF_TAX_MODE = <?= json_encode(($settings->storefront_tax_mode ?? 'exclusive') === 'inclusive' ? 'inclusive' : 'exclusive'); ?>;
   const PAYSTACK_ENABLED = <?= $paystack_enabled ? 'true' : 'false'; ?>;
   const PAYSTACK_KEY = '<?= $paystack_public_key ?? ''; ?>';
   let CSRF_NAME = '<?= $csrf_name ?? ''; ?>';
@@ -110,7 +113,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   let selectedPayment = 'pay_on_delivery';
   let selectedShippingMethod = '';
   let selectedCityIdx = -1;
-  let selectedWarehouseId = <?= count($mp_cart_outlets) === 1 ? (int)$mp_cart_outlets[0]->id : 0; ?>;
+  let selectedWarehouseId = parseInt(localStorage.getItem('sf_outlet_' + STORE_ID) || '0', 10) || <?= count($mp_cart_outlets) === 1 ? (int)$mp_cart_outlets[0]->id : 0; ?>;
   const ALLOW_BACKORDER = <?= !empty($settings->allow_backorder) ? 'true' : 'false'; ?>;
   let hasServiceAppointment = false;
   let hasServiceNote = false;
@@ -119,6 +122,17 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
   const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
   const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
+
+  function refreshLocationAvailability(){
+    if(OUTLETS.length<2||!cart.length)return;
+    const body=new URLSearchParams({store_id:String(STORE_ID),cart:JSON.stringify(cart.map(i=>({id:i.id,type:i.type==='service'?'service':'product',qty:i.qty||1})))});
+    if(CSRF_NAME&&CSRF_HASH)body.set(CSRF_NAME,CSRF_HASH);
+    fetch('<?= base_url('storefront/location_availability'); ?>',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(r=>r.json()).then(res=>{
+      if(res.csrf_hash)CSRF_HASH=res.csrf_hash;
+      if(!res.status)return;
+      (res.locations||[]).forEach(location=>{const node=document.querySelector('[data-sf-outlet-availability="'+location.id+'"]');if(!node)return;const unavailable=(location.items||[]).filter(i=>!i.available);node.textContent=location.note||(!location.items||!location.items.length?'Availability will be confirmed by the store.':unavailable.length?'Unavailable: '+unavailable.map(i=>i.name).join(', '):(location.items.length===1?'All cart items available':'All '+location.items.length+' cart items available'));node.style.color=unavailable.length?'#b45309':'#047857';});
+    }).catch(function(){});
+  }
 
   function formatMoney(amount){
     return CURRENCY + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -169,13 +183,33 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
       container.innerHTML = '<div class="sf-empty"><div class="sf-empty-icon">&#128722;</div><div>Your cart is empty</div><a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" class="sf-empty-btn">Start Shopping</a></div>';
       return;
     }
+    refreshLocationAvailability();
 
     let html = '<div id="cart-items"></div>';
     html += '<div class="sf-summary">';
     html += '<div class="sf-row"><span>Subtotal</span><span id="summary-subtotal"></span></div>';
+    if(SF_TAX_ENABLED&&SF_TAX_RATE>0) html += '<div class="sf-row"><span>Tax</span><span id="summary-tax"></span></div>';
     html += '<div class="sf-row" id="summary-shipping-row" style="display:none;"><span>Shipping</span><span id="summary-shipping"></span></div>';
     html += '<div class="sf-row total"><span>Total</span><span id="summary-total"></span></div>';
     html += '</div>';
+
+    if(OUTLETS.length > 0){
+      html += '<div class="sf-outlet-picker-card" style="margin-top:16px;padding:14px;border:1px solid #dbe3ee;border-radius:12px;background:#fff;">';
+      html += '<label class="sf-label" style="margin-top:0;"><?= $mp_cart_pharmacy ? 'Choose pharmacy location' : 'Choose fulfilment location'; ?></label>';
+      html += '<div class="sf-outlet-options">';
+      OUTLETS.forEach(function(outlet){
+        const active = selectedWarehouseId === outlet.id ? ' active' : '';
+        const checked = selectedWarehouseId === outlet.id ? ' checked' : '';
+        const detail = [outlet.address, outlet.city].filter(Boolean).join(' · ');
+        html += '<label class="sf-outlet-option' + active + '" onclick="selectOutlet(this,' + outlet.id + ')">';
+        html += '<input type="radio" name="warehouse_id" value="' + outlet.id + '"' + checked + '>';
+        html += '<span><strong>' + String(outlet.name).replace(/</g,'&lt;') + '</strong>';
+        if(detail) html += '<small>' + String(detail).replace(/</g,'&lt;') + '</small>';
+        html += '<small data-sf-outlet-availability="' + outlet.id + '">Availability will be checked for your cart.</small>';
+        html += '</span></label>';
+      });
+      html += '</div><div class="sf-rx-hint">Choose where you want to collect or have the order fulfilled. Stock is checked again before the order is placed.</div></div>';
+    }
 
     html += '<div style="margin-top:16px;">';
     html += '<label class="sf-label">Full Name *</label>';
@@ -186,24 +220,6 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     html += '<input type="email" class="sf-input" id="cust-email" placeholder="john@example.com">';
     html += '<label class="sf-label">Delivery / Service Address</label>';
     html += '<textarea class="sf-input sf-textarea" id="cust-address" placeholder="Enter your address..."></textarea>';
-
-    if(OUTLETS.length > 0){
-      // Every multi-outlet store names the location on the order, not just a
-      // pharmacy: stock, kitchen routing and outlet reports all hang off it.
-      html += '<label class="sf-label" style="margin-top:8px;"><?= $mp_cart_pharmacy ? 'Preferred pharmacy location' : 'Choose your location'; ?></label>';
-      html += '<div class="sf-outlet-options">';
-      OUTLETS.forEach(function(outlet){
-        const active = selectedWarehouseId === outlet.id ? ' active' : '';
-        const checked = selectedWarehouseId === outlet.id ? ' checked' : '';
-        const detail = [outlet.address, outlet.city].filter(Boolean).join(' · ');
-        html += '<label class="sf-outlet-option' + active + '" onclick="selectOutlet(this,' + outlet.id + ')">';
-        html += '<input type="radio" name="warehouse_id" value="' + outlet.id + '"' + checked + '>';
-        html += '<span><strong>' + String(outlet.name).replace(/</g,'&lt;') + '</strong>';
-        if(detail) html += '<small>' + String(detail).replace(/</g,'&lt;') + '</small>';
-        html += '</span></label>';
-      });
-      html += '</div>';
-    }
 
     if(IS_PHARMACY){
       html += '<div class="sf-rx-card"><label class="sf-label">Prescription (optional)</label><input type="file" id="prescription-file" accept="image/*,.pdf"><div class="sf-rx-hint">Upload a clear photo or PDF. The pharmacy team will review it before fulfilment.</div></div>';
@@ -271,12 +287,17 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     <?php if($settings->allow_paystack && $paystack_enabled): ?>
     html += '<div class="sf-pay-opt active" onclick="selectPayment(this,\'paystack\')">';
     html += '<input type="radio" name="paymethod" value="paystack" checked>';
-    html += '<div><div class="sf-pay-label">Pay Online (Paystack)</div><div class="sf-pay-desc">Pay securely with card, bank or USSD</div></div>';
+    html += '<div><div class="sf-pay-label">MartPoint Pay</div><div class="sf-pay-desc">Pay securely with card, bank or USSD</div></div>';
     html += '</div>';
     <?php endif; ?>
+    <?php if(!empty($paypal_enabled)): ?>
+    html += '<div class="sf-pay-opt<?= !$paystack_enabled ? ' active' : ''; ?>" onclick="selectPayment(this,\'paypal\')">';
+    html += '<input type="radio" name="paymethod" value="paypal"<?= !$paystack_enabled ? ' checked' : ''; ?>>';
+    html += '<div><div class="sf-pay-label">Pay securely with PayPal</div><div class="sf-pay-desc">Complete payment in <?= htmlspecialchars($store_currency['code']??'foreign currency',ENT_QUOTES); ?> through PayPal</div></div></div>';
+    <?php endif; ?>
     <?php if($settings->allow_whatsapp && $settings->whatsapp_number): ?>
-    html += '<div class="sf-pay-opt<?= (!$settings->allow_paystack || !$paystack_enabled) ? ' active' : ''; ?>" onclick="selectPayment(this,\'whatsapp\')">';
-    html += '<input type="radio" name="paymethod" value="whatsapp"<?= (!$settings->allow_paystack || !$paystack_enabled) ? ' checked' : ''; ?>>';
+    html += '<div class="sf-pay-opt<?= ((!$settings->allow_paystack || !$paystack_enabled) && empty($paypal_enabled)) ? ' active' : ''; ?>" onclick="selectPayment(this,\'whatsapp\')">';
+    html += '<input type="radio" name="paymethod" value="whatsapp"<?= ((!$settings->allow_paystack || !$paystack_enabled) && empty($paypal_enabled)) ? ' checked' : ''; ?>>';
     html += '<div><div class="sf-pay-label">Order via WhatsApp</div><div class="sf-pay-desc">Send order to store on WhatsApp</div></div>';
     html += '</div>';
     <?php endif; ?>
@@ -292,6 +313,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     html += '</div>';
 
     container.innerHTML = html;
+    if(window.sfRefreshLocationAvailability) window.sfRefreshLocationAvailability(cart);
 
     // Render items
     let subtotal = 0;
@@ -352,6 +374,8 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
 
   function updateShippingSummary(subtotal){
     const fee = getShippingFee();
+    const tax=SF_TAX_ENABLED&&SF_TAX_RATE>0?(SF_TAX_MODE==='inclusive'?subtotal*SF_TAX_RATE/(100+SF_TAX_RATE):subtotal*SF_TAX_RATE/100):0;
+    const taxNode=document.getElementById('summary-tax');if(taxNode)taxNode.textContent=formatMoney(tax);
     const row = document.getElementById('summary-shipping-row');
     if(row){
       if(fee > 0 || selectedShippingMethod || selectedCityIdx >= 0){
@@ -361,7 +385,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
         row.style.display = 'none';
       }
     }
-    document.getElementById('summary-total').textContent = formatMoney(subtotal + fee);
+    document.getElementById('summary-total').textContent = formatMoney(subtotal + fee + (SF_TAX_MODE==='exclusive'?tax:0));
   }
 
   function selectShipping(el, method){
@@ -386,6 +410,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     const input = el.querySelector('input');
     if(input) input.checked = true;
     selectedWarehouseId = parseInt(id, 10) || 0;
+    if(selectedWarehouseId) localStorage.setItem('sf_outlet_' + STORE_ID, String(selectedWarehouseId));
     refreshCommerceCart(true).catch(error=>showToast(error.message));
   }
 
@@ -524,6 +549,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     .then(res => {
       if(res.csrf_hash) CSRF_HASH = res.csrf_hash;
       if(res.status){
+        if(res.payment_required && res.gateway === 'paypal' && res.approval_url){ window.location.href = res.approval_url; return; }
         if(res.payment_required && res.public_key){
 		  payWithPaystack(res.public_key, res.email, res.amount_kobo, res.reference, res.order_id, res.paystack_split || {});
         } else {
@@ -554,7 +580,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
       key: key,
       email: email,
       amount: amount,
-      currency: 'NGN',
+      currency: <?= json_encode(!empty($store_currency['code']) ? strtoupper((string)$store_currency['code']) : 'NGN'); ?>,
       ref: reference,
       callback: function(response){
         cart = [];

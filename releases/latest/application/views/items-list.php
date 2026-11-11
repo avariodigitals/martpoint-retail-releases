@@ -64,6 +64,21 @@ $non_sortable = json_encode([0, $action_col]);
 .modal-body{padding:20px!important}
 .modal-footer{border-top:1px solid var(--mp-border)!important;padding:14px 20px!important}
 .modal-footer .btn-default{background:var(--mp-bg)!important;color:var(--mp-ink)!important;border:1px solid var(--mp-border)!important;border-radius:8px!important;font-weight:600!important}
+#item_history_modal .modal-dialog{width:min(96vw,1500px)!important;margin:2vh auto!important}
+#item_history_content{font-size:13px!important;overflow-x:hidden}
+#item_history_content .box{margin-bottom:14px!important;border-radius:12px!important;overflow:hidden}
+#item_history_content .box-header{padding:12px 16px!important}
+#item_history_content .box-body{font-size:13px!important}
+#item_history_content .item-history-filters{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px!important;align-items:end!important;padding:12px 14px!important;background:#f8fafb;border-bottom:1px solid var(--mp-border)}
+#item_history_content .item-history-filters label{display:block!important;min-width:0!important;margin:0!important;color:var(--mp-muted)!important;font-size:11px!important;font-weight:700!important;line-height:1.3!important}
+#item_history_content .item-history-filters .form-control{display:block!important;width:100%!important;min-width:0!important;height:36px!important;margin-top:4px!important;padding:7px 9px!important;border:1px solid var(--mp-border)!important;border-radius:8px!important;font-size:12px!important;line-height:1.2!important;box-shadow:none!important}
+#item_history_content .item-history-filters .btn{height:36px!important;padding:7px 10px!important;font-size:12px!important;border-radius:8px!important}
+#item_history_content .dataTables_wrapper{padding:10px 14px 14px!important;font-size:12px!important;overflow-x:auto}
+#item_history_content .dataTables_wrapper .dataTables_length,#item_history_content .dataTables_wrapper .dataTables_filter{font-size:12px!important;margin:0 0 8px!important}
+#item_history_content .dataTables_wrapper .dataTables_length select,#item_history_content .dataTables_wrapper .dataTables_filter input{height:32px!important;padding:5px 8px!important;font-size:12px!important;max-width:160px}
+#item_history_content table.js-item-history-table{width:100%!important;margin:0!important;font-size:12px!important}
+#item_history_content table.js-item-history-table th,#item_history_content table.js-item-history-table td{padding:8px 9px!important;white-space:nowrap;vertical-align:middle!important}
+@media(max-width:767px){#item_history_modal .modal-dialog{width:96vw!important;margin:2vh auto!important}#item_history_content .item-history-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 @media (max-width:767px){
   .it-filter-bar{flex-direction:column;align-items:stretch}
@@ -178,6 +193,15 @@ $non_sortable = json_encode([0, $action_col]);
     <?php else: ?>
     <input type="hidden" id="item_type" value="Items">
     <?php endif; ?>
+
+    <div class="it-filter-group">
+      <label for="status_filter">Status</label>
+      <select class="mp-form-control" id="status_filter" name="status_filter" style="width:100%;">
+        <option value="active" selected>Active items</option>
+        <option value="inactive">Inactive items</option>
+        <option value="all">All items</option>
+      </select>
+    </div>
   </div>
 
   <!-- Items Table -->
@@ -244,7 +268,9 @@ $non_sortable = json_encode([0, $action_col]);
         },
         "processing": true,
         "serverSide": true,
-        "order": [],
+        // The product-code column is the third visible column and remains
+        // clickable for ascending/descending sorting in every industry.
+        "order": [[2, "asc"]],
         "responsive": true,
         "ajax": {
             "url": "<?php echo site_url('items/ajax_list')?>",
@@ -252,6 +278,7 @@ $non_sortable = json_encode([0, $action_col]);
             "data": function(d) {
                 d.warehouse_id = $("#warehouse_id").val();
                 d.item_type = $("#item_type").val();
+                d.status_filter = $("#status_filter").val() || "active";
             },
             complete: function (data) {
                 $('.column_checkbox').iCheck({
@@ -287,6 +314,48 @@ $(document).ready(function() {
    load_datatable();
 });
 
+var mpProductHistoryDateFilter = function(settings, data){
+    if(!settings.nTable || !settings.nTable.id || !/^(product_activity_table|product_sales_history_table)$/.test(settings.nTable.id)) return true;
+    var $filters = $('#item_history_content .item-history-filters[data-table="'+settings.nTable.id+'"]');
+    if(!$filters.length) return true;
+    var value = String(data[1] || '').trim().substring(0,10);
+    var from = $filters.find('.ih-from').val() || '';
+    var to = $filters.find('.ih-to').val() || '';
+    if(!value) return !from && !to;
+    if(from && value < from) return false;
+    if(to && value > to) return false;
+    return true;
+};
+if($.fn.DataTable && $.fn.DataTable.ext && !window.mpProductHistoryDateFilterAdded){
+    $.fn.DataTable.ext.search.push(mpProductHistoryDateFilter);
+    window.mpProductHistoryDateFilterAdded = true;
+}
+function initProductHistoryFilters(){
+    $('#item_history_content .item-history-filters').each(function(){
+        var $filters=$(this), tableId=$filters.data('table'), table=$.fn.DataTable.isDataTable('#'+tableId)?$('#'+tableId).DataTable():null;
+        if(!table || $filters.data('filters-bound')) return;
+        $filters.data('filters-bound',true);
+        function exactColumn(column,value){
+            var escaped=value?$.fn.DataTable.util.escapeRegex(value):'';
+            table.column(column).search(value?'^'+escaped+'$':'',!!value,false).draw();
+        }
+        $filters.on('change.mpItemHistory input.mpItemHistory','input,select',function(){
+            if(this.classList.contains('ih-type')) exactColumn(0,this.value);
+            if(this.classList.contains('ih-location-select')) exactColumn(0,this.value);
+            if(this.classList.contains('ih-location')) table.column(3).search(this.value).draw();
+            if(this.classList.contains('ih-batch')) table.column(2).search(this.value).draw();
+            if(this.classList.contains('ih-barcode')) table.column(1).search(this.value).draw();
+            if(this.classList.contains('ih-identity')) table.search(this.value).draw();
+            if(this.classList.contains('ih-global')) table.search(this.value).draw();
+            if(this.classList.contains('ih-from') || this.classList.contains('ih-to')) table.draw();
+        });
+        $filters.on('click.mpItemHistory','.ih-clear',function(){
+            $filters.find('input').val('');$filters.find('select').val('');
+            table.search('').columns().search('').draw();
+        });
+    });
+}
+
 function view_item_history(item_id){
     $('#item_history_content').html('<div class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading...</div>');
     $('#item_history_modal').modal('show');
@@ -297,18 +366,24 @@ function view_item_history(item_id){
         success: function(res){
             if(res.status == 'success'){
                 $('#item_history_content').html(res.html);
+                $('#item_history_content .js-item-history-table').each(function(){
+                    if($.fn.DataTable && !$.fn.DataTable.isDataTable(this)){
+                        $(this).DataTable({pageLength:10, lengthMenu:[[10,25,50,100], [10,25,50,100]], order:[], autoWidth:false, responsive:false, scrollX:false});
+                    }
+                });
+                initProductHistoryFilters();
             } else {
                 $('#item_history_content').html('<div class="alert alert-danger">'+res.message+'</div>');
             }
         },
-        error: function(){
-            $('#item_history_content').html('<div class="alert alert-danger">Failed to load history.</div>');
+        error: function(xhr){
+            var message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Could not load product history. Please try again.';
+            $('#item_history_content').html('<div class="alert alert-danger">'+$('<div>').text(message).html()+'</div>');
         }
     });
 }
-$("#warehouse_id,#item_type").on("change",function(){
-    $('#example2').DataTable().destroy();
-    load_datatable();
+$("#warehouse_id,#item_type,#status_filter").on("change",function(){
+    $('#example2').DataTable().ajax.reload();
 });
 </script>
 

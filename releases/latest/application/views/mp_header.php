@@ -597,7 +597,8 @@ footer.copyright{background:var(--mp-bg) !important;border-top-color:var(--mp-bo
 $mp_header_class = '';
 try {
   $mp_header_profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
-  if (in_array($mp_header_profile['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)) $mp_header_class .= ' pharmacy-workspace-shell';
+  if (in_array($mp_header_profile['industry_type'] ?? '', ['pharmacy', 'medical_store', 'supplements_wellness'], true)) $mp_header_class .= ' pharmacy-workspace-shell';
+  if (($mp_header_profile['industry_type'] ?? '') === 'supplements_wellness') $mp_header_class .= ' supplements-workspace-shell';
   if (function_exists('mp_is_restaurant_workspace') && mp_is_restaurant_workspace()) $mp_header_class .= ' mp-restaurant';
 } catch (Throwable $e) { $mp_header_class = ''; }
 ?>

@@ -245,6 +245,9 @@ class Inventory_rotation_model extends CI_Model {
         if (!$row || (int)$row->item_id !== (int)$itemId || (int)$row->warehouse_id !== (int)$warehouseId) {
             return "The scanned unit of {$itemName} does not belong to this stock location. Please rescan it.";
         }
+		if (!empty($row->serial_number) || !empty($row->imei_number)) {
+			return "The selected unit of {$itemName} is individually tracked, not a batch lot. Select its serial or IMEI instead.";
+		}
         if (!$this->location_belongs_to_store($storeId, $warehouseId)) {
             return "This stock location does not belong to the store taking the sale, so {$itemName} was not sold. Please pick the right counter.";
         }

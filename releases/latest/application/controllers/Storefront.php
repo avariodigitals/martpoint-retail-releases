@@ -19,6 +19,7 @@ class Storefront extends CI_Controller {
 		$this->load->model('customers_model');
 		$this->load->model('paystack_model','paystack');
 		$this->load->library('theme_engine');
+		$this->load->library('storefront_currency');
 		$this->load->library('html_theme_manager');
 
 		// Table QR: keep the scanned table number in session so it follows the customer
@@ -30,6 +31,25 @@ class Storefront extends CI_Controller {
 		} else {
 			$this->table_number = $this->session->userdata('sf_table_number') ?: '';
 		}
+	}
+
+	/** Change the visitor's store-scoped display/checkout currency selection. */
+	public function select_currency(){
+		$slug=trim((string)$this->input->post('store_slug',TRUE));
+		$settings=$this->storefront_model->getStoreBySlug($slug);
+		if(!$settings){$this->output->set_status_header(404);$out=['status'=>false,'message'=>'Store not found.'];}
+		else{
+			$storeId=(int)$settings->store_id;$country=strtoupper(trim((string)$this->input->post('country',TRUE)));
+			if($country!==''&&!$this->storefront_currency->setCountry($storeId,$country)){$this->output->set_status_header(422);$out=['status'=>false,'message'=>'Choose a valid country.'];}
+			else{
+				$code=strtoupper(trim((string)$this->input->post('currency',TRUE)));
+				if($code===''&&$country!=='')$code=$this->storefront_currency->countryDefault($storeId,$country);
+				if(!$this->storefront_currency->setCurrency($storeId,$code)){$this->output->set_status_header(422);$out=['status'=>false,'message'=>'That currency is unavailable or its exchange rate is not configured.'];}
+				else $out=['status'=>true,'currency'=>$this->storefront_currency->selectedCode($storeId),'country'=>$this->storefront_currency->selectedCountry($storeId),
+					'rate'=>$this->storefront_currency->rate($storeId,$this->storefront_currency->selectedCode($storeId)),'csrf_hash'=>$this->security->get_csrf_hash()];
+			}
+		}
+		$this->output->set_content_type('application/json')->set_output(json_encode($out));
 	}
 
 	/**
@@ -389,6 +409,7 @@ class Storefront extends CI_Controller {
 			'store' => $store,
 			'products' => $products,
 			'categories' => $categories,
+			'outlets' => $this->_publicOrderableOutlets($storeId),
 			'category_id' => $categoryId,
 			'search' => $search,
 			'sort' => $sort,
@@ -451,6 +472,7 @@ class Storefront extends CI_Controller {
 			'settings' => $settings,
 			'store' => $store,
 			'services' => $services,
+			'outlets' => $this->_publicOrderableOutlets($storeId),
 			'service_categories' => $this->storefront_model->getServiceCategories($storeId),
 			'category_id' => $categoryId,
 			'search' => $search,
@@ -536,6 +558,8 @@ class Storefront extends CI_Controller {
 		}
 		unset($rp);
 		$this->storefront_model->attachUnitNames(array_merge([$product], $product_variants, $relatedProducts), $storeId);
+		$seoCurrency=$this->storefront_currency->selectedCode($storeId);
+		$seoRate=$this->storefront_currency->rate($storeId,$seoCurrency);
 
 		$data = [
 			'settings' => $settings,
@@ -564,8 +588,8 @@ class Storefront extends CI_Controller {
 				'description' => strip_tags($product->description ?? ''),
 				'offers' => [
 					'@type' => 'Offer',
-					'priceCurrency' => $this->theme_engine->getStoreCurrency()['code'] ?? 'NGN',
-					'price' => number_format($product->effective_price, 2),
+					'priceCurrency' => $seoCurrency,
+					'price' => number_format($this->storefront_currency->convertBaseToTransaction($product->effective_price,$seoRate), 2, '.', ''),
 					'availability' => ((int)$product->stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
 					'url' => base_url('store/' . $settings->store_slug . '/product/' . $productId)
 				]
@@ -808,12 +832,22 @@ class Storefront extends CI_Controller {
 		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora', 'botanical_elegance', 'food_express'], true);
 		$mediqCheckout = $page === 'checkout' && ($this->theme_engine->currentTheme()->theme_key ?? '') === 'pharma_mediq';
 		$htmlThemeCheckout = $page === 'checkout' && (($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip');
+		$storeCurrencyCode=$this->storefront_currency->selectedCode($storeId);
+		$baseCurrencyCode=$this->storefront_currency->baseCode($storeId);
+		$currencyGatewayMap=json_decode((string)($settings->currency_gateway_map_json??''),true)?:[];
+		if($baseCurrencyCode!=='NGN'&&!isset($currencyGatewayMap[$baseCurrencyCode]))$currencyGatewayMap[$baseCurrencyCode]='paypal';
+		$this->load->library('storefront_paypal');
+		$paypalState=$this->storefront_paypal->accountSummary($storeId);
+		$paypalCurrencyAllowed=($currencyGatewayMap[$storeCurrencyCode]??'')==='paypal'
+			&&($storeCurrencyCode===$baseCurrencyCode ? $baseCurrencyCode!=='NGN' : !empty($settings->multicurrency_enabled));
+		$paypalEnabled=$paypalCurrencyAllowed&&!empty($paypalState['enabled'])&&!empty($paypalState['webhook_configured']);
 
 		$data = [
 			'settings' => $settings,
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
-			'paystack_enabled' => $this->paystack->is_enabled($storeId),
+			'paystack_enabled' => $this->paystack->is_enabled($storeId) && $storeCurrencyCode==='NGN' && $baseCurrencyCode==='NGN',
+			'paypal_enabled' => $paypalEnabled,
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
@@ -1503,6 +1537,10 @@ class Storefront extends CI_Controller {
 		// button. A crafted POST must not create an order or reserve stock on a
 		// store whose storefront has no cart.
 		$this->theme_engine->init($storeId);
+		if(($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip' && !$this->theme_engine->cartEnabled()){
+			echo json_encode(['status'=>false,'message'=>'This store accepts enquiries, not online orders.','csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
 		if($this->theme_engine->isBuildingMaterialsTheme() && !$this->theme_engine->cartEnabled()){
 			echo json_encode([
 				'status' => false,
@@ -1521,7 +1559,28 @@ class Storefront extends CI_Controller {
 		$customerEmail = trim($this->input->post('customer_email'));
 		$customerPhone = trim($this->input->post('customer_phone'));
 		$customerAddress = trim($this->input->post('customer_address'));
-		$paymentMethod = $this->input->post('payment_method'); // paystack, whatsapp, pay_on_delivery, appointment
+		$paymentMethod = $this->input->post('payment_method'); // paystack, paypal, whatsapp, pay_on_delivery, appointment
+		$baseCurrency=$this->storefront_currency->baseCode($storeId);
+		$transactionCurrency=$this->storefront_currency->selectedCode($storeId);
+		try{$exchangeRate=$this->storefront_currency->rate($storeId,$transactionCurrency);}catch(Throwable $e){
+			echo json_encode(['status'=>false,'message'=>$e->getMessage(),'csrf_hash'=>$this->security->get_csrf_hash()]);return;
+		}
+		if($paymentMethod === 'paystack' && ($transactionCurrency !== 'NGN' || $baseCurrency !== 'NGN')){
+			echo json_encode(['status'=>false,'message'=>'Paystack checkout is available only for NGN orders. Choose another payment method or contact the store.','csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		if($paymentMethod === 'paypal'){
+			$map=json_decode((string)($settings->currency_gateway_map_json??''),true)?:[];
+			if($baseCurrency!=='NGN'&&!isset($map[$baseCurrency]))$map[$baseCurrency]='paypal';
+			$basePaypal=$transactionCurrency===$baseCurrency&&$baseCurrency!=='NGN';
+			if((!$basePaypal&&empty($settings->multicurrency_enabled))||($transactionCurrency===$baseCurrency&&!$basePaypal)||($map[$transactionCurrency]??'')!=='paypal'){
+				echo json_encode(['status'=>false,'message'=>'PayPal is not configured for the selected checkout currency.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+			}
+			$this->load->library('storefront_paypal');$paypalState=$this->storefront_paypal->accountSummary($storeId);
+			if(empty($paypalState['enabled'])||empty($paypalState['webhook_configured'])){
+				echo json_encode(['status'=>false,'message'=>'The store has not completed PayPal checkout and webhook setup.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+			}
+		}
 		$appointmentRequest = $paymentMethod === 'appointment';
 		if ($appointmentRequest) {
 			$cart = [['type'=>'service','id'=>(int)$this->input->post('service_id'), 'qty'=>1]];
@@ -1600,11 +1659,16 @@ class Storefront extends CI_Controller {
 			echo json_encode(['status' => false, 'message' => 'Name and phone are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
-		if($selectedOutlet && (string)($selectedOutlet->branch_type ?? '') === 'pickup_hub' && !preg_match('/pick\s*up|collect/i', (string)$shippingMethod)){
+		if($selectedOutlet && (string)($selectedOutlet->branch_type ?? '') === 'pickup_hub' && !preg_match('/pick[\s-]*up|collect/i', (string)$shippingMethod)){
 			echo json_encode(['status' => false, 'message' => 'This fulfilment hub is pickup-only. Please choose pickup.', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
-		if (!in_array($paymentMethod, ['paystack', 'whatsapp', 'pay_on_delivery', 'appointment'], true)) {
+		if($selectedOutlet && isset($selectedOutlet->pickup_enabled) && !(int)$selectedOutlet->pickup_enabled
+			&& preg_match('/pick[\s-]*up|collect/i', (string)$shippingMethod)){
+			echo json_encode(['status' => false, 'message' => 'Pickup is not available at the selected location. Choose another branch or delivery.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if (!in_array($paymentMethod, ['paystack', 'paypal', 'whatsapp', 'pay_on_delivery', 'appointment'], true)) {
 			echo json_encode(['status' => false, 'message' => 'Selected payment method is not available', 'csrf_hash' => $this->security->get_csrf_hash()]);
 			return;
 		}
@@ -1756,7 +1820,7 @@ class Storefront extends CI_Controller {
 					$hasEvents = true;
 				}
 				try {
-					$priceQuote = $this->storefront_model->validateProductQuote($product, $item);
+					$priceQuote = $this->storefront_model->validateProductQuote($product, $item, $exchangeRate);
 				} catch(RuntimeException $e){
 					echo json_encode(['status'=>false, 'price_changed'=>true, 'message'=>$e->getMessage(), 'csrf_hash'=>$this->security->get_csrf_hash()]); return;
 				}
@@ -1896,7 +1960,7 @@ class Storefront extends CI_Controller {
 		// is an enabled pickup-type method, no delivery city is required and
 		// the fee is whatever that method charges (usually free).
 		$isPickupMethod = false;
-		if(preg_match('/pick\s*up|collect/i', (string)$shippingMethod)){
+		if(preg_match('/pick[\s-]*up|collect/i', (string)$shippingMethod)){
 			$smList = json_decode($settings->shipping_methods_json ?? '', true);
 			if(is_array($smList)){
 				foreach($smList as $sm){
@@ -1916,13 +1980,27 @@ class Storefront extends CI_Controller {
 
 		if($cityShippingOn){
 			$selectedCity = trim((string)$this->input->post('shipping_city'));
+			$selectedParts = array_map('trim', explode('|', $selectedCity));
+			$selectedCityName = $selectedParts[0] ?? '';
+			$selectedStateName = $selectedParts[1] ?? '';
+			$selectedCountryName = $selectedParts[2] ?? '';
 			$zoneMatch = null;
 			$wildcard = null;
 			foreach($cityZones as $z){
-				$zoneKey = trim($z['city'] ?? '') . '|' . trim($z['state'] ?? '');
+				$zoneCity = trim($z['city'] ?? '');
+				$zoneState = trim($z['state'] ?? '');
+				$zoneCountry = trim($z['country'] ?? '');
 				// A '*' city is the catch-all zone for unlisted destinations.
-				if(trim($z['city'] ?? '') === '*'){ $wildcard = $z; continue; }
-				if($zoneKey !== '|' && strcasecmp($zoneKey, $selectedCity) === 0){
+				if($zoneCity === '*'){
+					if(($zoneState === '' || strcasecmp($zoneState, $selectedStateName) === 0)
+						&& ($zoneCountry === '' || strcasecmp($zoneCountry, $selectedCountryName) === 0)) $wildcard = $z;
+					continue;
+				}
+				// Match the exact destination level the customer selected. Blank
+				// location fields are meaningful (for a country- or region-wide rate).
+				if(strcasecmp($zoneCity, $selectedCityName) === 0
+					&& strcasecmp($zoneState, $selectedStateName) === 0
+					&& strcasecmp($zoneCountry, $selectedCountryName) === 0){
 					$zoneMatch = $z;
 					break;
 				}
@@ -1933,7 +2011,7 @@ class Storefront extends CI_Controller {
 				$zoneMatch = $wildcard;
 			}
 			if(!$zoneMatch){
-				echo json_encode(['status' => false, 'message' => 'Please select your delivery city', 'csrf_hash' => $this->security->get_csrf_hash()]);
+				echo json_encode(['status' => false, 'message' => 'Please select your delivery area', 'csrf_hash' => $this->security->get_csrf_hash()]);
 				return;
 			}
 			// Per-zone order minimum — zones can be gated to viable baskets.
@@ -1950,7 +2028,7 @@ class Storefront extends CI_Controller {
 			}
 			$zoneLabel = (trim($zoneMatch['city'] ?? '') === '*')
 				? 'Other areas'
-				: trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : ''));
+				: trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : '') . (!empty($zoneMatch['country']) ? ', ' . trim($zoneMatch['country']) : ''));
 			$shippingMethod = mb_substr('Delivery - ' . $zoneLabel, 0, 100);
 		} else {
 			// Resolve shipping method fee from store settings
@@ -2005,7 +2083,39 @@ class Storefront extends CI_Controller {
 			$couponDiscount = max(0, min(round($couponDiscount, 4), $subtotal));
 		}
 
-		$grandTotal = max(0, $subtotal + $shippingFee - $couponDiscount);
+		$taxEnabled=!empty($settings->storefront_tax_enabled)&&$this->db->field_exists('storefront_tax_rate','db_storefront_settings');
+		$taxRate=$taxEnabled?(float)($settings->storefront_tax_rate??0):0.0;
+		if(!is_finite($taxRate)||$taxRate<0||$taxRate>100){
+			echo json_encode(['status'=>false,'message'=>'The storefront tax rate is invalid. Ask the store to correct its tax settings before checkout.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+		}
+		$taxMode=($settings->storefront_tax_mode??'exclusive')==='inclusive'?'inclusive':'exclusive';
+		$lineTax=function($baseLineTotal) use ($taxEnabled,$taxRate,$taxMode,$subtotal,$couponDiscount){
+			if(!$taxEnabled||$taxRate<=0||$subtotal<=0)return 0.0;
+			$net=max(0,(float)$baseLineTotal*(1-($couponDiscount/$subtotal)));
+			return round($taxMode==='inclusive'?$net*$taxRate/(100+$taxRate):$net*$taxRate/100,2,PHP_ROUND_HALF_UP);
+		};
+		$baseTaxAmount=0.0;
+		foreach($itemsToInsert as $taxLine)$baseTaxAmount+=$lineTax($taxLine['total_price']??0);
+		foreach($addonsByParentLine as $taxAddonRows)foreach($taxAddonRows as $taxLine)$baseTaxAmount+=$lineTax($taxLine['total_price']??0);
+		$baseTaxAmount=round($baseTaxAmount,2,PHP_ROUND_HALF_UP);
+		$grandTotal=max(0,$subtotal+$shippingFee-$couponDiscount+($taxMode==='exclusive'?$baseTaxAmount:0));
+		if($paymentMethod === 'paypal' && $deliveryQuotePending){
+			echo json_encode(['status'=>false,'message'=>'PayPal checkout needs a confirmed delivery amount. Choose a priced delivery option or contact the store for a quote.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+		}
+		// Round each transaction-currency unit price first and derive its line
+		// total from that displayed price. Summing those same line totals makes
+		// the cart, saved quote and provider amount agree to the cent.
+		$transactionSubtotal=0.0;
+		foreach($itemsToInsert as $line){$unit=$this->storefront_currency->convertBaseToTransaction($line['unit_price']??0,$exchangeRate);$transactionSubtotal+=round($unit*(float)($line['qty']??0),2,PHP_ROUND_HALF_UP);}
+		foreach($addonsByParentLine as $addonRows)foreach($addonRows as $line){$unit=$this->storefront_currency->convertBaseToTransaction($line['unit_price']??0,$exchangeRate);$transactionSubtotal+=round($unit*(float)($line['qty']??0),2,PHP_ROUND_HALF_UP);}
+		$transactionSubtotal=round($transactionSubtotal,2,PHP_ROUND_HALF_UP);
+		$transactionShipping=$this->storefront_currency->convertBaseToTransaction($shippingFee,$exchangeRate);
+		$transactionCoupon=$this->storefront_currency->convertBaseToTransaction($couponDiscount,$exchangeRate);
+		$transactionTax=$this->storefront_currency->convertBaseToTransaction($baseTaxAmount,$exchangeRate);
+		$transactionGrandTotal=max(0,round($transactionSubtotal+$transactionShipping-$transactionCoupon+($taxMode==='exclusive'?$transactionTax:0),2,PHP_ROUND_HALF_UP));
+		if($grandTotal>0&&$transactionGrandTotal<=0){
+			echo json_encode(['status'=>false,'message'=>'This order rounds below the minimum payable amount in the selected currency. Choose another currency or contact the store.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+		}
 
 		$orderData = [
 			'store_id' => $storeId,
@@ -2017,6 +2127,7 @@ class Storefront extends CI_Controller {
 			'payment_method' => $paymentMethod,
 			'shipping_method' => $shippingMethod ?: null,
 			'delivery_fee' => $shippingFee,
+			'tax_amount' => $baseTaxAmount,
 			'delivery_quote_pending' => $deliveryQuotePending,
 			'subtotal' => $subtotal,
 			'grand_total' => $grandTotal,
@@ -2027,6 +2138,22 @@ class Storefront extends CI_Controller {
 			'ip_address' => $this->input->ip_address(),
 			'user_agent' => $this->input->user_agent()
 		];
+		if($this->db->field_exists('base_currency','db_online_orders')){
+			$orderData += [
+				'base_currency'=>$baseCurrency,'transaction_currency'=>$transactionCurrency,
+				'exchange_rate'=>$exchangeRate,'exchange_rate_convention'=>'1 transaction currency unit = X base currency units',
+				'exchange_rate_source'=>$transactionCurrency===$baseCurrency?'base':'merchant_manual',
+				'exchange_rate_snapshot_at'=>date('Y-m-d H:i:s'),'base_subtotal'=>$subtotal,
+				'transaction_subtotal'=>$transactionSubtotal,'base_delivery_fee'=>$shippingFee,
+				'transaction_delivery_fee'=>$transactionShipping,'base_tax_amount'=>$baseTaxAmount,'transaction_tax_amount'=>$transactionTax,
+				'base_coupon_discount'=>$couponDiscount,'transaction_coupon_discount'=>$transactionCoupon,
+				'base_grand_total'=>$grandTotal,'transaction_grand_total'=>$transactionGrandTotal,
+				'tax_rate_snapshot'=>$taxRate,'tax_mode_snapshot'=>$taxMode,
+				'currency_snapshot_json'=>json_encode(['base_currency'=>$baseCurrency,'transaction_currency'=>$transactionCurrency,
+					'exchange_rate'=>$exchangeRate,'convention'=>'1 transaction currency unit = X base currency units',
+					'source'=>$transactionCurrency===$baseCurrency?'base':'merchant_manual','snapshot_at'=>date('Y-m-d H:i:s')]),
+			];
+		}
 		if($isPharmacyOrder && $prescriptionFile && $this->db->field_exists('prescription_file', 'db_online_orders')){
 			$orderData['prescription_file'] = $prescriptionFile;
 		}
@@ -2034,7 +2161,7 @@ class Storefront extends CI_Controller {
 			$orderData['idempotency_key'] = $idempotencyKey;
 		}
 		if($this->db->field_exists('fulfilment_type', 'db_online_orders')){
-			$orderData['fulfilment_type'] = $tableNumber ? 'dine_in' : (preg_match('/pick\s*up|collect/i', (string)$shippingMethod) ? 'pickup' : 'delivery');
+			$orderData['fulfilment_type'] = $tableNumber ? 'dine_in' : (preg_match('/pick[\s-]*up|collect/i', (string)$shippingMethod) ? 'pickup' : 'delivery');
 		}
 		// Coupon columns arrive with migration 4.0.9.69 — omit on older schemas.
 		if($this->db->field_exists('coupon_code', 'db_online_orders')){
@@ -2053,7 +2180,7 @@ class Storefront extends CI_Controller {
 		// Set initial status based on payment method. WhatsApp is an order
 		// CHANNEL — the payment arrangement stays unpaid until the merchant
 		// confirms how the customer will pay (it is never assumed to be COD).
-		if($paymentMethod == 'paystack'){
+		if(in_array($paymentMethod,['paystack','paypal'],true)){
 			$orderData['order_status'] = 'pending';
 			$orderData['payment_status'] = 'unpaid';
 			$orderData['source_channel'] = 'web';
@@ -2074,8 +2201,25 @@ class Storefront extends CI_Controller {
 		if($this->storefront_model->last_order_duplicate){
 			$this->db->trans_commit();
 			$existing = $this->storefront_model->getOrder($orderId);
-			echo json_encode(['status'=>true, 'duplicate'=>true, 'payment_required'=>($existing && $existing->payment_method === 'paystack' && $existing->payment_status !== 'paid'),
-				'order_id'=>(int)$orderId, 'order_code'=>$existing->order_code, 'redirect_url'=>$this->_orderReceivedUrl($existing),
+			if($existing && $existing->payment_method==='paypal' && $existing->payment_status!=='paid'
+				&& strtoupper((string)($existing->transaction_currency??''))!==$this->storefront_currency->selectedCode($storeId)){
+				echo json_encode(['status'=>false,'message'=>'This order already has a payment quote in '.strtoupper((string)$existing->transaction_currency).'. Continue or cancel that payment before starting checkout in another currency.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+			}
+			$pendingApproval='';
+			if($existing && $existing->payment_method==='paypal' && $existing->payment_status!=='paid' && $this->db->table_exists('db_online_order_payment_attempts')){
+				$attempt=$this->db->where('store_id',(int)$existing->store_id)->where('online_order_id',(int)$existing->id)->where('provider','paypal')->where('status','created')->order_by('id','DESC')->get('db_online_order_payment_attempts')->row();
+				$pendingApproval=(string)($attempt->approval_url??'');
+				if($pendingApproval===''){
+					try{$pendingApproval=$this->_createPaypalAttemptForOrder($existing);}catch(Throwable $e){
+						log_message('error','Storefront PayPal retry setup failed for '.$existing->order_code.': '.$e->getMessage());
+						echo json_encode(['status'=>false,'message'=>'PayPal could not start this payment. Your order is saved; retry checkout without placing another order.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
+					}
+				}
+			}
+			echo json_encode(['status'=>true, 'duplicate'=>true, 'payment_required'=>($existing && in_array($existing->payment_method,['paystack','paypal'],true) && $existing->payment_status !== 'paid'),
+				'gateway'=>($existing && $existing->payment_method==='paypal')?'paypal':null,
+				'order_id'=>(int)$orderId, 'order_code'=>$existing->order_code,
+				'approval_url'=>$pendingApproval,'redirect_url'=>$pendingApproval?:$this->_orderReceivedUrl($existing),
 				'message'=>'This order was already received.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
 			return;
 		}
@@ -2131,8 +2275,20 @@ class Storefront extends CI_Controller {
 
 		$bundleDraws = [];
 		$reservationItems = [];
+		$snapshotLineCurrency=function(array $line) use ($exchangeRate,$lineTax){
+			if($this->db->field_exists('base_unit_price','db_online_order_items')){
+				$line['base_unit_price']=(float)($line['unit_price']??0);
+				$line['transaction_unit_price']=$this->storefront_currency->convertBaseToTransaction($line['unit_price']??0,$exchangeRate);
+				$line['base_total_price']=(float)($line['total_price']??0);
+				$line['transaction_total_price']=round($line['transaction_unit_price']*(float)($line['qty']??0),2,PHP_ROUND_HALF_UP);
+				$line['base_tax_amount']=$lineTax($line['total_price']??0);
+				$line['transaction_tax_amount']=$this->storefront_currency->convertBaseToTransaction($line['base_tax_amount'],$exchangeRate);
+			}
+			return $line;
+		};
 		foreach($itemsToInsert as $lineIndex => $item){
 			$item['order_id'] = $orderId;
+			$item=$snapshotLineCurrency($item);
 			$this->storefront_model->addOrderItem($item);
 			$parentLineId = (int)$this->db->insert_id();
 			if (($checkoutProfile['industry_type'] ?? '')==='garden_centre_landscaping') {
@@ -2149,6 +2305,7 @@ class Storefront extends CI_Controller {
 			foreach($addonsByParentLine[$lineIndex] ?? [] as $addonLine){
 				$addonLine['order_id'] = $orderId;
 				$addonLine['parent_line_id'] = $parentLineId;
+				$addonLine=$snapshotLineCurrency($addonLine);
 				$this->storefront_model->addOrderItem($addonLine);
 				if($addonLine['item_type'] === 'product') $reservationItems[] = $addonLine;
 			}
@@ -2167,6 +2324,7 @@ class Storefront extends CI_Controller {
 					'total_price' => 0,
 					'service_note' => 'Bundle component of order line ' . $parentLineId,
 				];
+				$componentLine=$snapshotLineCurrency($componentLine);
 				$this->storefront_model->addOrderItem($componentLine);
 				$bundleDraws[] = ['item_id' => (int)$component->component_item_id, 'qty' => $componentQty];
 			}
@@ -2217,7 +2375,7 @@ class Storefront extends CI_Controller {
 		}
 		// Pay-on-delivery orders are financially real at acceptance time. Paid
 		// gateway orders are posted after payment verification below.
-		if($paymentMethod !== 'paystack'){
+		if(!in_array($paymentMethod,['paystack','paypal'],true)){
 			$this->storefront_model->ensureSalesLedger($orderId);
 		}
 
@@ -2242,10 +2400,10 @@ class Storefront extends CI_Controller {
 		$store = get_store_details($storeId);
 		$this->_send_order_emails($order, $itemsToInsert, $store, $settings);
 		if ($order && !empty($order->customer_phone)) {
-			$currencyCode = $this->_storeCurrencyCode($storeId) ?: 'NGN';
+			$currencyCode = strtoupper((string)($order->transaction_currency??$order->base_currency??$this->_storeCurrencyCode($storeId)??'NGN'));
 			$paymentNotice = $order->payment_status === 'paid' ? 'Payment is confirmed.' : 'Payment is not yet confirmed.';
 			$sms = trim((string)($store->store_name ?? 'MartPoint')) . ': we received order ' . $order->order_code
-				. '. Total ' . $currencyCode . ' ' . number_format((float)$order->grand_total, 2) . '. ' . $paymentNotice;
+			. '. Total ' . $currencyCode . ' ' . number_format((float)($order->transaction_grand_total??$order->grand_total), 2) . '. ' . $paymentNotice;
 			$this->load->library('transactional_sms');
 			$this->transactional_sms->send($storeId, $order->customer_phone, $sms, 'online_order_confirmation', 'online-order:' . $storeId . ':' . (int)$order->id . ':placed');
 		}
@@ -2275,6 +2433,15 @@ class Storefront extends CI_Controller {
 				return;
 			}
 		}
+		if($paymentMethod==='paypal'){
+			try{
+				$approval=$this->_createPaypalAttemptForOrder($order);
+				echo json_encode(['status'=>true,'payment_required'=>true,'gateway'=>'paypal','order_id'=>$orderId,
+					'order_code'=>$order->order_code,'currency'=>$transactionCurrency,'amount'=>$transactionGrandTotal,
+					'approval_url'=>$approval,'redirect_url'=>$approval,'csrf_hash'=>$this->security->get_csrf_hash()]);return;
+			}catch(Throwable $e){log_message('error','Storefront PayPal order setup failed for '.$order->order_code.': '.$e->getMessage());
+				echo json_encode(['status'=>false,'message'=>$e->getMessage(),'csrf_hash'=>$this->security->get_csrf_hash()]);return;}
+		}
 
 		// For WhatsApp or Pay on Delivery
 		echo json_encode([
@@ -2288,22 +2455,87 @@ class Storefront extends CI_Controller {
 		]);
 	}
 
+	/** Create or safely resume the immutable PayPal quote saved on an order. */
+	private function _createPaypalAttemptForOrder($order){
+		if(!$this->db->table_exists('db_online_order_payment_attempts')||!$this->db->field_exists('transaction_grand_total','db_online_orders')) throw new RuntimeException('Run the MartPoint multi-currency migration before using PayPal checkout.');
+		$currency=strtoupper((string)($order->transaction_currency??''));$base=strtoupper((string)($order->base_currency??''));
+		$amount=(float)($order->transaction_grand_total??0);$baseAmount=(float)($order->base_grand_total??$order->grand_total);
+		$rate=(float)($order->exchange_rate??0);
+		if($currency===''||$base===''||$amount<=0||$baseAmount<=0||$rate<=0) throw new RuntimeException('The saved PayPal order quote is incomplete.');
+		$this->load->library('storefront_paypal');
+		$attemptNumber=1+(int)$this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)->where('provider','paypal')->count_all_results('db_online_order_payment_attempts');
+		$created=$this->storefront_paypal->createOrder((int)$order->store_id,$order->order_code,$currency,$amount,
+			base_url('storefront/paypal_return/'.rawurlencode($order->order_code)),
+			base_url('storefront/paypal_cancel/'.rawurlencode($order->order_code)),$attemptNumber);
+		$approval='';foreach((array)($created['links']??[]) as $link)if(($link['rel']??'')==='approve'){$approval=(string)$link['href'];break;}
+		$providerOrderId=(string)($created['id']??'');
+		if($providerOrderId===''||$approval==='') throw new RuntimeException('PayPal did not return an approval link.');
+		$now=date('Y-m-d H:i:s');
+		$ok=$this->db->insert('db_online_order_payment_attempts',['store_id'=>(int)$order->store_id,'online_order_id'=>(int)$order->id,'provider'=>'paypal',
+			'provider_order_id'=>$providerOrderId,'approval_url'=>$approval,'transaction_currency'=>$currency,
+			'transaction_amount'=>$amount,'base_currency'=>$base,'base_amount'=>$baseAmount,
+			'exchange_rate'=>$rate,'rate_snapshot_at'=>(string)($order->exchange_rate_snapshot_at??$now),'status'=>'created','created_at'=>$now,'updated_at'=>$now]);
+		if(!$ok) throw new RuntimeException('PayPal created the payment but MartPoint could not save its reference. Retry checkout to recover the same payment.');
+		$this->db->where('id',(int)$order->id)->where('store_id',(int)$order->store_id)->update('db_online_orders',['paypal_order_id'=>$providerOrderId]);
+		return $approval;
+	}
+
 	/** Current, verified customer prices and location stock for every storefront. */
 	public function cart_quote(){
 		$storeId = (int)$this->input->post('store_id');
 		$out = function($data){ $data['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($data); };
 		$settings = $storeId ? $this->storefront_model->getSettings($storeId) : null;
 		if(!$settings || $settings->store_status !== 'active'){ $out(['status'=>false, 'message'=>'Store unavailable.']); return; }
+		$this->theme_engine->init($storeId);
+		if(($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip' && !$this->theme_engine->cartEnabled()){
+			$out(['status'=>false,'message'=>'This store accepts enquiries, not online orders.']); return;
+		}
 		try {
 			$location = $this->storefront_model->checkoutLocation($storeId, $settings,
 				(int)$this->input->post('warehouse_id'), $this->_publicOrderableOutlets($storeId), false);
 			$items = $this->storefront_model->quoteCart($storeId, json_decode((string)$this->input->post('cart'), true), $location['source_warehouse_id']);
 			$customer = $this->storefront_model->verifiedCustomer($storeId);
+			$quoteCurrency = $this->storefront_currency->selectedCode($storeId);
 			$out(['status'=>true, 'items'=>$items, 'member'=>!empty($customer),
+				'transaction_currency'=>$quoteCurrency, 'exchange_rate'=>$this->storefront_currency->rate($storeId,$quoteCurrency),
 				'customer_name'=>$customer ? $customer->customer_name : '',
 				'has_group_price'=>$this->storefront_model->hasGroupPrice($items),
 				'warehouse_id'=>$location['warehouse_id'], 'needs_location'=>!empty($location['needs_location'])]);
 		} catch(RuntimeException $e){ $out(['status'=>false, 'message'=>$e->getMessage()]); }
+	}
+
+	/** Public, store-scoped stock notes for the storefront location picker. */
+	public function location_availability(){
+		$storeId = (int)$this->input->post('store_id');
+		$cart = json_decode((string)$this->input->post('cart'), true);
+		$out = function($data){ $data['csrf_hash'] = $this->security->get_csrf_hash(); echo json_encode($data); };
+		$settings = $storeId ? $this->storefront_model->getSettings($storeId) : null;
+		if(!$settings || $settings->store_status !== 'active' || !is_array($cart) || count($cart) > 200){ $out(['status'=>false, 'message'=>'Store or cart is unavailable.']); return; }
+		$locations = $this->_publicOrderableOutlets($storeId);
+		$result = [];
+		foreach($locations as $location){
+			$id = (int)$location->id;
+			$sourceId = (int)($location->stock_source_id ?? 0) ?: $id;
+			try {
+				$items = $this->storefront_model->quoteCart($storeId, $cart, $sourceId);
+				$lines = [];
+				$allAvailable = true;
+				foreach($items as $item){
+					$available = !array_key_exists('available', $item) || !empty($item['available']);
+					$allAvailable = $allAvailable && $available;
+					$lines[] = ['name'=>(string)($item['name'] ?? 'Item'), 'available'=>$available,
+						'quantity'=>(int)($item['qty'] ?? 1), 'stock'=>(float)($item['stock'] ?? 0)];
+				}
+				$result[] = ['id'=>$id, 'name'=>(string)$location->warehouse_name,
+					'address'=>trim((string)($location->address ?? '')), 'city'=>trim((string)($location->city ?? '')),
+					'available'=>$allAvailable, 'items'=>$lines];
+			} catch(RuntimeException $e){
+				$result[] = ['id'=>$id, 'name'=>(string)$location->warehouse_name,
+					'address'=>trim((string)($location->address ?? '')), 'city'=>trim((string)($location->city ?? '')),
+					'available'=>false, 'items'=>[], 'note'=>'Availability could not be confirmed at this location.'];
+			}
+		}
+		$out(['status'=>true, 'locations'=>$result]);
 	}
 
 	public function cart_upsells(){
@@ -2316,13 +2548,14 @@ class Storefront extends CI_Controller {
 		}
 		$this->load->model('Extras_model', 'extras_model');
 		$items = $this->extras_model->getUpsellsForCart($cartIds, $storeId, 4);
+		try{$currencyRate=$this->storefront_currency->rate($storeId,$this->storefront_currency->selectedCode($storeId));}catch(Throwable $e){$currencyRate=1.0;}
 		$result = [];
 		foreach($items as $item){
 			$image = !empty($item->item_image) ? base_url($item->item_image) : '';
 			$result[] = [
 				'id' => (int)$item->id,
 				'name' => (string)$item->item_name,
-				'price' => (float)$item->effective_price,
+				'price' => $this->storefront_currency->convertBaseToTransaction((float)$item->effective_price,$currencyRate),
 				'image' => $image,
 				'stock' => (float)$item->stock,
 			];
@@ -2345,6 +2578,8 @@ class Storefront extends CI_Controller {
 		if(!$storeId || $code === ''){ $out(['status'=>false,'message'=>'Enter a coupon code']); return; }
 		$settings = $this->storefront_model->getSettings($storeId);
 		if(!$settings || $settings->store_status != 'active'){ $out(['status'=>false,'message'=>'Store not active']); return; }
+		try{$rate=$this->storefront_currency->rate($storeId,$this->storefront_currency->selectedCode($storeId));}catch(Throwable $e){$out(['status'=>false,'message'=>$e->getMessage()]);return;}
+		$baseSubtotal=$subtotal*$rate;
 
 		if($this->storefront_model->verifiedHasGroup($storeId)){
 			$out(['status'=>false,'message'=>'Coupons do not stack with member group prices.']); return;
@@ -2357,13 +2592,14 @@ class Storefront extends CI_Controller {
 		if(!$promo){ $out(['status'=>false,'message'=>'Invalid coupon code']); return; }
 		if($promo->start_date > date('Y-m-d')){ $out(['status'=>false,'message'=>'This coupon starts on '.show_date($promo->start_date)]); return; }
 		if($promo->end_date < date('Y-m-d')){ $out(['status'=>false,'message'=>'This coupon expired on '.show_date($promo->end_date)]); return; }
-		if(!empty($promo->min_spend) && $subtotal < (float)$promo->min_spend){
+		if(!empty($promo->min_spend) && $baseSubtotal < (float)$promo->min_spend){
 			$out(['status'=>false,'message'=>'Minimum spend of '.store_number_format($promo->min_spend).' required']); return;
 		}
-		$discount = ($promo->discount_type == 'Percentage')
-			? $subtotal * ((float)$promo->discount_value / 100)
+		$baseDiscount = ($promo->discount_type == 'Percentage')
+			? $baseSubtotal * ((float)$promo->discount_value / 100)
 			: (float)$promo->discount_value;
-		$out(array('status'=>true,'promo_name'=>$promo->promotion_name,'discount'=>max(0,min(round($discount,4),$subtotal))));
+		$discount=$this->storefront_currency->convertBaseToTransaction(min($baseDiscount,$baseSubtotal),$rate);
+		$out(array('status'=>true,'promo_name'=>$promo->promotion_name,'discount'=>max(0,min($discount,$subtotal))));
 	}
 
 	/**
@@ -2754,7 +2990,9 @@ class Storefront extends CI_Controller {
 					'provider'  => 'paystack',
 					'reference' => $reference,
 					'amount'    => $verify['amount'] ?? 0,
+					'transaction_amount' => $verify['amount'] ?? 0,
 					'currency'  => $verify['currency'] ?? null,
+					'transaction_currency' => $verify['currency'] ?? null,
 				], 'the card payment page');
 				if($ledger['recorded'] || $ledger['duplicate']){
 					$settle = $this->onlinepay->settleOrder((int)$order->store_id, (int)$order->id, null, 'card payment');
@@ -2778,7 +3016,9 @@ class Storefront extends CI_Controller {
 			'provider'  => 'paystack',
 			'reference' => $reference,
 			'amount'    => $verify['amount'],
+			'transaction_amount' => $verify['amount'],
 			'currency'  => $verify['currency'] ?? null,
+			'transaction_currency' => $verify['currency'] ?? null,
 		], 'the card payment page');
 		$claimed = $this->storefront_model->claimPaidOrder($order->id, [
 			'paystack_reference' => $reference,
@@ -2801,9 +3041,9 @@ class Storefront extends CI_Controller {
 			$store = get_store_details($order->store_id);
 			$this->_send_digital_delivery_email($order, $items, $store, $settings);
 			if (!empty($order->customer_phone)) {
-				$currencyCode = $this->_storeCurrencyCode($order->store_id) ?: 'NGN';
+				$currencyCode = strtoupper((string)($order->transaction_currency??$order->base_currency??$this->_storeCurrencyCode($order->store_id)??'NGN'));
 				$sms = trim((string)($store->store_name ?? 'MartPoint')) . ': payment received for order ' . $order->order_code
-					. '. Amount ' . $currencyCode . ' ' . number_format((float)$order->grand_total, 2) . '.';
+					. '. Amount ' . $currencyCode . ' ' . number_format((float)($order->transaction_grand_total??$order->grand_total), 2) . '.';
 				$this->load->library('transactional_sms');
 				$this->transactional_sms->send((int)$order->store_id, $order->customer_phone, $sms, 'online_order_payment_received', 'online-order:' . (int)$order->store_id . ':' . (int)$order->id . ':payment-paid');
 			}
@@ -2913,6 +3153,121 @@ class Storefront extends CI_Controller {
 	/**
 	 * Paystack callback for online orders (browser redirect / manual check).
 	 */
+	/** PayPal redirects here after approval; the browser never marks an order paid. */
+	public function paypal_return($orderCode=''){
+		$order=$this->storefront_model->getOrderByCode((string)$orderCode);
+		if(!$order || $order->payment_method!=='paypal' || !$this->db->table_exists('db_online_order_payment_attempts')){show_404();return;}
+		$providerOrderId=trim((string)$this->input->get('token',TRUE));
+		$attempt=$this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)
+			->where('provider','paypal')->where('provider_order_id',$providerOrderId)->get('db_online_order_payment_attempts')->row();
+		if(!$attempt || $providerOrderId===''){show_error('This PayPal approval does not match the order.',400);return;}
+		if($order->payment_status==='paid'){redirect($this->_orderReceivedUrl($order));return;}
+		try{
+			$this->load->library('storefront_paypal');
+			$providerOrder=$this->storefront_paypal->getOrder((int)$order->store_id,$providerOrderId);
+			if(($providerOrder['status']??'')==='APPROVED'){
+				$providerOrder=$this->storefront_paypal->captureOrder((int)$order->store_id,$providerOrderId,'capture-'.$attempt->id.'-'.substr(hash('sha256',$providerOrderId),0,16));
+			}
+			if(!$this->_completePaypalOrder($order,$attempt,$providerOrder,'buyer_return')) throw new RuntimeException('PayPal payment could not be verified yet. If you were charged, do not try again; contact the store with order '.$order->order_code.'.');
+			redirect($this->_orderReceivedUrl($order));
+		}catch(Throwable $e){log_message('error','PayPal return verification failed for order '.$order->id.': '.$e->getMessage());
+			$this->_renderPaypalReturnError($order,$e->getMessage());}
+	}
+
+	/** Verify PayPal cancellation before keeping the unpaid order available for retry. */
+	public function paypal_cancel($orderCode=''){
+		$order=$this->storefront_model->getOrderByCode((string)$orderCode);
+		if(!$order||$order->payment_method!=='paypal'||!$this->db->table_exists('db_online_order_payment_attempts')){show_404();return;}
+		$providerOrderId=trim((string)$this->input->get('token',TRUE));
+		if($providerOrderId==='')$providerOrderId=(string)($order->paypal_order_id??'');
+		$attempt=$this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)
+			->where('provider','paypal')->where('provider_order_id',$providerOrderId)->get('db_online_order_payment_attempts')->row();
+		if(!$attempt){show_error('This PayPal cancellation does not match the order.',400);return;}
+		try{
+			$this->load->library('storefront_paypal');
+			$providerOrder=$this->storefront_paypal->getOrder((int)$order->store_id,$providerOrderId);
+			if(($providerOrder['status']??'')==='COMPLETED'){
+				if($this->_completePaypalOrder($order,$attempt,$providerOrder,'cancel_return')){redirect($this->_orderReceivedUrl($order));return;}
+				throw new RuntimeException('PayPal completed this payment, but MartPoint is still reconciling it. Do not pay again.');
+			}
+			if(in_array(strtoupper((string)($providerOrder['status']??'')),['CREATED','APPROVED','PAYER_ACTION_REQUIRED'],true)){
+				$this->_renderPaypalReturnError($order,'No completed PayPal capture was found. The order remains unpaid and its original payment quote is saved. Return to checkout to resume that payment; MartPoint will not start a second payment for this order.');return;
+			}
+			throw new RuntimeException('PayPal has not confirmed the payment status. Do not pay again yet.');
+		}catch(Throwable $e){log_message('error','PayPal cancel verification failed for order '.$order->id.': '.$e->getMessage());$this->_renderPaypalReturnError($order,$e->getMessage());}
+	}
+
+	/** Authenticated PayPal REST webhook. */
+	public function paypal_webhook(){
+		$raw=(string)file_get_contents('php://input');$event=json_decode($raw,true);
+		if(!is_array($event)||($event['event_type']??'')!=='PAYMENT.CAPTURE.COMPLETED'){$this->output->set_status_header(200)->set_output('ignored');return;}
+		$related=$event['resource']['supplementary_data']['related_ids']['order_id']??'';
+		if(!$related || !$this->db->table_exists('db_online_order_payment_attempts')){$this->output->set_status_header(200)->set_output('unmatched');return;}
+		$attempt=$this->db->where('provider','paypal')->where('provider_order_id',(string)$related)->get('db_online_order_payment_attempts')->row();
+		if(!$attempt){$this->output->set_status_header(200)->set_output('unmatched');return;}
+		$this->load->library('storefront_paypal');
+		$headers=[];foreach(['paypal-transmission-id','paypal-transmission-time','paypal-cert-url','paypal-auth-algo','paypal-transmission-sig'] as $h)$headers[$h]=$this->input->get_request_header($h,TRUE);
+		if(!$this->storefront_paypal->verifyWebhook((int)$attempt->store_id,$headers,$event)){$this->output->set_status_header(401)->set_output('invalid signature');return;}
+		try{
+			$providerOrder=$this->storefront_paypal->getOrder((int)$attempt->store_id,(string)$related);
+			$order=$this->storefront_model->getOrder((int)$attempt->online_order_id);
+			if($order && $this->_completePaypalOrder($order,$attempt,$providerOrder,'webhook')){$this->output->set_status_header(200)->set_output('ok');return;}
+			throw new RuntimeException('PayPal capture does not match the saved checkout quote.');
+		}catch(Throwable $e){log_message('error','PayPal webhook processing failed for attempt '.$attempt->id.': '.$e->getMessage());$this->output->set_status_header(500)->set_output('retry');}
+	}
+
+	private function _completePaypalOrder($order,$attempt,array $providerOrder,$source){
+		if(($providerOrder['status']??'')!=='COMPLETED') return false;
+		$purchase=$providerOrder['purchase_units'][0]??[];
+		if((string)($purchase['custom_id']??$purchase['reference_id']??'')!==(string)$order->order_code) return false;
+		$capture=$purchase['payments']['captures'][0]??[];
+		$amount=$capture['amount']??[];$captureId=(string)($capture['id']??'');
+		if(($capture['status']??'')!=='COMPLETED'||$captureId===''||strtoupper((string)($amount['currency_code']??''))!==strtoupper((string)$attempt->transaction_currency)) return false;
+		if(abs((float)($amount['value']??0)-(float)$attempt->transaction_amount)>0.005) return false;
+		if(strtoupper((string)$attempt->base_currency)!==strtoupper((string)($order->base_currency??$attempt->base_currency))
+			|| abs((float)$attempt->exchange_rate-(float)($order->exchange_rate??$attempt->exchange_rate))>0.0000001) return false;
+		if($this->db->where('provider','paypal')->where('capture_reference',$captureId)->count_all_results('db_online_order_payment_attempts')>0
+			&& (string)($attempt->capture_reference??'')!==$captureId) return false;
+		$attemptBase=round((float)$attempt->base_amount,2);
+		$this->load->model('online_payments_model','onlinepay');
+		$money=$this->onlinepay->recordGatewayMoney($order,[
+			'provider'=>'paypal','reference'=>$captureId,'provider_reference'=>$captureId,
+			'amount'=>$attemptBase,'base_amount'=>$attemptBase,'currency'=>$attempt->base_currency,
+			'transaction_amount'=>$attempt->transaction_amount,
+			'transaction_currency'=>$attempt->transaction_currency,'provider_status'=>'COMPLETED',
+			'payment_status'=>'success','note'=>'PayPal capture '.$captureId,
+		],'PayPal '.$source);
+		if(empty($money['recorded']) && empty($money['duplicate'])) return false;
+		$claimed=$this->storefront_model->claimPaidOrder((int)$order->id,[
+			'paypal_order_id'=>(string)$attempt->provider_order_id,
+		]);
+		if(!$claimed && (string)$order->payment_status!=='paid') return false;
+		// A provider capture can succeed while local posting is interrupted. Every
+		// authenticated retry repairs the idempotent stock/ledger steps before it
+		// acknowledges the event to PayPal.
+		$stockCommitted=$this->storefront_model->adjustStock((int)$order->id);
+		$stockState=$this->storefront_model->getOrder((int)$order->id);
+		if(!$stockCommitted && isset($stockState->stock_state) && $stockState->stock_state!=='committed') return false;
+		$salesId=(int)$this->storefront_model->ensureSalesLedger((int)$order->id);
+		if(!$salesId) return false;
+		$posted=$this->onlinepay->postVerifiedLines((int)$order->store_id,(int)$order->id,$salesId);
+		if(!$posted && $this->db->field_exists('salespayment_id','db_online_order_payments')
+			&& $this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)
+			->where('status','verified')->where('salespayment_id IS NULL')->count_all_results('db_online_order_payments')>0) return false;
+		if($claimed)$this->storefront_model->recordPurchaseEvent((int)$order->id,'paypal_capture');
+		$this->db->where('id',(int)$attempt->id)->where('store_id',(int)$attempt->store_id)->update('db_online_order_payment_attempts',[
+			'status'=>'captured','capture_reference'=>$captureId,'updated_at'=>date('Y-m-d H:i:s')]);
+		$latest=$this->storefront_model->getOrder((int)$order->id);
+		$this->storefront_model->fulfilPaidOrder((int)$order->id);
+		return (string)($latest->payment_status??'')==='paid'||$claimed;
+	}
+
+	private function _renderPaypalReturnError($order,$message){
+		$settings=$this->storefront_model->getSettings((int)$order->store_id);
+		$store=get_store_details((int)$order->store_id);
+		$this->load->view('storefront/paypal_return_error',['order'=>$order,'settings'=>$settings,'store'=>$store,'message'=>$message]);
+	}
+
 	public function paystack_callback(){
 		$reference = $this->input->get('reference') ?: $this->input->post('reference');
 		if(!$reference){
@@ -3760,9 +4115,24 @@ class Storefront extends CI_Controller {
 			// Seed default templates if they don't exist yet for this store
 			$this->email_template_model->seedDefaults($order->store_id);
 
-			// Get currency symbol for this store
+			// Customer-facing message values follow the immutable order currency snapshot.
 			$curRow = $this->db->query("SELECT a.currency as symbol, b.currency_placement as placement FROM db_currency a, db_store b WHERE a.id = b.currency_id AND b.id = ? LIMIT 1", [$order->store_id])->row();
-			$currency = $curRow ? $curRow->symbol : '';
+			$currencyCode=strtoupper((string)($order->transaction_currency??$order->base_currency??$this->_storeCurrencyCode($order->store_id)??'NGN'));
+			$symbols=['NGN'=>'₦','CAD'=>'$','USD'=>'$','EUR'=>'€','GBP'=>'£'];
+			$currency=$currencyCode.' '.($symbols[$currencyCode]??($curRow->symbol??''));
+			$rate=(float)($order->exchange_rate??1);if($rate<=0)$rate=1;
+			$emailItems=[];foreach((array)$items as $it){
+				$it=(array)$it;
+				if($currencyCode!==strtoupper((string)($order->base_currency??$currencyCode))){
+					$it['unit_price']=$this->storefront_currency->convertBaseToTransaction($it['unit_price']??0,$rate);
+					$it['total_price']=round((float)$it['unit_price']*(float)($it['qty']??0),2,PHP_ROUND_HALF_UP);
+				}
+				$emailItems[]=$it;
+			}
+			$displaySubtotal=(float)($order->transaction_subtotal??$order->subtotal);
+			$displayShipping=(float)($order->transaction_delivery_fee??$order->delivery_fee);
+			$displayTax=(float)($order->transaction_tax_amount??$order->tax_amount??0);
+			$displayGrandTotal=(float)($order->transaction_grand_total??$order->grand_total);
 			$isAppointment = ($order->payment_method === 'appointment');
 
 			$brand = $this->_orderEmailBrandData($store, $settings);
@@ -3778,7 +4148,7 @@ class Storefront extends CI_Controller {
 				}
 				$note = trim((string)($order->service_note ?? ''));
 				$priceLine = (float)$order->grand_total > 0
-					? 'Estimated total: <b>' . $currency . number_format($order->grand_total, 2) . '</b> — settled at your visit.'
+					? 'Estimated total: <b>' . $currency . number_format($displayGrandTotal, 2) . '</b> — settled at your visit.'
 					: 'Pricing for this treatment is on request — we\'ll confirm the final amount when confirming your appointment.';
 				$appointmentData = [
 					'service_name'      => htmlspecialchars($firstItem['item_name'] ?? ''),
@@ -3787,7 +4157,7 @@ class Storefront extends CI_Controller {
 					'appointment_note'  => $note !== '' ? htmlspecialchars($note) : '—',
 					'price_note_html'   => '<p class="price-line">' . $priceLine . '</p>',
 					'price_note_text'   => (float)$order->grand_total > 0
-						? 'Estimated total: ' . $currency . number_format($order->grand_total, 2) . ' — settled at your visit.'
+						? 'Estimated total: ' . $currency . number_format($displayGrandTotal, 2) . ' — settled at your visit.'
 						: 'Pricing for this treatment is on request — we\'ll confirm the final amount when confirming your appointment.',
 				];
 			}
@@ -3800,14 +4170,15 @@ class Storefront extends CI_Controller {
 				'customer_address'  => $order->customer_address ?: 'N/A',
 				'payment_method'    => ucfirst(str_replace('_', ' ', $order->payment_method)),
 				'shipping_method'   => $order->shipping_method ?: 'N/A',
-				'order_items'       => $this->_orderItemsHtml($items, $currency, !$isAppointment),
+				'order_items'       => $this->_orderItemsHtml($emailItems, $currency, !$isAppointment),
 				'order_items_text'  => implode('', array_map(function($item) use ($currency, $isAppointment){
 					$price = $isAppointment ? '' : ' = ' . $currency . number_format($item['total_price'], 2);
 					return "- {$item['item_name']} x{$item['qty']}{$price}\n";
-				}, $items)),
-				'subtotal'          => $currency . number_format($order->subtotal, 2),
-				'delivery_fee'      => $order->delivery_fee > 0 ? $currency . number_format($order->delivery_fee, 2) : 'Free',
-				'grand_total'       => $currency . number_format($order->grand_total, 2),
+				}, $emailItems)),
+				'subtotal'          => $currency . number_format($displaySubtotal, 2),
+				'tax_amount'       => $displayTax > 0 ? $currency . number_format($displayTax, 2) : 'None',
+				'delivery_fee'      => $displayShipping > 0 ? $currency . number_format($displayShipping, 2) : 'Free',
+				'grand_total'       => $currency . number_format($displayGrandTotal, 2),
 				'order_link'        => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
 				'dashboard_link'    => base_url('online_store/order_detail/' . (int)$order->id),
 				'fulfilment_branch' => 'Store team',
@@ -3847,6 +4218,23 @@ class Storefront extends CI_Controller {
 	 * Dedicated About Us page
 	 * URL: /store/{store_slug}/about
 	 */
+	/** Additional public pages declared by an imported HTML website. */
+	public function page($storeSlug = '', $pageSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$this->theme_engine->init((int)$settings->store_id, $this->_previewThemeForVisitor($settings));
+		$theme = $this->theme_engine->currentTheme();
+		$manifest = json_decode((string)($theme->manifest_json ?? ''), true);
+		$page = is_array($manifest) ? ($manifest['pages'][$pageSlug] ?? null) : null;
+		if(($theme->theme_source ?? '') !== 'html_zip' || !is_array($page) || !is_string($page['template'] ?? null)
+			|| !isset($manifest['templates'][$page['template']])){ show_404(); return; }
+		$this->theme_engine->view('page', [
+			'html_template'=>$page['template'], 'seo_title'=>(string)($page['title'] ?? $pageSlug),
+			'seo_canonical'=>base_url('store/'.rawurlencode($settings->store_slug).'/page/'.rawurlencode($pageSlug)),
+			'categories'=>$this->storefront_model->getCategoriesWithItems((int)$settings->store_id),
+			'store_currency'=>$this->theme_engine->getStoreCurrency(),
+		]);
+	}
+
 	public function about($storeSlug = ''){
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;

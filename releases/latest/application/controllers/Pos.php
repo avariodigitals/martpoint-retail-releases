@@ -300,17 +300,22 @@ class Pos extends MY_Controller {
 			}
 		}
 
-		// Resolve soonest-expiring batch per product for expiry warnings
+		// Resolve the batch candidate from this selected outlet using the same
+		// expiry-aware FEFO/FIFO rules as item lookup and checkout. The previous
+		// query picked the earliest expiry across every outlet, so one expired
+		// branch lot could incorrectly block good stock at another branch.
 		$batch_map = [];
-		if ($this->db->table_exists('db_item_barcodes') && !empty($products)) {
-			$ids = array_column($products, 'id');
-			$placeholders = implode(',', array_fill(0, count($ids), '?'));
-			$batches = $this->db->query("SELECT item_id, expire_date, batch_lot FROM db_item_barcodes WHERE status = 1 AND qty > 0 AND expire_date IS NOT NULL AND item_id IN ($placeholders) ORDER BY expire_date ASC, id ASC", $ids)->result();
-			foreach ($batches as $b) {
-				if (!isset($batch_map[$b->item_id])) {
-					$batch_map[$b->item_id] = ['expire_date' => $b->expire_date, 'batch_lot' => $b->batch_lot];
-				}
-			}
+		$this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+		$data['batch_rotation_method'] = $this->pos_inventory_rotation->method((int)$store_id);
+		if (!empty($products)) {
+			$this->load->model('pos_model', 'pos_model');
+			$batch_map = $this->pos_model->pos_batch_candidates(
+				array_map('intval', array_column($products, 'id')),
+				$store_id,
+				$warehouse_id,
+				$data['stop_selling_expired'],
+				$today
+			);
 		}
 
 		$this->load->model('item_selling_units_model', 'selling_units');
@@ -364,11 +369,24 @@ class Pos extends MY_Controller {
 			// A service has no shelf quantity; 0 on hand must not read as sold out.
 			$p['outOfStock'] = !$p['service_bit'] && $p['stock'] <= 0;
 			$p['alert_qty'] = (int) ($p['alert_qty'] ?? 0);
-			// Prefer barcode/batch expiry over item-level expiry
-			if (isset($batch_map[$p['id']])) {
-				$p['expire_date'] = $batch_map[$p['id']]['expire_date'];
-				$p['batch_lot'] = $batch_map[$p['id']]['batch_lot'];
+			// A stocked batch at this outlet overrides the item-level date. This
+			// clears a stale expired master date when a valid batch remains.
+			if (!empty($batch_map[$p['id']]['has_batches'])) {
+				$p['expire_date'] = $batch_map[$p['id']]['batch']->expire_date;
+				$p['batch_lot'] = $batch_map[$p['id']]['batch']->batch_lot;
+				$p['batch_candidates'] = array_map(function($batch) {
+					return [
+						'id' => (int)$batch->id,
+						'batch_lot' => (string)($batch->batch_lot ?? ''),
+						'barcode' => (string)($batch->barcode ?? ''),
+						'expire_date' => $batch->expire_date ?: null,
+						'qty' => (float)$batch->qty,
+					];
+				}, $batch_map[$p['id']]['candidates'] ?? []);
+			} else {
+				$p['batch_candidates'] = [];
 			}
+			$p['batch_rotation_method'] = $data['batch_rotation_method'];
 			$p['expired'] = !empty($p['expire_date']) && is_valid_date($p['expire_date']) && $p['expire_date'] < $today && $data['stop_selling_expired'] === 1;
 			$p['expire_date'] = !empty($p['expire_date']) ? $p['expire_date'] : null;
 			$p['batch_lot'] = !empty($p['batch_lot']) ? $p['batch_lot'] : null;

@@ -169,7 +169,7 @@ $label = ['hold' => 'On the shelf', 'expiring' => 'Running out of date', 'sold' 
       <div class="mp-dt-scroll">
         <table class="table mp-dt-table" id="batch-report" width="100%">
           <?php if($tab === 'hold'): ?>
-          <thead><tr><th>Product</th><th>Location</th><th>Batch</th><th>Expiry</th><th class="text-right">On this batch</th><th>Sellable now</th><th class="text-right">Cost value</th><th>Arrived</th></tr></thead>
+          <thead><tr><th>Product</th><th>Location</th><th>Batch</th><th>Expiry</th><th class="text-right">Original received</th><th class="text-right">Closing stock</th><th>Sellable now</th><th class="text-right">Cost value</th><th>Arrived</th></tr></thead>
           <tbody>
             <?php foreach($rows as $r): ?>
             <tr>
@@ -177,13 +177,14 @@ $label = ['hold' => 'On the shelf', 'expiring' => 'Running out of date', 'sold' 
               <td><?= htmlspecialchars($r->warehouse_name ?: '—'); ?></td>
               <td><?= $r->batch_lot !== '' && $r->batch_lot !== null ? htmlspecialchars($r->batch_lot) : '<span style="color:#94a3b8;">no batch number</span>' ?></td>
               <td><?= $day($r->expire_date); ?></td>
-              <td class="text-right"><?= $qty($r->qty); ?></td>
+              <td class="text-right"><?= $qty($r->original_qty ?? $r->qty); ?></td>
+              <td class="text-right"><strong><?= $qty($r->qty); ?></strong></td>
               <td><?= (int)$r->sellable === 1 ? '<span style="color:#166534;font-weight:600;">Yes</span>' : '<span style="color:#9B2C2C;">' . htmlspecialchars($r->held_reason ?? 'Not sellable right now') . '</span>' ?></td>
               <td class="text-right"><?= $money($r->cost_value); ?></td>
               <td><?= $day($r->created_date); ?></td>
             </tr>
             <?php endforeach; ?>
-            <?php if(empty($rows)): ?><tr><td colspan="8" style="text-align:center;color:#64748b;padding:20px;">
+            <?php if(empty($rows)): ?><tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px;">
               <?= (string)$filters['search'] !== '' ? 'No batch matches that search.' : 'No batches are recorded for this location. Products received without a batch number is not a batch anyone can sell from.'; ?></td></tr><?php endif; ?>
           </tbody>
           <?php elseif($tab === 'expiring'): ?>

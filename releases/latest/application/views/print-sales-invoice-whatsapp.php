@@ -90,6 +90,17 @@ if ($this->db->field_exists('invoice_account_id', 'db_sales') && $this->db->fiel
     $invoice_bank_account = $this->db->where('id', (int)$selected->invoice_account_id)->where('store_id', (int)$res1->id)->get('ac_accounts')->row();
   }
 }
+$invoice_bank_name = $invoice_bank_account && !empty($invoice_bank_account->bank_name) ? trim($invoice_bank_account->bank_name) : '';
+$invoice_bank_number = $invoice_bank_account && !empty($invoice_bank_account->bank_account_number) ? trim($invoice_bank_account->bank_account_number) : '';
+$invoice_account_name = '';
+if ($invoice_bank_account) {
+  $invoice_account_name = trim((string)$invoice_bank_account->bank_account_name);
+  // Some older records stored the account number in both bank fields. Prefer
+  // the ledger account label in that case so the number is not shown twice.
+  if ($invoice_account_name === '' || ($invoice_bank_number !== '' && strcasecmp($invoice_account_name, $invoice_bank_number) === 0)) {
+    $invoice_account_name = trim((string)$invoice_bank_account->account_name);
+  }
+}
 $sales_invoice_footer_text = mp_get_store_receipt_setting(get_current_store_id(), 'sales_invoice_footer_text', '');
 $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', '');
 
@@ -313,12 +324,11 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 <table class="totals">
   <tr>
     <td valign="top" style="padding-right: 10px; font-size: 9pt; color: #374151;">
-      <?php if($invoice_bank_account && !empty($invoice_bank_account->bank_account_number)): ?>
+      <?php if($invoice_bank_account && ($invoice_bank_name !== '' || $invoice_account_name !== '' || $invoice_bank_number !== '')): ?>
         <strong><?= $this->lang->line('bank_details'); ?>:</strong><br>
-        <?= htmlspecialchars($invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
-        <?php if(!empty($invoice_bank_account->bank_name)): ?><?= htmlspecialchars($invoice_bank_account->bank_name, ENT_QUOTES, 'UTF-8'); ?><br><?php endif; ?>
-        <?= htmlspecialchars($invoice_bank_account->bank_account_name ?: $invoice_bank_account->account_name, ENT_QUOTES, 'UTF-8'); ?><br>
-        <?= htmlspecialchars($invoice_bank_account->bank_account_number, ENT_QUOTES, 'UTF-8'); ?>
+        <?php if($invoice_bank_name !== ''): ?><div><strong>Bank Name:</strong> <?= htmlspecialchars($invoice_bank_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if($invoice_account_name !== ''): ?><div><strong>Account Name:</strong> <?= htmlspecialchars($invoice_account_name, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if($invoice_bank_number !== ''): ?><div><strong>Account Number:</strong> <?= htmlspecialchars($invoice_bank_number, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
       <?php endif; ?>
     </td>
     <td align="right" valign="top" style="white-space: nowrap; text-align: right; width: 50%; vertical-align: top;">

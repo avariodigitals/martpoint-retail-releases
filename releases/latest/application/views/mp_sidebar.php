@@ -35,6 +35,7 @@ if ($is_central_install) {
 $is_central = $hide_retail_menus;
 $industry = mp_get_store_profile()['industry_type'] ?? 'general_retail';
 $is_pharmacy = in_array($industry, ['pharmacy', 'medical_store', 'healthcare'], true);
+$is_supplements_wellness = $industry === 'supplements_wellness';
 $CI->load->helper('industry_guide');
 $sidebar_industry_guide = mp_industry_guide($industry);
 $is_car = $industry === 'car_dealership';
@@ -202,6 +203,19 @@ $mp_icons = [
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
+    <?php if($is_supplements_wellness): ?>
+    <?php $sec('Supplements & wellness'); ?>
+    <div class="mp-nav-section supplements-nav-primary">
+      <a href="<?= base_url('dashboard'); ?>" class="mp-nav-item<?= $mp_open(['dashboard'])?' active':''; ?>"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Overview</a>
+      <?php if($CI->permissions('sales_add') || $CI->permissions('sales_view')): ?><a href="<?= base_url('pos'); ?>" class="mp-nav-item pos-active-li"><span class="mp-nav-icon"><?= $mp_icons['pos']; ?></span> Member checkout</a><?php endif; ?>
+      <?php if($CI->permissions('customers_view')): ?><a href="<?= base_url('customers'); ?>" class="mp-nav-item customers_list-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Members &amp; customers</a><?php endif; ?>
+      <?php if($CI->permissions('items_view')): ?><a href="<?= base_url('items'); ?>" class="mp-nav-item items-list-active-li"><span class="mp-nav-icon"><?= $mp_icons['inventory']; ?></span> Products &amp; inventory</a><?php endif; ?>
+      <?php if($CI->permissions('purchase_view')): ?><a href="<?= base_url('purchase'); ?>" class="mp-nav-item purchase-active-li"><span class="mp-nav-icon"><i class="fa fa-truck"></i></span> Purchasing</a><?php endif; ?>
+      <?php if(($CI->permissions('online_store_orders') || $CI->permissions('online_store_view') || is_store_admin() || $this->session->userdata('role_id') == 1) && mp_feature_enabled('online_store')): ?><a href="<?= base_url('online_store/orders'); ?>" class="mp-nav-item online_store-orders-active-li"><span class="mp-nav-icon"><?= $mp_icons['online']; ?></span> Online orders</a><?php endif; ?>
+      <?php if($CI->permissions('sales_report')): ?><a href="<?= base_url('reports/sales_and_payments'); ?>" class="mp-nav-item report-sales-and-payments-active-li"><span class="mp-nav-icon"><?= $mp_icons['reports']; ?></span> Reports</a><?php endif; ?>
+      <a href="<?= base_url('supplements_workspace/more'); ?>" class="mp-nav-item<?= $mp_open(['supplements_workspace'])?' active':''; ?>"><span class="mp-nav-icon"><i class="fa fa-th-large"></i></span> More</a>
+    </div>
     <?php endif; ?>
     <?php if($is_building_workspace): ?>
     <?php $sec('Command'); ?>
@@ -515,10 +529,11 @@ $mp_icons = [
     <?php endif; ?>
 
     <!-- Sales -->
-    <?php if((!$is_creator) && ($CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view') || ($is_oil_processing && $CI->permissions('tax_view')))): ?>
+    <?php if((!$is_creator) && ($CI->permissions('pos') || $CI->permissions('sales_add') || $CI->permissions('sales_view') || $CI->permissions('sales_return_view') || $CI->permissions('quotation_add') || $CI->permissions('quotation_view') || ($is_oil_processing && $CI->permissions('tax_view')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#F97316;"><?= $mp_icons['sales']; ?></span> Sales <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
+        <?php if($CI->permissions('pos') && !$is_building_workspace && !$is_printing && !$is_oil_processing): ?><a href="<?= base_url('pos'); ?>" class="mp-nav-item pos-active-li"><span class="mp-nav-icon"><?= $mp_icons['pos']; ?></span> POS Checkout</a><?php endif; ?>
         <?php if($CI->permissions('sales_add')): ?><a href="<?= base_url('sales/add'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> <?= $is_oil_processing ? 'New Customer Invoice' : 'New Sale'; ?></a><?php endif; ?>
         <?php if($CI->permissions('sales_view')): ?><a href="<?= base_url('sales'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_oil_processing ? 'Customer Invoices' : 'Sales History'; ?></a><?php endif; ?>
         <?php if($CI->permissions('sales_payment_view')): ?><a href="<?= base_url('sales_payments/'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Sales Payments</a><?php endif; ?>
@@ -954,13 +969,14 @@ $mp_icons = [
         <?php if($CI->permissions('units_view')): ?><a href="<?= base_url('units/'); ?>" class="mp-nav-item units-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Units List</a><?php endif; ?>
         <?php if($CI->permissions('payment_types_view')): ?><a href="<?= base_url('payment_types/'); ?>" class="mp-nav-item payment_types-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Types</a><?php endif; ?>
         <?php if($CI->permissions('payment_modes_view')): ?><a href="<?= base_url('payment_modes/'); ?>" class="mp-nav-item payment_modes-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Payment Modes</a><?php endif; ?>
-        <?php if($CI->permissions('paystack_settings')): ?><a href="<?= base_url('paystack/settings'); ?>" class="mp-nav-item paystack-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Paystack Settings</a><?php endif; ?>
+        <?php if($CI->permissions('paystack_settings')): ?><a href="<?= base_url('paystack/settings'); ?>" class="mp-nav-item paystack-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> MartPoint Pay</a><?php endif; ?>
         <?php if($CI->permissions('monnify_settings')): ?><a href="<?= base_url('monnify/settings'); ?>" class="mp-nav-item monnify-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Monnify Settings</a><?php endif; ?>
         <?php if($CI->permissions('expiry_settings') && mp_feature_enabled('expiry_tracking')): ?><a href="<?= base_url('expiry_settings'); ?>" class="mp-nav-item expiry-settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Expiry Settings</a><?php endif; ?>
         <?php if($this->session->userdata('role_id') == 1 || is_store_admin()): ?>
           <a href="<?= base_url('currency/view'); ?>" class="mp-nav-item currency-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Currency List</a>
         <?php endif; ?>
         <?php if($CI->permissions('database_backup')): ?><a href="<?= base_url('users/dbbackup'); ?>" class="mp-nav-item dbbackup-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Database Backup</a><?php endif; ?>
+        <?php if($CI->permissions('license_management')): ?><a href="<?= base_url('subscription_license'); ?>" class="mp-nav-item subscription-license-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> License &amp; Usage</a><?php endif; ?>
         <?php if($CI->permissions('system_updates')): ?><a href="<?= base_url('system_updates'); ?>" class="mp-nav-item system-updates-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> System Update</a><?php endif; ?>
         <?php if($CI->permissions('permission_audit')): ?><a href="<?= base_url('permission_audit'); ?>" class="mp-nav-item permission-audit-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Permission Audit</a><?php endif; ?>
         <?php if($CI->permissions('countries_view')): ?><a href="<?= base_url('country'); ?>" class="mp-nav-item country-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Countries</a><?php endif; ?>

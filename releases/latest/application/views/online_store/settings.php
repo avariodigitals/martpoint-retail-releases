@@ -81,10 +81,71 @@
       </div>
 
       <div class="os-section-title"><i class="fa fa-credit-card"></i> Payment Options</div>
+      <div class="mp-form-hint" style="margin-bottom:10px;">Payment route controls apply store-wide across every online-store theme. MartPoint Pay checkout is for NGN; the PayPal section below lets a fleet activate an additional route for eligible foreign-currency checkouts.</div>
       <div class="os-check-list">
-        <label><input type="checkbox" id="allow_paystack" name="allow_paystack" <?= ($settings->allow_paystack ?? 1) ? 'checked' : ''; ?>> Allow Paystack Checkout</label>
+        <label><input type="checkbox" id="allow_paystack" name="allow_paystack" <?= ($settings->allow_paystack ?? 1) ? 'checked' : ''; ?>> Allow MartPoint Pay Checkout (NGN)</label>
         <label><input type="checkbox" id="allow_whatsapp" name="allow_whatsapp" <?= ($settings->allow_whatsapp ?? 1) ? 'checked' : ''; ?>> Allow WhatsApp Orders</label>
         <label><input type="checkbox" id="allow_pay_on_delivery" name="allow_pay_on_delivery" <?= ($settings->allow_pay_on_delivery ?? 1) ? 'checked' : ''; ?>> Allow Pay on Delivery</label>
+      </div>
+
+      <div class="os-section-title"><i class="fa fa-user"></i> Customer pricing sign-in popup</div>
+      <?php if ($this->db->field_exists('customer_pricing_notice_enabled', 'db_storefront_settings')): ?>
+        <div class="os-check-list">
+          <label><input type="checkbox" name="customer_pricing_notice_enabled" value="1" <?= !empty($settings->customer_pricing_notice_enabled) ? 'checked' : ''; ?>> Show popup to shoppers who are not signed in</label>
+        </div>
+        <div class="mp-form-hint" style="margin:6px 0 12px;">This only invites shoppers to sign in. It does not grant a customer group price; staff must assign the customer to a pricing group.</div>
+        <div class="os-form-grid">
+          <div class="mp-form-group"><label for="customer_pricing_notice_title">Popup title</label><input class="mp-form-control" type="text" id="customer_pricing_notice_title" name="customer_pricing_notice_title" maxlength="120" value="<?= htmlspecialchars($settings->customer_pricing_notice_title ?? 'Customer pricing', ENT_QUOTES, 'UTF-8'); ?>"></div>
+          <div class="mp-form-group"><label for="customer_pricing_notice_link_text">Sign-in button text</label><input class="mp-form-control" type="text" id="customer_pricing_notice_link_text" name="customer_pricing_notice_link_text" maxlength="80" value="<?= htmlspecialchars($settings->customer_pricing_notice_link_text ?? 'Sign in to My Account', ENT_QUOTES, 'UTF-8'); ?>"></div>
+          <div class="mp-form-group full"><label for="customer_pricing_notice_text">Popup message</label><textarea class="mp-form-control" id="customer_pricing_notice_text" name="customer_pricing_notice_text" rows="3" maxlength="500"><?= htmlspecialchars($settings->customer_pricing_notice_text ?? 'Sign in to My Account to check whether the store has assigned your account to a customer pricing group.', ENT_QUOTES, 'UTF-8'); ?></textarea></div>
+        </div>
+      <?php else: ?>
+        <div class="mp-form-hint">Apply database migration 4.0.9.263 to configure this popup.</div>
+      <?php endif; ?>
+
+      <?php $mcCurrencies=json_decode($settings->checkout_currencies_json ?? '',true) ?: ['NGN']; $mcRates=json_decode($settings->currency_rates_json ?? '',true) ?: []; ?>
+      <div class="os-section-title"><i class="fa fa-percent"></i> Storefront tax</div>
+      <div class="mp-form-hint" style="margin-bottom:10px;">Optional store-wide tax for online orders across all themes. It applies after coupons to the item and service subtotal; shipping is not taxed. Inclusive tax is extracted from displayed prices; exclusive tax is added at checkout. Ask your tax adviser which setting and rate apply to your store.</div>
+      <div class="os-check-list"><label><input type="checkbox" name="storefront_tax_enabled" value="1" <?= !empty($settings->storefront_tax_enabled)?'checked':''; ?>> Apply storefront tax</label></div>
+      <div class="os-form-grid" style="margin-top:8px;">
+        <div class="mp-form-group"><label for="storefront_tax_rate">Tax rate (%)</label><input class="mp-form-control" type="number" min="0" max="100" step="0.0001" name="storefront_tax_rate" id="storefront_tax_rate" value="<?= htmlspecialchars((string)($settings->storefront_tax_rate ?? '0')); ?>"></div>
+        <div class="mp-form-group"><label for="storefront_tax_mode">Price treatment</label><select class="mp-form-control" name="storefront_tax_mode" id="storefront_tax_mode"><option value="exclusive" <?= ($settings->storefront_tax_mode??'exclusive')==='exclusive'?'selected':''; ?>>Exclusive — add tax to order total</option><option value="inclusive" <?= ($settings->storefront_tax_mode??'exclusive')==='inclusive'?'selected':''; ?>>Inclusive — tax is already in displayed prices</option></select></div>
+      </div>
+      <div class="os-section-title"><i class="fa fa-exchange"></i> Multi-currency online sales</div>
+      <div class="mp-form-hint" style="margin-bottom:10px;">Merchant-maintained checkout rates. Rates mean <strong>1 foreign currency unit = X units of your store's base currency</strong>. Your inventory, POS and product prices remain in the base currency. PayPal credentials and foreign-currency capture must be configured before enabling foreign checkout.</div>
+      <div class="os-check-list">
+        <label><input type="checkbox" name="multicurrency_enabled" value="1" <?= !empty($settings->multicurrency_enabled)?'checked':''; ?>> Enable multi-currency online sales</label>
+        <?php foreach(['NGN','CAD','USD','EUR','GBP'] as $mc): ?>
+          <label><input type="checkbox" name="checkout_currency[]" value="<?= $mc; ?>" <?= in_array($mc,$mcCurrencies,true)?'checked':''; ?>> <?= $mc; ?> checkout</label>
+        <?php endforeach; ?>
+      </div>
+      <div class="os-form-grid" style="margin-top:12px;">
+        <div class="mp-form-group"><label for="currency_default_code">Default checkout currency</label><select class="mp-form-control" id="currency_default_code" name="currency_default_code"><?php foreach(['NGN','CAD','USD','EUR','GBP'] as $mc): ?><option value="<?= $mc; ?>" <?= ($settings->currency_default_code ?? 'NGN')===$mc?'selected':''; ?>><?= $mc; ?></option><?php endforeach; ?></select></div>
+        <?php foreach(['CAD','USD','EUR','GBP'] as $mc): ?><div class="mp-form-group"><label for="rate_<?= $mc; ?>">1 <?= $mc; ?> = base currency</label><input class="mp-form-control" type="number" step="0.0001" min="0.0001" name="rate_<?= $mc; ?>" id="rate_<?= $mc; ?>" value="<?= htmlspecialchars((string)($mcRates[$mc] ?? '')); ?>" placeholder="Enter current merchant rate"></div><?php endforeach; ?>
+      </div>
+      <?php $mcCountryDefaults=json_decode($settings->currency_country_defaults_json ?? '',true) ?: ['NG'=>'NGN','CA'=>'CAD','US'=>'USD','GB'=>'GBP','DE'=>'EUR','FR'=>'EUR']; ?>
+      <div class="os-form-grid" style="margin-top:8px;">
+        <?php foreach(['NG'=>'Nigeria','CA'=>'Canada','US'=>'United States','GB'=>'United Kingdom','DE'=>'Germany','FR'=>'France'] as $cc=>$countryLabel): ?>
+          <div class="mp-form-group"><label><?= htmlspecialchars($countryLabel); ?> default currency</label><input type="hidden" name="country_code[]" value="<?= $cc; ?>"><select class="mp-form-control" name="country_currency[]"><?php foreach(['NGN','CAD','USD','EUR','GBP'] as $mc): ?><option value="<?= $mc; ?>" <?= ($mcCountryDefaults[$cc] ?? ['NG'=>'NGN','CA'=>'CAD','US'=>'USD','GB'=>'GBP','DE'=>'EUR','FR'=>'EUR'][$cc])===$mc?'selected':''; ?>><?= $mc; ?></option><?php endforeach; ?></select></div>
+        <?php endforeach; ?>
+      </div>
+      <div class="mp-form-hint">Country selection suggests this currency. Shoppers can still choose another enabled currency.</div>
+
+      <div class="mp-card-form" style="margin-top:18px;border:1px solid var(--mp-border);">
+        <div class="mp-card-head"><h3><i class="fa fa-paypal"></i> PayPal online-store checkout</h3></div>
+        <div class="mp-card-body">
+          <?php $pa=$paypal_account ?? []; ?>
+          <p class="mp-form-hint">Separate from MartPoint subscription PayPal. Use a PayPal REST app for this store. PayPal approval and country eligibility depend on the merchant account; guest card checkout is not guaranteed.</p>
+          <div class="os-form-grid">
+            <div class="mp-form-group"><label for="paypal_environment">Environment</label><select class="mp-form-control" id="paypal_environment" name="paypal_environment"><option value="sandbox" <?= ($pa['environment']??'sandbox')==='sandbox'?'selected':''; ?>>Sandbox</option><option value="live" <?= ($pa['environment']??'sandbox')==='live'?'selected':''; ?>>Live</option></select></div>
+            <div class="mp-form-group"><label for="paypal_client_id">REST Client ID</label><input class="mp-form-control" type="text" id="paypal_client_id" name="paypal_client_id" value="<?= htmlspecialchars((string)($pa['client_id']??''),ENT_QUOTES); ?>" autocomplete="off"></div>
+            <div class="mp-form-group"><label for="paypal_client_secret">REST Client Secret <?= !empty($pa['configured'])?'(leave blank to keep saved secret)':''; ?></label><input class="mp-form-control" type="password" id="paypal_client_secret" name="paypal_client_secret" value="" autocomplete="new-password"></div>
+            <div class="mp-form-group"><label for="paypal_webhook_id">Webhook ID</label><input class="mp-form-control" type="text" id="paypal_webhook_id" name="paypal_webhook_id" value="" placeholder="<?= !empty($pa['webhook_configured'])?'Configured — blank keeps saved ID':'Set up a webhook in the PayPal developer dashboard'; ?>" autocomplete="off"></div>
+            <div class="mp-form-group full"><label><input type="checkbox" name="paypal_checkout_enabled" value="1" <?= !empty($pa['enabled'])?'checked':''; ?>> Enable PayPal checkout for eligible currencies</label><div class="mp-form-hint">Webhook URL: <code><?= htmlspecialchars(base_url('storefront/paypal_webhook')); ?></code> · Subscribe to <code>PAYMENT.CAPTURE.COMPLETED</code>. NGN checkout stays on MartPoint Pay; PayPal must support the store's selected currency and merchant account.</div></div>
+          </div>
+          <button type="button" class="mp-btn-primary" id="save-paypal-settings" style="margin-top:12px;">Save PayPal settings</button>
+          <span id="paypal-settings-result" class="mp-form-hint" style="margin-left:10px;"></span>
+        </div>
       </div>
 
       <div class="os-section-title"><i class="fa fa-truck"></i> Shipping</div>
@@ -310,5 +371,24 @@ function removeCityZone(btn){
   }
   btn.closest('.city-zone-row').remove();
 }
+</script>
+<script>
+(function(){
+  var button=document.getElementById('save-paypal-settings');
+  if(!button)return;
+  button.addEventListener('click',function(){
+    var form=document.getElementById('settings-form'),data=new FormData();
+    ['paypal_environment','paypal_client_id','paypal_client_secret','paypal_webhook_id','paypal_checkout_enabled'].forEach(function(name){
+      var el=form.querySelector('[name="'+name+'"]');
+      if(el){if(el.type==='checkbox'){if(el.checked)data.append(name,'1');}else data.append(name,el.value);}
+    });
+    var csrf=form.querySelector('input[name="<?= $this->security->get_csrf_token_name(); ?>"]');if(csrf)data.append(csrf.name,csrf.value);
+    var result=document.getElementById('paypal-settings-result');button.disabled=true;result.textContent='Saving…';
+    fetch('<?= base_url('online_store/save_paypal_settings'); ?>',{method:'POST',body:data,credentials:'same-origin'})
+      .then(function(r){return r.json();}).then(function(r){result.textContent=r.message||'Saved.';if(r.status==='success'){var secret=form.querySelector('[name="paypal_client_secret"]');if(secret)secret.value='';}else result.style.color='#b91c1c';})
+      .catch(function(){result.textContent='Could not save PayPal settings.';result.style.color='#b91c1c';})
+      .finally(function(){button.disabled=false;});
+  });
+})();
 </script>
 <script>$(".online_store-settings-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

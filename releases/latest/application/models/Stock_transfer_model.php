@@ -801,15 +801,29 @@ class Stock_transfer_model extends CI_Model {
 
 	
 	public function get_items_info($rowcount,$item_id){
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
-		$q1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get();
-		$tax=$this->db->query("select tax from db_tax where id=".$q1->row()->tax_id)->row()->tax;
-
-		$info['item_id'] = $q1->row()->id;
-		$info['item_name'] = $q1->row()->item_name;
-		$info['item_available_qty'] = total_available_qty_items_of_warehouse($warehouse_id,null,$q1->row()->id);
+		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		$store_id = (int)get_current_store_id();
+		$item = $this->db->where('id', (int)$item_id)->where('store_id', $store_id)->where('status', 1)->where('service_bit', 0)->get('db_items')->row();
+		if(!$item || !$warehouse_id) return '';
+		$info['item_id'] = $item->id;
+		$info['item_name'] = $item->item_name;
+		$info['item_available_qty'] = $this->_transfer_available_qty($warehouse_id, $store_id, (int)$item->id);
 		$info['item_stock_qty'] = ($info['item_available_qty']>1) ? 1 : $info['item_available_qty'];
 		$this->return_row_with_data($rowcount,$info);
+	}
+
+	/** Use the batch ledger when the derived warehouse summary has not caught up. */
+	private function _transfer_available_qty($warehouse_id, $store_id, $item_id){
+		$summary = (float)total_available_qty_items_of_warehouse((int)$warehouse_id, (int)$store_id, (int)$item_id);
+		if($summary > 0 || !$this->_lot_transfer_enabled()) return $summary;
+		$row = $this->db->select('COALESCE(SUM(qty),0) AS qty', false)
+			->from('db_item_barcodes')->where('item_id',(int)$item_id)->where('warehouse_id',(int)$warehouse_id)
+			->where('status',1)->where('qty >',0)
+			->group_start()->where("(batch_lot IS NOT NULL AND batch_lot <> '')",null,false)->or_where('expire_date IS NOT NULL',null,false)->group_end()
+			->group_start()->where('serial_number IS NULL',null,false)->or_where('serial_number','')->group_end()
+			->group_start()->where('imei_number IS NULL',null,false)->or_where('imei_number','')->group_end()
+			->get()->row();
+		return $row ? (float)$row->qty : $summary;
 	}
 	/* For Purchase Items List Retrieve*/
 	public function return_stock_list($stock_id){

@@ -16,13 +16,26 @@ class Paystack extends MY_Controller {
 	// Settings page
 	public function settings(){
 		$this->permission_check('paystack_settings');
+		// Users may keep Central open during a release. Run registered migrations
+		// here too, so this screen never depends on manually applying SQL.
+		if(function_exists('mp_is_central') && mp_is_central()){
+			$this->update_db();
+		}
 		$data=$this->data;
-		$data['page_title']='Paystack Settings';
+		$data['page_title']='MartPoint Pay';
 		$data['settings']=$this->paystack->get_settings();
 		$data['payout_account']=$this->paystack->get_payout_account();
-		$data['central_managed'] = function_exists('mp_is_central') && !mp_is_central()
-			&& $this->db->table_exists('db_payment_gateway_accounts')
-			&& $this->db->where('provider', 'paystack')->count_all_results('db_payment_gateway_accounts') > 0;
+		$data['central_managed'] = !function_exists('mp_is_central') || !mp_is_central();
+		if(!$data['central_managed']){
+			$billing_base = rtrim(trim((string)getenv('CENTRAL_BILLING_API_URL')), '/');
+			$billing_host = $billing_base !== '' ? parse_url($billing_base, PHP_URL_HOST) : false;
+			$billing_scheme = $billing_base !== '' ? parse_url($billing_base, PHP_URL_SCHEME) : false;
+			if(!$billing_host || $billing_scheme !== 'https'){
+				$billing_base = 'https://martpoint.com.ng';
+			}
+			$data['paystack_shared_webhook_url'] = $billing_base.'/api/payments/webhooks/paystack';
+		}
+		$data['paystack_terms_accepted'] = $this->paystack->has_current_paystack_terms_acceptance((int)get_current_store_id());
 		$data['content'] = $this->load->view('paystack_settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -30,19 +43,30 @@ class Paystack extends MY_Controller {
 	// Save settings
 	public function save_settings(){
 		$this->permission_check('paystack_settings');
-		if(function_exists('mp_is_central') && !mp_is_central()
-			&& $this->db->table_exists('db_payment_gateway_accounts')
-			&& $this->db->where('provider', 'paystack')->count_all_results('db_payment_gateway_accounts') > 0){
+		if(!function_exists('mp_is_central') || !mp_is_central()){
 			echo 'central_managed';
 			return;
 		}
+		// Catch up the Central schema before saving provider configuration.
+		$this->update_db();
 		$secret_key = $this->input->post('secret_key', TRUE);
 		$public_key = $this->input->post('public_key', TRUE);
 		$enabled = $this->input->post('enabled', TRUE);
 		$test_mode = $this->input->post('test_mode', TRUE);
 		$webhook_secret = $this->input->post('webhook_secret', TRUE);
-		$platform_fee_type = $this->input->post('platform_fee_type', TRUE);
-		$platform_fee_value = max(0, (float)$this->input->post('platform_fee_value'));
+		$test_mode = (string)($test_mode ?? '1') === '1' ? 1 : 0;
+		$expected_secret_prefix = $test_mode ? 'sk_test_' : 'sk_live_';
+		$expected_public_prefix = $test_mode ? 'pk_test_' : 'pk_live_';
+		if(!is_string($secret_key) || strpos(trim($secret_key), $expected_secret_prefix) !== 0
+			|| !is_string($public_key) || strpos(trim($public_key), $expected_public_prefix) !== 0){
+			http_response_code(422);
+			echo 'The selected mode does not match the Paystack key pair. Test mode needs sk_test_ and pk_test_ keys; live mode needs sk_live_ and pk_live_ keys.';
+			return;
+		}
+		$secret_key = trim($secret_key);
+		$public_key = trim($public_key);
+		$platform_fee_percent = min(100, max(0, (float)$this->input->post('platform_fee_percent')));
+		$platform_fee_fixed = max(0, (float)$this->input->post('platform_fee_fixed'));
 		$fee_bearer = $this->input->post('fee_bearer', TRUE);
 		$CUR_DATE = $this->data['CUR_DATE'];
 		$CUR_TIME = $this->data['CUR_TIME'];
@@ -52,10 +76,14 @@ class Paystack extends MY_Controller {
 			'secret_key' => $secret_key,
 			'public_key' => $public_key,
 			'enabled' => $enabled ?? 0,
-			'test_mode' => $test_mode ?? 1,
+			'test_mode' => $test_mode,
 			'webhook_secret' => $webhook_secret ?? '',
-			'platform_fee_type' => in_array($platform_fee_type, array('none','percentage','flat'), true) ? $platform_fee_type : 'none',
-			'platform_fee_value' => $platform_fee_value,
+			// Keep the legacy fields in sync for older integrations while the
+			// transaction split uses the combined percentage + fixed fee below.
+			'platform_fee_type' => $platform_fee_percent > 0 ? 'percentage' : ($platform_fee_fixed > 0 ? 'flat' : 'none'),
+			'platform_fee_value' => $platform_fee_percent > 0 ? $platform_fee_percent : $platform_fee_fixed,
+			'platform_fee_percent' => $platform_fee_percent,
+			'platform_fee_fixed' => $platform_fee_fixed,
 			'fee_bearer' => $fee_bearer === 'merchant' ? 'merchant' : 'platform',
 			'callback_url' => base_url('paystack/callback'),
 			'created_date' => $CUR_DATE,
@@ -64,16 +92,37 @@ class Paystack extends MY_Controller {
 		);
 
 		if($this->paystack->save_settings($data)){
-			echo "success";
+			$saved = $this->paystack->get_settings();
+			if($saved && hash_equals((string)($saved->secret_key ?? ''), $secret_key)
+				&& hash_equals((string)($saved->public_key ?? ''), $public_key)
+				&& (int)($saved->test_mode ?? -1) === $test_mode){
+				$table = $this->db->table_exists('db_payment_gateway_accounts')
+					? 'db_payment_gateway_accounts' : 'db_paystack_settings';
+				$fee_schema_ready = $this->db->field_exists('platform_fee_percent', $table)
+					&& $this->db->field_exists('platform_fee_fixed', $table);
+				if(!$fee_schema_ready && ($platform_fee_percent > 0 || $platform_fee_fixed > 0)){
+					echo 'credentials_saved_fee_schema_missing';
+					return;
+				}
+				echo "success";
+				return;
+			}
+			http_response_code(500);
+			echo 'The database write returned success, but the saved Paystack settings could not be confirmed. Check the Central database migration and provider row.';
 		} else {
-			echo "failed";
+			$db_error = $this->db->error();
+			http_response_code(500);
+			$message = trim((string)($db_error['message'] ?? ''));
+			echo $message !== ''
+				? 'Paystack settings were not saved: '.$message
+				: 'Paystack settings were not saved. Check that the Central Paystack migration has been applied.';
 		}
 	}
 
 	// Generate payment link (AJAX)
 	public function generate_link(){
 		if(!$this->paystack->is_enabled()){
-			echo json_encode(array('status'=>false, 'message'=>'Paystack is not enabled'));
+			echo json_encode(array('status'=>false, 'message'=>'MartPoint Pay is not enabled'));
 			return;
 		}
 
@@ -189,7 +238,7 @@ class Paystack extends MY_Controller {
 		}
 		if(!$settings || empty($settings->secret_key)){
 			http_response_code(500);
-			echo 'Paystack not configured';
+			echo 'MartPoint Pay is not configured';
 			return;
 		}
 
@@ -393,6 +442,25 @@ class Paystack extends MY_Controller {
 		echo json_encode($this->paystack->get_banks());
 	}
 
+	public function resolve_payout_account(){
+		$this->permission_check_with_msg('paystack_settings');
+		$accountNumber = preg_replace('/\D+/', '', (string)$this->input->post('account_number', TRUE));
+		$bankCode = trim((string)$this->input->post('bank_code', TRUE));
+		if(strlen($accountNumber) !== 10 || $bankCode === ''){
+			echo json_encode(['status'=>false, 'message'=>'Select a bank and enter a 10-digit account number.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		$result = $this->paystack->resolve_payout_account($accountNumber, $bankCode, (int)get_current_store_id());
+		if(!$result['status']){
+			echo json_encode(['status'=>false, 'message'=>$result['message'] ?? 'The account could not be verified. Check the bank and account number.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		echo json_encode(['status'=>true,
+			'account_number'=>(string)($result['data']['account_number'] ?? $accountNumber),
+			'account_name'=>(string)($result['data']['account_name'] ?? ''),
+			'csrf_hash'=>$this->security->get_csrf_hash()]);
+	}
+
 	public function save_payout_account(){
 		$this->permission_check_with_msg('paystack_settings');
 		$store_id = (int)get_current_store_id();
@@ -402,8 +470,13 @@ class Paystack extends MY_Controller {
 			'bank_name' => $this->input->post('payout_bank_name', TRUE),
 			'email' => $this->input->post('payout_email', TRUE),
 			'phone' => $this->input->post('payout_phone', TRUE),
-			'enabled' => (int)$this->input->post('payout_enabled', TRUE),
+			'terms_accepted' => (int)$this->input->post('terms_accepted', TRUE) === 1,
+			'accepted_by' => (string)($this->data['CUR_USERNAME'] ?? ''),
+			'accepted_by_user_id' => (int)($this->data['CUR_USERID'] ?? 0),
+			'enabled' => function_exists('mp_is_central') && mp_is_central()
+				? (int)$this->input->post('payout_enabled', TRUE) : 1,
 		));
+		$result['csrf_hash'] = $this->security->get_csrf_hash();
 		echo json_encode($result);
 	}
 }

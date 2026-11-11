@@ -53,7 +53,22 @@ class Sales_model extends CI_Model {
 		$this->db->select($this->column_order);
 		$this->db->select('a.sales_status');
 		if($this->db->field_exists('invoice_status','db_sales'))$this->db->select('a.invoice_status');
-		$this->db->select("(SELECT sp.payment_type FROM db_salespayments sp WHERE sp.sales_id = a.id AND sp.status = 1 LIMIT 1) as payment_type", FALSE);
+		if($this->db->table_exists('db_payment_modes')){
+			if($this->db->field_exists('payment_mode_id', 'db_salespayments')){
+				$this->db->select("(SELECT GROUP_CONCAT(DISTINCT COALESCE(pm_id.name, pm_code.name, NULLIF(TRIM(sp.payment_type), '')) SEPARATOR ' + ')
+					FROM db_salespayments sp
+					LEFT JOIN db_payment_modes pm_id ON pm_id.id = sp.payment_mode_id AND pm_id.store_id = sp.store_id
+					LEFT JOIN db_payment_modes pm_code ON LOWER(pm_code.code) = LOWER(sp.payment_type) AND pm_code.store_id = sp.store_id
+					WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+			}else{
+				$this->db->select("(SELECT GROUP_CONCAT(DISTINCT COALESCE(pm.name, NULLIF(TRIM(sp.payment_type), '')) SEPARATOR ' + ')
+					FROM db_salespayments sp
+					LEFT JOIN db_payment_modes pm ON LOWER(pm.code) = LOWER(sp.payment_type) AND pm.store_id = sp.store_id
+					WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+			}
+		}else{
+			$this->db->select("(SELECT GROUP_CONCAT(DISTINCT sp.payment_type SEPARATOR ' + ') FROM db_salespayments sp WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+		}
 		$this->db->from($this->table);
 		$this->db->join('db_customers as b','b.id=a.customer_id','left');
 		$this->db->join('db_customer_coupons as c','c.id=a.coupon_id','left');
@@ -788,6 +803,7 @@ class Sales_model extends CI_Model {
 			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
 
 				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
+				$selected_batch_id = (int)($_REQUEST['batch_id_'.$i] ?? 0);
 
 				// Check expiry
 				try {
@@ -795,8 +811,15 @@ class Sales_model extends CI_Model {
 					$expiry_settings = $this->expiry_settings_model->get_settings();
 					$item_check = $this->db->select('item_name,expire_date')->where('id',$item_id)->get('db_items')->row();
 					if(!$isInvoiceDraft && is_valid_date($item_check->expire_date) && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
-						$this->db->trans_rollback();
-						return "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
+						$this->load->model('Inventory_rotation_model', 'sales_expiry_rotation');
+						$hasValidBatch = $selected_batch_id > 0;
+						if(!$hasValidBatch && (int)$warehouse_id > 0 && $this->db->table_exists('db_item_barcodes')){
+							$hasValidBatch = $this->sales_expiry_rotation->sellable_qty((int)$store_id, [(int)$warehouse_id], (int)$item_id) > 0;
+						}
+						if(!$hasValidBatch){
+							$this->db->trans_rollback();
+							return "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
+						}
 					}
 				} catch (Exception $e) { /* Expiry settings not ready yet */ }
 				$sales_qty			=parse_amount($_REQUEST['td_data_'.$i.'_3'] ?? '');
@@ -862,6 +885,14 @@ class Sales_model extends CI_Model {
 				
 				$item_details = get_item_details($item_id);
 				if(!$item_details || (int)$item_details->store_id!==(int)$store_id){$this->db->trans_rollback();return 'Invoice item not found for this store.';}
+				if($selected_batch_id > 0){
+					$selectedBatchRow = $this->db->where('id', $selected_batch_id)->where('item_id', (int)$item_id)->where('warehouse_id', (int)$warehouse_id)->where('status', 1)->get('db_item_barcodes')->row();
+					if(!$selectedBatchRow || (float)$selectedBatchRow->qty + 0.00001 < (float)$sales_qty * (float)$conversion_factor){
+						$this->db->trans_rollback();
+						return 'The selected batch is no longer available in the requested quantity. Choose another batch and retry.';
+					}
+					$batch_lot = (string)($selectedBatchRow->batch_lot ?? '');
+				}
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
 				$track_serial = $isInvoiceDraft ? 0 : ($item_details->track_serial ?? 0);
@@ -1021,16 +1052,18 @@ class Sales_model extends CI_Model {
 				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
 
 				if(!$isInvoiceDraft){
-				// FEFO/FIFO is a store policy and only allocates from actual batch
-				// records. MANUAL (the migration-safe default) leaves existing stock
-				// behavior unchanged. Services never consume batch stock.
+				// FEFO/FIFO allocates automatically. Manual rotation consumes the
+				// exact lot the clerk selected in the POS picker. Services never draw
+				// batch stock.
 				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
 				$rotationStoreId = (int)(store_module() && is_admin() ? $store_id : get_current_store_id());
 				$rotationWarehouseId = (int)(warehouse_module() && warehouse_count() > 1 ? $warehouse_id : get_store_warehouse_id());
-				$allocationError = $this->inventory_rotation->allocate_sale_line(
-					$sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId,
-					$item_id, $base_unit_qty, $service_bit
-				);
+				$allocationError = $selected_batch_id > 0
+					? $this->inventory_rotation->consume_chosen_batch($sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId, $item_id, $selected_batch_id, $base_unit_qty, $item_name)
+					: $this->inventory_rotation->allocate_sale_line(
+						$sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId,
+						$item_id, $base_unit_qty, $service_bit
+					);
 				if ($allocationError !== '') {
 					$this->db->trans_rollback();
 					return $allocationError;

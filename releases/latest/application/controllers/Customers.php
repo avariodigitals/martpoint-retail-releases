@@ -424,6 +424,10 @@ class Customers extends MY_Controller {
 		$customer = $this->db->where('id', $id)->get('db_customers')->row();
 		if(!$customer) redirect('customers');
 		$data['customer'] = $customer;
+		if (mp_feature_enabled('fashion_measurements') && $this->db->table_exists('db_fashion_measurements')) {
+			$data['fashion_measurements'] = $this->db->where('store_id',(int)$store_id)->where('customer_id',(int)$id)->order_by('created_at','desc')->limit(30)->get('db_fashion_measurements')->result();
+			$data['fashion_dress_types'] = $this->db->where('is_active',1)->where_in('store_id',[0,(int)$store_id])->order_by('sort_order')->order_by('name')->get('db_fashion_dress_types')->result();
+		} else { $data['fashion_measurements']=[]; $data['fashion_dress_types']=[]; }
 		$data['pricing_group'] = null;
 		$this->load->model('customer_pricing_model', 'customer_pricing');
 		if($this->customer_pricing->installed() && !empty($customer->pricing_group_id)){

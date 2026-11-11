@@ -13,7 +13,7 @@ class Html_theme_renderer {
         if(!is_array($manifest)) throw new RuntimeException('Uploaded theme manifest is invalid.');
         $templates = (array)($manifest['templates'] ?? []);
         $map = ['store'=>'home','products'=>'catalogue','product_detail'=>'product','cart'=>'cart','checkout'=>'checkout'];
-        $templateKey = $map[$view] ?? $view;
+        $templateKey = $view === 'page' ? (string)($data['html_template'] ?? '') : ($map[$view] ?? $view);
         $root = realpath(mp_private_storage_path((string)($theme->storage_path ?? ''), true));
         if(!$root) throw new RuntimeException('Uploaded theme storage is unavailable.');
         $read = function($key) use ($templates, $root){
@@ -35,20 +35,14 @@ class Html_theme_renderer {
         $js = [];
         foreach((array)($manifest['assets']['js'] ?? []) as $asset) $js[] = '<script src="' . htmlspecialchars($this->assetUrl($theme, $asset), ENT_QUOTES, 'UTF-8') . '" defer></script>';
         $runtime = $this->runtime($theme, $data, !empty($options['preview']));
-        // Paystack is an existing backend capability. Keep its popup and
-        // server-side verification available to HTML themes without allowing
-        // the package itself to load arbitrary payment code.
-        $runtime = str_replace('w.MartPointTheme={addToCart:add,cart:read,refresh:sync}', 'w.MartPointTheme={addToCart:add,cart:read,refresh:sync,storeId:C.storeId}', $runtime);
         $html = $header . $body . $footer;
+        if(!empty($data['currency_selector_enabled'])){
+            $selector=$this->CI->load->view('themes/shared/currency_selector',$data,true);
+            if($selector!=='' && stripos($html,'<body')!==false) $html=preg_replace('~(<body\b[^>]*>)~i','$1'.$selector,$html,1);
+        }
         $headInjection = implode("\n", $css);
         if($headInjection !== '' && stripos($html, '</head>') !== false) $html = preg_replace('~</head>~i', $headInjection . "\n</head>", $html, 1);
-        $paystack = '';
-        if($templateKey === 'checkout' && empty($options['preview'])){
-            $verifyUrl = json_encode(base_url('storefront/verify_payment'));
-            $callbackUrl = json_encode(base_url('storefront/paystack_callback'));
-            $paystack = '<script src="https://js.paystack.co/v1/inline.js"></script><script>(function(w,d){var verify=' . $verifyUrl . ',callback=' . $callbackUrl . ';d.addEventListener("submit",function(e){var f=e.target.closest("[data-mp-checkout]");if(!f)return;var pm=new FormData(f).get("payment_method");if(pm!=="paystack")return;e.preventDefault();e.stopImmediatePropagation();var fd=new FormData(f);fd.append("store_id",w.MartPointTheme.storeId||0);fd.append("cart",JSON.stringify(w.MartPointTheme.cart()));fetch(f.action||"' . base_url('storefront/place_order') . '",{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(r){if(!r.status){alert(r.message||"Could not place the order.");return;}if(!r.payment_required||!r.public_key){if(r.redirect_url)w.location.href=r.redirect_url;else alert(r.message||"Order placed successfully.");return;}if(!w.PaystackPop){alert("The payment provider could not be loaded. Please try again.");return;}var h=w.PaystackPop.setup({key:r.public_key,email:r.email,amount:r.amount_kobo,currency:r.currency||"NGN",ref:r.reference,callback:function(p){fetch(verify+"?reference="+encodeURIComponent(p.reference),{credentials:"same-origin"}).then(function(x){return x.json();}).then(function(v){if(v.status){try{localStorage.removeItem("sf_cart_"+(w.MartPointTheme.storeId||0));}catch(ignore){}w.location.href=v.redirect_url;}else{alert(v.message||"Payment could not be verified.");}}).catch(function(){w.location.href=callback+"?reference="+encodeURIComponent(p.reference);});},onClose:function(){}});h.openIframe();}).catch(function(){alert("Could not place the order. Please try again.");});},true);})(window,document);</script>';
-        }
-        $scripts = $paystack . $runtime . implode("\n", $js);
+        $scripts = $runtime . implode("\n", $js);
         if(stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $scripts . "\n</body>", $html, 1); else $html .= $scripts;
         return $html;
     }
@@ -63,8 +57,8 @@ class Html_theme_renderer {
             $symbol = (string)($currency['symbol'] ?? $currency['currency_symbol'] ?? $currency['code'] ?? '');
             return trim($symbol . ' ' . number_format((float)$value, 2));
         };
-        $product = function($item) use ($base, $money){ return $this->itemContext($item, $base, $money); };
-        $lists = ['products','all_products','featured_products','best_sellers','new_arrivals','related_products','product_variants'];
+        $product = function($item) use ($base, $money, $settings){ return $this->itemContext($item, $base, $money, !empty($settings['allow_backorder'])); };
+        $lists = ['products','all_products','featured_products','best_sellers','new_arrivals','related_products','product_variants','featured_services','services'];
         $out = [
             'theme' => [
                 'name' => (string)($manifest['name'] ?? $theme->theme_name ?? 'MartPoint Theme'),
@@ -90,7 +84,8 @@ class Html_theme_renderer {
                 'announcement' => (string)($settings['announcement_bar'] ?? ''),
                 'footer_about' => (string)($settings['footer_about_us'] ?? ''),
             ],
-            'settings' => (array)($manifest['settings'] ?? []),
+            'settings' => $this->savedSettings($theme, $manifest),
+            'connector' => ['version'=>1],
             'page' => [
                 'title' => (string)($data['seo_title'] ?? $store['store_name'] ?? 'Store'),
                 'description' => (string)($data['seo_description'] ?? ''),
@@ -126,23 +121,149 @@ class Html_theme_renderer {
         }
         if(!empty($data['product'])) $out['product'] = $product($data['product']);
         else $out['product'] = [];
+        $out['service'] = !empty($data['service']) ? $product($data['service']) : [];
         if(!empty($data['related_products'])) $out['related_products'] = array_map($product, (array)$data['related_products']);
         $out['search'] = ['term'=>(string)($data['search'] ?? ''), 'url'=>$base . '/products'];
         $out['catalogue'] = ['page'=>(int)($data['page'] ?? 1), 'total'=>(int)($data['total'] ?? count($out['products'])), 'total_pages'=>(int)($data['total_pages'] ?? 1)];
+        return $this->extendContext($out, $data, $settings, $base);
+    }
+
+    private function savedSettings($theme, array $manifest){
+        $this->CI->load->library('html_theme_content');
+        $values = $this->CI->html_theme_content->values($theme, $manifest);
+        foreach($this->CI->html_theme_content->fields($manifest) as $key=>$field){
+            if($field['type'] === 'image' && $values[$key] !== '') $values[$key] = strpos($values[$key],'assets/') === 0 ? $this->assetUrl($theme,$values[$key]) : $this->imageUrl($values[$key]);
+        }
+        return $values;
+    }
+
+    /** Only public display fields cross the template boundary. */
+    private function extendContext(array $out, array $data, array $settings, $base){
+        foreach(['cart_enabled','sells_products','sells_services','show_prices','is_service_store'] as $key) $out['commerce'][$key] = !empty($data[$key]);
+        if(empty($data['show_prices'])){
+            $hide = function(&$product){if(is_array($product) && $product){$product['price']='';$product['original_price']='';$product['price_raw']=0;}};
+            foreach(['products','all_products','featured_products','best_sellers','new_arrivals','related_products','product_variants','featured_services','services'] as $key){foreach($out[$key] as &$product)$hide($product);unset($product);}
+            $hide($out['product']);
+            $hide($out['service']);
+        }
+        $out['commerce']['selling_mode'] = (string)($data['selling_mode'] ?? 'catalogue');
+        $out['commerce']['allow_backorder'] = !empty($settings['allow_backorder']);
+        $out['security'] = ['csrf_name'=>$this->CI->security->get_csrf_token_name(), 'csrf_hash'=>$this->CI->security->get_csrf_hash()];
+        $out['checkout'] = ['payment_methods'=>[], 'shipping_methods'=>[], 'city_shipping'=>[]];
+        $currency = (array)($data['store_currency'] ?? []);
+        foreach(['pay_on_delivery'=>'Pay on delivery','whatsapp'=>'Confirm on WhatsApp','paystack'=>'Pay online','paypal'=>'PayPal'] as $key=>$label){
+            $enabled = $key === 'paypal' ? !empty($data['paypal_enabled']) : !empty($settings['allow_'.$key]);
+            if($key === 'paystack') $enabled = $enabled && !empty($data['paystack_enabled']) && (($currency['code'] ?? '') === 'NGN');
+            if($enabled && !empty($data['cart_enabled'])) $out['checkout']['payment_methods'][] = ['value'=>$key, 'label'=>$label];
+        }
+        foreach(['shipping_methods_json'=>'shipping_methods','city_shipping_json'=>'city_shipping'] as $key=>$target){
+            if($target === 'city_shipping' && empty($settings['city_shipping_enabled'])) continue;
+            $rows = json_decode((string)($settings[$key] ?? ''), true);
+            foreach(is_array($rows) ? $rows : [] as $row){
+                if(!is_array($row) || ($target === 'shipping_methods' && empty($row['enabled']))) continue;
+                $row = array_intersect_key($row, array_flip(['name','fee','city','state','country','fee_type','free_over','min_order','quote','description']));
+                if($target === 'city_shipping'){
+                    $row['value'] = ($row['city'] ?? '').'|'.($row['state'] ?? '').'|'.($row['country'] ?? '');
+                    $row['label'] = implode(', ',array_filter([$row['city'] ?? '',$row['state'] ?? '',$row['country'] ?? '']));
+                    if($row['label'] === '') continue;
+                }
+                $out['checkout'][$target][] = $row;
+            }
+        }
+        $publicLists = [
+            'active_banners'=>['id','banner_title','banner_subtitle','desktop_image','mobile_image','button_text','button_url','banner_type'],
+            'hero_banners'=>['id','banner_title','banner_subtitle','desktop_image','mobile_image','button_text','button_url'],
+            'promo_banners'=>['id','banner_title','banner_subtitle','desktop_image','mobile_image','button_text','button_url'],
+            'brands'=>['id','brand_name','brand_logo','brand_url'],
+            'testimonials'=>['id','customer_name','testimonial_text','rating','customer_photo'],
+            'faqs'=>['id','question','answer'],
+            'instagram_posts'=>['id','image_url','caption','link_url'],
+            'outlets'=>['id','warehouse_name','address','city','state','country','business_hours','delivery_coverage','delivery_fee','pickup_enabled','branch_type'],
+            'branches'=>['id','warehouse_name','address','city','state','country','mobile','business_hours','pickup_enabled'],
+        ];
+        foreach($publicLists as $key=>$fields){
+            $out[$key] = [];
+            foreach((array)($data[$key] ?? []) as $row){
+                $row = $this->plain($row);
+                if(!is_array($row)) continue;
+                $row = array_intersect_key($row, array_flip($fields));
+                foreach(['image','mobile_image','desktop_image','image_url','brand_logo','customer_photo'] as $image){
+                    if(!empty($row[$image])) $row[$image] = $this->imageUrl($row[$image]);
+                }
+                if($key === 'outlets') $row['name'] = (string)($row['warehouse_name'] ?? '');
+                if(substr($key,-7) === 'banners'){
+                    $row['title'] = (string)($row['banner_title'] ?? ''); $row['subtitle'] = (string)($row['banner_subtitle'] ?? '');
+                    $row['image'] = (string)($row['desktop_image'] ?? ''); $row['url'] = (string)($row['button_url'] ?? '');
+                }
+                $out[$key][] = $row;
+            }
+        }
+        $out['homepage_sections'] = [];
+        foreach((array)($data['homepage_sections'] ?? []) as $row){
+            $row = $this->plain($row);
+            if(!is_array($row) || empty($row['is_enabled'])) continue;
+            $section = array_intersect_key($row, array_flip(['section_key','section_label','title','subtitle','display_order','config_json']));
+            $section['config'] = json_decode((string)($row['config_json'] ?? ''), true) ?: [];
+            $out['homepage_sections'][] = $section;
+        }
+        $out['social_links'] = $this->plain($data['social_links'] ?? []);
+        $out['business_hours'] = $this->plain($data['business_hours'] ?? []);
+        $out['site_content'] = $this->plain($data['site_content'] ?? []);
+        $out['about'] = ['body'=>(string)($data['about_content'] ?? '')];
+        $out['contact'] = ['can_submit'=>!empty($data['contact_can_submit']), 'received'=>!empty($data['contact_received']),
+            'error'=>(string)($data['contact_error'] ?? ''), 'subject'=>(string)($data['contact_subject'] ?? ''),
+            'submission_ref'=>(string)($data['contact_key'] ?? ''), 'action_url'=>$base.'/contact'];
+        $out['journal_posts'] = [];
+        foreach((array)($data['journal_posts'] ?? []) as $post) $out['journal_posts'][] = $this->postContext($post, $base);
+        $out['journal_post'] = !empty($data['journal_post']) ? $this->postContext($data['journal_post'], $base) : [];
+        $out['pages'] = [];
+        $manifest = json_decode((string)($this->currentTheme->manifest_json ?? ''),true);
+        foreach((array)($manifest['pages'] ?? []) as $slug=>$page) $out['pages'][] = ['title'=>(string)($page['title'] ?? ''),'url'=>$base.'/page/'.rawurlencode($slug)];
+        foreach(['services','about','privacy','blog','account','track','branches'] as $page) $out['navigation'][$page.'_url'] = $base.'/'.$page;
+        $out['navigation']['primary'] = $this->plain($data['storefront_navigation_rows']['primary'] ?? $data['storefront_nav'] ?? []);
+        $out['navigation']['secondary'] = $this->plain($data['storefront_navigation_rows']['secondary'] ?? []);
+        $out['actions']['quote_url'] = base_url('storefront/cart_quote');
+        $out['actions']['locations_url'] = base_url('storefront/location_availability');
+        // Preserve preview across internal links, without altering canonical URLs.
+        if(!empty($data['html_theme_preview'])){
+            $query = 'mp_theme_preview='.(int)$this->currentTheme->id.'&mp_theme_token='.rawurlencode((string)$this->CI->session->userdata('html_theme_preview_token'));
+            $walk = function(&$value, $key) use (&$walk, $base, $query){
+                if(is_array($value)){ foreach($value as $k=>&$child) $walk($child, $k); unset($child); }
+                elseif(is_string($value) && ($key === 'url' || substr((string)$key,-4) === '_url') && ($value === $base || strpos($value,$base.'/') === 0 || strpos($value,$base.'?') === 0)){
+                    $parts = explode('#', $value, 2);
+                    $value = $parts[0].(strpos($parts[0],'?') === false ? '?' : '&').$query.(isset($parts[1]) ? '#'.$parts[1] : '');
+                }
+            };
+            foreach(['navigation','categories','products','featured_products','all_products','best_sellers','new_arrivals','related_products','product_variants','product','featured_services','services','service','pages','journal_posts','journal_post'] as $key) $walk($out[$key], $key);
+        }
         return $out;
     }
 
-    private function itemContext($item, $base, $money){
+    private function postContext($post, $base){
+        $row = (array)$post;
+        $out = array_intersect_key($row, array_flip(['title','excerpt','body','published_at','slug']));
+        $out['image'] = $this->imageUrl($row['image_url'] ?? '');
+        $out['url'] = $base.'/blog/'.rawurlencode((string)($row['slug'] ?? ''));
+        return $out;
+    }
+
+    private function itemContext($item, $base, $money, $allowBackorder = false){
         $r = $this->plain($item);
         $id = (int)($r['id'] ?? 0);
         $name = (string)($r['item_name'] ?? $r['service_name'] ?? $r['name'] ?? 'Product');
         $price = (float)($r['effective_price'] ?? $r['online_price'] ?? $r['sales_price'] ?? $r['price'] ?? 0);
         $image = $this->imageUrl($r['item_image'] ?? $r['service_image'] ?? $r['image'] ?? '');
+        $type = isset($r['service_name']) ? 'service' : (string)($r['item_type'] ?? 'product');
+        $physical = $type !== 'service' && ($r['product_type'] ?? 'physical') === 'physical';
+        $inStock = !$physical || (float)($r['stock'] ?? 0) > 0 || $allowBackorder;
         return [
             'id'=>$id, 'name'=>$name, 'description'=>strip_tags((string)($r['description'] ?? '')), 'category'=>(string)($r['category_name'] ?? ''),
             'price'=>$money($price), 'price_raw'=>$price, 'original_price'=>$money((float)($r['original_price'] ?? $price)), 'stock'=>(float)($r['stock'] ?? 0),
-            'in_stock'=>((float)($r['stock'] ?? 0) > 0 || !empty($r['allow_backorder'])), 'image'=>$image,
-            'url'=>$base . '/product/' . $id, 'type'=>(string)($r['item_type'] ?? 'product'),
+            'in_stock'=>$inStock, 'image'=>$image,
+            'can_add_to_cart'=>$inStock && ($r['item_group'] ?? '') !== 'Variants' && empty($r['requires_quote']),
+            'url'=>$base . ($type === 'service' ? '/service/' : '/product/') . $id, 'type'=>$type,
+            'product_type'=>(string)($r['product_type'] ?? 'physical'), 'is_variant_parent'=>($r['item_group'] ?? '') === 'Variants',
+            'requires_quote'=>!empty($r['requires_quote']),
         ];
     }
 
@@ -155,28 +276,49 @@ class Html_theme_renderer {
     }
 
     private function renderTemplate($template, array $context){
-        $self = $this;
-        $render = function($source, $scope) use (&$render, $self){
-            $source = preg_replace_callback('/\{\{#if\s+([a-zA-Z0-9_.-]+)\}\}(.*?)\{\{\/if\}\}/s', function($m) use (&$render,$scope){
-                $parts = explode('{{else}}', $m[2], 2); $value = $thisValue = $this->lookup($scope, $m[1]);
-                return $value ? $render($parts[0], $scope) : (isset($parts[1]) ? $render($parts[1], $scope) : '');
-            }, $source);
-            $source = preg_replace_callback('/\{\{#([a-zA-Z0-9_.-]+)\}\}(.*?)\{\{\/\1\}\}/s', function($m) use (&$render,$scope){
-                $items = $this->lookup($scope, $m[1]);
-                if(!is_array($items)) return '';
-                $html = '';
-                foreach($items as $item){
-                    $child = is_array($item) ? array_merge($scope, $item) : array_merge($scope, ['value'=>$item]);
-                    $html .= $render($m[2], $child);
+        $tokens = preg_split('/(\{\{.*?\}\})/s', $template, -1, PREG_SPLIT_DELIM_CAPTURE|PREG_SPLIT_NO_EMPTY);
+        $index = 0;
+        $parse = function($closing = null) use (&$parse, &$index, $tokens){
+            $nodes = [];
+            while($index < count($tokens)){
+                $token = $tokens[$index++];
+                if(substr($token,0,2) !== '{{'){ $nodes[] = ['text',$token]; continue; }
+                $tag = trim(substr($token,2,-2));
+                if($tag === 'else' || substr($tag,0,1) === '/'){
+                    if($closing === null || ($tag !== 'else' && $tag !== '/'.$closing) || ($tag === 'else' && $closing !== 'if')) throw new RuntimeException('Mismatched HTML theme section.');
+                    return [$nodes,$tag];
                 }
-                return $html;
-            }, $source);
-            $source = preg_replace_callback('/\{\{\s*asset:([^}]+)\s*\}\}/', function($m) use ($self){ return htmlspecialchars($self->assetUrl($self->currentTheme, trim($m[1])), ENT_QUOTES, 'UTF-8'); }, $source);
-            return preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', function($m) use ($scope){
-                return htmlspecialchars((string)$this->lookup($scope, $m[1]), ENT_QUOTES, 'UTF-8');
-            }, $source);
+                if(preg_match('/^#if\s+([a-zA-Z0-9_.-]+)$/D', $tag, $m)){
+                    list($yes,$stop) = $parse('if'); $no = [];
+                    if($stop === 'else') list($no,$stop) = $parse('if');
+                    if($stop !== '/if') throw new RuntimeException('Unclosed HTML theme condition.');
+                    $nodes[] = ['if',$m[1],$yes,$no];
+                } elseif(preg_match('/^#([a-zA-Z0-9_.-]+)$/D', $tag, $m)){
+                    list($children,$stop) = $parse($m[1]);
+                    if($stop !== '/'.$m[1]) throw new RuntimeException('Unclosed HTML theme loop.');
+                    $nodes[] = ['each',$m[1],$children];
+                } else { $nodes[] = ['value',$tag]; }
+            }
+            if($closing !== null) throw new RuntimeException('Unclosed HTML theme section.');
+            return [$nodes,null];
         };
-        return $render($template, $context);
+        list($nodes) = $parse();
+        $render = function($nodes, $scope) use (&$render){
+            $html = '';
+            foreach($nodes as $node){
+                if($node[0] === 'text'){ $html .= $node[1]; continue; }
+                $value = $this->lookup($scope,$node[1]);
+                if($node[0] === 'if'){ $html .= $render($value ? $node[2] : $node[3], $scope); }
+                elseif($node[0] === 'each'){
+                    foreach(is_array($value) ? $value : [] as $item) $html .= $render($node[2], array_merge($scope,is_array($item) ? $item : ['value'=>$item]));
+                } else {
+                    if(strpos($node[1],'asset:') === 0) $value = $this->assetUrl($this->currentTheme,trim(substr($node[1],6)));
+                    $html .= htmlspecialchars(is_scalar($value) ? (string)$value : '', ENT_QUOTES, 'UTF-8');
+                }
+            }
+            return $html;
+        };
+        return $render($nodes,$context);
     }
 
     private $currentTheme;
@@ -200,17 +342,37 @@ class Html_theme_renderer {
     }
 
     private function runtime($theme, array $data, $preview){
-        $runtimeSettings = (array)($data['settings'] ?? []);
-        $runtimeStore = (array)($data['store'] ?? []);
-        $storeId = (int)($runtimeSettings['store_id'] ?? $runtimeStore['id'] ?? 0);
+        $settings = (array)($data['settings'] ?? []);
+        $storeId = (int)($settings['store_id'] ?? 0);
+        $currency = (array)($data['store_currency'] ?? []);
         $config = [
-            'storeId'=>$storeId,
-            'preview'=>(bool)$preview,
+            'version'=>1, 'storeId'=>$storeId, 'preview'=>(bool)$preview,
             'cartKey'=>'sf_cart_' . $storeId,
-            'placeOrderUrl'=>base_url('storefront/place_order'),
-            'homeUrl'=>base_url('store/' . rawurlencode((string)($data['settings']->store_slug ?? $data['settings']['store_slug'] ?? ''))),
+            'cartEnabled'=>!empty($data['cart_enabled']), 'allowBackorder'=>!empty($settings['allow_backorder']),
+            'placeOrderUrl'=>base_url('storefront/place_order'), 'quoteUrl'=>base_url('storefront/cart_quote'),
+            'verifyUrl'=>base_url('storefront/verify_payment'), 'callbackUrl'=>base_url('storefront/paystack_callback'),
+            'homeUrl'=>base_url('store/' . rawurlencode((string)($settings['store_slug'] ?? ''))),
+            'csrfName'=>$this->CI->security->get_csrf_token_name(), 'csrfHash'=>$this->CI->security->get_csrf_hash(),
+            'currency'=>(string)($currency['code'] ?? 'NGN'), 'currencyRate'=>(float)($data['currency_conversion_rate'] ?? 1),
+            'currencySymbol'=>html_entity_decode((string)($currency['symbol'] ?? ''), ENT_QUOTES, 'UTF-8'),
+            'requiresLocation'=>count((array)($data['outlets'] ?? [])) > 1,
+            'locationSelectionEnabled'=>!empty($data['outlets']),
+            'signInUrl'=>base_url('store/'.rawurlencode((string)($settings['store_slug'] ?? '')).'/account'),
+            'pricingNoticeEnabled'=>!isset($settings['customer_pricing_notice_enabled']) || !empty($settings['customer_pricing_notice_enabled']),
+            'pricingNoticeTitle'=>(string)($settings['customer_pricing_notice_title'] ?? ''),
+            'pricingNoticeText'=>(string)($settings['customer_pricing_notice_text'] ?? ''),
+            'pricingNoticeLinkText'=>(string)($settings['customer_pricing_notice_link_text'] ?? ''),
         ];
         $json = json_encode($config, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
-        return '<script>(function(w,d){var C=' . $json . ';function esc(v){return String(v==null?"":v).replace(/[&<>"\']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","\'":"&#039;"}[c];});}function read(){try{return JSON.parse(localStorage.getItem(C.cartKey)||"[]");}catch(e){return [];}}function write(items){try{localStorage.setItem(C.cartKey,JSON.stringify(items));}catch(e){}}function sync(){var items=read(),count=items.reduce(function(n,i){return n+(Number(i.qty)||0);},0);d.querySelectorAll("[data-mp-cart-count]").forEach(function(x){x.textContent=count;});var box=d.querySelector("[data-mp-cart]");if(!box)return;if(!items.length){box.innerHTML="<p>Your cart is empty.</p><a href=\""+C.homeUrl+"/products\">Browse products</a>";return;}var total=0;box.innerHTML=items.map(function(i){var line=(Number(i.price)||0)*(Number(i.qty)||0);total+=line;return "<div class=\"mp-theme-cart-line\"><span>"+esc(i.name)+" × "+i.qty+"</span><strong>"+line.toFixed(2)+"</strong></div>";}).join("");d.querySelectorAll("[data-mp-cart-total]").forEach(function(x){x.textContent=total.toFixed(2);});}function add(item){if(C.preview){alert("Cart actions are disabled in preview.");return;}var items=read(),key=String(item.type||"product")+"_"+item.id,found=items.find(function(i){return i.key===key;});if(found)found.qty=Math.min((Number(found.qty)||0)+Math.max(1,Number(item.qty)||1),Number(found.stock)||999999);else items.push({key:key,id:Number(item.id),type:item.type||"product",name:item.name||"Product",price:Number(item.price)||0,image:item.image||"",qty:Math.max(1,Number(item.qty)||1),stock:Number(item.stock)||999999});write(items);sync();}w.MartPointTheme={addToCart:add,cart:read,refresh:sync};w.mpThemeAddToCart=add;d.addEventListener("click",function(e){var b=e.target.closest("[data-mp-add-to-cart]");if(b){e.preventDefault();add({id:b.dataset.productId,type:b.dataset.productType||"product",name:b.dataset.productName,price:b.dataset.productPrice,image:b.dataset.productImage,stock:b.dataset.productStock,qty:b.dataset.productQty||1});}});d.addEventListener("submit",function(e){var f=e.target.closest("[data-mp-checkout]");if(!f)return;e.preventDefault();if(C.preview){alert("Checkout is disabled in preview.");return;}var fd=new FormData(f);fd.append("store_id",C.storeId);fd.append("cart",JSON.stringify(read()));fetch(f.action||C.placeOrderUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(r){if(r.status&&r.redirect_url)location.href=r.redirect_url;else if(r.status&&r.payment_required)alert("Payment is ready. Please continue in the payment provider.");else alert(r.message||"Could not place the order.");}).catch(function(){alert("Could not place the order. Please try again.");});});sync();})(window,document);</script>';
+        $location = ['storeId'=>$storeId, 'preview'=>(bool)$preview, 'connectorVersion'=>1,
+            'selectionEnabled'=>!empty($data['outlets']), 'availabilityUrl'=>base_url('storefront/location_availability'),
+            'csrfName'=>$config['csrfName'], 'csrfHash'=>$config['csrfHash']];
+        $html = '<script>window.MartPointThemeConfig=' . $json . ';window.MPThemeLocationConfig=' . json_encode($location, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) . ';</script>';
+        foreach(['storefront_commerce.js','html_theme_connector.js','storefront_location_picker.js'] as $asset){
+            $file = dirname(rtrim(APPPATH,'/')).'/theme/js/'.$asset;
+            $version = is_file($file) ? (string)filemtime($file) : '1';
+            $html .= '<script src="' . htmlspecialchars(base_url('theme/js/' . $asset).'?v='.$version, ENT_QUOTES, 'UTF-8') . '"></script>';
+        }
+        return $html;
     }
 }

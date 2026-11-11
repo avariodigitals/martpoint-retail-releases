@@ -105,7 +105,7 @@ if ($CI->permissions('gateway_view') || $CI->permissions('package_view') || $CI-
     ['icon' => 'fa-link', 'label' => 'Payment Gateways', 'url' => base_url('gateways'), 'perm' => 'gateway_view'],
     ['icon' => 'fa-gift', 'label' => 'Packages', 'url' => base_url('package'), 'perm' => 'package_view'],
     ['icon' => 'fa-calendar-check-o', 'label' => 'Subscription', 'url' => base_url('subscribers/list/'.$store_id), 'perm' => 'subscription'],
-    ['icon' => 'fa-credit-card-alt', 'label' => 'Paystack Settings', 'url' => base_url('paystack/settings'), 'perm' => 'paystack_settings'],
+    ['icon' => 'fa-credit-card-alt', 'label' => 'MartPoint Pay', 'url' => base_url('paystack/settings'), 'perm' => 'paystack_settings'],
     ['icon' => 'fa-calendar-times-o', 'label' => 'Expiry Settings', 'url' => base_url('expiry_settings'), 'perm' => 'expiry_settings'],
     ['icon' => 'fa-bell-o', 'label' => 'Debt Reminder', 'url' => base_url('debt_reminder'), 'perm' => 'debt_reminder_view'],
   ];

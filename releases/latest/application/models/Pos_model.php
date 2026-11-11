@@ -3,6 +3,100 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Pos_model extends CI_Model {
 
+	/**
+	 * Return the first batch that can be sold from the requested location. An
+	 * expired item-level date must not block a valid batch; the item date is only
+	 * the fallback when no stocked batch rows exist at this location.
+	 */
+	public function pos_batch_candidates(array $item_ids, $store_id, $warehouse_id, $stop_expired, $today){
+		$map = array();
+		$item_ids = array_values(array_unique(array_filter(array_map('intval', $item_ids))));
+		if(empty($item_ids) || !$this->db->table_exists('db_item_barcodes')) return $map;
+
+		$select = array('id','item_id','batch_lot','expire_date','qty');
+		if($this->db->field_exists('barcode','db_item_barcodes')) $select[] = 'barcode';
+		$hasCreatedDate = $this->db->field_exists('created_date','db_item_barcodes');
+		if($hasCreatedDate) $select[] = 'created_date';
+		$this->db->select(implode(',', $select))->from('db_item_barcodes')
+			->where_in('item_id', $item_ids)->where('status',1)->where('qty >',0);
+		if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+		if($this->db->field_exists('serial_number','db_item_barcodes')) $this->db->where("(serial_number IS NULL OR serial_number = '')", null, false);
+		if($this->db->field_exists('imei_number','db_item_barcodes')) $this->db->where("(imei_number IS NULL OR imei_number = '')", null, false);
+		$rows = $this->db->get()->result();
+		$byItem = array();
+		foreach($rows as $row){
+			$hasBatchCode = !empty($row->batch_lot);
+			$hasExpiry = is_valid_date($row->expire_date);
+			if(!$hasBatchCode && !$hasExpiry) continue;
+			$id = (int)$row->item_id;
+			if(!isset($byItem[$id])) $byItem[$id] = array();
+			$byItem[$id][] = $row;
+		}
+
+		$this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+		$rotation = $this->pos_inventory_rotation->method((int)$store_id);
+		foreach($byItem as $id => $batches){
+			usort($batches, function($a, $b) use ($rotation){
+				if($rotation === Inventory_rotation_model::FIFO){
+					$cmp = strcmp((string)($a->created_date ?? ''), (string)($b->created_date ?? ''));
+				}else{
+					$aHasDate = is_valid_date($a->expire_date);
+					$bHasDate = is_valid_date($b->expire_date);
+					if($aHasDate !== $bHasDate) return $aHasDate ? -1 : 1;
+					$cmp = $aHasDate ? strcmp((string)$a->expire_date, (string)$b->expire_date) : 0;
+					if($cmp === 0) $cmp = strcmp((string)($a->created_date ?? ''), (string)($b->created_date ?? ''));
+				}
+				return $cmp !== 0 ? $cmp : ((int)$a->id <=> (int)$b->id);
+			});
+
+			$eligible = array();
+			$expired = array();
+			foreach($batches as $batch){
+				if(is_valid_date($batch->expire_date) && $batch->expire_date < $today) $expired[] = $batch;
+				else $eligible[] = $batch;
+			}
+			$sellable = !empty($stop_expired) ? $eligible : $batches;
+			$chosen = !empty($sellable) ? $sellable[0] : (!empty($expired) ? $expired[0] : $batches[0]);
+			$map[(int)$id] = array(
+				'has_batches' => true,
+				'batch' => $chosen,
+				// The desktop POS uses this ordered list to show the clerk which
+				// physical lot the same FEFO/FIFO allocator will draw from.
+				'candidates' => $sellable,
+				'all_expired' => !empty($stop_expired) && empty($eligible) && !empty($expired),
+			);
+		}
+		return $map;
+	}
+
+	/** Checkout safety net: reject an expired chosen lot, or an expired item
+	 * only when no stocked sellable lot remains at the selected location. */
+	private function pos_expiry_error($item, $store_id, $warehouse_id, $barcode_id = 0){
+		$this->load->model('expiry_settings_model');
+		$settings = $this->expiry_settings_model->get_settings((int)$store_id);
+		if(empty($settings->stop_selling_expired)) return '';
+		$today = date('Y-m-d');
+		if((int)$barcode_id > 0){
+			$this->db->from('db_item_barcodes')->where('id',(int)$barcode_id)->where('item_id',(int)$item->id);
+			if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+			$barcode = $this->db->get()->row();
+			if(!$barcode) return 'The selected batch or unit is not available at this location.';
+			if(is_valid_date($barcode->expire_date) && $barcode->expire_date < $today){
+				return 'This batch has expired ('.$barcode->expire_date.'). Cannot sell expired items.';
+			}
+			return '';
+		}
+		$map = $this->pos_batch_candidates(array((int)$item->id), $store_id, $warehouse_id, 1, $today);
+		$state = $map[(int)$item->id] ?? null;
+		if($state && !empty($state['has_batches'])){
+			return !empty($state['all_expired'])
+				? 'All available batches for this item are expired. Cannot sell expired stock.'
+				: '';
+		}
+		return is_valid_date($item->expire_date) && $item->expire_date < $today
+			? 'This item has expired ('.$item->expire_date.'). Cannot sell expired items.' : '';
+	}
+
 	public function inclusive($price, $tax_per){
 		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
 	}
@@ -103,39 +197,19 @@ class Pos_model extends CI_Model {
         }
       }
 
-      // Resolve the soonest-expiring batch for this item (if batch/expiry tracking enabled)
+      // Prefer a sellable batch at the selected location. The product-level
+      // expire_date is only authoritative when there is no stocked batch row.
       $effective_expire = $res1->expire_date;
       $effective_batch = $res1->batch_lot;
-      if($this->db->table_exists('db_item_barcodes')){
-        $this->db->select('expire_date, batch_lot, created_date')
-          ->where('item_id', $item_id)->where('status', 1)->where('qty >', 0);
-        if ($this->db->field_exists('warehouse_id', 'db_item_barcodes')) $this->db->where('warehouse_id', (int)$warehouse_id);
-        $this->db->group_start()
-          ->where("(serial_number IS NULL OR serial_number = '')", null, false)
-          ->where("(imei_number IS NULL OR imei_number = '')", null, false)
-        ->group_end();
-        if (!empty($expiry_settings->stop_selling_expired)) {
-          $this->db->group_start()->where('expire_date IS NULL', null, false)->or_where('expire_date >=', $today)->group_end();
-        }
-        $this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
-        if ($this->pos_inventory_rotation->method($res1->store_id) === 'FIFO') {
-          $this->db->order_by('created_date', 'ASC')->order_by('id', 'ASC');
-        } else {
-          $this->db->order_by('(expire_date IS NULL)', 'ASC', false)->order_by('expire_date', 'ASC')->order_by('created_date', 'ASC')->order_by('id', 'ASC');
-        }
-        $batch = $this->db->get('db_item_barcodes')->row();
-        // If every batch is expired, keep the earliest expired date so the
-        // existing stop-selling guard blocks the item instead of hiding expiry.
-        if (!$batch && !empty($expiry_settings->stop_selling_expired)) {
-          $this->db->select('expire_date, batch_lot')->where('item_id', $item_id)->where('status', 1)->where('qty >', 0)->where('expire_date <', $today);
-          if ($this->db->field_exists('warehouse_id', 'db_item_barcodes')) $this->db->where('warehouse_id', (int)$warehouse_id);
-          $batch = $this->db->order_by('expire_date', 'ASC')->order_by('id', 'ASC')->get('db_item_barcodes')->row();
-        }
-        if($batch){
-          if (is_valid_date($batch->expire_date)) $effective_expire = $batch->expire_date;
-          if (!empty($batch->batch_lot)) $effective_batch = $batch->batch_lot;
-        }
-      }
+		$batchMap = $this->pos_batch_candidates(array($item_id), $res1->store_id, $warehouse_id, $expiry_settings->stop_selling_expired, $today);
+		$batchState = $batchMap[(int)$item_id] ?? null;
+		if($batchState && $batchState['has_batches']){
+			$effective_expire = $batchState['batch']->expire_date;
+			$effective_batch = $batchState['batch']->batch_lot;
+			if($batchState['all_expired']){
+				return json_encode(array('error' => 'All available batches for this item are expired. Cannot sell expired stock.'));
+			}
+		}
 		if(!empty($res1->is_bundle)){
 			$this->load->model('Extras_model', 'extras_model');
 			$effective_price = $this->extras_model->bundleUnitPrice($res1, $res1->store_id);
@@ -257,11 +331,12 @@ class Pos_model extends CI_Model {
 
 		$data=$this->data;
 		$store_id = get_current_store_id();
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		if(empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
 		$id = $this->input->post('id', TRUE);
 		$brand_id = $this->input->post('brand_id', TRUE);
 		$item_name = $this->input->post('item_name', TRUE);
 		$last_id = $this->input->post('last_id', TRUE);
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$CI =& get_instance();
@@ -300,24 +375,18 @@ class Pos_model extends CI_Model {
 	      $this->load->model('expiry_settings_model');
 	      $expiry_settings = $this->expiry_settings_model->get_settings();
 	      $today = date('Y-m-d');
-      // Pre-load the soonest-expiring batch per item for accurate expiry display
-      $item_batch_map = [];
-      if($this->db->table_exists('db_item_barcodes') && $q2->num_rows()>0){
-        $ids = array_map(function($r){ return $r->id; }, $q2->result());
-        if(!empty($ids)){
-          $placeholders = implode(',', array_fill(0, count($ids), '?'));
-          $batches = $this->db->query("SELECT item_id, expire_date, batch_lot FROM db_item_barcodes WHERE status = 1 AND qty > 0 AND expire_date IS NOT NULL AND item_id IN ($placeholders) ORDER BY expire_date ASC, id ASC", $ids)->result();
-          foreach($batches as $b){
-            if(!isset($item_batch_map[$b->item_id])){
-              $item_batch_map[$b->item_id] = ['expire_date' => $b->expire_date, 'batch_lot' => $b->batch_lot];
-            }
-          }
-        }
-      }
+		// Resolve one sellable batch per product in the current outlet. An
+		// expired lot must not mark the whole product card expired when another
+		// lot at this outlet is still valid.
+		$item_ids = $q2->num_rows() > 0 ? array_map(function($r){ return (int)$r->id; }, $q2->result()) : array();
+		$item_batch_map = $this->pos_batch_candidates($item_ids, $store_id, $warehouse_id, $expiry_settings->stop_selling_expired, $today);
 	      if($q2->num_rows()>0){
 	        foreach($q2->result() as $res2){
 	        	if($res2->item_group=='Variants'){continue;}
-            if(isset($item_batch_map[$res2->id])){ $res2->expire_date = $item_batch_map[$res2->id]['expire_date']; $res2->batch_lot = $item_batch_map[$res2->id]['batch_lot']; }
+	            if(isset($item_batch_map[$res2->id])){
+				$res2->expire_date = $item_batch_map[$res2->id]['batch']->expire_date;
+				$res2->batch_lot = $item_batch_map[$res2->id]['batch']->batch_lot;
+			}
 				if(!empty($res2->is_bundle) && !isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
 				$w_stock = !empty($res2->is_bundle)
 					? $this->extras_model->bundleAvailability($res2->id, $store_id, $warehouse_id)
@@ -925,6 +994,11 @@ class Pos_model extends CI_Model {
 				$item_details = get_item_details($item_id);
 				$item_name = $item_details->item_name;
 				$service_bit = $item_details->service_bit;
+				$expiryError = $this->pos_expiry_error($item_details, $store_id, $warehouse_id, (int)($_REQUEST['barcode_id_'.$i] ?? 0));
+				if($expiryError !== ''){
+					$this->db->trans_rollback();
+					return $expiryError;
+				}
 				// Use the item's cost (purchase_price with tax) when no barcode, or the barcode's cost when a unit is selected
 				if($barcode_id > 0){
 					$barcode_rec = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
@@ -1400,7 +1474,15 @@ class Pos_model extends CI_Model {
 		}
 		
 		//UPDATE itemS QUANTITY IN itemS TABLE
-		$q7=$this->db->query("select COALESCE(SUM(adjustment_qty),0) as stock_qty from db_stockadjustmentitems where item_id='$item_id'");
+		$stockAdjustmentSql = "SELECT COALESCE(SUM(ai.adjustment_qty),0) AS stock_qty FROM db_stockadjustmentitems ai";
+		$stockAdjustmentWhere = " WHERE ai.item_id='".(int)$item_id."'";
+		if($this->db->table_exists('db_stockadjustment') && $this->db->table_exists('db_online_orders')
+			&& $this->db->field_exists('sales_id','db_online_orders')){
+			$stockAdjustmentSql .= " JOIN db_stockadjustment a ON a.id=ai.adjustment_id LEFT JOIN db_online_orders oo
+				ON a.store_id=oo.store_id AND a.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+			$stockAdjustmentWhere .= " AND (a.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR COALESCE(oo.sales_id,0)=0)";
+		}
+		$q7=$this->db->query($stockAdjustmentSql.$stockAdjustmentWhere);
 		if(!$q7){ return false; }
 		$stock_qty=$q7->row()->stock_qty;
 

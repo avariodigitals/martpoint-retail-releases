@@ -1,0 +1,72 @@
+<?php
+$w = $supplements_workspace ?? [];
+$CI =& get_instance();
+$storeName = $this->session->userdata('store_name') ?: 'Supplements & Wellness';
+$money = function($amount) use ($CI){ return $CI->currency((float)$amount); };
+?>
+<div class="pharma-workspace supplements-workspace">
+  <section class="pharma-hero">
+    <div><div class="pharma-kicker"><span class="pharma-pulse"></span> Supplements &amp; wellness</div><h1>Business overview</h1><p><?= htmlspecialchars($storeName); ?> · <?= date('l, j F Y'); ?></p></div>
+    <div class="pharma-hero-actions"><a href="<?= base_url('purchase'); ?>" class="pharma-btn pharma-btn-light"><i class="fa fa-truck"></i> New purchase</a><a href="<?= base_url(!empty($supplements_mobile) ? 'mobile/pos' : 'pos'); ?>" class="pharma-btn pharma-btn-primary"><i class="fa fa-plus"></i> Member checkout</a></div>
+  </section>
+  <section class="pharma-panel supplements-finance" style="margin-bottom:20px;">
+    <div class="pharma-panel-head"><div><span class="pharma-eyebrow">Financial reconciliation</span><h2>Money in and out</h2></div>
+      <nav class="supplements-range-filter" aria-label="Financial period">
+        <span>Period</span>
+        <?php foreach(['today'=>'Today','7d'=>'7 days','30d'=>'30 days'] as $key=>$label): ?>
+          <a href="<?= base_url('dashboard?range='.$key.(!empty($supplements_mobile) ? '&screen=mobile' : '')); ?>" class="<?= ($w['range'] ?? 'today') === $key ? 'is-active' : ''; ?>" <?= ($w['range'] ?? 'today') === $key ? 'aria-current="true"' : ''; ?>><?= $label; ?></a>
+        <?php endforeach; ?>
+      </nav>
+    </div>
+    <div class="supplements-finance-grid">
+      <div class="supplements-finance-card"><small>Sales recorded</small><strong><?= $money($w['financial']['sales'] ?? 0); ?></strong></div>
+      <div class="supplements-finance-card"><small>Payments received</small><strong><?= $money($w['financial']['receipts'] ?? 0); ?></strong><a href="<?= base_url('reports/sales_and_payments'); ?>">Review receipts</a></div>
+      <div class="supplements-finance-card"><small>Online payments received</small><strong><?= $money($w['financial']['online_receipts'] ?? 0); ?></strong><a href="<?= base_url('online_store/orders'); ?>">Review online orders</a></div>
+      <div class="supplements-finance-card"><small>Expenses recorded</small><strong><?= $money($w['financial']['expenses'] ?? 0); ?></strong><a href="<?= base_url('expense'); ?>">Review expenses</a></div>
+    </div>
+    <div class="supplements-finance-note">Showing <?= htmlspecialchars(show_date($w['range_from'] ?? date('Y-m-d'))); ?> – <?= htmlspecialchars(show_date($w['range_to'] ?? date('Y-m-d'))); ?>. Online payments are a subset of payments received.</div>
+  </section>
+  <?php if(!empty($w['license'])): $lic = $w['license']; ?>
+  <section class="pharma-panel supplements-license" style="margin-bottom:20px;">
+    <div class="pharma-panel-head"><div><span class="pharma-eyebrow">Plan health</span><h2>License usage</h2></div><a href="<?= base_url('subscription_license/usage'); ?>">View details <i class="fa fa-angle-right"></i></a></div>
+    <div class="supplements-license-summary"><strong><?= htmlspecialchars($lic['plan_name'] ?: 'No plan assigned'); ?></strong><span><?= htmlspecialchars(ucwords(strtolower(str_replace('_',' ',$lic['status'] ?? '')))); ?><?= !empty($lic['days_left']) ? ' · '.(int)$lic['days_left'].' days left' : ''; ?></span></div>
+    <?php if(!empty($lic['quotas'])): ?><div class="supplements-license-grid"><?php foreach(array_slice($lic['quotas'],0,4) as $quota): ?><div><small><?= htmlspecialchars($quota['label']); ?></small><strong><?= $quota['unit'] === 'MB' ? number_format($quota['used'],1).' MB' : number_format($quota['used']); ?> / <?= $quota['unit'] === 'MB' ? number_format($quota['limit']).' MB' : number_format($quota['limit']); ?></strong><span class="supplements-license-bar"><i style="width:<?= min(100,max(0,(float)$quota['pct'])); ?>%"></i></span></div><?php endforeach; ?></div><?php endif; ?>
+  </section>
+  <?php endif; ?>
+  <section class="pharma-kpis" aria-label="Today's business snapshot">
+    <div class="pharma-kpi pharma-kpi-blue"><span class="pharma-kpi-icon"><i class="fa fa-line-chart"></i></span><div><small>Sales today</small><strong><?= $money($w['sales_today'] ?? 0); ?></strong><em><?= (int)($w['invoices_today'] ?? 0); ?> purchases</em></div></div>
+    <div class="pharma-kpi pharma-kpi-purple"><span class="pharma-kpi-icon"><i class="fa fa-users"></i></span><div><small>Members &amp; customers</small><strong><?= number_format((int)($w['members'] ?? 0)); ?></strong><em>customer records</em></div></div>
+    <div class="pharma-kpi pharma-kpi-amber"><span class="pharma-kpi-icon"><i class="fa fa-exclamation-triangle"></i></span><div><small>Stock attention</small><strong><?= (int)($w['low_stock'] ?? 0); ?></strong><em>products below reorder level</em></div></div>
+    <div class="pharma-kpi pharma-kpi-red"><span class="pharma-kpi-icon"><i class="fa fa-calendar-times-o"></i></span><div><small>Expiry watch</small><strong><?= (int)($w['expiring_soon'] ?? 0); ?></strong><em><?= (int)($w['expired'] ?? 0); ?> expired products</em></div></div>
+  </section>
+  <section class="pharma-action-grid">
+    <a href="<?= base_url('customers'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><i class="fa fa-users"></i></span><span><strong>Members &amp; customers</strong><small>Profiles and purchase history</small></span><i class="fa fa-angle-right"></i></a>
+    <a href="<?= base_url('purchase'); ?>" class="pharma-action-card"><span class="pharma-action-icon violet"><i class="fa fa-truck"></i></span><span><strong>Purchasing</strong><small>Order and receive supplier stock</small></span><i class="fa fa-angle-right"></i></a>
+    <a href="<?= base_url('online_store/orders'); ?>" class="pharma-action-card"><span class="pharma-action-icon teal"><i class="fa fa-shopping-bag"></i></span><span><strong>Online orders</strong><small><?= (int)($w['online_orders'] ?? 0); ?> orders in progress</small></span><i class="fa fa-angle-right"></i></a>
+    <a href="<?= base_url('supplements_workspace/locations'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><i class="fa fa-map-marker"></i></span><span><strong>Locations &amp; fulfilment</strong><small><?= (int)($w['branch_count'] ?? 0); ?> active locations</small></span><i class="fa fa-angle-right"></i></a>
+  </section>
+  <section class="pharma-columns">
+    <div class="pharma-panel"><div class="pharma-panel-head"><div><span class="pharma-eyebrow">Recent activity</span><h2>Latest member purchases</h2></div><a href="<?= base_url('sales'); ?>">Open sales <i class="fa fa-angle-right"></i></a></div>
+      <?php if(empty($w['recent_sales'])): ?><div class="pharma-empty"><i class="fa fa-inbox"></i><strong>No recent purchases</strong><span>Completed member purchases will appear here.</span></div><?php else: foreach($w['recent_sales'] as $sale): ?>
+      <div class="pharma-list-row"><span class="pharma-list-avatar teal"><i class="fa fa-shopping-bag"></i></span><div class="pharma-list-main"><strong><?= htmlspecialchars($sale->customer_name ?: 'Walk-in customer'); ?></strong><small><?= htmlspecialchars($sale->sales_code ?: 'Sale'); ?> · <?= !empty($sale->created_time) ? date('H:i', strtotime($sale->created_time)) : ''; ?></small></div><strong class="pharma-amount"><?= $money($sale->grand_total ?? 0); ?></strong></div>
+      <?php endforeach; endif; ?>
+    </div>
+    <div class="pharma-panel"><div class="pharma-panel-head"><div><span class="pharma-eyebrow">Business intelligence</span><h2>What needs attention</h2></div></div>
+      <?php $salesNow=(float)($w['financial']['sales']??0); $salesPrior=(float)($w['financial']['previous_sales']??0); ?>
+      <div class="supplements-intel">
+        <?php if((int)($w['expired']??0)>0): ?><div class="supplements-intel-alert danger"><i class="fa fa-exclamation-triangle"></i><span><strong><?= (int)$w['expired']; ?> expired stock line<?= (int)$w['expired']===1?'':'s'; ?> need review.</strong> Remove or quarantine expired batches before sale.</span><a href="<?= base_url('expired_items_report'); ?>">Review expiry watch</a></div>
+        <?php elseif((int)($w['expiring_soon']??0)>0): ?><div class="supplements-intel-alert warning"><i class="fa fa-calendar"></i><span><strong><?= (int)$w['expiring_soon']; ?> stock line<?= (int)$w['expiring_soon']===1?'':'s'; ?> are nearing expiry.</strong> Check the batch dates and plan sell-through.</span><a href="<?= base_url('expired_items_report'); ?>">Review expiry watch</a></div>
+        <?php elseif((int)($w['low_stock']??0)>0): ?><div class="supplements-intel-alert warning"><i class="fa fa-cubes"></i><span><strong><?= (int)$w['low_stock']; ?> products are at or below their reorder alert.</strong> Review quantities before placing the next supplier order.</span><a href="<?= base_url('items'); ?>">Review products</a></div>
+        <?php else: ?><div class="supplements-intel-alert good"><i class="fa fa-check-circle"></i><span><strong>No stock or expiry alerts right now.</strong> Keep an eye on replenishment and upcoming batch dates.</span><a href="<?= base_url('reports/stock_report'); ?>">Open stock report</a></div><?php endif; ?>
+        <div class="supplements-sales-trend"><small>Sales vs previous <?= $w['range']==='today'?'day':($w['range']==='7d'?'7 days':'30 days'); ?></small><strong><?php if($salesPrior>0): $change=(($salesNow-$salesPrior)/$salesPrior)*100; ?><?= $change>=0?'Up ':'Down '; ?><?= number_format(abs($change),1); ?>%<?php elseif($salesNow>0): ?>Sales recorded<?php else: ?>No sales recorded<?php endif; ?></strong><span><?= $money($salesNow); ?> in selected period<?php if($salesPrior>0): ?> · <?= $money($salesPrior); ?> previous period<?php endif; ?></span></div>
+      </div>
+      <div class="supplements-communication-head"><div><span class="pharma-eyebrow">Customer communications</span><h3>SMS &amp; email activity</h3></div><a href="<?= base_url('marketing/campaigns'); ?>">Open campaigns <i class="fa fa-angle-right"></i></a></div>
+      <div class="supplements-reconcile-stats"><div><span class="supplements-reconcile-icon"><i class="fa fa-commenting"></i></span><div><small>SMS units accepted</small><strong><?= number_format((int)($w['communications']['sms'] ?? 0)); ?></strong></div></div><div><span class="supplements-reconcile-icon"><i class="fa fa-envelope"></i></span><div><small>Emails sent</small><strong><?= number_format((int)($w['communications']['email'] ?? 0)); ?></strong></div></div></div>
+      <div class="supplements-finance-note">Counts use the same <?= htmlspecialchars(str_replace(['today','7d','30d'],['today','last 7 days','last 30 days'],$w['range'] ?? 'today')); ?> period selected above. SMS counts reflect provider acceptance; carrier delivery may differ.</div>
+    </div>
+  </section>
+</div>
+<style>
+.supplements-range-filter{display:flex;align-items:center;gap:8px}.supplements-range-filter>span{font-size:13px;color:#667c86;margin-right:2px}.supplements-range-filter a{border:1px solid #d7e5e7;border-radius:9px;padding:8px 11px;background:#fff;color:#17343d;text-decoration:none;font-size:13px}.supplements-range-filter a.is-active{background:#e8f5f2;color:#13786d;border-color:#b8ded7}.supplements-finance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:16px 20px 4px}.supplements-finance-card{border:1px solid #e5edef;border-radius:12px;padding:15px;display:flex;flex-direction:column;gap:6px}.supplements-finance-card small,.supplements-license-grid small{color:#68808a;font-size:12px}.supplements-finance-card strong{font-size:21px;color:#17343d}.supplements-finance-card a{font-size:12px;color:#148576}.supplements-finance-note{padding:10px 20px 16px;color:#6b8089;font-size:12px}.supplements-license-summary{padding:14px 20px 0;display:flex;gap:12px;align-items:center}.supplements-license-summary strong{font-size:16px}.supplements-license-summary span{color:#6b8089;font-size:13px}.supplements-license-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:16px 20px 20px}.supplements-license-grid>div{display:grid;gap:7px}.supplements-license-grid strong{font-size:13px}.supplements-license-bar{height:5px;background:#edf2f3;border-radius:5px;overflow:hidden}.supplements-license-bar i{display:block;height:100%;background:#16887a}.supplements-reconcile-stats{padding:12px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px}.supplements-reconcile-stats>div{display:flex;align-items:center;gap:12px;border:1px solid #e5edef;border-radius:12px;padding:15px}.supplements-reconcile-icon{width:38px;height:38px;border-radius:12px;background:#edf7f5;display:grid;place-items:center;color:#16887a}.supplements-reconcile-stats small{display:block;color:#68808a}.supplements-reconcile-stats strong{font-size:22px;color:#17343d}@media(max-width:800px){.supplements-finance-grid,.supplements-license-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.supplements-finance-grid{grid-template-columns:1fr 1fr;padding-left:12px;padding-right:12px}.supplements-finance-card{padding:12px}.supplements-finance-card strong{font-size:17px}.supplements-range-filter{flex-wrap:wrap}}
+.supplements-intel{padding:15px 20px 4px}.supplements-intel-alert{display:flex;align-items:center;gap:10px;padding:13px;border-radius:11px;font-size:13px}.supplements-intel-alert>i{font-size:18px}.supplements-intel-alert span{flex:1}.supplements-intel-alert a{white-space:nowrap;font-size:12px}.supplements-intel-alert.danger{background:#fff1ef;color:#9d3d31}.supplements-intel-alert.warning{background:#fff8e9;color:#875d13}.supplements-intel-alert.good{background:#edf8f3;color:#286c51}.supplements-sales-trend{display:grid;gap:4px;padding:15px 2px 7px}.supplements-sales-trend small{color:#68808a}.supplements-sales-trend strong{font-size:18px;color:#17343d}.supplements-sales-trend span{font-size:12px;color:#68808a}.supplements-communication-head{padding:12px 20px 0;display:flex;justify-content:space-between;align-items:end}.supplements-communication-head h3{font-size:16px;margin:2px 0 0}.supplements-communication-head>a{font-size:12px;color:#148576}@media(max-width:520px){.supplements-intel{padding-left:12px;padding-right:12px}.supplements-intel-alert{align-items:flex-start;flex-wrap:wrap}.supplements-intel-alert a{margin-left:28px}.supplements-communication-head{padding-left:12px;padding-right:12px}}
+</style>

@@ -68,6 +68,7 @@
         <div class="card">
           <div class="card-title">Theme</div>
           <div class="form-group">
+            <p><a class="link" href="<?= base_url('online_store/html_themes?screen=mobile'); ?>">Import an HTML website or edit its content</a></p>
             <div class="theme-grid">
               <?php foreach($themes as $t): ?>
                 <div class="theme-card <?= ($current_theme && $current_theme->id == $t->id) ? 'selected' : ''; ?>" data-id="<?= $t->id; ?>" onclick="selectTheme(<?= $t->id; ?>)">

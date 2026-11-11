@@ -127,6 +127,7 @@ $("#item_search").autocomplete({
                 name: data.term,
                 store_id:$("#store_from").val(),
                 warehouse_id:$("#warehouse_from").val(),
+                search_for:'stock_transfer',
             },
             beforeSend: function() {
                 if($("#warehouse_from").val()==''){

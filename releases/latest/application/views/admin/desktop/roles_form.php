@@ -342,7 +342,7 @@
         ['Expiry Settings', 'expiry_settings', [
           ['expiry_settings','Settings'],
         ]],
-        ['Paystack Settings', 'paystack', [
+        ['MartPoint Pay', 'paystack', [
           ['paystack_settings','Settings'],
         ]],
         ['Monnify Settings', 'monnify', [
@@ -364,7 +364,7 @@
           ['sms_template_view','SMS Templates'], ['site_settings','Site Settings'],
           ['data_migration','Data Migration'], ['license_management','License Management'],
           ['subscription_plans','Subscription Plans'], ['sms_api_view','SMS API'],
-          ['smtp_settings','Email Settings'], ['paystack_settings','Paystack Settings'],
+          ['smtp_settings','Email Settings'], ['paystack_settings','MartPoint Pay'],
           ['monnify_settings','Monnify Settings'], ['database_backup','Database Backup'],
           ['system_updates','System Update'], ['permission_audit','Permission Audit'],
           ['countries_view','Countries'], ['states_view','States'], ['cities_view','Cities'],

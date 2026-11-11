@@ -1,5 +1,14 @@
 <?php $this->load->view('reports/desktop/_styles'); ?>
 <?php $CI =& get_instance(); ?>
+<style>
+#report-form .mp-form-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px 18px!important}
+#report-form .mp-form-group.report-range-group{grid-column:span 2!important}
+#report-form .mp-form-group .control-label{width:100%!important;float:none!important}
+#report-form .mp-form-group>div:not(.mp-report-actions){width:100%!important}
+#report-form .mp-report-filter-actions{justify-content:flex-end!important;margin-top:14px!important}
+@media(max-width:1100px){#report-form .mp-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:768px){#report-form .mp-form-grid{grid-template-columns:1fr!important}#report-form .mp-form-group.report-range-group{grid-column:1/-1!important}}
+</style>
 
 <div class="mp-page-head">
   <div>
@@ -18,15 +27,17 @@
       <div class="mp-form-grid">
 
         <?php if(store_module() && is_admin()): ?>
-        <div class="mp-form-group full">
-          <?php $this->load->view('store/store_code', ['show_store_select_box' => true, 'store_id' => get_current_store_id(), 'div_length' => '', 'show_all' => 'true', 'form_group_remove' => 'true']); ?>
+        <div class="mp-form-group">
+          <label for="store_id"><?= $this->lang->line('store_name'); ?></label>
+          <?php $this->load->view('store/store_code', ['show_store_select_box' => true, 'store_id' => get_current_store_id(), 'div_length' => '', 'show_all' => 'true', 'form_group_remove' => 'true', 'no_label' => true]); ?>
         </div>
         <?php else: ?>
         <input type="hidden" name="store_id" id="store_id" value="<?= get_current_store_id(); ?>">
         <?php endif; ?>
 
-        <div class="mp-form-group full">
-          <?php $this->load->view('warehouse/warehouse_code', ['show_warehouse_select_box' => true, 'div_length' => '', 'show_all' => 'true', 'form_group_remove' => 'true', 'show_all_option' => true]); ?>
+        <div class="mp-form-group">
+          <label for="warehouse_id">Branch</label>
+          <?php $this->load->view('warehouse/warehouse_code', ['show_warehouse_select_box' => true, 'div_length' => '', 'show_all' => 'true', 'form_group_remove' => 'true', 'show_all_option' => true, 'no_label' => true]); ?>
         </div>
 
         <div class="mp-form-group">
@@ -47,7 +58,12 @@
           <span id="category_id_msg" style="display:none" class="text-danger"></span>
         </div>
 
-        <div class="mp-form-group full">
+        <div class="mp-form-group">
+          <label for="item_search">Product search <small class="text-muted">(optional)</small></label>
+          <input type="text" class="form-control" id="item_search" name="item_search" maxlength="100" placeholder="Search product name or code">
+        </div>
+
+        <div class="mp-form-group report-range-group">
           <label>Date Range</label>
           <div class="mp-report-actions">
             <button type="button" class="btn btn-default btn-range mp-btn-secondary" data-from="<?= show_date(date('Y-m-d')); ?>" data-to="<?= show_date(date('Y-m-d')); ?>" style="padding:8px 14px;">Today</button>
@@ -70,7 +86,7 @@
 
       </div>
 
-      <div class="mp-report-filter-actions" style="margin-top:20px;">
+      <div class="mp-report-filter-actions">
         <button type="button" id="view" class="mp-btn-primary" title="Show Report"><i class="fa fa-eye"></i> Show</button>
         <a href="<?= base_url('dashboard'); ?>">
           <button type="button" class="mp-btn-secondary close_btn" title="Go Dashboard"><i class="fa fa-times"></i> Close</button>
@@ -87,6 +103,10 @@
   </ul>
   <div class="tab-content">
     <div class="tab-pane active" id="tab_1" style="padding:20px;">
+      <div class="clearfix" style="margin-bottom:12px;">
+        <strong style="display:inline-block;padding-top:8px;">Item-wise stock</strong>
+        <?php $this->load->view('components/export_btn', ['tableId' => 'report-data']); ?>
+      </div>
       <div class="mp-dt-scroll">
         <table class="table table-bordered table-hover" id="report-data" style="width:100%;">
           <thead>
@@ -114,6 +134,10 @@
       </div>
     </div>
     <div class="tab-pane" id="tab_2" style="padding:20px;">
+      <div class="clearfix" style="margin-bottom:12px;">
+        <strong style="display:inline-block;padding-top:8px;">Brand-wise stock</strong>
+        <?php $this->load->view('components/export_btn', ['tableId' => 'brand_wise_stock']); ?>
+      </div>
       <div class="mp-dt-scroll">
         <table class="table table-bordered table-hover" id="brand_wise_stock" style="width:100%;">
           <thead>
@@ -139,25 +163,36 @@
   var base_url = $("#base_url").val();
 
   function load_reports(){
-    var store_id = $("#store_id").val();
-    var brand_id = $("#brand_id").val();
-    var category_id = $("#category_id").val();
-    var warehouse_id = $("#warehouse_id").val();
-    var from_date = $("#from_date").val();
-    var to_date = $("#to_date").val();
     $(".mp-report-results").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
-    $.post(base_url + "reports/get_stock_report", { warehouse_id: warehouse_id, store_id: store_id, brand_id: brand_id, category_id: category_id, from_date: from_date, to_date: to_date }, function(result){
-      result = $.parseJSON(result);
+    $.ajax({
+      url: base_url + "reports/get_stock_report",
+      method: "POST",
+      dataType: "json",
+      // Serialize the form so CodeIgniter's CSRF token is sent with this AJAX
+      // request as well as the selected report filters.
+      data: $("#report-form").serialize()
+    }).done(function(result){
       $.each(result, function(key, val){
         if(key == 'item_wise_report'){ $("#tbodyid").empty().append(val); }
         if(key == 'brand_wise_stock'){ $("#brand_wise_stock tbody").empty().append(val); }
       });
+    }).fail(function(xhr){
+      var message = xhr.status === 403 ? 'Your session may have expired. Refresh this page and try again.' : 'Stock report could not be loaded. Please try again.';
+      $("#tbodyid,#brand_wise_stock tbody").empty().append('<tr><td colspan="13" class="text-center text-danger">' + message + '</td></tr>');
+    }).always(function(){
       $(".overlay").remove();
     });
   }
 
   $("#view").on("click", function(){ load_reports(); });
   $("#store_id,#warehouse_id").on("change", function(){ load_reports(); });
+  $("#brand_id,#category_id").on("change", function(){ load_reports(); });
+  $("#item_search").on("keydown", function(event){
+    if(event.key === "Enter"){
+      event.preventDefault();
+      load_reports();
+    }
+  });
 
   $(".btn-range").on("click", function(){
     $("#from_date").val($(this).data('from'));
@@ -194,5 +229,8 @@
       $("#category_id").html('').append(result).select2();
     });
   }
+
+  // Populate the default date range on entry instead of showing blank tables.
+  load_reports();
 </script>
 <script>$(".report-stock-active-li").addClass("active");</script>

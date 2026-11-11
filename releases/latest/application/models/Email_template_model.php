@@ -257,6 +257,7 @@ class Email_template_model extends CI_Model {
           </table>
           <p class="totals">
             Subtotal: {subtotal}<br>
+            Tax: {tax_amount}<br>
             Delivery: {delivery_fee}<br>
             <span class="grand">Grand total: {grand_total}</span>
           </p>
@@ -266,7 +267,7 @@ class Email_template_model extends CI_Model {
           </div>
           <div class="cta-wrap"><a class="btn" href="{dashboard_link}">Open order in MartPoint</a></div>
           <p class="help">You are receiving this because a customer placed an order on your MartPoint online store.</p>';
-		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\n\nManage this order: {dashboard_link}";
+		$text = "NEW ONLINE ORDER\n\n{customer_name} just placed order #{order_code} on your online store.\n\nCustomer\n{customer_name}\nPhone: {customer_phone}\nEmail: {customer_email}\nAddress: {customer_address}\n\nOrder items:\n{order_items_text}\n\nSubtotal: {subtotal}\nTax: {tax_amount}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment: {payment_method}\nShipping: {shipping_method}\n\nManage this order: {dashboard_link}";
 		return [
 			'template_key'   => 'online_order_owner',
 			'template_name'  => 'Online Order Received (Store Owner)',
@@ -293,6 +294,7 @@ class Email_template_model extends CI_Model {
           </table>
           <p class="totals">
             Subtotal: {subtotal}<br>
+            Tax: {tax_amount}<br>
             Delivery: {delivery_fee}<br>
             <span class="grand">Grand total: {grand_total}</span>
           </p>
@@ -302,7 +304,7 @@ class Email_template_model extends CI_Model {
           </div>
           <div class="cta-wrap"><a class="btn" href="{order_link}">Track your order</a></div>
           <p class="help">Questions about your order? Simply reply to this email or reach us using the details below.</p>';
-		$text = "THANK YOU FOR YOUR ORDER\n\nHi {customer_name},\n\nWe've received your order #{order_code} and it's now being prepared.\n\nOrder summary:\n{order_items_text}\n\nSubtotal: {subtotal}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment method: {payment_method}\nDelivery: {shipping_method}\n\nTrack your order: {order_link}\n\nQuestions? Reply to this email or contact us.";
+		$text = "THANK YOU FOR YOUR ORDER\n\nHi {customer_name},\n\nWe've received your order #{order_code} and it's now being prepared.\n\nOrder summary:\n{order_items_text}\n\nSubtotal: {subtotal}\nTax: {tax_amount}\nDelivery: {delivery_fee}\nGrand total: {grand_total}\n\nPayment method: {payment_method}\nDelivery: {shipping_method}\n\nTrack your order: {order_link}\n\nQuestions? Reply to this email or contact us.";
 		return [
 			'template_key'   => 'online_order_customer',
 			'template_name'  => 'Online Order Confirmation (Customer)',

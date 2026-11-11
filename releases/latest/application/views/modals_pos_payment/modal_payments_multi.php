@@ -494,9 +494,9 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
 
-        <!-- Paystack Link Generation -->
+        <!-- MartPoint Pay Link Generation -->
         <button type="button" id="btn-generate-paystack" class="btn btn-info btn-lg hide" onclick="generatePaystackLink()">
-          <i class="fa fa-link"></i> Generate Paystack Link
+          <i class="fa fa-link"></i> Generate MartPoint Pay Link
         </button>
 
         <!-- Moniepoint Transfer (Monnify pay-with-transfer) -->
@@ -540,13 +540,13 @@
         </div>
       </div>
 
-      <!-- Paystack Link Modal -->
+      <!-- MartPoint Pay Link Modal -->
       <div class="modal fade" id="paystack-link-modal" tabindex="-1">
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header header-custom">
               <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-              <h4 class="modal-title text-center"><i class="fa fa-link"></i> Paystack Payment Link</h4>
+              <h4 class="modal-title text-center"><i class="fa fa-link"></i> MartPoint Pay Link</h4>
             </div>
             <div class="modal-body text-center">
               <div id="paystack-link-loading"><i class="fa fa-spinner fa-spin"></i> Generating link...</div>

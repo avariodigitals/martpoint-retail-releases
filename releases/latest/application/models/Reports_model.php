@@ -740,54 +740,108 @@ class Reports_model extends CI_Model {
 	 */
 	private function stock_quantities_as_of_date($store_ids, $warehouse_id, $as_of_date){
 		$store_ids = array_values(array_unique(array_filter(array_map('intval', $store_ids))));
-		$warehouse_id = (int)$warehouse_id;
-		if(empty($store_ids) || $warehouse_id < 1 || empty($as_of_date)){
+		if(is_array($warehouse_id)){
+			$warehouse_ids = array_values(array_unique(array_filter(array_map('intval', $warehouse_id))));
+		}else{
+			$warehouse_ids = array_values(array_unique(array_filter(array_map('intval', explode(',', (string)$warehouse_id)))));
+		}
+		if(empty($store_ids)){
 			return array();
 		}
+
+		// Use the same source as /items for current snapshots: the item-level
+		// store total for owner/admin All Branches, or warehouse balances when a
+		// branch scope is selected. This avoids rebuilding today's quantity from
+		// transaction history with rules that can drift from the live total.
+		if(empty($as_of_date) || $as_of_date >= date('Y-m-d')){
+			if(empty($warehouse_ids) && (is_admin() || is_store_admin())){
+				$this->db->select('store_id, id AS item_id, COALESCE(stock,0) AS available_qty', false)
+					->from('db_items')->where_in('store_id', $store_ids);
+				$rows = $this->db->get()->result();
+				$quantities = array();
+				foreach($rows as $row){
+					$quantities[(int)$row->store_id.':'.(int)$row->item_id] = (float)$row->available_qty;
+				}
+				return $quantities;
+			}
+			$this->db->select('store_id, item_id, COALESCE(SUM(available_qty),0) AS available_qty', false)
+				->from('db_warehouseitems')->where_in('store_id', $store_ids);
+			if(!empty($warehouse_ids)) $this->db->where_in('warehouse_id', $warehouse_ids);
+			$rows = $this->db->group_by(array('store_id','item_id'))->get()->result();
+			$quantities = array();
+			foreach($rows as $row){
+				$quantities[(int)$row->store_id.':'.(int)$row->item_id] = (float)$row->available_qty;
+			}
+			return $quantities;
+		}
+
 		$stores_sql = implode(',', $store_ids);
 		$date_sql = $this->db->escape($as_of_date);
-		$warehouse_sql = (string)$warehouse_id;
+		$warehouse_in = !empty($warehouse_ids) ? ' IN ('.implode(',', $warehouse_ids).')' : '';
+		$purchase_warehouse = $warehouse_in !== '' ? ' AND b.warehouse_id'.$warehouse_in : '';
+		$return_warehouse = $warehouse_in !== '' ? ' AND b.warehouse_id'.$warehouse_in : '';
+		$sales_warehouse = $warehouse_in !== '' ? ' AND b.warehouse_id'.$warehouse_in : '';
+		$adjustment_warehouse = $warehouse_in !== '' ? ' AND a.warehouse_id'.$warehouse_in : '';
+		$posted_reservation_filter = '';
+		if($this->db->table_exists('db_online_orders') && $this->db->field_exists('sales_id', 'db_online_orders')){
+			$posted_reservation_filter = " AND (b.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR NOT EXISTS (
+				SELECT 1 FROM db_online_orders oo JOIN db_sales os ON os.id=oo.sales_id AND os.store_id=oo.store_id
+				WHERE oo.store_id=a.store_id AND b.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)
+				AND oo.sales_id>0 AND os.sales_date <= $date_sql))";
+		}
+		$transfer_to_warehouse = $warehouse_in !== '' ? ' AND a.warehouse_to'.$warehouse_in : '';
+		$transfer_from_warehouse = $warehouse_in !== '' ? ' AND a.warehouse_from'.$warehouse_in : '';
+		$has_transfer_receipts = $this->db->field_exists('receipt_status', 'db_stocktransfer')
+			&& $this->db->field_exists('received_qty', 'db_stocktransferitems');
+		$transfer_received_qty = $has_transfer_receipts
+			? 'CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END'
+			: 'a.transfer_qty';
+		$transfer_receipt_filter = $has_transfer_receipts
+			? " AND (b.receipt_status IS NULL OR b.receipt_status NOT IN ('In Transit','Awaiting Approval'))" : '';
 
 		$sql = "SELECT store_id, item_id, COALESCE(SUM(qty_delta), 0) AS available_qty FROM (
 			SELECT b.store_id, a.item_id,
 				SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)) AS qty_delta
 			FROM db_purchaseitems a JOIN db_purchase b ON b.id = a.purchase_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql
+			WHERE b.store_id IN ($stores_sql) $purchase_warehouse
 				AND b.purchase_status IN ('Received','Partially Received') AND b.purchase_date <= $date_sql
 			GROUP BY b.store_id, a.item_id
 			UNION ALL
 			SELECT b.store_id, a.item_id,
 				-SUM(COALESCE(a.base_unit_qty, a.return_qty)) AS qty_delta
 			FROM db_purchaseitemsreturn a JOIN db_purchasereturn b ON b.id = a.return_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql AND b.return_date <= $date_sql
+			WHERE b.store_id IN ($stores_sql) $return_warehouse AND b.return_date <= $date_sql
 			GROUP BY b.store_id, a.item_id
 			UNION ALL
 			SELECT b.store_id, a.item_id,
 				-SUM(COALESCE(a.base_unit_qty, a.sales_qty)) AS qty_delta
 			FROM db_salesitems a JOIN db_sales b ON b.id = a.sales_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql
-				AND b.sales_status = 'Final' AND b.sales_date <= $date_sql
+			WHERE b.store_id IN ($stores_sql) $sales_warehouse
+				AND b.sales_date <= $date_sql
 			GROUP BY b.store_id, a.item_id
 			UNION ALL
 			SELECT b.store_id, a.item_id,
 				SUM(COALESCE(a.base_unit_qty, a.return_qty)) AS qty_delta
 			FROM db_salesitemsreturn a JOIN db_salesreturn b ON b.id = a.return_id
-			WHERE b.store_id IN ($stores_sql) AND b.warehouse_id = $warehouse_sql AND b.return_date <= $date_sql
+			WHERE b.store_id IN ($stores_sql) $return_warehouse AND b.return_date <= $date_sql
 			GROUP BY b.store_id, a.item_id
 			UNION ALL
 			SELECT a.store_id, a.item_id, SUM(a.adjustment_qty) AS qty_delta
 			FROM db_stockadjustmentitems a JOIN db_stockadjustment b ON b.id = a.adjustment_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_id = $warehouse_sql AND b.adjustment_date <= $date_sql
+			WHERE a.store_id IN ($stores_sql) $adjustment_warehouse AND b.adjustment_date <= $date_sql
+				$posted_reservation_filter
 			GROUP BY a.store_id, a.item_id
 			UNION ALL
-			SELECT a.store_id, a.item_id, SUM(a.transfer_qty) AS qty_delta
+			SELECT b.store_id, a.item_id,
+				SUM($transfer_received_qty) AS qty_delta
 			FROM db_stocktransferitems a JOIN db_stocktransfer b ON b.id = a.stocktransfer_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_to = $warehouse_sql AND b.transfer_date <= $date_sql
-			GROUP BY a.store_id, a.item_id
+			WHERE a.store_id IN ($stores_sql) $transfer_to_warehouse
+				$transfer_receipt_filter AND b.transfer_date <= $date_sql
+			GROUP BY b.store_id, a.item_id
 			UNION ALL
 			SELECT a.store_id, a.item_id, -SUM(a.transfer_qty) AS qty_delta
 			FROM db_stocktransferitems a JOIN db_stocktransfer b ON b.id = a.stocktransfer_id
-			WHERE a.store_id IN ($stores_sql) AND a.warehouse_from = $warehouse_sql AND b.transfer_date <= $date_sql
+			WHERE a.store_id IN ($stores_sql) $transfer_from_warehouse AND b.transfer_date <= $date_sql
 			GROUP BY a.store_id, a.item_id
 		) movements GROUP BY store_id, item_id";
 
@@ -821,6 +875,7 @@ class Reports_model extends CI_Model {
 		$item_id = $this->input->post('item_id', TRUE);
 		$brand_id = $this->input->post('brand_id', TRUE);
 		$category_id = $this->input->post('category_id', TRUE);
+		$item_search = trim((string)$this->input->post('item_search', TRUE));
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
@@ -830,6 +885,19 @@ class Reports_model extends CI_Model {
 		$item_type = $this->input->post('item_type', TRUE);
 		
 		$as_of_date = '';
+		// The empty branch option means every branch visible to this user. Keep
+		// that scope identical to the Items stock column for non-admin staff.
+		if(!is_admin() && !is_store_admin()){
+			$allowed_warehouses = array_values(array_unique(array_filter(array_map('intval', getArrayOfWarehouseIds()))));
+			if(empty($warehouse_id)){
+				$warehouse_id = !empty($allowed_warehouses) ? $allowed_warehouses : array(-1);
+			}else{
+				$requested_warehouses = is_array($warehouse_id) ? $warehouse_id : explode(',', (string)$warehouse_id);
+				$requested_warehouses = array_values(array_unique(array_filter(array_map('intval', $requested_warehouses))));
+				$warehouse_id = array_values(array_intersect($requested_warehouses, $allowed_warehouses));
+				if(empty($warehouse_id)) $warehouse_id = array(-1);
+			}
+		}
 		if(!empty($to_date)){
 			$as_of_date = system_fromatted_date($to_date);
 		}
@@ -840,7 +908,7 @@ class Reports_model extends CI_Model {
 		if(!is_admin()){
 			$this->db->where("a.store_id",get_current_store_id());
 		}
-		$this->db->select("a.sales_price,a.item_code,a.price,a.purchase_price,a.item_name,a.tax_type,a.store_id,a.id as item_id,a.item_group,d.category_name,c.brand_name,b.tax_name");
+		$this->db->select("a.sales_price,a.item_code,a.price,a.purchase_price,a.item_name,a.tax_type,a.store_id,a.id as item_id,a.item_group,a.child_bit,d.category_name,c.brand_name,b.tax_name");
 		$this->db->from("db_items as a");
 		$this->db->join("db_tax as b","b.id=a.tax_id","left");
 		$this->db->where("a.service_bit=0");
@@ -853,6 +921,12 @@ class Reports_model extends CI_Model {
 		if(!empty($category_id)){
 			mp_category_filter('a.category_id',$category_id);
 		}
+		if($item_search !== ''){
+			$this->db->group_start()
+				->like('a.item_name', $item_search)
+				->or_like('a.item_code', $item_search)
+			->group_end();
+		}
 
 		//echo $this->db->get_compiled_select();exit;
 		$q1=$this->db->get();
@@ -864,27 +938,17 @@ class Reports_model extends CI_Model {
 			$store_ids = array();
 			foreach($items as $item){ $store_ids[] = (int)$item->store_id; }
 			$store_ids = array_values(array_unique(array_filter($store_ids)));
-			$stock_by_item = array();
-			if(!empty($as_of_date)){
-				// Preserve the legacy default-warehouse behavior for an all-warehouse
-				// historical request while calculating all items in a single query.
-				$history_warehouse_id = !empty($warehouse_id) ? (int)$warehouse_id : (int)get_store_warehouse_id();
-				$stock_by_item = $this->stock_quantities_as_of_date($store_ids, $history_warehouse_id, $as_of_date);
-			}else{
-				$this->db->select('store_id, item_id, COALESCE(SUM(available_qty),0) AS available_qty', false)
-					->from('db_warehouseitems')->where_in('store_id', $store_ids);
-				if(!empty($warehouse_id)) $this->db->where('warehouse_id', (int)$warehouse_id);
-				foreach($this->db->group_by(array('store_id','item_id'))->get()->result() as $stock_row){
-					$stock_by_item[(int)$stock_row->store_id.':'.(int)$stock_row->item_id] = (float)$stock_row->available_qty;
-				}
-			}
+			$stock_by_item = $this->stock_quantities_as_of_date($store_ids, $warehouse_id, $as_of_date);
 			$i=0;
 			$tot_stock = 0;
 			$tot_value = 0;
 			$tot_stock_value_by_purchase_price = 0;
 			foreach ($items as $res1) {
 
-				if($res1->item_group=='Variants'){continue;}
+				// Variant parents are catalogue templates with no sellable stock of
+				// their own. Report each child variant so its location quantity is
+				// visible instead of dropping all variant inventory from the report.
+				if($res1->item_group=='Variants' && (int)$res1->child_bit === 0){continue;}
 					$stock_key = (int)$res1->store_id.':'.(int)$res1->item_id;
 					$available_qty_wh = isset($stock_by_item[$stock_key]) ? $stock_by_item[$stock_key] : 0;
 
@@ -954,6 +1018,7 @@ class Reports_model extends CI_Model {
 		$item_id = $this->input->post('item_id', TRUE);
 		$brand_id = $this->input->post('brand_id', TRUE);
 		$category_id = $this->input->post('category_id', TRUE);
+		$item_search = trim((string)$this->input->post('item_search', TRUE));
 		$view_all = $this->input->post('view_all', TRUE);
 		$created_by = $this->input->post('created_by', TRUE);
 		$payment_type = $this->input->post('payment_type', TRUE);
@@ -973,6 +1038,22 @@ class Reports_model extends CI_Model {
 		if(!empty($brand_id)){
 			$this->db->where("b.id",$brand_id);
 		}
+		if($item_search !== ''){
+			$matching_sql = 'SELECT DISTINCT brand_id FROM db_items WHERE brand_id IS NOT NULL AND (item_name LIKE ? OR item_code LIKE ?)';
+			$matching_params = array('%'.$item_search.'%', '%'.$item_search.'%');
+			if(!empty($store_id)){
+				$matching_sql .= ' AND store_id = ?';
+				$matching_params[] = (int)$store_id;
+			}
+			if(!is_admin()){
+				$matching_sql .= ' AND store_id = ?';
+				$matching_params[] = (int)get_current_store_id();
+			}
+			$matching_rows = $this->db->query($matching_sql, $matching_params)->result_array();
+			$matching_brand_ids = array_map('intval', array_column($matching_rows, 'brand_id'));
+			if(empty($matching_brand_ids)) $this->db->where('1 = 0', null, false);
+			else $this->db->where_in('b.id', $matching_brand_ids);
+		}
 
 
 		//echo $this->db->get_compiled_select();exit();
@@ -985,14 +1066,21 @@ class Reports_model extends CI_Model {
 			$store_ids = array_values(array_unique(array_filter($store_ids)));
 			$stock_by_brand = array();
 			if(!empty($store_ids)){
-				$this->db->select('i.brand_id, wi.store_id, COALESCE(SUM(wi.available_qty),0) AS available_qty', false)
-					->from('db_warehouseitems wi')
-					->join('db_items i', 'i.id = wi.item_id', 'inner')
-					->where_in('wi.store_id', $store_ids)
-					->where('i.brand_id IS NOT NULL', null, false);
-				if(!empty($warehouse_id)) $this->db->where('wi.warehouse_id', (int)$warehouse_id);
-				foreach($this->db->group_by(array('wi.store_id','i.brand_id'))->get()->result() as $stock_row){
-					$stock_by_brand[(int)$stock_row->store_id.':'.(int)$stock_row->brand_id] = (float)$stock_row->available_qty;
+				$this->db->select('store_id, id AS item_id, brand_id')->from('db_items')
+					->where_in('store_id', $store_ids)->where('service_bit', 0)
+					->where('brand_id IS NOT NULL', null, false);
+				if($item_search !== ''){
+					$this->db->group_start()
+						->like('item_name', $item_search)
+						->or_like('item_code', $item_search)
+					->group_end();
+				}
+				$brand_items = $this->db->get()->result();
+				$brand_quantities = $this->stock_quantities_as_of_date($store_ids, $warehouse_id, $as_of_date);
+				foreach($brand_items as $brand_item){
+					$key = (int)$brand_item->store_id.':'.(int)$brand_item->item_id;
+					$brand_key = (int)$brand_item->store_id.':'.(int)$brand_item->brand_id;
+					$stock_by_brand[$brand_key] = ($stock_by_brand[$brand_key] ?? 0) + (isset($brand_quantities[$key]) ? (float)$brand_quantities[$key] : 0);
 				}
 			}
 			$i=0;
@@ -1463,85 +1551,29 @@ class Reports_model extends CI_Model {
 
 	/*Expired Items Report*/
 	public function show_expired_items_report(){
-		$from_date = $this->input->post('from_date', TRUE);
-		$to_date = $this->input->post('to_date', TRUE);
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
-		$store_id = $this->input->post('store_id', TRUE);
-		$customer_id = $this->input->post('customer_id', TRUE);
-		$supplier_id = $this->input->post('supplier_id', TRUE);
-		$item_id = $this->input->post('item_id', TRUE);
-		$brand_id = $this->input->post('brand_id', TRUE);
-		$category_id = $this->input->post('category_id', TRUE);
-		$view_all = $this->input->post('view_all', TRUE);
-		$created_by = $this->input->post('created_by', TRUE);
-		$payment_type = $this->input->post('payment_type', TRUE);
-		$within_date = $this->input->post('within_date', TRUE);
-		$from_warehouse = $this->input->post('from_warehouse', TRUE);
-		$to_warehouse = $this->input->post('to_warehouse', TRUE);
-		$item_type = $this->input->post('item_type', TRUE);
-
-		
-		//$to_date=date("Y-m-d",strtotime($to_date));
-		$to_date = system_fromatted_date($to_date);
-
-		$this->db->select("id,item_code,item_name,expire_date,stock,lot_number,store_id");
-	    
-		if($item_id!=''){
-			
-			$this->db->where("id=$item_id");
+		$store_id = (int)get_current_store_id();
+		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		$this->load->model('expiry_settings_model', 'expiry_report_settings');
+		$settings = $this->expiry_report_settings->get_settings($store_id);
+		$rows = array_merge(
+			$this->expiry_report_settings->get_expired_items($store_id, $warehouse_id),
+			$this->expiry_report_settings->get_expiring_items($store_id, null, $warehouse_id)
+		);
+		if(!$rows) return "<tr><td class='text-center text-muted' colspan='8'>No expired or expiring stock found.</td></tr>";
+		$today = date('Y-m-d');
+		$escape = function($value){ return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); };
+		$html = '';
+		foreach($rows as $index => $row){
+			$expired = (string)$row->expire_date < $today;
+			$html .= '<tr><td>'.($index + 1).'</td>'
+				.'<td>'.($expired ? 'EXPIRED' : 'EXPIRING').'</td>'
+				.'<td>'.$escape($row->item_code).'</td><td>'.$escape($row->item_name).'</td>'
+				.'<td>'.$escape($row->warehouse_name ?: 'All locations').'</td>'
+				.'<td>'.$escape($row->batch_lot ?: 'Product level').'</td>'
+				.'<td>'.$escape(show_date($row->expire_date)).'</td>'
+				.'<td>'.format_qty($row->stock).'</td></tr>';
 		}
-		if($view_all=="no"){
-			$this->db->where("(expire_date<='$to_date')");
-		}
-		$this->db->from("db_items");
-		if(!empty($store_id)){
-			$this->db->where("store_id",$store_id);
-		}
-		//echo $this->db->get_compiled_select();exit();
-		
-		$q1=$this->db->get();
-		if($q1->num_rows()>0){
-			$i=0;
-			foreach ($q1->result() as $res1) {
-				if(get_total_qty_of_warehouse_item($res1->id,$warehouse_id,$res1->store_id) > 0 && !empty($warehouse_id)){
-					echo "<tr>";
-					echo "<td>".++$i."</td>";
-					if(store_module() && is_admin()){
-						echo "<td>".get_store_name($res1->store_id)."</td>";	
-					}
-					echo "<td>".$res1->item_code."</td>";
-					echo "<td>".$res1->item_name."</td>";
-					echo "<td>".$res1->lot_number."</td>";
-					echo "<td>".show_date($res1->expire_date)."</td>";
-					echo "<td>".format_qty(get_total_qty_of_warehouse_item($res1->id,$warehouse_id,$res1->store_id))."</td>";
-
-				}
-				else{
-					echo "<tr>";
-					echo "<td>".++$i."</td>";
-					if(store_module() && is_admin()){
-						echo "<td>".get_store_name($res1->store_id)."</td>";	
-					}
-					echo "<td>".$res1->item_code."</td>";
-					echo "<td>".$res1->item_name."</td>";
-					echo "<td>".$res1->lot_number."</td>";
-					echo "<td>".show_date($res1->expire_date)."</td>";
-					echo "<td>".format_qty($res1->stock)."</td>";
-				}
-
-			}
-		}
-		else{
-			$total_columns_count=6;
-			if(store_module() && is_admin()){
-				$total_columns_count ++;
-			}
-			echo "<tr>";
-			echo "<td class='text-center text-danger' colspan='$total_columns_count'>No Records Found</td>";
-			echo "</tr>";
-		}
-		
-	    exit;
+		return $html;
 	}
 
 	function _create_query($store_id,$table_name,$table_column,$from_date,$to_date){
@@ -3315,133 +3347,65 @@ class Reports_model extends CI_Model {
 	}
 
 	public function show_stock_transfer_report(){
-		$from_date = $this->input->post('from_date', TRUE);
-		$to_date = $this->input->post('to_date', TRUE);
-		$warehouse_id = $this->input->post('warehouse_id', TRUE);
-		$store_id = $this->input->post('store_id', TRUE);
-		$customer_id = $this->input->post('customer_id', TRUE);
-		$supplier_id = $this->input->post('supplier_id', TRUE);
-		$item_id = $this->input->post('item_id', TRUE);
-		$brand_id = $this->input->post('brand_id', TRUE);
-		$category_id = $this->input->post('category_id', TRUE);
-		$view_all = $this->input->post('view_all', TRUE);
-		$created_by = $this->input->post('created_by', TRUE);
-		$payment_type = $this->input->post('payment_type', TRUE);
-		$within_date = $this->input->post('within_date', TRUE);
-		$from_warehouse = $this->input->post('from_warehouse', TRUE);
-		$to_warehouse = $this->input->post('to_warehouse', TRUE);
-		$item_type = $this->input->post('item_type', TRUE);
-
-		
-		$from_date = system_fromatted_date($from_date);
-		$to_date = system_fromatted_date($to_date);
-
-		$item_id = isset($item_id) ? $item_id : "";
-
-		if(!empty($from_warehouse)){
-			$this->db->where("a.warehouse_from",$from_warehouse);
-		}
-		if(!empty($to_warehouse)){
-			$this->db->where("a.warehouse_to",$to_warehouse);
-		}
-		
-		$this->db->select("a.id,a.transfer_date,a.created_by,a.store_id,e.category_name,f.brand_name");
-		$this->db->select("c.transfer_qty,d.item_name");
-		$this->db->select("w1.warehouse_name as from_warehouse");
-		$this->db->select("w2.warehouse_name as to_warehouse");
-	    
-	    
-		$this->db->from("db_stocktransfer as a");
-		
-		
-		$this->db->where("(a.transfer_date>='$from_date' and a.transfer_date<='$to_date')");
-		
-		if(!empty($store_id)){
-			$this->db->where("a.store_id",$store_id);
-		}
-		$this->db->order_by("a.`transfer_date`",'desc');
-
-		$str = "" ; 
-
-
-		if($item_id!=''){
-			$str = " and c.item_id=$item_id"; 
-		}
-		$this->db->join("db_stocktransferitems as c","c.stocktransfer_id = a.id $str","left");
-
-		
-		$this->db->join("db_items as d","d.`id`= c.`item_id`","left");
-
-		$str = "" ; 
-		if($category_id!=''){
-			$str = " and ".mp_category_sql("e.id",$category_id);
+		$from_date = system_fromatted_date($this->input->post('from_date', TRUE));
+		$to_date = system_fromatted_date($this->input->post('to_date', TRUE));
+		if(!$from_date || !$to_date){
+			return "<tr><td class='text-center text-danger' colspan='9'>Enter a valid date range.</td></tr>";
 		}
 
-		$this->db->join("db_category as e","e.`id`= d.`category_id` $str","inner");
-			
-		$str ="";
+		$central_store_report = store_module() && is_admin();
+		$store_id = $central_store_report ? (int)$this->input->post('store_id', TRUE) : (int)get_current_store_id();
+		$from_warehouse = (int)$this->input->post('from_warehouse', TRUE);
+		$to_warehouse = (int)$this->input->post('to_warehouse', TRUE);
+		$item_id = (int)$this->input->post('item_id', TRUE);
+		$brand_id = (int)$this->input->post('brand_id', TRUE);
+		$category_id = (int)$this->input->post('category_id', TRUE);
 
-		if($brand_id!=''){
-			$str = " and f.id=$brand_id"; 
+		$this->db->select('t.id,t.transfer_date,t.store_id,ti.transfer_qty,i.item_name,c.category_name,b.brand_name,wf.warehouse_name AS from_warehouse,wt.warehouse_name AS to_warehouse');
+		$this->db->from('db_stocktransfer t');
+		$this->db->join('db_stocktransferitems ti', 'ti.stocktransfer_id=t.id AND ti.store_id=t.store_id AND ti.status=1', 'inner');
+		$this->db->join('db_items i', 'i.id=ti.item_id AND i.store_id=t.store_id', 'left');
+		$this->db->join('db_category c', 'c.id=i.category_id AND c.store_id=t.store_id', 'left');
+		$this->db->join('db_brands b', 'b.id=i.brand_id AND b.store_id=t.store_id', 'left');
+		$this->db->join('db_warehouse wf', 'wf.id=t.warehouse_from AND wf.store_id=t.store_id', 'left');
+		$this->db->join('db_warehouse wt', 'wt.id=t.warehouse_to AND wt.store_id=t.store_id', 'left');
+		$this->db->where('t.status', 1)->where('t.transfer_date >=', $from_date)->where('t.transfer_date <=', $to_date);
+		if($store_id > 0) $this->db->where('t.store_id', $store_id);
+		if($from_warehouse > 0) $this->db->where('t.warehouse_from', $from_warehouse);
+		if($to_warehouse > 0) $this->db->where('t.warehouse_to', $to_warehouse);
+		if($item_id > 0) $this->db->where('ti.item_id', $item_id);
+		if($brand_id > 0) $this->db->where('i.brand_id', $brand_id);
+		if($category_id > 0) $this->db->where('i.category_id', $category_id);
+		$this->db->order_by('t.transfer_date', 'DESC')->order_by('t.id', 'DESC');
+		$query = $this->db->get();
+		if(!$query){
+			log_message('error', 'Stock transfer report query failed: '.json_encode($this->db->error()));
+			return "<tr><td class='text-center text-danger' colspan='9'>The report could not be loaded. Please check the application log.</td></tr>";
 		}
 
-		$this->db->join("db_brands as f","f.`id`= d.`brand_id` $str","inner");
-
-		$this->db->join("db_warehouse as w1","w1.`id`= c.`warehouse_from`","left");
-		$this->db->join("db_warehouse as w2","w2.`id`= c.`warehouse_to`","left");
-
-
-		
-		//echo $this->db->get_compiled_select();exit();
-		
-		$q1=$this->db->get();
-		if($q1->num_rows()>0){
-			$i=0;
-			
-			$tot_transfer_qty=0;
-			foreach ($q1->result() as $res1) {
-				echo "<tr>";
-				echo "<td>".++$i."</td>";
-				if(store_module() && is_admin()){
-					echo "<td>".get_store_name($res1->store_id)."</td>";	
-				}
-				
-				echo "<td>".show_date($res1->transfer_date)."</td>";
-				echo "<td>".$res1->from_warehouse."</td>";
-				echo "<td>".$res1->to_warehouse."</td>";
-				echo "<td>".$res1->item_name."</td>";
-				echo "<td>".$res1->category_name."</td>";
-				echo "<td>".$res1->brand_name."</td>";
-				echo "<td>".format_qty($res1->transfer_qty)."</td>";
-				
-				echo "</tr>";
-				$tot_transfer_qty+=$res1->transfer_qty;
-				
-			}
-
-			$total_columns_count=7;
-			if(store_module() && is_admin()){
-				$total_columns_count ++;
-			}
-			
-
-			echo "<tr>
-					  <td class='text-right text-bold' colspan='$total_columns_count'><b>Total :</b></td>
-					  <td class='text-left text-bold'>".format_qty($tot_transfer_qty)."</td>
-				  </tr>";
+		$rows = $query->result();
+		$total = 0.0;
+		$html = '';
+		$escape = function($value){ return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); };
+		foreach($rows as $index => $row){
+			$html .= '<tr><td>'.($index + 1).'</td>';
+			if($central_store_report) $html .= '<td>'.$escape(get_store_name((int)$row->store_id)).'</td>';
+			$html .= '<td>'.$escape(show_date($row->transfer_date)).'</td>'
+				.'<td>'.$escape($row->from_warehouse ?: '—').'</td>'
+				.'<td>'.$escape($row->to_warehouse ?: '—').'</td>'
+				.'<td>'.$escape($row->item_name ?: 'Product unavailable').'</td>'
+				.'<td>'.$escape($row->category_name ?: '—').'</td>'
+				.'<td>'.$escape($row->brand_name ?: '—').'</td>'
+				.'<td>'.format_qty($row->transfer_qty).'</td></tr>';
+			$total += (float)$row->transfer_qty;
 		}
-		else{
-			$total_columns_count=8;
-			if(store_module() && is_admin()){
-				$total_columns_count ++;
-			}
-			
-			echo "<tr>";
-			echo "<td class='text-center text-danger' colspan='$total_columns_count'>No Records Found</td>";
-			echo "</tr>";
+		$columnSpan = 7 + ($central_store_report ? 1 : 0);
+		if($rows){
+			$html .= '<tr><td class="text-right text-bold" colspan="'.$columnSpan.'"><b>Total:</b></td><td class="text-left text-bold">'.format_qty($total).'</td></tr>';
+		}else{
+			$html = '<tr><td class="text-center text-muted" colspan="'.($columnSpan + 1).'">No transfers match this date range and filter.</td></tr>';
 		}
-		
-	    exit;
+		return $html;
 	}
 
 

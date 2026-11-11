@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.260';
+    return '4.0.9.269';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -619,10 +619,9 @@
    * Return the operational POS warehouse for the current store.
    *
    * Most businesses intentionally use the System warehouse as their POS
-   * default. Pharmacy stores are different: their demo/online fulfilment
-   * setup keeps saleable stock in a named branch and may also expose partner
-   * or pickup-only hubs. Keep the legacy helper unchanged for every other
-   * industry, but make the pharmacy till open on its own stock-holding branch.
+   * default. Pharmacy and Supplements & Wellness stores use named, stock-
+   * holding branches for store and online fulfilment. Keep the legacy helper
+   * unchanged for other industries and avoid selecting partner/pickup hubs.
    */
   function get_pos_default_warehouse_id($store_id=''){
     $CI =& get_instance();
@@ -630,7 +629,7 @@
 
     $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store_id) : array();
     $industry = strtolower(trim((string)($profile['industry_type'] ?? '')));
-    if (in_array($industry, array('pharmacy', 'medical_store', 'healthcare'), true)
+    if (in_array($industry, array('pharmacy', 'medical_store', 'healthcare', 'supplements_wellness'), true)
       && $CI->db->table_exists('db_warehouse')) {
       $query = $CI->db->select('id')
         ->where('store_id', $store_id)
@@ -1134,11 +1133,15 @@
     $sales_return_qty=$q->row()->sales_return_qty;
 
 
-    $q = $CI->db->query("SELECT COALESCE(SUM(adjustment_qty),0) AS adjustment_qty FROM db_stockadjustmentitems 
-                              WHERE 
-                              store_id=$store_id AND 
-                              warehouse_id=$warehouse_id AND
-                              item_id=$item_id");
+    $adjustmentSql = "SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
+                              FROM db_stockadjustmentitems a
+                              JOIN db_stockadjustment h ON h.id=a.adjustment_id";
+    $adjustmentWhere = " WHERE a.store_id=".(int)$store_id." AND a.warehouse_id=".(int)$warehouse_id." AND a.item_id=".(int)$item_id;
+    if($CI->db->table_exists('db_online_orders') && $CI->db->field_exists('sales_id','db_online_orders')){
+      $adjustmentSql .= " LEFT JOIN db_online_orders oo ON oo.store_id=h.store_id AND h.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+      $adjustmentWhere .= " AND (h.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR COALESCE(oo.sales_id,0)=0)";
+    }
+    $q = $CI->db->query($adjustmentSql.$adjustmentWhere);
     if(!$q){ return false; }
     $stock_entry_qty=$q->row()->adjustment_qty;
     /*Add Stock Transfer*/
@@ -1213,14 +1216,17 @@
                               b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
                               AND b.return_date <= '$as_of_date'")->row()->sales_return_qty;
 
-    $stock_entry_qty=$CI->db->query("SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
+    $adjustmentSql = "SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
                               FROM db_stockadjustmentitems AS a
-                              JOIN db_stockadjustment AS b ON b.id = a.adjustment_id
-                              WHERE
-                              a.store_id=$store_id AND
-                              a.warehouse_id=$warehouse_id AND
-                              a.item_id=$item_id
-                              AND b.adjustment_date <= '$as_of_date'")->row()->adjustment_qty;
+                              JOIN db_stockadjustment AS b ON b.id = a.adjustment_id";
+    $adjustmentWhere = " WHERE a.store_id=".(int)$store_id." AND a.warehouse_id=".(int)$warehouse_id
+                              ." AND a.item_id=".(int)$item_id." AND b.adjustment_date <= '$as_of_date'";
+    if($CI->db->table_exists('db_online_orders') && $CI->db->field_exists('sales_id','db_online_orders')){
+      $adjustmentSql .= " LEFT JOIN db_online_orders oo ON oo.store_id=b.store_id AND b.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+      $adjustmentSql .= " LEFT JOIN db_sales os ON os.id=oo.sales_id AND os.store_id=oo.store_id";
+      $adjustmentWhere .= " AND (b.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR oo.sales_id IS NULL OR os.id IS NULL OR os.sales_date IS NULL OR os.sales_date > '$as_of_date')";
+    }
+    $stock_entry_qty=$CI->db->query($adjustmentSql.$adjustmentWhere)->row()->adjustment_qty;
 
     $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END),0) AS stocktransfer_qty
                               FROM db_stocktransferitems AS a
@@ -1720,8 +1726,12 @@
   }
   function permissions($permissions=''){
     $CI =& get_instance();
-    //If he the Admin (user_id 1 or 2 get full access)
+    // Platform Admin accounts and recognized tenant Admin roles receive full
+    // workspace permissions. Business Owner and staff remain grant-based.
     if($CI->session->userdata('inv_userid')==1 || $CI->session->userdata('inv_userid')==2){
+      return true;
+    }
+    if((function_exists('is_admin') && is_admin()) || (function_exists('is_store_admin') && is_store_admin())){
       return true;
     }
     $role_id = $CI->session->userdata('role_id');

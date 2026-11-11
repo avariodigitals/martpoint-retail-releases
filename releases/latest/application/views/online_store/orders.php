@@ -45,11 +45,11 @@
           <?php if(!empty($orders)): foreach($orders as $o): ?>
           <tr>
             <td><a href="<?= base_url('online_store/order/'.$o->id); ?>"><strong><?= htmlspecialchars($o->order_code); ?></strong></a></td>
-            <td><?= show_date($o->created_at); ?> <small class="row-meta"><?= date('H:i', strtotime($o->created_at)); ?></small></td>
+            <td data-order="<?= htmlspecialchars(date('Y-m-d H:i:s', strtotime((string)$o->created_at)), ENT_QUOTES, 'UTF-8'); ?>"><?= show_date($o->created_at); ?> <small class="row-meta"><?= date('H:i', strtotime($o->created_at)); ?></small></td>
             <td><?= htmlspecialchars($o->customer_name); ?></td>
             <td><?= htmlspecialchars($o->customer_phone); ?></td>
             <td><span class="label label-info"><?= ucfirst($o->order_type); ?></span></td>
-            <td class="amt"><?= $CI->currency($o->grand_total); ?></td>
+            <td class="amt"><?= htmlspecialchars((string)($o->transaction_currency??$o->base_currency??'')); ?> <?= number_format((float)($o->transaction_grand_total??$o->grand_total),2); ?></td>
             <td><span class="label <?= $paymentLabels[$o->payment_status] ?? 'label-default'; ?>"><?= ucfirst(str_replace('_',' ',$o->payment_status)); ?></span></td>
             <td><span class="label <?= $statusLabels[$o->order_status] ?? 'label-default'; ?>"><?= ucfirst($o->order_status); ?></span></td>
             <td>

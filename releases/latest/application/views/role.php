@@ -252,7 +252,7 @@
                                         <!-- PAYSTACK SETTINGS -->
                                        <tr>
                                           <td><?= $i++;?></td>
-                                          <td>Paystack Settings</td>
+                                          <td>MartPoint Pay</td>
                                           <td>
                                               <div class="checkbox icheck"><label>
                                                 <input type="checkbox" class="change_me" id="paystack"> <?= $this->lang->line('select_all'); ?>

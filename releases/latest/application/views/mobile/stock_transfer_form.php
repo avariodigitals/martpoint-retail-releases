@@ -229,7 +229,7 @@
         return;
       }
       searchTimeout = setTimeout(function(){
-        mpFetchJson('<?= base_url('stock_transfer/search_item'); ?>?q=' + encodeURIComponent(term))
+        mpFetchJson('<?= base_url('stock_transfer/search_item'); ?>?q=' + encodeURIComponent(term) + '&warehouse_id=' + encodeURIComponent(document.getElementById('warehouse_from').value))
         .then(function(data){
           searchResults.innerHTML = '';
           if(!data || data.length === 0){

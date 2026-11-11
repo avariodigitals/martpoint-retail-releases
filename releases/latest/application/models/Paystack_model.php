@@ -15,12 +15,13 @@ class Paystack_model extends CI_Model {
 
 	public function get_settings($store_id = null)
 	{
-		// Provider credentials are centrally owned.  Keep the old per-store
-		// table as a migration-safe fallback until the central account is saved.
+		// Fleet installs may only use provider credentials copied/configured by
+		// Central. Never fall back to keys entered into the legacy store form.
 		if($this->db->table_exists('db_payment_gateway_accounts')){
 			$central = $this->db->where('provider', 'paystack')->get('db_payment_gateway_accounts')->row();
 			if($central){ return $central; }
 		}
+		if(!function_exists('mp_is_central') || !mp_is_central()) return null;
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
 		if(!$this->db->table_exists($this->table)) { return null; }
 		return $this->db->where('store_id', $store_id)->get($this->table)->row();
@@ -53,23 +54,30 @@ class Paystack_model extends CI_Model {
 
 	public function save_settings($data)
 	{
+		if(!function_exists('mp_is_central') || !mp_is_central()) return false;
 		if($this->db->table_exists('db_payment_gateway_accounts')){
+			$table = 'db_payment_gateway_accounts';
 			$data['provider'] = 'paystack';
 			$existing = $this->db->where('provider', 'paystack')->get('db_payment_gateway_accounts')->row();
-			if($existing){
-				return $this->db->where('provider', 'paystack')->update('db_payment_gateway_accounts', $data);
-			}
-			return $this->db->insert('db_payment_gateway_accounts', $data);
-		}
-		$store_id = get_current_store_id();
-		$exists = $this->db->where('store_id', $store_id)->get($this->table)->num_rows();
-		if($exists > 0) {
-			$this->db->where('store_id', $store_id);
-			return $this->db->update($this->table, $data);
 		} else {
-			$data['store_id'] = $store_id;
-			return $this->db->insert($this->table, $data);
+			$table = $this->table;
+			$store_id = get_current_store_id();
+			$existing = $this->db->where('store_id', $store_id)->get($table)->row();
+			if(!$existing) $data['store_id'] = $store_id;
 		}
+		// Older Central databases may have the gateway table from migration
+		// 4.0.9.264 but not the additive fee columns from 4.0.9.265 yet. Save
+		// credentials and mode using the columns that actually exist so bank
+		// lookup can be tested without a fee-schema mismatch blocking the save.
+		foreach(array_keys($data) as $column){
+			if(!$this->db->field_exists($column, $table)) unset($data[$column]);
+		}
+		if($existing){
+			$key = $table === 'db_payment_gateway_accounts' ? 'provider' : 'store_id';
+			$value = $table === 'db_payment_gateway_accounts' ? 'paystack' : get_current_store_id();
+			return $this->db->where($key, $value)->update($table, $data);
+		}
+		return $this->db->insert($table, $data);
 	}
 
 	public function is_enabled($store_id = null)
@@ -100,7 +108,7 @@ class Paystack_model extends CI_Model {
 	{
 		$secret_key = $this->get_secret_key($store_id);
 		if(empty($secret_key)){
-			return array('status' => false, 'message' => 'Paystack not configured');
+			return array('status' => false, 'message' => 'MartPoint Pay is not configured');
 		}
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, $this->api_base() . $endpoint);
@@ -120,10 +128,10 @@ class Paystack_model extends CI_Model {
 		if($curl_error){ return array('status'=>false, 'message'=>'CURL Error: '.$curl_error); }
 		$result = json_decode($response, true);
 		if(!is_array($result)){
-			return array('status'=>false, 'message'=>'Invalid response from Paystack (HTTP '.$http_code.')');
+			return array('status'=>false, 'message'=>'The payment provider returned an invalid response (HTTP '.$http_code.')');
 		}
 		if($http_code < 200 || $http_code >= 300 || empty($result['status'])){
-			return array('status'=>false, 'message'=>$result['message'] ?? 'Paystack request failed', 'raw'=>$result);
+			return array('status'=>false, 'message'=>$result['message'] ?? 'The payment provider request failed', 'raw'=>$result);
 		}
 		return array('status'=>true, 'data'=>$result['data'] ?? array(), 'raw'=>$result);
 	}
@@ -179,7 +187,7 @@ class Paystack_model extends CI_Model {
 				'platform_fee' => $split['platform_fee']
 			);
 		} else {
-			$message = isset($result['message']) ? $result['message'] : 'Unknown error from Paystack';
+			$message = isset($result['message']) ? $result['message'] : 'The payment provider returned an unknown error';
 			return array('status' => false, 'message' => $message);
 		}
 	}
@@ -233,16 +241,24 @@ class Paystack_model extends CI_Model {
 	{
 		$account = $this->get_payout_account($store_id);
 		$settings = $this->get_settings($store_id);
-		$fee_type = strtolower((string)($settings->platform_fee_type ?? 'none'));
-		$fee_value = max(0, (float)($settings->platform_fee_value ?? 0));
-		$platform_fee = $fee_type === 'percentage' ? round($amount * $fee_value / 100, 2) : ($fee_type === 'flat' ? $fee_value : 0);
+		$fee_percent = max(0, (float)($settings->platform_fee_percent ?? 0));
+		$fee_fixed = max(0, (float)($settings->platform_fee_fixed ?? 0));
+		// Older installs may not have the composite fee columns yet. Preserve
+		// their existing percentage/flat configuration until the migration runs.
+		if(!isset($settings->platform_fee_percent) && !isset($settings->platform_fee_fixed)){
+			$legacy_type = strtolower((string)($settings->platform_fee_type ?? 'none'));
+			$legacy_value = max(0, (float)($settings->platform_fee_value ?? 0));
+			$fee_percent = $legacy_type === 'percentage' ? $legacy_value : 0;
+			$fee_fixed = $legacy_type === 'flat' ? $legacy_value : 0;
+		}
+		$platform_fee = round(($amount * $fee_percent / 100) + $fee_fixed, 2);
 		if($platform_fee > $amount){
 			return array('status'=>false, 'message'=>'The configured platform fee cannot exceed the payment amount');
 		}
 		$config = array();
 		if($account && !empty($account->provider_subaccount_code) && (int)$account->enabled === 1){
 			$config['subaccount'] = $account->provider_subaccount_code;
-			if($fee_type === 'flat' && $platform_fee > 0){ $config['transaction_charge'] = (int)round($platform_fee * 100); }
+			if($platform_fee > 0){ $config['transaction_charge'] = (int)round($platform_fee * 100); }
 			if(($settings->fee_bearer ?? 'platform') === 'merchant'){ $config['bearer'] = 'subaccount'; }
 		}
 		return array('status'=>true, 'config'=>$config, 'platform_fee'=>$platform_fee, 'payout_account'=>$account);
@@ -254,6 +270,28 @@ class Paystack_model extends CI_Model {
 		if(!$this->db->table_exists('db_payment_subaccounts')){ return null; }
 		return $this->db->where('provider', 'paystack')->where('store_id', (int)$store_id)
 			->get('db_payment_subaccounts')->row();
+	}
+
+	/** True when this fleet accepted the currently configured MartPoint Pay fees. */
+	public function has_current_paystack_terms_acceptance($store_id)
+	{
+		if(!$this->db->table_exists('db_payment_subaccount_acceptances')){ return false; }
+		$acceptance = $this->db->where('provider', 'paystack')->where('store_id', (int)$store_id)
+			->order_by('id', 'DESC')->limit(1)->get('db_payment_subaccount_acceptances')->row();
+		$settings = $this->get_settings($store_id);
+		if(!$acceptance || !$settings || empty($settings->secret_key)){ return false; }
+		$percent = max(0, (float)($settings->platform_fee_percent ?? 0));
+		$fixed = max(0, (float)($settings->platform_fee_fixed ?? 0));
+		if(!isset($settings->platform_fee_percent) && !isset($settings->platform_fee_fixed)){
+			$type = strtolower((string)($settings->platform_fee_type ?? 'none'));
+			$value = max(0, (float)($settings->platform_fee_value ?? 0));
+			$percent = $type === 'percentage' ? $value : 0;
+			$fixed = $type === 'flat' ? $value : 0;
+		}
+		return $acceptance->terms_version === 'martpoint-pay-fees-2026-11-v1'
+			&& abs((float)$acceptance->platform_fee_percent - $percent) < 0.00005
+			&& abs((float)$acceptance->platform_fee_fixed - $fixed) < 0.005
+			&& $acceptance->fee_bearer === (($settings->fee_bearer ?? 'platform') === 'merchant' ? 'merchant' : 'platform');
 	}
 
 	public function get_banks($store_id = null)
@@ -277,14 +315,26 @@ class Paystack_model extends CI_Model {
 		if(strlen($account_number) !== 10 || $bank_code === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)){
 			return array('status'=>false, 'message'=>'A valid bank, 10-digit account number and payout email are required');
 		}
+		$enabled = !empty($data['enabled']);
+		$current_terms_accepted = $this->has_current_paystack_terms_acceptance($store_id);
+		if($enabled && !$current_terms_accepted && empty($data['terms_accepted'])){
+			return array('status'=>false, 'message'=>'Review and accept the MartPoint Pay fees before activating payments');
+		}
+		if($enabled && !$current_terms_accepted && !empty($data['terms_accepted'])
+			&& !$this->record_paystack_terms_acceptance($store_id, $data['accepted_by'] ?? '', (int)($data['accepted_by_user_id'] ?? 0))){
+			return array('status'=>false, 'message'=>'Your acceptance could not be saved, so MartPoint Pay was not activated. Please retry.');
+		}
 		$resolved = $this->resolve_payout_account($account_number, $bank_code, $store_id);
 		if(!$resolved['status']){ return array('status'=>false, 'message'=>$resolved['message'] ?? 'Could not verify bank account'); }
 		$resolved_name = trim((string)($resolved['data']['account_name'] ?? ''));
 		$store = $this->db->select('store_name')->where('id', $store_id)->get('db_store')->row();
 		$business_name = trim((string)($data['business_name'] ?? ($store->store_name ?? 'MartPoint Merchant')));
 		$existing = $this->get_payout_account($store_id);
-		$fee_type = strtolower((string)($this->get_settings($store_id)->platform_fee_type ?? 'none'));
-		$percentage_charge = $fee_type === 'percentage' ? (float)($this->get_settings($store_id)->platform_fee_value ?? 0) : 0;
+		$gateway_settings = $this->get_settings($store_id);
+		$percentage_charge = isset($gateway_settings->platform_fee_percent)
+			? max(0, (float)$gateway_settings->platform_fee_percent)
+			: (strtolower((string)($gateway_settings->platform_fee_type ?? 'none')) === 'percentage'
+				? max(0, (float)($gateway_settings->platform_fee_value ?? 0)) : 0);
 		$payload = array(
 			'business_name' => $business_name,
 			'description' => 'MartPoint merchant payout account',
@@ -320,8 +370,60 @@ class Paystack_model extends CI_Model {
 		);
 		if($existing){ $ok = $this->db->where('id', $existing->id)->update('db_payment_subaccounts', $row); }
 		else { $ok = $this->db->insert('db_payment_subaccounts', $row); }
-		return $ok ? array('status'=>true, 'message'=>'Payout account saved', 'account'=>$this->get_payout_account($store_id))
-			: array('status'=>false, 'message'=>'Payout account was verified but could not be saved locally');
+		if(!$ok){ return array('status'=>false, 'message'=>'Payout account was verified but could not be saved locally'); }
+		$account = $this->get_payout_account($store_id);
+		// A shared Paystack integration has one webhook URL. Register each enabled
+		// merchant subaccount with Next Admin so its webhook can be routed back to
+		// the fleet that owns this store.
+		if($this->db->table_exists('db_payment_gateway_accounts') && $account && !empty($account->provider_subaccount_code)){
+			try {
+				$this->load->library('central_billing_client');
+				if(!$this->central_billing_client->ready()) throw new RuntimeException('Central webhook routing is not configured.');
+				$this->central_billing_client->post('payout-subaccount', array(
+					'install_url' => rtrim(base_url(), '/'),
+					'store_id' => $store_id,
+					'subaccount_code' => $account->provider_subaccount_code,
+					'enabled' => (int)$account->enabled === 1,
+				));
+			} catch(Throwable $e) {
+				if((int)$account->enabled === 1){
+					$this->db->where('id', $account->id)->update('db_payment_subaccounts', array('enabled'=>0, 'last_error'=>'Central webhook route registration is pending.'));
+					return array('status'=>false, 'message'=>'Account details were saved, but Central webhook routing is not ready. The payout account remains disabled until Central confirms the route.');
+				}
+				return array('status'=>false, 'message'=>'Could not clear the previous Central webhook route. Retry this save.');
+			}
+		}
+		return array('status'=>true, 'message'=>'Payout account saved', 'account'=>$this->get_payout_account($store_id));
+	}
+
+	/** Save an immutable snapshot of the fee terms accepted at activation. */
+	private function record_paystack_terms_acceptance($store_id, $accepted_by, $accepted_by_user_id)
+	{
+		if(!$this->db->table_exists('db_payment_subaccount_acceptances')){ return false; }
+		$settings = $this->get_settings($store_id);
+		if(!$settings){ return false; }
+		$percent = max(0, (float)($settings->platform_fee_percent ?? 0));
+		$fixed = max(0, (float)($settings->platform_fee_fixed ?? 0));
+		if(!isset($settings->platform_fee_percent) && !isset($settings->platform_fee_fixed)){
+			$type = strtolower((string)($settings->platform_fee_type ?? 'none'));
+			$value = max(0, (float)($settings->platform_fee_value ?? 0));
+			$percent = $type === 'percentage' ? $value : 0;
+			$fixed = $type === 'flat' ? $value : 0;
+		}
+		$fee_bearer = ($settings->fee_bearer ?? 'platform') === 'merchant' ? 'merchant' : 'platform';
+		$example_amount = 10000.00;
+		$example_platform_fee = round($example_amount * $percent / 100 + $fixed, 2);
+		$terms = 'MartPoint Pay platform charge is '.number_format($percent, 2, '.', '').'% plus NGN '.number_format($fixed, 2, '.', '').' per successful online payment, deducted from the fleet settlement. On NGN 10,000, this platform charge is NGN '.number_format($example_platform_fee, 2, '.', '').'. Payment processing fees are borne by '.($fee_bearer === 'merchant' ? 'the fleet' : 'MartPoint').'. No separate payment surcharge is added to the customer checkout.';
+		return $this->db->insert('db_payment_subaccount_acceptances', array(
+			'provider'=>'paystack', 'store_id'=>(int)$store_id,
+			'terms_version'=>'martpoint-pay-fees-2026-11-v1',
+			'platform_fee_percent'=>$percent, 'platform_fee_fixed'=>$fixed,
+			'fee_bearer'=>$fee_bearer, 'example_amount'=>$example_amount,
+			'example_platform_fee'=>$example_platform_fee,
+			'terms_snapshot'=>$terms, 'accepted_by'=>substr((string)$accepted_by, 0, 64),
+			'accepted_by_user_id'=>$accepted_by_user_id > 0 ? $accepted_by_user_id : null,
+			'accepted_at'=>date('Y-m-d H:i:s'),
+		));
 	}
 
 	public function verify_transaction($reference, $store_id = null)
@@ -342,6 +444,20 @@ class Paystack_model extends CI_Model {
 			);
 		}
 		return array('status' => false, 'message' => $result['message'] ?? 'Transaction verification failed');
+	}
+
+	/** Initiate a full or partial refund using a stable, caller-owned reference. */
+	public function refund_transaction($transactionReference,$amountMinor,$refundReference,$store_id=null,$merchantNote=''){
+		$payload=['transaction'=>(string)$transactionReference,'reference'=>(string)$refundReference,'merchant_note'=>mb_substr((string)$merchantNote,0,255)];
+		if((int)$amountMinor>0)$payload['amount']=(int)$amountMinor;
+		return $this->api_request('POST','/refund',$payload,$store_id);
+	}
+	public function get_refund_by_reference($refundReference,$store_id=null){
+		$result=$this->api_request('GET','/refund?reference='.rawurlencode((string)$refundReference),null,$store_id);
+		if(!$result['status'])return $result;
+		$data=$result['data']??[];
+		if(isset($data[0]))$data=$data[0];
+		return ['status'=>true,'data'=>$data];
 	}
 
 	public function update_payment_status($reference, $status, $data = array())

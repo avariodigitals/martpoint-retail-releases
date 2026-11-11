@@ -953,7 +953,7 @@
 
             <!-- Paystack -->
             <?php if($CI->permissions('paystack_settings')) { ?>
-            <li class="paystack_settings-active-li"><a href="<?php echo $base_url; ?>paystack/settings"><i class="fa fa-link"></i> <span>Paystack Settings</span></a></li>
+            <li class="paystack_settings-active-li"><a href="<?php echo $base_url; ?>paystack/settings"><i class="fa fa-link"></i> <span>MartPoint Pay</span></a></li>
             <?php } ?>
 
             <!-- Expiry Settings -->

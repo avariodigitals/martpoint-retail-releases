@@ -133,6 +133,7 @@
 <body class="theme-food_express">
 
 <?php $this->load->view('themes/food_express/header'); ?>
+<?php $this->load->view('themes/shared/currency_selector'); ?>
 
 <?= $category_navigation ?? ''; ?>
 <?= $content; ?>

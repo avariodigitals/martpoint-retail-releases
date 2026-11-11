@@ -110,6 +110,7 @@
 <body class="bm-building bm-skin-<?= htmlspecialchars($bm_skin ?? 'atelier'); ?> theme-<?= htmlspecialchars($theme_key ?? 'framework_atelier'); ?>">
 <a class="bm-skip" href="#bm-main">Skip to content</a>
 <?php $this->load->view('themes/building_materials_base/header'); ?>
+<?php $this->load->view('themes/shared/currency_selector'); ?>
 <main id="bm-main" class="bm-main">
   <?= $content; ?>
 </main>

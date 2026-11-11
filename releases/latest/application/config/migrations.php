@@ -636,4 +636,24 @@ return [
           '4.0.9.259v' => '4.0.9.259_central_billing_catalogue_control.sql',
           // .260 improves fleet usage/check-in diagnostics and reporting reliability.
           '4.0.9.260v' => '4.0.9.260_client_retention_checkin.sql',
+          // Shared storefront checkout currencies and immutable order snapshots.
+          '4.0.9.261v' => '4.0.9.261_storefront_multicurrency.sql',
+          // Fashion measurement notebook, editable dress types and one-time size request links.
+          '4.0.9.262v' => '4.0.9.262_fashion_measurement_notebook.sql',
+          // Store-scoped storefront customer-pricing prompt controls and copy.
+          '4.0.9.263v' => '4.0.9.263_storefront_customer_pricing_notice.sql',
+		  // .264 installs the Paystack merchant subaccount and split-fee schema.
+		  // This is a new forward migration; the historical .197 no-op stays intact.
+		  '4.0.9.264v' => '4.0.9.264_paystack_subaccounts.sql',
+		  // Composite percentage plus fixed Paystack platform charge.
+		  '4.0.9.265v' => '4.0.9.265_paystack_composite_platform_fee.sql',
+		  // Immutable fleet consent record for MartPoint Pay settlement fees.
+		  '4.0.9.266v' => '4.0.9.266_martpoint_pay_acceptance_log.sql',
+		  // .267 makes Central Paystack credential saves independently verifiable;
+		  // no database change is required for the settings and bank-lookup flow.
+		  '4.0.9.267v' => '4.0.9.267_paystack_settings_save_reliability.sql',
+		  // .268 repairs the composite fee columns when an older Central skipped .265.
+		  '4.0.9.268v' => '4.0.9.268_paystack_fee_columns_repair.sql',
+		  // .269 reruns the idempotent fee repair from live Paystack settings pages.
+		  '4.0.9.269v' => '4.0.9.269_paystack_fee_columns_auto_repair.sql',
 ];

@@ -134,8 +134,8 @@ $fxSelectedOutlet = count($fxOutlets) === 1 ? (int)$fxOutlets[0]->id : 0;
               <label style="display:flex; align-items:center; gap:12px; padding:16px; border:2px solid var(--fx-border); border-radius:var(--fx-radius-sm); cursor:pointer; transition:border-color .15s;" onmouseover="this.style.borderColor='var(--fx-green)'" onmouseout="this.style.borderColor='var(--fx-border)'">
                 <input type="radio" name="payment_method" value="paystack" checked style="width:20px;height:20px;accent-color:var(--fx-green);">
                 <div style="flex:1; display:flex; align-items:center; gap:12px;">
-                  <img src="https://cdn.paystack.co/logo.png" alt="Paystack" style="height:24px;">
-                  <span style="font-weight:600; color:var(--fx-ink);">Pay with Card / Bank Transfer (Paystack)</span>
+                  <span aria-hidden="true" style="font-size:20px;">💳</span>
+                  <span style="font-weight:600; color:var(--fx-ink);">MartPoint Pay · Card or bank transfer</span>
                 </div>
               </label>
               <?php endif; ?>

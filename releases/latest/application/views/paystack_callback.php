@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Paystack Payment</title>
+  <title>MartPoint Pay</title>
   <?php include"comman/code_css.php"; ?>
   <style>
     .status-box { max-width: 500px; margin: 60px auto; text-align: center; padding: 40px; border-radius: 8px; }

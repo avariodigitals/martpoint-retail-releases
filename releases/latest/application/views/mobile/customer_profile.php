@@ -174,6 +174,9 @@ if (!empty($customer->photo)) {
         <?php if (mp_feature_enabled('customer_notes')): ?>
         <button type="button" class="tab-btn" data-tab="notes"><i class="fa fa-sticky-note"></i> Notes</button>
 <?php endif; ?>
+        <?php if (mp_feature_enabled('fashion_measurements')): ?>
+        <button type="button" class="tab-btn" data-tab="measurements"><i class="fa fa-scissors"></i> Sizes</button>
+        <?php endif; ?>
         <button type="button" class="tab-btn" data-tab="idcard"><i class="fa fa-id-card"></i> ID Card</button>
         <?php if(!empty($payplans)): ?><?php if (mp_feature_enabled('payplan')): ?>
 <button type="button" class="tab-btn" data-tab="payplan"><i class="fa fa-hourglass-half"></i> Payplan</button>
@@ -519,6 +522,28 @@ if (!empty($customer->photo)) {
       </div>
 <?php endif; ?>
 
+      <?php if (mp_feature_enabled('fashion_measurements')): ?>
+      <div id="measurements" class="tab-panel">
+        <div class="card"><h3 style="margin-top:0">Measurement notebook</h3><p class="help-text">Save dated measurements against this customer.</p>
+        <?php if ($this->permissions('customers_edit')): ?>
+        <form action="<?= base_url('fashion_measurements/save/'.$customer->id); ?>" method="post">
+          <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+          <input type="hidden" name="mobile_view" value="1">
+          <div class="form-group"><label>Dress type</label><div class="mp-select" id="fashion-dress-select"><button type="button" class="btn-block" aria-expanded="false">Choose a dress type</button><div class="mp-select-options" style="display:none;max-height:180px;overflow-y:auto;background:#fff;border:1px solid var(--mp-border);border-radius:10px"><?php foreach(($fashion_dress_types ?? []) as $type): ?><button type="button" data-value="<?= (int)$type->id; ?>" style="display:block;width:100%;text-align:left;padding:10px;border:0;border-bottom:1px solid var(--mp-border);background:#fff"><?= htmlspecialchars($type->name); ?></button><?php endforeach; ?></div><select name="dress_type_id" hidden><option value="">Choose a dress type</option><?php foreach(($fashion_dress_types ?? []) as $type): ?><option value="<?= (int)$type->id; ?>"><?= htmlspecialchars($type->name); ?></option><?php endforeach; ?></select></div><input name="custom_dress_type" placeholder="Or write a custom outfit type"></div>
+          <div class="form-group"><label>Size standard</label><div class="choices"><label><input type="radio" name="size_standard" value="UK" checked> UK</label> <label><input type="radio" name="size_standard" value="US"> US</label></div></div>
+          <div class="form-group"><label>Unit</label><div class="choices"><label><input type="radio" name="unit" value="cm" checked> cm</label> <label><input type="radio" name="unit" value="in"> inches</label></div></div>
+          <div class="form-grid"><?php $mobileMeasureFields=['bust'=>'Bust / chest','waist'=>'Waist','hip'=>'Hip','shoulder'=>'Shoulder','neck'=>'Neck','sleeve'=>'Sleeve','armhole'=>'Armhole','wrist'=>'Wrist','top_length'=>'Top length','trouser_length'=>'Trouser length','inseam'=>'Inseam','skirt_length'=>'Skirt / gown length','thigh'=>'Thigh','knee'=>'Knee','ankle'=>'Ankle']; foreach($mobileMeasureFields as $key=>$label): ?><div class="form-group"><label><?= $label; ?></label><input type="number" step="0.1" min="0" inputmode="decimal" name="measurements[<?= $key; ?>]"></div><?php endforeach; ?></div>
+          <div class="form-group"><label>Ready-to-wear size</label><input name="ready_to_wear_size" placeholder="UK 12"></div><div class="form-group"><label>Notes</label><textarea name="notes" rows="2"></textarea></div><button class="btn-block" type="submit">Save measurements</button>
+        </form>
+        <form action="<?= base_url('fashion_measurements/add_dress_type/'.$customer->id); ?>" method="post" style="margin-top:12px"><input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>"><input type="hidden" name="mobile_view" value="1"><div class="form-group"><label>Add your own dress type</label><input name="name" placeholder="Custom wear, special occasion outfit" required></div><button class="btn-block" type="submit">Add dress type</button></form>
+        <?php foreach(($fashion_dress_types ?? []) as $type): if((int)$type->store_id !== (int)get_current_store_id()) continue; ?><form action="<?= base_url('fashion_measurements/update_dress_type/'.$customer->id.'/'.$type->id); ?>" method="post" style="display:flex;gap:6px;margin-top:7px"><input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>"><input type="hidden" name="mobile_view" value="1"><input class="form-control" name="name" value="<?= htmlspecialchars($type->name); ?>"><button class="btn-block" type="submit" style="width:auto;padding:8px">Save</button></form><?php endforeach; ?>
+        <?php if(mp_feature_enabled('fashion_size_requests')): ?><form action="<?= base_url('fashion_measurements/create_request/'.$customer->id); ?>" method="post" style="margin-top:14px"><input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>"><input type="hidden" name="mobile_view" value="1"><strong>Remote size request link</strong><div class="choices" style="margin:10px 0"><label><input type="radio" name="size_standard" value="UK" checked> UK</label><label><input type="radio" name="size_standard" value="US"> US</label><label><input type="radio" name="unit" value="cm" checked> cm</label><label><input type="radio" name="unit" value="in"> inches</label></div><button class="btn-block" type="submit">Create 30-day link</button><?php $sizeRequestLink=$this->session->flashdata('size_request_link'); if($sizeRequestLink): ?><input style="margin-top:8px" class="form-control" readonly value="<?= htmlspecialchars($sizeRequestLink); ?>" onclick="this.select();document.execCommand('copy');"><?php endif; ?></form><?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <div class="card"><h3 style="margin-top:0">Saved measurements</h3><?php if(!empty($fashion_measurements)): foreach($fashion_measurements as $record): $values=json_decode($record->measurements_json,true)?:[]; ?><article class="list-item"><div class="left"><div class="name"><?= htmlspecialchars($record->dress_type_name); ?></div><div class="desc"><?= htmlspecialchars(show_date(substr($record->created_at,0,10))); ?> · <?= strtoupper(htmlspecialchars($record->size_standard)); ?> · <?= htmlspecialchars($record->unit); ?></div><div class="desc"><?php foreach($values as $value): ?><?= htmlspecialchars($value['label']??''); ?>: <?= htmlspecialchars((string)($value['value']??'')); ?> · <?php endforeach; ?></div><?php if($record->notes): ?><div class="desc"><?= nl2br(htmlspecialchars($record->notes)); ?></div><?php endif; ?></div></article><?php endforeach; else: ?><div class="empty-state">No measurements saved yet.</div><?php endif; ?></div>
+      </div>
+      <?php endif; ?>
+
       <?php if (mp_feature_enabled('customer_notes')): ?>
       <div id="notes" class="tab-panel">
         <form action="<?= base_url('mobile/save_customer_notes/' . $customer->id); ?>" method="post">
@@ -655,6 +680,8 @@ if (!empty($customer->photo)) {
         if(form) form.classList.toggle('active');
       });
     });
+    var dressSelect=document.getElementById('fashion-dress-select');
+    if(dressSelect){var trigger=dressSelect.querySelector('button'),options=dressSelect.querySelector('.mp-select-options'),value=dressSelect.querySelector('select[name="dress_type_id"]');trigger.addEventListener('click',function(){options.style.display=options.style.display==='block'?'none':'block';trigger.setAttribute('aria-expanded',options.style.display==='block'?'true':'false')});options.querySelectorAll('button').forEach(function(option){option.addEventListener('click',function(){value.value=this.dataset.value;trigger.textContent=this.textContent;options.style.display='none';trigger.setAttribute('aria-expanded','false')})})}
     var params = new URLSearchParams(window.location.search);
     if(params.get('tab')){
       switchTab(params.get('tab'));

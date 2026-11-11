@@ -256,6 +256,9 @@
           <li><a href="#storecredit" data-toggle="tab"><i class="fa fa-credit-card"></i> Store Credit</a></li>
 <?php endif; ?>
           <li><a href="#coupons" data-toggle="tab"><i class="fa fa-tags"></i> Coupons</a></li>
+          <?php if (mp_feature_enabled('fashion_measurements')): ?>
+          <li><a href="#measurements" data-toggle="tab"><i class="fa fa-scissors"></i> Measurements</a></li>
+          <?php endif; ?>
           <?php if (mp_feature_enabled('memberships')): ?>
           <li><a href="#memberships" data-toggle="tab"><i class="fa fa-id-card"></i> Memberships</a></li>
 <?php endif; ?>
@@ -276,6 +279,33 @@
       </ul>
 
       <div class="tab-content">
+        <?php if (mp_feature_enabled('fashion_measurements')): ?>
+        <div class="tab-pane" id="measurements" style="padding:20px;">
+          <div class="clearfix" style="margin-bottom:12px;"><h3 style="display:inline-block;margin:0 12px 0 0;">Measurement notebook</h3><span class="text-muted">Dated snapshots stay with this customer.</span></div>
+          <?php if ($CI->permissions('customers_edit')): ?>
+          <form method="post" action="<?= base_url('fashion_measurements/save/'.$customer->id); ?>" class="mp-card" style="padding:16px;margin-bottom:18px;">
+            <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>">
+            <div class="row"><div class="col-sm-4"><label>Dress type</label><select name="dress_type_id" class="form-control"><option value="">Choose a type</option><?php foreach(($fashion_dress_types ?? []) as $type): ?><option value="<?= (int)$type->id; ?>"><?= htmlspecialchars($type->name); ?></option><?php endforeach; ?></select></div>
+            <div class="col-sm-4"><label>Size standard</label><div><label style="margin-right:14px"><input type="radio" name="size_standard" value="UK" checked> UK</label><label><input type="radio" name="size_standard" value="US"> US</label></div></div>
+            <div class="col-sm-4"><label>Unit</label><div><label style="margin-right:14px"><input type="radio" name="unit" value="cm" checked> cm</label><label><input type="radio" name="unit" value="in"> inches</label></div></div></div>
+            <div class="row" style="margin-top:10px"><?php $measureFields=['bust'=>'Bust / chest','waist'=>'Waist','hip'=>'Hip','shoulder'=>'Shoulder','neck'=>'Neck','sleeve'=>'Sleeve','armhole'=>'Armhole','wrist'=>'Wrist','top_length'=>'Top length','trouser_length'=>'Trouser length','inseam'=>'Inseam','skirt_length'=>'Skirt / gown length','thigh'=>'Thigh','knee'=>'Knee','ankle'=>'Ankle']; foreach($measureFields as $key=>$label): ?><div class="col-sm-3 col-xs-6"><label><?= $label; ?></label><input class="form-control" type="number" step="0.1" min="0" name="measurements[<?= $key; ?>]"></div><?php endforeach; ?></div>
+            <div class="row" style="margin-top:10px"><div class="col-sm-4"><label>Ready-to-wear size (optional)</label><input class="form-control" name="ready_to_wear_size" placeholder="UK 12"></div><div class="col-sm-8"><label>Notes</label><input class="form-control" name="notes" placeholder="Fit preference, posture, or tailoring notes"></div></div>
+            <button type="submit" class="mp-qa-btn green" style="margin-top:12px;padding:7px 13px"><i class="fa fa-save"></i> Save measurement snapshot</button>
+          </form>
+          <?php if(mp_feature_enabled('fashion_size_requests')): ?>
+          <form method="post" action="<?= base_url('fashion_measurements/create_request/'.$customer->id); ?>" class="mp-card" style="padding:14px;margin-bottom:18px;">
+            <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>"><strong>Send a size request link</strong><div class="row" style="margin-top:8px"><div class="col-sm-3"><label>Default standard</label><select name="size_standard" class="form-control"><option value="UK">UK</option><option value="US">US</option></select></div><div class="col-sm-3"><label>Unit</label><select name="unit" class="form-control"><option value="cm">Centimetres</option><option value="in">Inches</option></select></div><div class="col-sm-6" style="padding-top:24px"><button class="mp-qa-btn blue" type="submit"><i class="fa fa-link"></i> Create 30-day link</button></div></div>
+            <?php $sizeRequestLink=$CI->session->flashdata('size_request_link'); if($sizeRequestLink): ?><div style="margin-top:10px"><label>Copy and send this private link</label><input class="form-control" readonly value="<?= htmlspecialchars($sizeRequestLink); ?>" onclick="this.select();document.execCommand('copy');"></div><?php endif; ?>
+          </form><?php endif; ?>
+          <?php if ($CI->permissions('customers_edit')): ?><form method="post" action="<?= base_url('fashion_measurements/add_dress_type/'.$customer->id); ?>" style="display:flex;gap:8px;margin:10px 0 16px;max-width:560px"><input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>"><input class="form-control" name="name" placeholder="Add a custom dress type, e.g. Bespoke Fila" required><button class="mp-qa-btn green" type="submit">Add type</button></form><?php endif; ?>
+          <?php if ($CI->permissions('customers_edit')): foreach(($fashion_dress_types ?? []) as $type): if((int)$type->store_id !== (int)get_current_store_id()) continue; ?><form method="post" action="<?= base_url('fashion_measurements/update_dress_type/'.$customer->id.'/'.$type->id); ?>" style="display:flex;gap:8px;margin:6px 0;max-width:560px"><input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>"><input class="form-control" name="name" value="<?= htmlspecialchars($type->name); ?>"><button class="mp-qa-btn blue" type="submit">Save type</button></form><?php endforeach; endif; ?>
+          <?php endif; ?>
+          <h4>Saved measurements</h4>
+          <?php if (!empty($fashion_measurements)): foreach($fashion_measurements as $record): $values=json_decode($record->measurements_json,true) ?: []; ?>
+            <div class="mp-card" style="padding:14px;margin:10px 0"><div style="display:flex;justify-content:space-between;gap:10px"><strong><?= htmlspecialchars($record->dress_type_name); ?></strong><span class="text-muted"><?= htmlspecialchars(show_date(substr($record->created_at,0,10))); ?> · <?= strtoupper(htmlspecialchars($record->size_standard)); ?> · <?= htmlspecialchars($record->unit); ?></span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-top:10px"><?php foreach($values as $value): ?><div><small class="text-muted"><?= htmlspecialchars($value['label'] ?? ''); ?></small><br><strong><?= htmlspecialchars((string)($value['value'] ?? '')); ?></strong></div><?php endforeach; ?></div><?php if(!empty($record->notes)): ?><p style="margin:10px 0 0"><strong>Notes:</strong> <?= nl2br(htmlspecialchars($record->notes)); ?></p><?php endif; ?><small class="text-muted">Recorded <?= htmlspecialchars($record->source==='customer_link'?'from customer link':'by '.($record->created_by ?: 'staff')); ?></small></div>
+          <?php endforeach; else: ?><p class="text-muted">No measurements recorded yet.</p><?php endif; ?>
+        </div>
+        <?php endif; ?>
         <!-- Purchase History -->
         <div class="tab-pane active" id="purchases" style="padding:20px;">
           <?php
@@ -1231,3 +1261,4 @@
 <script src="<?= $theme_link; ?>js/customers.js"></script>
 <script src="<?= $theme_link; ?>plugins/tableExporter/libs/html2canvas/html2canvas.min.js"></script>
 <script src="<?= $theme_link; ?>js/customer_profile.js"></script>
+<script>$(function(){if(window.location.hash==='#measurements'){$('a[href="#measurements"]').tab('show');}});</script>

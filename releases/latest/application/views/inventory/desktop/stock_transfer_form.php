@@ -128,7 +128,7 @@ if(isset($stocktransfer_id)){
 <script>var walk_in_customer_name='<?= get_walk_in_customer_name(); ?>'</script>
 <script src="<?= $theme_link; ?>js/modals.js"></script>
 <script src="<?= $theme_link; ?>js/modals/modal_item.js"></script>
-<script src="<?= $theme_link; ?>js/warehouse/stock_transfer.js"></script>
+<script src="<?= $theme_link; ?>js/warehouse/stock_transfer.js?v=<?= (int)@filemtime(FCPATH.'theme/js/warehouse/stock_transfer.js'); ?>"></script>
 
 <script type="text/javascript">
   /* Branch / warehouse change clears the item table */

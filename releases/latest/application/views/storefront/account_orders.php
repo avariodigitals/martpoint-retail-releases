@@ -121,7 +121,7 @@
               <td class="cra-code"><?= htmlspecialchars($o->order_code); ?></td>
               <td><?= date('M j, Y', strtotime($o->created_at ?? 'now')); ?></td>
               <td><span class="cra-badge <?= in_array($o->order_status, ['completed','paid']) ? 'cra-badge-active' : (in_array($o->order_status, ['pending','processing']) ? 'cra-badge-processing' : 'cra-badge-pending'); ?>"><?= ucfirst($o->order_status); ?></span></td>
-              <td><?= htmlspecialchars($settings->currency ?? '₦'); ?><?= number_format($o->grand_total, 2); ?></td>
+              <td><?= htmlspecialchars((string)($o->transaction_currency ?? $o->base_currency ?? $settings->currency ?? 'NGN')); ?> <?= number_format($o->transaction_grand_total ?? $o->grand_total, 2); ?></td>
               <td><a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . urlencode($o->order_code)); ?>" class="cra-card-link">View</a></td>
             </tr>
             <?php endforeach; ?>

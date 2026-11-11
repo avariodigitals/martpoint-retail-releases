@@ -234,11 +234,12 @@
       Order Items (<?= count($items); ?>)
     </div>
     <?php
-    $cur = $store_currency['symbol'] ?? '';
-    $placement = $store_currency['placement'] ?? 'Left';
+    $orderCurrency = strtoupper((string)($order->transaction_currency ?? $order->base_currency ?? ($store_currency['code'] ?? 'NGN')));
+    $cur = ['NGN'=>'NGN ₦','CAD'=>'CAD $','USD'=>'USD $','EUR'=>'EUR €','GBP'=>'GBP £'][$orderCurrency] ?? $orderCurrency;
+    $placement = 'Left';
     foreach($items as $item):
-      $lineTotal = number_format($item->total_price, 2);
-      $unitPrice = number_format($item->unit_price, 2);
+      $lineTotal = number_format($item->transaction_total_price ?? $item->total_price, 2);
+      $unitPrice = number_format($item->transaction_unit_price ?? $item->unit_price, 2);
       if($placement === 'Left') {
         $lineTotalStr = $cur . $lineTotal;
         $unitPriceStr = $cur . $unitPrice;
@@ -267,19 +268,20 @@
     <div class="sf-totals">
       <div class="sf-row">
         <span class="label">Subtotal</span>
-        <span class="value"><?= $placement === 'Left' ? $cur . number_format($order->subtotal, 2) : number_format($order->subtotal, 2) . ' ' . $cur; ?></span>
+        <span class="value"><?= $cur . number_format($order->transaction_subtotal ?? $order->subtotal, 2); ?></span>
       </div>
+      <?php if((float)($order->transaction_tax_amount??$order->tax_amount??0)>0): ?><div class="sf-row"><span class="label">Tax</span><span class="value"><?= $cur . number_format($order->transaction_tax_amount??$order->tax_amount, 2); ?><?= ($order->tax_mode_snapshot??'')==='inclusive'?' (included)':''; ?></span></div><?php endif; ?>
       <div class="sf-row">
         <span class="label">Delivery Fee</span>
         <span class="value"><?php
           if(!empty($order->delivery_quote_pending)) echo 'To be confirmed';
-          elseif($order->delivery_fee > 0) echo $placement === 'Left' ? $cur . number_format($order->delivery_fee, 2) : number_format($order->delivery_fee, 2) . ' ' . $cur;
+          elseif($order->delivery_fee > 0) echo $cur . number_format($order->transaction_delivery_fee ?? $order->delivery_fee, 2);
           else echo 'Free';
         ?></span>
       </div>
       <div class="sf-row total">
         <span class="label"><?= !empty($order->delivery_quote_pending) ? 'Items Total' : 'Grand Total'; ?></span>
-        <span class="value"><?= $placement === 'Left' ? $cur . number_format($order->grand_total, 2) : number_format($order->grand_total, 2) . ' ' . $cur; ?></span>
+        <span class="value"><?= $cur . number_format($order->transaction_grand_total ?? $order->grand_total, 2); ?></span>
       </div>
       <?php if(!empty($order->delivery_quote_pending)): ?>
       <div style="font-size:12px;color:var(--gray);background:var(--light-gray);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.5;">
@@ -405,7 +407,8 @@
   var NEED = <?= $mpNeedConsent ? 'true' : 'false'; ?>;
   var KEY  = <?= json_encode($mpConsentKey); ?>;
   var EID  = <?= json_encode('purchase_' . $order->order_code); ?>;
-  var VAL  = <?= (float)$order->grand_total; ?>;
+  var VAL  = <?= (float)($order->transaction_grand_total ?? $order->grand_total); ?>;
+  var TXC  = <?= json_encode($orderCurrency); ?>;
   var ok = function(){ if(!NEED) return true; try{return localStorage.getItem(KEY)==='yes';}catch(e){return false;} };
   var fired = function(){ try{return localStorage.getItem('mp_purch_' + EID)==='1';}catch(e){return false;} };
   var markFired = function(){ try{localStorage.setItem('mp_purch_' + EID,'1');}catch(e){} };
@@ -413,9 +416,9 @@
   markFired();
   var fire = function(){
     try{
-      if(window.gtag) gtag('event','purchase',{value:VAL,currency:'<?= strtoupper(substr($store_currency ?? 'NGN',0,3)); ?>',transaction_id:<?= json_encode($order->order_code); ?>});
-      if(window.fbq) fbq('track','Purchase',{value:VAL,currency:'<?= strtoupper(substr($store_currency ?? 'NGN',0,3)); ?>'},{eventID:EID});
-      if(window.ttq) ttq.track('CompletePayment',{value:VAL,currency:'<?= strtoupper(substr($store_currency ?? 'NGN',0,3)); ?>',event_id:EID});
+      if(window.gtag) gtag('event','purchase',{value:VAL,currency:TXC,transaction_id:<?= json_encode($order->order_code); ?>});
+      if(window.fbq) fbq('track','Purchase',{value:VAL,currency:TXC},{eventID:EID});
+      if(window.ttq) ttq.track('CompletePayment',{value:VAL,currency:TXC,event_id:EID});
       // Server record — deduped by event_id against the payment-transition record.
       var b = new URLSearchParams({store_id:<?= (int)$order->store_id; ?>,event:'purchase',event_id:EID,value:VAL,consent:'1',page:window.location.pathname});
       fetch('<?= base_url('storefront/track_event'); ?>',{method:'POST',body:b.toString(),headers:{'Content-Type':'application/x-www-form-urlencoded'},keepalive:true}).catch(function(){});

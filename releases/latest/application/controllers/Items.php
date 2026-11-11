@@ -383,19 +383,47 @@ class Items extends MY_Controller {
 
 			log_message('info', 'ajax_list started');
 			$warehouse_id = $_REQUEST['warehouse_id'] ?? '';
+			$requested_warehouse_ids = is_array($warehouse_id) ? $warehouse_id : explode(',', (string)$warehouse_id);
+			$requested_warehouse_ids = array_values(array_unique(array_filter(array_map('intval', $requested_warehouse_ids))));
 
 			log_message('info', 'Calling get_datatables');
 			$list = $this->items->get_datatables();
 			log_message('info', 'get_datatables returned '.count($list).' items');
 
 			$data = array();
-			// Pre-load available stock for all listed items in one query to avoid per-row DB calls
-			$warehouse_ids = (!empty($warehouse_id)) ? $warehouse_id : get_privileged_warehouses_ids();
+			// Pre-load available stock for all listed items in one query to avoid per-row DB calls.
+			// An empty branch filter means the store-wide product total for
+			// owners/admins; regular staff remain limited to assigned branches.
+			$use_global_item_stock = empty($requested_warehouse_ids) && (is_admin() || is_store_admin());
+			if(!empty($requested_warehouse_ids)){
+				$warehouse_ids = $requested_warehouse_ids;
+			}else if($use_global_item_stock){
+				$warehouse_ids = array();
+			}else{
+				$warehouse_ids = array_values(array_unique(array_filter(array_map('intval', getArrayOfWarehouseIds()))));
+			}
+			if(!is_admin() && !is_store_admin()){
+				$warehouse_ids = array_values(array_intersect($warehouse_ids, array_map('intval', getArrayOfWarehouseIds())));
+			}
+			// Validate posted branch IDs against this store so crafted requests cannot
+			// read another store's stock or include inactive/unassigned branches.
+			if(!empty($warehouse_ids)){
+				$this->db->select('id')->from('db_warehouse')->where('store_id', $store_id)->where('status', 1)->where_in('id', $warehouse_ids);
+				$warehouse_rows = $this->db->get()->result();
+				$warehouse_ids = array_map(function($row){ return (int)$row->id; }, $warehouse_rows);
+			}
 			$stock_map = [];
-			if(!empty($warehouse_ids) && !empty($list)){
+			if($use_global_item_stock && !empty($list)){
+				// The product detail screen uses db_items.stock for the store-wide
+				// quantity. Keep the All Branches list on that same canonical total.
+				foreach($list as $listed_item){
+					$stock_map[$listed_item->id] = (float)$listed_item->stock;
+				}
+			}else if(!empty($warehouse_ids) && !empty($list)){
 				$item_ids = array_map(function($it){ return $it->id; }, $list);
 				$placeholders = implode(',', array_fill(0, count($item_ids), '?'));
-				$stock_result = $this->db->query("SELECT item_id, COALESCE(SUM(available_qty),0) as available_qty FROM db_warehouseitems WHERE store_id=? AND warehouse_id IN ($warehouse_ids) AND item_id IN ($placeholders) GROUP BY item_id", array_merge([$store_id], $item_ids));
+				$warehouse_placeholders = implode(',', array_fill(0, count($warehouse_ids), '?'));
+				$stock_result = $this->db->query("SELECT item_id, COALESCE(SUM(available_qty),0) as available_qty FROM db_warehouseitems WHERE store_id=? AND warehouse_id IN ($warehouse_placeholders) AND item_id IN ($placeholders) GROUP BY item_id", array_merge([$store_id], $warehouse_ids, $item_ids));
 				foreach($stock_result->result() as $r){
 					$stock_map[$r->item_id] = $r->available_qty;
 				}
@@ -561,17 +589,36 @@ class Items extends MY_Controller {
 
 	
 	public function get_json_items_details(){
+		$search_for=$this->input->get('search_for');
 		$store_id=(int)$this->input->get('store_id');
 		if(!$store_id && function_exists('get_current_store_id')) $store_id=(int)get_current_store_id();
 		$warehouse_id=(int)$this->input->get('warehouse_id');
 		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
-		$search_for=$this->input->get('search_for');
+
+		// Transfer search is scoped to the signed-in store and selected source
+		// warehouse. A missing warehouse stock row must not hide the catalogue
+		// item; the picker can then explain that its available quantity is zero.
+		if($search_for === 'stock_transfer'){
+			$store_id = (int)get_current_store_id();
+			$warehouse_ok = $warehouse_id > 0
+				&& $this->db->where('id', $warehouse_id)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+			$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+			if(!$warehouse_ok || ($allowed !== null && !in_array($warehouse_id, $allowed, true))){
+				$this->output->set_content_type('application/json')->set_output('[]');
+				return;
+			}
+		}
 
 		$show_purchase_price = $this->permissions('show_purchase_price');
 		$data = array();
 		$display_json = array();
 		$name = isset($_GET['name']) ? strtolower(trim($_GET['name'])) : '';
 		$name_sql = $this->db->escape_like_str($name); // the LIKE clauses below interpolate raw SQL
+		$warehouse_stock_sql = 'COALESCE(SUM(b.available_qty),0)';
+		if ((!isset($search_for) || $search_for === 'stock_transfer') && $this->db->table_exists('db_item_barcodes') && $this->db->table_exists('db_stocktransfer_batch_allocations')) {
+			$batch_stock_sql = "(SELECT COALESCE(SUM(bc.qty),0) FROM db_item_barcodes bc WHERE bc.item_id=a.id AND bc.warehouse_id=".(int)$warehouse_id." AND bc.status=1 AND bc.qty>0 AND ((bc.batch_lot IS NOT NULL AND bc.batch_lot<>'') OR bc.expire_date IS NOT NULL) AND (bc.serial_number IS NULL OR bc.serial_number='') AND (bc.imei_number IS NULL OR bc.imei_number=''))";
+			$warehouse_stock_sql = "CASE WHEN COALESCE(SUM(b.available_qty),0)>0 THEN COALESCE(SUM(b.available_qty),0) ELSE {$batch_stock_sql} END";
+		}
 		$pharmacy_categories = ($search_for === 'purchase')
 			? $this->_pharmacy_purchase_categories($store_id)
 			: array();
@@ -589,12 +636,17 @@ class Items extends MY_Controller {
 			$this->db->select("*");
 			$this->db->from("db_items as a");
 		}
+		else if($search_for === 'stock_transfer'){
+			$this->db->where('a.service_bit', 0);
+			$this->db->select('a.service_bit,a.purchase_price,a.id,a.item_name,a.item_code,'.$warehouse_stock_sql.' as stock,a.item_group', false);
+			$this->db->from('db_items as a');
+			$this->db->join('db_warehouseitems as b', 'b.item_id=a.id AND b.store_id=a.store_id AND b.warehouse_id='.(int)$warehouse_id, 'left', false);
+		}
 		else{
 			$this->db->where('a.service_bit=0');
-			$this->db->select("a.service_bit,a.purchase_price,a.id,a.item_name,a.item_code,COALESCE(b.available_qty,0) as stock,item_group");
+			$this->db->select("a.service_bit,a.purchase_price,a.id,a.item_name,a.item_code,".$warehouse_stock_sql." as stock,a.item_group", false);
 			$this->db->from("db_items as a");
-			$this->db->join("db_warehouseitems as b","b.item_id=a.id",'left');
-			$this->db->where("b.warehouse_id=$warehouse_id");
+			$this->db->join("db_warehouseitems as b", "b.item_id=a.id AND b.store_id=a.store_id AND b.warehouse_id=".(int)$warehouse_id, 'left', false);
 		}
 
 		$this->db->where("a.status",1);
@@ -890,6 +942,9 @@ class Items extends MY_Controller {
 		if(!$item){
 			echo json_encode(['status'=>'error','message'=>'Item not found']);exit;
 		}
+		$showSerial = mp_feature_enabled('serial_number_tracking') && !empty($item->track_serial);
+		$showImei = mp_feature_enabled('imei_tracking') && !empty($item->track_imei);
+		$showWarranty = mp_feature_enabled('warranty_tracking') && (int)($item->warranty_months ?? 0) > 0;
 
 		$html = '<div class="row">';
 		
@@ -913,27 +968,27 @@ class Items extends MY_Controller {
 		$activities = [];
 
 		// Sales
-		$this->db->select('s.id as ref_id, s.sales_code as reference, s.sales_date as activity_date, c.customer_name as party, si.sales_qty as qty, si.unit_total_cost as amount, si.sold_serial_number as serial, si.sold_imei_number as imei');
+		$this->db->select('s.id as ref_id, s.sales_code as reference, s.sales_date as activity_date, c.customer_name as party, w.warehouse_name as location, si.sales_qty as qty, si.unit_total_cost as amount, si.sold_serial_number as serial, si.sold_imei_number as imei');
 		$this->db->from('db_salesitems si');
-		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
-		$this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
-		$this->db->where('si.item_id', $item_id);
+		$this->db->join('db_sales s', 's.id = si.sales_id AND s.store_id = si.store_id', 'left');
+		$this->db->join('db_customers c', 'c.id = s.customer_id AND c.store_id = s.store_id', 'left');
+		$this->db->join('db_warehouse w', 'w.id = s.warehouse_id AND w.store_id = s.store_id', 'left');
+		$this->db->where('si.item_id', $item_id)->where('si.store_id', (int)$item->store_id);
 		$this->db->where('s.sales_status', 'Final');
 		$this->db->where('s.sales_date IS NOT NULL');
 		$this->db->order_by('s.sales_date', 'DESC');
-		$this->db->limit(25);
 		$timeline_sales = $this->db->get()->result();
 		foreach($timeline_sales as $ts){
 			$note = [];
-			if(!empty($ts->serial)) $note[] = 'S/N: '.$ts->serial;
-			if(!empty($ts->imei)) $note[] = 'IMEI: '.$ts->imei;
+			if($showSerial && !empty($ts->serial)) $note[] = 'S/N: '.$ts->serial;
+			if($showImei && !empty($ts->imei)) $note[] = 'IMEI: '.$ts->imei;
 			$activities[] = (object)[
 				'type' => 'Sale',
 				'icon' => 'fa-shopping-cart',
 				'label_class' => 'label-danger',
 				'date' => $ts->activity_date,
 				'reference' => $ts->reference,
-				'party' => ($ts->party ?: 'Walk-in'),
+				'party' => trim(($ts->party ?: 'Walk-in').(!empty($ts->location) ? ' · '.$ts->location : '')),
 				'qty' => (float) $ts->qty * -1,
 				'amount' => $ts->amount,
 				'note' => implode(' ', $note)
@@ -941,15 +996,16 @@ class Items extends MY_Controller {
 		}
 
 		// Purchases
-		$this->db->select('p.id as ref_id, p.purchase_code as reference, p.purchase_date as activity_date, s.supplier_name as party, pi.purchase_qty as qty, pi.unit_total_cost as amount, pi.batch_lot as batch, pi.barcode as barcode');
+		$purchaseQtyExpr = $this->db->field_exists('received_qty', 'db_purchaseitems') ? 'COALESCE(pi.received_qty, pi.purchase_qty)' : 'pi.purchase_qty';
+		$this->db->select('p.id as ref_id, p.purchase_code as reference, p.purchase_date as activity_date, s.supplier_name as party, w.warehouse_name as location, '.$purchaseQtyExpr.' as qty, pi.unit_total_cost as amount, pi.batch_lot as batch, pi.barcode as barcode', false);
 		$this->db->from('db_purchaseitems pi');
-		$this->db->join('db_purchase p', 'p.id = pi.purchase_id', 'left');
-		$this->db->join('db_suppliers s', 's.id = p.supplier_id', 'left');
-		$this->db->where('pi.item_id', $item_id);
+		$this->db->join('db_purchase p', 'p.id = pi.purchase_id AND p.store_id = pi.store_id', 'left');
+		$this->db->join('db_suppliers s', 's.id = p.supplier_id AND s.store_id = p.store_id', 'left');
+		$this->db->join('db_warehouse w', 'w.id = p.warehouse_id AND w.store_id = p.store_id', 'left');
+		$this->db->where('pi.item_id', $item_id)->where('pi.store_id', (int)$item->store_id);
 		$this->db->where_in('pi.purchase_status', ['Received','Partially Received']);
 		$this->db->where('p.purchase_date IS NOT NULL');
 		$this->db->order_by('p.purchase_date', 'DESC');
-		$this->db->limit(25);
 		$timeline_purchases = $this->db->get()->result();
 		foreach($timeline_purchases as $tp){
 			$note = [];
@@ -961,7 +1017,7 @@ class Items extends MY_Controller {
 				'label_class' => 'label-success',
 				'date' => $tp->activity_date,
 				'reference' => $tp->reference,
-				'party' => ($tp->party ?: 'Supplier'),
+				'party' => trim(($tp->party ?: 'Supplier').(!empty($tp->location) ? ' · '.$tp->location : '')),
 				'qty' => (float) $tp->qty,
 				'amount' => $tp->amount,
 				'note' => implode(' ', $note)
@@ -971,40 +1027,44 @@ class Items extends MY_Controller {
 		// Stock Adjustments
 		$this->db->select('a.id as ref_id, a.reference_no as reference, a.adjustment_date as activity_date, a.adjustment_note as party, ai.adjustment_qty as qty, ai.description as note');
 		$this->db->from('db_stockadjustmentitems ai');
-		$this->db->join('db_stockadjustment a', 'a.id = ai.adjustment_id', 'left');
-		$this->db->where('ai.item_id', $item_id);
+		$this->db->join('db_stockadjustment a', 'a.id = ai.adjustment_id AND a.store_id = ai.store_id', 'left');
+		$this->db->where('ai.item_id', $item_id)->where('ai.store_id', (int)$item->store_id);
 		$this->db->where('a.status', 1);
 		$this->db->where('ai.status', 1);
 		$this->db->where('a.adjustment_date IS NOT NULL');
+		if($this->db->table_exists('db_online_orders') && $this->db->field_exists('sales_id', 'db_online_orders')){
+			$this->db->where("(a.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR NOT EXISTS (
+				SELECT 1 FROM db_online_orders oo WHERE oo.store_id=a.store_id
+				AND a.reference_no=CONCAT('ONLINE-RESERVE-',oo.id) AND COALESCE(oo.sales_id,0)>0))", null, false);
+		}
 		$this->db->order_by('a.adjustment_date', 'DESC');
-		$this->db->limit(25);
 		$timeline_adjustments = $this->db->get()->result();
 		foreach($timeline_adjustments as $ta){
+			$isReservation = strpos((string)$ta->reference, 'ONLINE-RESERVE-') === 0;
 			$activities[] = (object)[
-				'type' => 'Adjustment',
-				'icon' => 'fa-sliders',
-				'label_class' => 'label-warning',
+				'type' => $isReservation ? 'Online reservation' : 'Adjustment',
+				'icon' => $isReservation ? 'fa-clock-o' : 'fa-sliders',
+				'label_class' => $isReservation ? 'label-warning' : 'label-warning',
 				'date' => $ta->activity_date,
 				'reference' => ($ta->reference ?: 'ADJ-'.$ta->ref_id),
-				'party' => ($ta->party ?: 'Stock adjustment'),
+				'party' => ($isReservation ? 'Stock held for an unpaid online order' : ($ta->party ?: 'Stock adjustment')),
 				'qty' => (float) $ta->qty,
 				'amount' => null,
-				'note' => $ta->note
+				'note' => $isReservation ? 'Temporary hold; this is released on cancellation or replaced by the sale when the order is posted.' : $ta->note
 			];
 		}
 
 		// Stock Transfers
 		$this->db->select('t.id as ref_id, t.note as reference, t.transfer_date as activity_date, ti.warehouse_from as from_id, ti.warehouse_to as to_id, wf.warehouse_name as wh_from, wt.warehouse_name as wh_to, ti.transfer_qty as qty');
 		$this->db->from('db_stocktransferitems ti');
-		$this->db->join('db_stocktransfer t', 't.id = ti.stocktransfer_id', 'left');
-		$this->db->join('db_warehouse wf', 'wf.id = ti.warehouse_from', 'left');
-		$this->db->join('db_warehouse wt', 'wt.id = ti.warehouse_to', 'left');
-		$this->db->where('ti.item_id', $item_id);
+		$this->db->join('db_stocktransfer t', 't.id = ti.stocktransfer_id AND t.store_id = ti.store_id', 'left');
+		$this->db->join('db_warehouse wf', 'wf.id = ti.warehouse_from AND wf.store_id = ti.store_id', 'left');
+		$this->db->join('db_warehouse wt', 'wt.id = ti.warehouse_to AND wt.store_id = ti.store_id', 'left');
+		$this->db->where('ti.item_id', $item_id)->where('ti.store_id', (int)$item->store_id);
 		$this->db->where('t.status', 1);
 		$this->db->where('ti.status', 1);
 		$this->db->where('t.transfer_date IS NOT NULL');
 		$this->db->order_by('t.transfer_date', 'DESC');
-		$this->db->limit(25);
 		$timeline_transfers = $this->db->get()->result();
 		foreach($timeline_transfers as $tt){
 			$from = $tt->wh_from ?: 'Warehouse #'.$tt->from_id;
@@ -1025,14 +1085,19 @@ class Items extends MY_Controller {
 		usort($activities, function($a, $b){
 			return strtotime($b->date) - strtotime($a->date);
 		});
-		$activities = array_slice($activities, 0, 25);
 
 		$html .= '<div class="col-md-12">';
 		$html .= '<div class="box box-primary">';
 		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-history"></i> Product Activity</h3></div>';
 		$html .= '<div class="box-body table-responsive no-padding">';
 		if(!empty($activities)){
-			$html .= '<table class="table table-bordered table-striped table-condensed">';
+			$html .= '<div class="item-history-filters" data-table="product_activity_table" style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 15px;align-items:end;">';
+			$html .= '<label style="margin:0;">Type <select class="form-control ih-type" style="min-width:130px;"><option value="">All types</option><option>Sale</option><option>Purchase</option><option>Adjustment</option><option>Online reservation</option><option>Transfer</option></select></label>';
+			$html .= '<label style="margin:0;">From <input class="form-control ih-from" type="date"></label><label style="margin:0;">To <input class="form-control ih-to" type="date"></label>';
+			$html .= '<label style="margin:0;min-width:190px;">Location <input class="form-control ih-location" type="search" placeholder="Search location / party"></label>';
+			$html .= '<label style="margin:0;min-width:190px;">Reference / notes <input class="form-control ih-global" type="search" placeholder="Invoice, batch, note..."></label>';
+			$html .= '<button type="button" class="btn btn-default ih-clear">Clear filters</button></div>';
+			$html .= '<table class="table table-bordered table-striped table-condensed js-item-history-table" id="product_activity_table">';
 			$html .= '<thead><tr><th>Type</th><th>Date</th><th>Reference</th><th>Party / Location</th><th>Qty</th><th>Unit Cost</th><th>Notes</th></tr></thead>';
 			$html .= '<tbody>';
 			foreach($activities as $act){
@@ -1070,29 +1135,153 @@ class Items extends MY_Controller {
 		$html .= '</div></div></div>';
 
 		// Barcode / Batch / Unit Stock
-		$barcodes = $this->db->where('item_id',$item_id)->where('status',1)->get('db_item_barcodes')->result();
+		$this->db->select('bc.*, w.warehouse_name');
+		$this->db->from('db_item_barcodes bc');
+		$this->db->join('db_items i', 'i.id = bc.item_id AND i.store_id = '.(int)$item->store_id, 'inner', false);
+		$this->db->join('db_warehouse w', 'w.id = bc.warehouse_id AND w.store_id = i.store_id', 'left');
+		$originalFallback = 'NULL';
+		if($this->db->table_exists('db_purchaseitems') && $this->db->table_exists('db_purchase')
+			&& $this->db->field_exists('batch_lot', 'db_purchaseitems')){
+			$receivedExpr = $this->db->field_exists('received_qty', 'db_purchaseitems')
+				? 'COALESCE(px.received_qty, px.purchase_qty)'
+				: 'px.purchase_qty';
+			$hasBarcodePurchaseId = $this->db->field_exists('purchase_id', 'db_item_barcodes');
+			$purchaseMatch = $hasBarcodePurchaseId
+				? '(bc.purchase_id IS NULL OR bc.purchase_id = 0 OR px.purchase_id = bc.purchase_id)'
+				: '1=1';
+			$purchaseWarehouseMatch = 'pp.warehouse_id = bc.warehouse_id';
+			$batchAttributionGuard = $hasBarcodePurchaseId
+				? "(NULLIF(bc.batch_lot,'') IS NOT NULL OR COALESCE(bc.purchase_id,0) > 0)"
+				: "NULLIF(bc.batch_lot,'') IS NOT NULL";
+			$originalFallback = "(SELECT SUM({$receivedExpr}) FROM db_purchaseitems px
+				JOIN db_purchase pp ON pp.id = px.purchase_id AND pp.store_id = px.store_id
+				WHERE px.item_id = bc.item_id AND {$purchaseWarehouseMatch}
+				AND px.purchase_status IN ('Received','Partially Received')
+				AND {$purchaseMatch}
+				AND CONVERT(IFNULL(px.batch_lot,'') USING utf8mb4) COLLATE utf8mb4_unicode_ci
+					= CONVERT(IFNULL(bc.batch_lot,'') USING utf8mb4) COLLATE utf8mb4_unicode_ci
+				AND {$batchAttributionGuard})";
+		}
+		if($this->db->field_exists('purchaseitems_id', 'db_item_barcodes') && $this->db->table_exists('db_purchaseitems')){
+			$linkedReceived = $this->db->field_exists('received_qty', 'db_purchaseitems')
+				? 'CASE WHEN purchase_header.warehouse_id = bc.warehouse_id THEN COALESCE(pi.received_qty, pi.purchase_qty) END' : 'NULL';
+			$originalExpr = "COALESCE({$linkedReceived}, {$originalFallback})";
+			$this->db->select("CASE WHEN COALESCE(bc.serial_number,'') <> '' OR COALESCE(bc.imei_number,'') <> '' THEN IF(purchase_header.warehouse_id = bc.warehouse_id, 1, 0) ELSE {$originalExpr} END AS original_qty", false);
+			$this->db->join('db_purchaseitems pi', 'pi.id = bc.purchaseitems_id AND pi.item_id = bc.item_id AND pi.store_id = i.store_id', 'left');
+			$purchaseHeaderId = $this->db->field_exists('purchase_id', 'db_item_barcodes')
+				? 'COALESCE(pi.purchase_id, bc.purchase_id)' : 'pi.purchase_id';
+			$this->db->join('db_purchase purchase_header', 'purchase_header.id = '.$purchaseHeaderId.' AND purchase_header.store_id = i.store_id', 'left', false);
+		}else{
+			if($this->db->table_exists('db_purchase') && $this->db->field_exists('purchase_id', 'db_item_barcodes')){
+				$this->db->join('db_purchase purchase_header', 'purchase_header.id = bc.purchase_id AND purchase_header.store_id = i.store_id', 'left', false);
+				$this->db->select("CASE WHEN COALESCE(bc.serial_number,'') <> '' OR COALESCE(bc.imei_number,'') <> '' THEN IF(purchase_header.warehouse_id = bc.warehouse_id, 1, 0) ELSE {$originalFallback} END AS original_qty", false);
+			}else{
+				$this->db->select("CASE WHEN COALESCE(bc.serial_number,'') <> '' OR COALESCE(bc.imei_number,'') <> '' THEN 1 ELSE {$originalFallback} END AS original_qty", false);
+			}
+		}
+		$soldParts = [];
+		if($this->db->table_exists('db_salesitem_batch_allocations')){
+			$soldParts[] = "SELECT a.barcode_id, SUM(GREATEST(a.qty_allocated - a.qty_returned, 0)) AS sold_qty
+				FROM db_salesitem_batch_allocations a
+				JOIN db_sales s ON s.id = a.sales_id AND s.store_id = a.store_id
+				WHERE a.store_id = ".(int)$item->store_id." AND s.sales_status = 'Final'
+				GROUP BY a.barcode_id";
+		}
+		if($this->db->field_exists('barcode_id', 'db_salesitems')){
+			$unallocatedSaleFilter = $this->db->table_exists('db_salesitem_batch_allocations')
+				? ' AND NOT EXISTS (SELECT 1 FROM db_salesitem_batch_allocations ax WHERE ax.salesitems_id = si.id)'
+				: '';
+			$soldParts[] = "SELECT si.barcode_id, SUM(si.sales_qty) AS sold_qty
+				FROM db_salesitems si
+				JOIN db_sales s ON s.id = si.sales_id AND s.store_id = si.store_id
+				WHERE si.store_id = ".(int)$item->store_id." AND si.item_id = ".(int)$item_id."
+				AND si.barcode_id > 0 AND s.sales_status = 'Final'{$unallocatedSaleFilter}
+				GROUP BY si.barcode_id";
+		}
+		if(!empty($soldParts)){
+			$soldSubquery = 'SELECT movements.barcode_id, SUM(movements.sold_qty) AS sold_qty FROM ('.implode(' UNION ALL ', $soldParts).') movements GROUP BY movements.barcode_id';
+			$this->db->select('COALESCE(batch_sold.sold_qty, 0) AS sold_qty', false);
+			$this->db->join('('.$soldSubquery.') batch_sold', 'batch_sold.barcode_id = bc.id', 'left', false);
+		}else{
+			$this->db->select('0 AS sold_qty', false);
+		}
+		if($this->db->table_exists('db_stocktransfer_batch_allocations') && $this->db->table_exists('db_stocktransfer')){
+			$transferMoves = "SELECT movement.barcode_id, SUM(movement.transfer_in) AS transfer_in, SUM(movement.transfer_out) AS transfer_out FROM (
+				SELECT x.source_barcode_id AS barcode_id, 0 AS transfer_in, SUM(x.qty) AS transfer_out
+				FROM db_stocktransfer_batch_allocations x JOIN db_stocktransfer t ON t.id = x.stocktransfer_id
+				WHERE t.store_id = ".(int)$item->store_id." AND t.status = 1 GROUP BY x.source_barcode_id
+				UNION ALL
+				SELECT x.dest_barcode_id AS barcode_id, SUM(x.qty) AS transfer_in, 0 AS transfer_out
+				FROM db_stocktransfer_batch_allocations x JOIN db_stocktransfer t ON t.id = x.stocktransfer_id
+				WHERE t.store_id = ".(int)$item->store_id." AND t.status = 1 GROUP BY x.dest_barcode_id
+			) movement GROUP BY movement.barcode_id";
+			$this->db->select('COALESCE(batch_moves.transfer_in,0) AS transfer_in, COALESCE(batch_moves.transfer_out,0) AS transfer_out', false);
+			$this->db->join('('.$transferMoves.') batch_moves', 'batch_moves.barcode_id = bc.id', 'left', false);
+		}else{
+			$this->db->select('0 AS transfer_in, 0 AS transfer_out', false);
+		}
+		$barcodeQuery = $this->db->where('bc.item_id', $item_id)->order_by('bc.warehouse_id')->order_by('bc.expire_date')->get();
+		if(!$barcodeQuery){
+			$dbError = $this->db->error();
+			log_message('error', 'Product history batch lookup failed for item '.$item_id.': '.json_encode($dbError));
+			echo json_encode(['status'=>'error','message'=>'Could not load batch stock details. Please try again.']);
+			exit;
+		}
+		$barcodes = $barcodeQuery->result();
+		if(mp_feature_enabled('serial_number_tracking')){
+			foreach($barcodes as $bc){ if(!empty($bc->serial_number)){$showSerial=true;break;} }
+		}
+		if(mp_feature_enabled('imei_tracking')){
+			foreach($barcodes as $bc){ if(!empty($bc->imei_number)){$showImei=true;break;} }
+		}
+		if(mp_feature_enabled('warranty_tracking')){
+			foreach($barcodes as $bc){ if((int)($bc->warranty_months ?? 0)>0){$showWarranty=true;break;} }
+		}
 		$html .= '<div class="col-md-12">';
 		$html .= '<div class="box box-info">';
 		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-cubes"></i> Unit / Batch Stock</h3></div>';
 		$html .= '<div class="box-body table-responsive no-padding">';
 		if(!empty($barcodes)){
-			$html .= '<table class="table table-bordered table-striped table-condensed">';
-			$html .= '<thead><tr><th>Barcode</th><th>Batch</th><th>Serial</th><th>IMEI</th><th>Purchase</th><th>Wholesale</th><th>Retail</th><th>Qty</th><th>Warranty</th></tr></thead>';
+			$unitLocations = [];
+			foreach($barcodes as $bc){ $unitLocations[$bc->warehouse_name ?: 'Unassigned'] = true; }
+			$html .= '<div class="item-history-filters" data-table="unit_batch_stock_table" style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 15px;align-items:end;">';
+			$html .= '<label style="margin:0;">Location <select class="form-control ih-location-select" style="min-width:160px;"><option value="">All locations</option>';
+			foreach(array_keys($unitLocations) as $locationName){ $html .= '<option>'.htmlspecialchars($locationName, ENT_QUOTES, 'UTF-8').'</option>'; }
+			$html .= '</select></label>';
+			$html .= '<label style="margin:0;">Batch / Lot <input class="form-control ih-batch" type="search" placeholder="Search batch"></label>';
+			$html .= '<label style="margin:0;">Barcode <input class="form-control ih-barcode" type="search" placeholder="Search barcode"></label>';
+			if($showSerial || $showImei) $html .= '<label style="margin:0;">'.($showSerial && $showImei ? 'Serial / IMEI' : ($showSerial ? 'Serial number' : 'IMEI')).' <input class="form-control ih-identity" type="search" placeholder="Search tracked identifier"></label>';
+			$html .= '<button type="button" class="btn btn-default ih-clear">Clear filters</button></div>';
+			$html .= '<table class="table table-bordered table-striped table-condensed js-item-history-table" id="unit_batch_stock_table">';
+			$html .= '<thead><tr><th>Location</th><th>Barcode</th><th>Batch / Lot</th>';
+			if($showSerial) $html .= '<th>Serial number</th>';
+			if($showImei) $html .= '<th>IMEI</th>';
+			$html .= '<th>Purchase cost</th><th>Wholesale price</th><th>Retail price</th><th>Received from supplier</th><th>Transfer in</th><th>Transfer out</th><th>Sold (net returns)</th><th>Current stock</th><th>Stock status</th>';
+			if($showWarranty) $html .= '<th>Warranty</th>';
+			$html .= '</tr></thead>';
 			$html .= '<tbody>';
 			foreach($barcodes as $bc){
 				$html .= '<tr>';
-				$html .= '<td>'.($bc->barcode ?: '-').'</td>';
-				$html .= '<td>'.($bc->batch_lot ?: '-').'</td>';
-				$html .= '<td>'.($bc->serial_number ?: '-').'</td>';
-				$html .= '<td>'.($bc->imei_number ?: '-').'</td>';
+				$html .= '<td>'.htmlspecialchars($bc->warehouse_name ?: 'Unassigned').'</td>';
+				$html .= '<td>'.htmlspecialchars($bc->barcode ?: '-').'</td>';
+				$html .= '<td>'.htmlspecialchars($bc->batch_lot ?: '-').'</td>';
+				if($showSerial) $html .= '<td>'.htmlspecialchars($bc->serial_number ?: '-').'</td>';
+				if($showImei) $html .= '<td>'.htmlspecialchars($bc->imei_number ?: '-').'</td>';
 				$html .= '<td>'.store_number_format($bc->purchase_price).'</td>';
 				$html .= '<td>'.store_number_format($bc->sales_price).'</td>';
 				$html .= '<td>'.store_number_format($bc->mrp).'</td>';
-				$html .= '<td>'.$bc->qty.'</td>';
-				$html .= '<td>'.($bc->warranty_months ? $bc->warranty_months.' mo' : '-').'</td>';
+				$html .= '<td>'.($bc->original_qty !== null ? format_qty($bc->original_qty) : '—').'</td>';
+				$html .= '<td>'.format_qty($bc->transfer_in).'</td>';
+				$html .= '<td>'.format_qty($bc->transfer_out).'</td>';
+				$html .= '<td>'.format_qty($bc->sold_qty).'</td>';
+				$html .= '<td><strong>'.format_qty($bc->qty).'</strong></td>';
+				$statusLabel = (int)$bc->status === 3 ? 'Quarantined' : ((int)$bc->status === 1 ? 'In stock' : 'Depleted / inactive');
+				$html .= '<td>'.htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8').'</td>';
+				if($showWarranty) $html .= '<td>'.($bc->warranty_months ? $bc->warranty_months.' mo' : '-').'</td>';
 				$html .= '</tr>';
 			}
 			$html .= '</tbody></table>';
+			$html .= '<div class="text-muted" style="padding:10px 15px;font-size:12px;">Received from supplier comes from the linked purchase receipt or a match on item, location and batch. Transfers in and out come from the batch transfer ledger. Sold is recorded batch sales minus returns. Current stock is the live batch ledger quantity. Unbatched legacy stock without a purchase link is left blank rather than guessed.</div>';
 		} else {
 			$html .= '<div class="text-center" style="padding:20px 10px; color:#888;"><i class="fa fa-cubes fa-2x" style="color:#d2d6de; margin-bottom:8px; display:block;"></i><p style="margin:0; font-size:13px;">No batch / unit records found.</p></div>';
 		}
@@ -1101,21 +1290,27 @@ class Items extends MY_Controller {
 		// Sales History
 		$this->db->select('s.sales_code, s.sales_date, c.customer_name, si.sales_qty, si.unit_total_cost, si.sold_serial_number, si.sold_imei_number');
 		$this->db->from('db_salesitems si');
-		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
-		$this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
-		$this->db->where('si.item_id', $item_id);
+		$this->db->join('db_sales s', 's.id = si.sales_id AND s.store_id = si.store_id', 'left');
+		$this->db->join('db_customers c', 'c.id = s.customer_id AND c.store_id = s.store_id', 'left');
+		$this->db->where('si.item_id', $item_id)->where('si.store_id', (int)$item->store_id);
 		$this->db->where('s.sales_status', 'Final');
 		$this->db->order_by('s.sales_date', 'DESC');
-		$this->db->limit(20);
 		$sales = $this->db->get()->result();
 
 		$html .= '<div class="col-md-12">';
 		$html .= '<div class="box box-success">';
-		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-shopping-cart"></i> Recent Sales (last 20)</h3></div>';
+		$html .= '<div class="box-header with-border"><h3 class="box-title"><i class="fa fa-shopping-cart"></i> Sales History</h3></div>';
 		$html .= '<div class="box-body table-responsive no-padding">';
 		if(!empty($sales)){
-			$html .= '<table class="table table-bordered table-striped table-condensed">';
-			$html .= '<thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Qty</th><th>Unit Price</th><th>Serial</th><th>IMEI</th></tr></thead>';
+			$html .= '<div class="item-history-filters" data-table="product_sales_history_table" style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 15px;align-items:end;">';
+			$html .= '<label style="margin:0;">From <input class="form-control ih-from" type="date"></label><label style="margin:0;">To <input class="form-control ih-to" type="date"></label>';
+			$html .= '<label style="margin:0;min-width:220px;">Invoice / customer / serial <input class="form-control ih-global" type="search" placeholder="Search sales history"></label>';
+			$html .= '<button type="button" class="btn btn-default ih-clear">Clear filters</button></div>';
+			$html .= '<table class="table table-bordered table-striped table-condensed js-item-history-table" id="product_sales_history_table">';
+			$html .= '<thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Qty sold</th><th>Unit price</th>';
+			if($showSerial) $html .= '<th>Serial number</th>';
+			if($showImei) $html .= '<th>IMEI</th>';
+			$html .= '</tr></thead>';
 			$html .= '<tbody>';
 			foreach($sales as $sale){
 				$html .= '<tr>';
@@ -1124,8 +1319,8 @@ class Items extends MY_Controller {
 				$html .= '<td>'.($sale->customer_name ?: 'Walk-in').'</td>';
 				$html .= '<td>'.$sale->sales_qty.'</td>';
 				$html .= '<td>'.store_number_format($sale->unit_total_cost).'</td>';
-				$html .= '<td>'.($sale->sold_serial_number ?: '-').'</td>';
-				$html .= '<td>'.($sale->sold_imei_number ?: '-').'</td>';
+				if($showSerial) $html .= '<td>'.htmlspecialchars($sale->sold_serial_number ?: '-').'</td>';
+				if($showImei) $html .= '<td>'.htmlspecialchars($sale->sold_imei_number ?: '-').'</td>';
 				$html .= '</tr>';
 			}
 			$html .= '</tbody></table>';

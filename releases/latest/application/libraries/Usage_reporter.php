@@ -15,6 +15,12 @@ class Usage_reporter {
         if(!$ci || !isset($ci->session))return false;
         $roleId=(int)$ci->session->userdata('role_id');
         $roleName=strtoupper(trim((string)$ci->session->userdata('role_name')));
+        // A tenant owner is a real client user even if a legacy installation
+        // assigned a low/global role ID. Resolve the explicit role before IDs.
+        if(in_array($roleName,['BUSINESS OWNER','STORE OWNER','OWNER'],true))return false;
+        if(function_exists('is_business_owner')){
+            try{if(is_business_owner())return false;}catch(Throwable $ignored){}
+        }
         if($roleId===1 || in_array($roleName,['ADMIN','SUPER ADMIN','STORE ADMIN'],true))return true;
         // Store Admin can be a store-scoped role with a non-fixed role ID.
         if(function_exists('is_store_admin')){

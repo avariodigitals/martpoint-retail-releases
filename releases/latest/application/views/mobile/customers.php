@@ -84,6 +84,14 @@
         <div class="label">Active Customers</div>
         <div class="value"><?= count($customers); ?></div>
       </div>
+      <?php if(mp_feature_enabled('fashion_size_requests') && permissions('customers_edit')): ?>
+      <form method="post" action="<?= base_url('fashion_measurements/create_request'); ?>" class="summary-card" style="text-align:left;margin-top:10px">
+        <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>"><input type="hidden" name="mobile_view" value="1"><strong>Send a remote size request</strong>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:13px"><label><input type="radio" name="size_standard" value="UK" checked> UK</label><label><input type="radio" name="size_standard" value="US"> US</label><label><input type="radio" name="unit" value="cm" checked> cm</label><label><input type="radio" name="unit" value="in"> inches</label></div>
+        <button class="btn-block" type="submit">Create private link</button>
+      </form>
+      <?php $sizeRequestLink=$this->session->flashdata('size_request_link'); if($sizeRequestLink): ?><div class="summary-card" style="margin-top:8px"><strong>Link ready</strong><input style="width:100%;margin-top:8px;padding:10px;border:1px solid var(--mp-border);border-radius:8px" readonly value="<?= htmlspecialchars($sizeRequestLink); ?>" onclick="this.select();document.execCommand('copy');"></div><?php endif; ?>
+      <?php endif; ?>
 
       <div class="search-bar">
         <i class="fa fa-search"></i>

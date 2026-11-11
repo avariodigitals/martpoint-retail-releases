@@ -20,6 +20,31 @@
             $data['content'] .= $this->load->view('warehouse/screen_mode', [], true);
             $this->load->view('mp_layout', $data);
         }
+		private function source_location_options($excludeId = 0){
+			$options = array('' => 'Use this branch’s own stock');
+			$query = $this->db->select('id, warehouse_name, branch_type')->where('store_id', get_current_store_id())->where('status', 1);
+			if ((int)$excludeId > 0) $query->where('id !=', (int)$excludeId);
+			if ($this->db->field_exists('warehouse_type', 'db_warehouse')) $query->where('warehouse_type', 'Custom');
+			foreach ($query->order_by('warehouse_name', 'asc')->get('db_warehouse')->result() as $location) {
+				if ((string)($location->branch_type ?? '') === 'pickup_hub') continue;
+				$options[(int)$location->id] = (string)$location->warehouse_name;
+			}
+			return $options;
+		}
+		private function fulfilment_fields($branchLabel, $sourceOptions){
+			return [
+				['name' => 'branch_type', 'label' => 'Branch / fulfilment type', 'type' => 'select', 'options' => [
+					'branch' => 'Branch', 'depot' => 'Depot', 'hub' => 'Distribution hub', 'store' => 'Retail store',
+					'partner' => 'Partner fulfilment hub', 'pickup_hub' => 'Pickup-only hub', 'outlet' => 'Outlet'
+				], 'help' => 'Pickup-only hubs do not own stock. Link them to the branch that prepares their orders.'],
+				['name' => 'stock_source_id', 'label' => 'Stock / preparation source', 'type' => 'select', 'options' => $sourceOptions, 'help' => 'Choose a source for a pickup-only hub. Leave blank when this branch holds its own stock.'],
+				['name' => 'pickup_enabled', 'label' => 'Offer customer pickup here', 'type' => 'checkbox', 'value' => 1],
+				['name' => 'public_enabled', 'label' => 'Show as an online-store location', 'type' => 'checkbox', 'value' => 1],
+				['name' => 'delivery_fee', 'label' => 'Location delivery fee', 'type' => 'number', 'value' => 0],
+				['name' => 'business_hours', 'label' => 'Business hours', 'type' => 'text'],
+				['name' => 'delivery_coverage', 'label' => 'Delivery coverage / customer note', 'type' => 'text'],
+			];
+		}
 		public function index(){
 			$this->permission_check('warehouse_view');
 			$data=$this->data;//My_Controller constructor data accessed here
@@ -35,6 +60,7 @@
 				'add_permission' => 'warehouse_add',
 				'columns' => [
 					['title' => $branch_label.' Name', 'field' => 'warehouse_name', 'type' => 'text'],
+					['title' => 'Branch / fulfilment type', 'field' => 'branch_type', 'type' => 'text'],
 					['title' => 'Address', 'field' => 'address', 'type' => 'text'],
 					['title' => 'Mobile', 'field' => 'mobile', 'type' => 'text'],
 					['title' => 'Email', 'field' => 'email', 'type' => 'text'],
@@ -91,6 +117,7 @@
 			$branch_label = mp_label('warehouse','Branch');
 			$data['page_title']=$branch_label;
 			$data['command']='save';
+			$data['source_location_options'] = $this->source_location_options();
 			$data['crud'] = [
 				'page_title' => $branch_label,
 				'page_sub' => 'Create a new '.$branch_label,
@@ -108,6 +135,7 @@
 					['name' => 'state', 'label' => 'State', 'type' => 'text'],
 					['name' => 'country', 'label' => 'Country', 'type' => 'text'],
 					['name' => 'postcode', 'label' => 'Postcode', 'type' => 'text'],
+					...$this->fulfilment_fields($branch_label, $data['source_location_options']),
 
 					['name' => 'command', 'type' => 'hidden'],
 				],
@@ -129,6 +157,7 @@
 			$branch_label = mp_label('warehouse','Branch');
 			$data['page_title']=$branch_label;
 			$data['command']='update';
+			$data['source_location_options'] = $this->source_location_options($id);
 			$data['crud'] = [
 				'page_title' => $branch_label,
 				'page_sub' => 'Update '.$branch_label.' details',
@@ -146,6 +175,7 @@
 					['name' => 'state', 'label' => 'State', 'type' => 'text'],
 					['name' => 'country', 'label' => 'Country', 'type' => 'text'],
 					['name' => 'postcode', 'label' => 'Postcode', 'type' => 'text'],
+					...$this->fulfilment_fields($branch_label, $data['source_location_options']),
 
 					['name' => 'command', 'type' => 'hidden'],
 				],

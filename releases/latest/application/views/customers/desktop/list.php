@@ -40,7 +40,14 @@ $total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0
   <?php if ($CI->permissions('export_customers')): ?>
     <a href="<?= base_url('customers/export_csv'); ?>" class="mp-qa-btn blue"><i class="fa fa-download"></i> Export Customers</a>
   <?php endif; ?>
+  <?php if (mp_feature_enabled('fashion_size_requests') && $CI->permissions('customers_edit')): ?>
+    <form method="post" action="<?= base_url('fashion_measurements/create_request'); ?>" style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;background:#fff;border:1px solid var(--mp-border);border-radius:10px;padding:7px 10px;">
+      <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>">
+      <span style="font-size:12px;font-weight:700">New remote size request</span><label style="margin:0;font-size:12px"><input type="radio" name="size_standard" value="UK" checked> UK</label><label style="margin:0;font-size:12px"><input type="radio" name="size_standard" value="US"> US</label><label style="margin:0;font-size:12px"><input type="radio" name="unit" value="cm" checked> cm</label><label style="margin:0;font-size:12px"><input type="radio" name="unit" value="in"> in</label><button class="mp-qa-btn blue" type="submit">Create link</button>
+    </form>
+  <?php endif; ?>
 </div>
+<?php $sizeRequestLink=$CI->session->flashdata('size_request_link'); if($sizeRequestLink): ?><div class="mp-card" style="padding:14px;margin-bottom:14px"><strong>Size request link is ready</strong><p class="text-muted" style="margin:5px 0">Send this private link to your client. They will enter their name and phone before submitting.</p><input class="form-control" readonly value="<?= htmlspecialchars($sizeRequestLink); ?>" onclick="this.select();document.execCommand('copy');"></div><?php endif; ?>
 
 <div class="mp-kpi-grid">
   <div class="mp-kpi-card summary">

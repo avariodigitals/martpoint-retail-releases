@@ -1773,6 +1773,7 @@ class Default_data_model extends CI_Model {
             'convenience_store'    => 'grocery',
             'pharmacy'             => 'pharma',
             'medical_store'        => 'pharma',
+            'supplements_wellness' => 'supplements_wellness',
             'restaurant'           => 'food_service',
             'fast_food'            => 'food_service',
             'cafe'                 => 'food_service',
@@ -1908,6 +1909,25 @@ class Default_data_model extends CI_Model {
                     'Personal Care & Hygiene'   => 'Soaps, sanitizers and hygiene products',
                     'Skincare'                  => 'Cleansers, moisturisers, sunscreen and skin-care products',
                     'Medical Devices'           => 'Thermometers, BP monitors and devices',
+                ),
+            ),
+            'supplements_wellness' => array(
+                'units' => array(
+                    'Piece'   => array('PCS', null, 1, 1),
+                    'Bottle'  => array('BTL', null, 1, 0),
+                    'Pack'    => array('PACK', null, 1, 0),
+                    'Tub'     => array('TUB', null, 1, 0),
+                    'Sachet'  => array('SACHET', null, 1, 0),
+                    'Kilogram'=> array('KG', null, 1, 0),
+                    'Gram'    => array('g', 'KG', 1000, 0),
+                ),
+                'item_categories' => array(
+                    'Vitamins & Supplements' => 'Vitamins, minerals and daily supplements',
+                    'Sports Nutrition'       => 'Protein, recovery and sports nutrition',
+                    'Herbal & Natural Health'=> 'Herbal products and natural wellness essentials',
+                    'Healthy Foods & Drinks' => 'Functional foods, drinks and nutrition products',
+                    'Personal Wellness'      => 'Everyday wellness and self-care products',
+                    'Wellness Accessories'   => 'Accessories and tools for wellness routines',
                 ),
             ),
             'food_service' => array(

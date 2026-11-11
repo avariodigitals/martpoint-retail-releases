@@ -95,6 +95,7 @@ class Online_store extends MY_Controller {
 			$this->_website_render('Website settings','website_settings');return;
 		}
 		$storeId = get_current_store_id();
+		$this->load->library('storefront_paypal');
 		$data = array_merge($this->data, [
 			'page_title' => 'Online Store Settings',
 			'settings' => $this->storefront_model->getSettings($storeId),
@@ -102,10 +103,30 @@ class Online_store extends MY_Controller {
 			'is_saved' => $this->db->where('store_id', $storeId)->get('db_storefront_settings')->num_rows() > 0,
 			'categories' => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_category')->result(),
 			'warehouses' => $this->db->where('store_id', $storeId)->where('status', 1)->get('db_warehouse')->result(),
-			'paystack_enabled' => $this->paystack->is_enabled()
+			'paystack_enabled' => $this->paystack->is_enabled(),
+			'paypal_account' => $this->storefront_paypal->accountSummary($storeId)
 		]);
 		$data['content'] = $this->load->view('online_store/settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
+	}
+
+	/** Save store-scoped PayPal REST credentials. The secret is never returned to the browser. */
+	public function save_paypal_settings(){
+		if(!$this->_can_edit()){$this->output->set_status_header(403)->set_output(json_encode(['status'=>'error','message'=>'Access denied']));return;}
+		$storeId=(int)get_current_store_id();$this->load->library('storefront_paypal');
+		try{
+			if(!$this->db->table_exists('db_storefront_paypal_accounts')) throw new RuntimeException('Run the MartPoint database migrations before configuring storefront PayPal.');
+			$this->storefront_paypal->saveAccount($storeId,[
+				'client_id'=>$this->input->post('paypal_client_id',TRUE),
+				'client_secret'=>$this->input->post('paypal_client_secret'),
+				'webhook_id'=>$this->input->post('paypal_webhook_id',TRUE),
+				'environment'=>$this->input->post('paypal_environment',TRUE),
+				'enabled'=>$this->input->post('paypal_checkout_enabled'),
+				'updated_by'=>(int)$this->session->userdata('user_id'),
+			]);
+			$out=['status'=>'success','message'=>'PayPal storefront settings saved.'];
+		}catch(Throwable $e){$out=['status'=>'error','message'=>$e->getMessage()];}
+		$this->output->set_content_type('application/json')->set_output(json_encode($out));
 	}
 
 	/** Building Materials is a website/intake channel, not an order desk. */
@@ -271,6 +292,41 @@ class Online_store extends MY_Controller {
 				'newsletter_title' => trim($this->input->post('newsletter_title')),
 				'newsletter_subtitle' => trim($this->input->post('newsletter_subtitle'))
 			];
+			// The guest customer-pricing prompt is store-controlled, while prices
+			// remain resolved and validated by the server-side customer policy.
+			if($this->db->field_exists('customer_pricing_notice_enabled', 'db_storefront_settings')){
+				$data['customer_pricing_notice_enabled'] = $this->input->post('customer_pricing_notice_enabled') ? 1 : 0;
+				$data['customer_pricing_notice_title'] = mb_substr(trim((string)$this->input->post('customer_pricing_notice_title', TRUE)) ?: 'Customer pricing', 0, 120);
+				$data['customer_pricing_notice_text'] = mb_substr(trim((string)$this->input->post('customer_pricing_notice_text', TRUE)) ?: 'Sign in to My Account to check whether the store has assigned your account to a customer pricing group.', 0, 500);
+				$data['customer_pricing_notice_link_text'] = mb_substr(trim((string)$this->input->post('customer_pricing_notice_link_text', TRUE)) ?: 'Sign in to My Account', 0, 80);
+			}
+			// Multi-currency checkout is an independent, explicit store opt-in.
+			// Rates use the single convention: 1 foreign unit = X base units.
+			if($this->db->field_exists('storefront_tax_enabled','db_storefront_settings')){
+				$taxRate=$this->input->post('storefront_tax_rate');
+				if($taxRate!==null&&$taxRate!==''&&(!is_numeric($taxRate)||!is_finite((float)$taxRate)||(float)$taxRate<0||(float)$taxRate>100))throw new InvalidArgumentException('Storefront tax rate must be between 0 and 100 percent.');
+				$data['storefront_tax_enabled']=$this->input->post('storefront_tax_enabled')?1:0;
+				$data['storefront_tax_rate']=max(0,(float)$taxRate);
+				$data['storefront_tax_mode']=$this->input->post('storefront_tax_mode')==='inclusive'?'inclusive':'exclusive';
+			}
+			if($this->db->field_exists('multicurrency_enabled','db_storefront_settings')){
+				$this->load->library('storefront_currency');
+				$enabled=[]; foreach((array)$this->input->post('checkout_currency') as $code){$code=strtoupper(trim((string)$code));if(in_array($code,['NGN','CAD','USD','EUR','GBP'],true)&&!in_array($code,$enabled,true))$enabled[]=$code;}
+				$rates=[]; foreach(['CAD','USD','EUR','GBP'] as $code){$raw=$this->input->post('rate_'.$code);if($raw!==null&&$raw!==''){if(!is_numeric($raw)||!is_finite((float)$raw)||(float)$raw<=0)throw new InvalidArgumentException('Exchange rates must be finite values greater than zero.');$rates[$code]=(float)$raw;}}
+				$defaults=['NG'=>'NGN','CA'=>'CAD','GB'=>'GBP','US'=>'USD'];
+				foreach((array)$this->input->post('country_code') as $i=>$country){$country=strtoupper(trim((string)$country));$currency=strtoupper(trim((string)($this->input->post('country_currency')[$i] ?? '')));if(preg_match('/^[A-Z]{2}$/',$country)&&in_array($currency,['NGN','CAD','USD','EUR','GBP'],true))$defaults[$country]=$currency;}
+				$baseCurrency=$this->storefront_currency->baseCode($storeId);
+				$gatewayMap=[]; foreach(['NGN'=>'paystack','CAD'=>'paypal','USD'=>'paypal','EUR'=>'paypal','GBP'=>'paypal'] as $c=>$g){$gatewayMap[$c]=$g;}
+				if($baseCurrency!=='NGN')$gatewayMap[$baseCurrency]='paypal';
+				$data['multicurrency_enabled']=$this->input->post('multicurrency_enabled')?1:0;
+				$data['checkout_currencies_json']=json_encode(array_values(array_unique(array_merge(['NGN'],$enabled))));
+				$data['currency_rates_json']=json_encode($rates);
+				$data['currency_country_defaults_json']=json_encode($defaults);
+				$data['currency_gateway_map_json']=json_encode($gatewayMap);
+				$data['currency_default_code']=in_array(strtoupper((string)$this->input->post('currency_default_code')),array_merge(['NGN'],$enabled),true)?strtoupper((string)$this->input->post('currency_default_code')):'NGN';
+				$data['currency_rates_updated_at']=date('Y-m-d H:i:s');
+				$data['currency_rates_updated_by']=(int)$this->session->userdata('user_id');
+			}
 			// .73 adds automated-recovery columns — skip on unmigrated installs.
 			// Automatic cart reminders are managed by Communications workflows. Preserve legacy settings for history.
 
@@ -317,10 +373,11 @@ class Online_store extends MY_Controller {
 	}
 
 	/**
-	 * Build the city/state delivery-fee list for the online storefront.
-	 * Rows: cz_state[], cz_city[], cz_fee[] — city is required, state optional.
+	 * Build editable country/region/city delivery-fee rows for the online storefront.
+	 * City, region, or country may be used as the destination level.
 	 */
 	private function _build_city_shipping_json(){
+		$countries = $this->input->post('cz_country');
 		$states = $this->input->post('cz_state');
 		$cities = $this->input->post('cz_city');
 		$fees   = $this->input->post('cz_fee');
@@ -330,9 +387,12 @@ class Online_store extends MY_Controller {
 		$zones = [];
 		foreach($cities as $i => $city){
 			$city = trim($city);
-			if($city === '') continue;
+			$country = trim(is_array($countries) ? ($countries[$i] ?? '') : '');
+			$state = trim(is_array($states) ? ($states[$i] ?? '') : '');
+			if($city === '' && $state === '' && $country === '') continue;
 			$zone = [
-				'state' => trim(is_array($states) ? ($states[$i] ?? '') : ''),
+				'country' => $country,
+				'state' => $state,
 				'city'  => $city,
 				'fee'   => (float)(is_array($fees) ? ($fees[$i] ?? 0) : 0),
 			];
@@ -440,14 +500,36 @@ class Online_store extends MY_Controller {
 			$branch = $this->db->select('warehouse_name')->where('id', (int)$order->warehouse_id)->where('store_id', (int)$order->store_id)->get('db_warehouse')->row();
 			$order->fulfilment_branch = $branch ? $branch->warehouse_name : '';
 		}
+		$orderItems = $this->storefront_model->getOrderItems($orderId);
+		$this->load->model('Inventory_rotation_model', 'online_order_rotation');
+		$orderBatchRows = $this->online_order_rotation->holds_for_order((int)$orderId);
+		if (!$orderBatchRows && (int)($order->sales_id ?? 0) > 0 && $this->db->table_exists('db_salesitem_batch_allocations')) {
+			$orderBatchRows = $this->db->where('sales_id', (int)$order->sales_id)->get('db_salesitem_batch_allocations')->result();
+		}
+		$batchesByItem = [];
+		foreach ($orderBatchRows as $batchRow) {
+			$itemId = (int)$batchRow->item_id;
+			if (!isset($batchesByItem[$itemId])) $batchesByItem[$itemId] = [];
+			$batchesByItem[$itemId][] = $batchRow;
+		}
+		foreach ($orderItems as $orderItem) {
+			$orderItem->batch_picks = $batchesByItem[(int)$orderItem->item_id] ?? [];
+		}
+		$batchTrackingEnabled = function_exists('mp_feature_enabled') && mp_feature_enabled('batch_tracking');
+		$hasOrderBatchPicks = !empty($orderBatchRows);
 		$data = array_merge($this->data, [
 			'page_title' => 'Order #' . $order->order_code,
 			'order' => $order,
-			'items' => $this->storefront_model->getOrderItems($orderId)
+			'items' => $orderItems,
+			'batch_tracking_enabled' => $batchTrackingEnabled,
+			'has_order_batch_picks' => $hasOrderBatchPicks,
 		]);
 		$rx = $this->storefront_model->rxItemNames($orderId, (int)$order->store_id);
 		$this->load->model('online_payments_model', 'onlinepay');
 		$data['money_box'] = $this->onlinepay->summaryFor($order);
+		$data['payment_lines'] = $this->onlinepay->paymentsFor((int)$order->store_id,(int)$order->id);
+		$data['refund_lines'] = $this->db->table_exists('db_online_order_refunds')
+			?$this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)->order_by('id','DESC')->get('db_online_order_refunds')->result():[];
 		$data['can_record_money'] = $this->_can_edit_orders();
 		$data['trail'] = $this->storefront_model->orderTrail((int)$order->store_id, (int)$orderId, 8);
 		$data['delivery_box'] = [
@@ -810,6 +892,130 @@ class Online_store extends MY_Controller {
 			'invoice' => $invoice]);
 	}
 
+	/** Initiate a currency-safe full or partial gateway refund for one captured payment. */
+	public function refund_order(){
+		if(!$this->_can_edit_orders()){$this->output->set_status_header(403)->set_output(json_encode(['status'=>'error','message'=>'Access denied']));return;}
+		$storeId=(int)get_current_store_id();$orderId=(int)$this->input->post('order_id');$paymentId=(int)$this->input->post('payment_id');
+		$order=$this->storefront_model->getOrder($orderId);
+		if(!$order||(int)$order->store_id!==$storeId||!in_array((string)$order->payment_status,['paid','partially_paid'],true)){$this->_refundJson(false,'Only a paid order in this store can be refunded.');return;}
+		if(!$this->db->table_exists('db_online_order_refunds')||!$this->db->field_exists('transaction_amount','db_online_order_payments')){$this->_refundJson(false,'Apply migration 4.0.9.261 before using currency-safe refunds.');return;}
+		$payment=$this->db->where('id',$paymentId)->where('store_id',$storeId)->where('online_order_id',$orderId)->where('status','verified')->get('db_online_order_payments')->row();
+		if(!$payment){$this->_refundJson(false,'Choose a verified captured payment for this order.');return;}
+		$provider=strtolower((string)$payment->provider);$transactionCurrency=strtoupper((string)($payment->transaction_currency??$order->transaction_currency??$order->base_currency??'NGN'));
+		$transactionCaptured=(float)($payment->transaction_amount??$payment->amount);$rate=(float)($order->exchange_rate??1);if($rate<=0)$rate=1;
+		$amount=round((float)$this->input->post('amount'),2,PHP_ROUND_HALF_UP);
+		$disposition=(string)$this->input->post('disposition',TRUE);$allowed=['returned','not_shipped','kept'];
+		if(!is_finite($amount)||$amount<=0||$amount>$transactionCaptured){$this->_refundJson(false,'Refund amount must be greater than zero and no more than this captured payment.');return;}
+		if(!in_array($disposition,$allowed,true)){$this->_refundJson(false,'Choose what happened to the goods.');return;}
+		// Serialize refunds for this capture so two simultaneous requests cannot
+		// both observe and spend the same remaining captured balance.
+		$this->db->trans_begin();
+		$this->db->query('SELECT id FROM db_online_orders WHERE id = ? AND store_id = ? FOR UPDATE',[$orderId,$storeId]);
+		$this->db->query('SELECT id FROM db_online_order_payments WHERE id = ? AND store_id = ? FOR UPDATE',[$paymentId,$storeId]);
+		$already=$this->db->select('COALESCE(SUM(transaction_amount),0) AS amount',false)->where('store_id',$storeId)->where('online_order_id',$orderId)->where('payment_id',$paymentId)
+			->where_not_in('provider_status',['failed','cancelled','reversed'])->get('db_online_order_refunds')->row();
+		if($amount>(float)($transactionCaptured-($already->amount??0))+0.005){$this->db->trans_rollback();$this->_refundJson(false,'This refund would exceed the uncancelled captured balance.');return;}
+		$baseCurrency=strtoupper((string)($order->base_currency??$transactionCurrency));
+		$baseAmount=round($amount*$rate,4,PHP_ROUND_HALF_UP);
+		$refundRef='MPOR-'.(int)$orderId.'-'.bin2hex(random_bytes(8));$now=date('Y-m-d H:i:s');
+		$refundIdempotency=substr($refundRef,0,64);
+		$manual=!in_array($provider,['paypal','paystack'],true);
+		if($manual&&trim((string)$this->input->post('external_reference',TRUE))===''){$this->db->trans_rollback();$this->_refundJson(false,'For this payment method, enter the provider reference after you refund it outside MartPoint.');return;}
+		$this->db->insert('db_online_order_refunds',[
+			'store_id'=>$storeId,'online_order_id'=>$orderId,'payment_id'=>$paymentId,'provider'=>$provider,
+			'provider_payment_reference'=>(string)($payment->provider_reference??$payment->reference??''),
+			'provider_refund_reference'=>$manual?trim((string)$this->input->post('external_reference',TRUE)):null,
+			'idempotency_reference'=>$refundIdempotency,'transaction_currency'=>$transactionCurrency,'transaction_amount'=>$amount,
+			'base_currency'=>$baseCurrency,'base_amount'=>$baseAmount,'exchange_rate'=>$rate,
+			'provider_status'=>$manual?'recorded_unverified':'requested','disposition'=>$disposition,
+			'requested_by'=>(int)$this->session->userdata('user_id'),'requested_at'=>$now,'updated_at'=>$now,
+		]);
+		$refundId=(int)$this->db->insert_id();
+		if(!$refundId||$this->db->trans_status()===FALSE){$this->db->trans_rollback();$this->_refundJson(false,'Could not save the refund request. No provider request was sent.');return;}
+		$this->db->trans_commit();
+		if($manual){$this->_refundJson(true,'Refund recorded as unverified. MartPoint did not send money to the provider.', ['refund_id'=>$refundId]);return;}
+		try{
+			$providerReference=(string)($payment->provider_reference??$payment->reference??'');if($providerReference==='')throw new RuntimeException('The captured payment has no provider reference, so a safe refund cannot be started.');
+			if($provider==='paypal'){
+				$this->load->library('storefront_paypal');
+				$result=$this->storefront_paypal->refundCapture($storeId,$providerReference,$transactionCurrency,$amount,$refundIdempotency);
+				$providerRefundReference=(string)($result['id']??'');$providerState=strtolower((string)($result['status']??'pending'));
+			}elseif($provider==='paystack'){
+				$this->load->model('paystack_model','paystack');
+				$result=$this->paystack->refund_transaction($providerReference,(int)round($amount*100),$refundIdempotency,$storeId,'Online order '.$order->order_code.' refund');
+				if(empty($result['status']))throw new RuntimeException((string)($result['message']??'Paystack did not accept the refund request.'));
+				$data=$result['data']??[];$providerRefundReference=(string)($data['id']??$data['reference']??$refundIdempotency);$providerState=strtolower((string)($data['status']??'pending'));$result=$data;
+			}else throw new RuntimeException('This payment provider does not support automatic refunds.');
+			$this->db->where('id',$refundId)->where('store_id',$storeId)->update('db_online_order_refunds',[
+				'provider_refund_reference'=>$providerRefundReference,'provider_status'=>$providerState,
+				'provider_response_json'=>json_encode($result),'updated_at'=>date('Y-m-d H:i:s')]);
+			if($this->_refundIsComplete($provider,$providerState))$this->_finalizeCompletedRefund($refundId,$storeId);
+			$this->_refundJson(true,'Refund submitted to '.$provider.'. Provider status: '.$providerState.'.',['refund_id'=>$refundId,'provider_status'=>$providerState]);
+		}catch(Throwable $e){
+			// Transport failures can happen after a provider accepted the request.
+			// Keep an unknown request reserved against over-refunding; retries use the
+			// same provider idempotency reference via the refresh action.
+			$this->db->where('id',$refundId)->where('store_id',$storeId)->update('db_online_order_refunds',[
+				'provider_status'=>'unknown','provider_response_json'=>json_encode(['message'=>$e->getMessage()]),'updated_at'=>date('Y-m-d H:i:s')]);
+			log_message('error','Storefront refund request '.$refundId.' needs provider reconciliation: '.$e->getMessage());
+			$this->_refundJson(false,'Refund status is not yet known. Do not submit another refund; refresh this request to reconcile it.',['refund_id'=>$refundId,'provider_status'=>'unknown']);
+		}
+	}
+
+	public function refresh_order_refund($refundId=0){
+		if(!$this->_can_edit_orders()){$this->output->set_status_header(403)->set_output(json_encode(['status'=>'error','message'=>'Access denied']));return;}
+		$storeId=(int)get_current_store_id();$refund=$this->db->where('id',(int)$refundId)->where('store_id',$storeId)->get('db_online_order_refunds')->row();
+		if(!$refund){$this->_refundJson(false,'Refund record not found.');return;}
+		try{
+			if($refund->provider==='paypal'){
+				$this->load->library('storefront_paypal');
+				if(empty($refund->provider_refund_reference)){
+					// Retry with the original idempotency key after a timeout so PayPal
+					// returns the same refund instead of creating a second one.
+					$data=$this->storefront_paypal->refundCapture($storeId,(string)$refund->provider_payment_reference,(string)$refund->transaction_currency,(float)$refund->transaction_amount,(string)$refund->idempotency_reference);
+					$providerRefundReference=(string)($data['id']??'');
+					if($providerRefundReference!=='')$this->db->where('id',(int)$refund->id)->where('store_id',$storeId)->update('db_online_order_refunds',['provider_refund_reference'=>$providerRefundReference]);
+				}else $data=$this->storefront_paypal->getRefund($storeId,$refund->provider_refund_reference);
+				$status=strtolower((string)($data['status']??''));
+			}elseif($refund->provider==='paystack'){
+				$this->load->model('paystack_model','paystack');$found=$this->paystack->get_refund_by_reference($refund->idempotency_reference,$storeId);if(empty($found['status']))throw new RuntimeException((string)($found['message']??'Paystack refund status could not be fetched.'));
+				$data=$found['data']??[];$status=strtolower((string)($data['status']??''));
+			}else{$this->_refundJson(false,'Manual refunds cannot be provider-verified by MartPoint.');return;}
+			$this->db->where('id',(int)$refund->id)->where('store_id',$storeId)->update('db_online_order_refunds',[
+				'provider_status'=>$status?:'unknown','provider_response_json'=>json_encode($data),'updated_at'=>date('Y-m-d H:i:s')]);
+			if($this->_refundIsComplete($refund->provider,$status))$this->_finalizeCompletedRefund((int)$refund->id,$storeId);
+			$this->_refundJson(true,'Provider refund status: '.($status?:'unknown').'.',['refund_id'=>(int)$refund->id,'provider_status'=>$status]);
+		}catch(Throwable $e){log_message('error','Refund status refresh '.$refundId.': '.$e->getMessage());$this->_refundJson(false,'Provider status could not be refreshed: '.$e->getMessage());}
+	}
+
+	private function _refundJson($ok,$message,array $extra=[]){$this->output->set_content_type('application/json')->set_output(json_encode(array_merge(['status'=>$ok?'success':'error','message'=>$message],$extra)));}
+	private function _refundIsComplete($provider,$status){$status=strtolower((string)$status);return $provider==='paypal'?$status==='completed':($provider==='paystack'?in_array($status,['processed','completed','success'],true):false);}
+	private function _finalizeCompletedRefund($refundId,$storeId){
+		$refund=$this->db->where('id',(int)$refundId)->where('store_id',(int)$storeId)->get('db_online_order_refunds')->row();if(!$refund)return false;
+		$order=$this->storefront_model->getOrder((int)$refund->online_order_id);if(!$order||(int)$order->store_id!==(int)$storeId)return false;
+		if((string)$order->payment_status==='refunded')return true;
+		$sum=$this->db->select('COALESCE(SUM(base_amount),0) AS amount',false)->where('store_id',(int)$storeId)->where('online_order_id',(int)$order->id)->where_in('provider_status',['completed','processed','success'])->get('db_online_order_refunds')->row();
+		$due=(float)($order->base_grand_total??$order->grand_total);
+		if((float)($sum->amount??0)+0.005<$due)return true;
+		$prepared=in_array((string)$order->order_status,['processing','ready'],true);
+		$completed=$this->db->where('store_id',(int)$storeId)->where('online_order_id',(int)$order->id)->where_in('provider_status',['completed','processed','success'])->get('db_online_order_refunds')->result();
+		$allGoodsReturned=!empty($completed);
+		foreach($completed as $completedRefund){if(!in_array((string)$completedRefund->disposition,['returned','not_shipped'],true)){$allGoodsReturned=false;break;}}
+		$shouldRestock=!$prepared&&$allGoodsReturned;
+		if($prepared&&$allGoodsReturned)$this->storefront_model->disposeStock((int)$order->id,'Refund after preparation');
+		elseif($shouldRestock&&(string)($order->stock_state??'')==='committed'){
+			if(!$this->storefront_model->restoreStock((int)$order->id)){$shouldRestock=false;log_message('error','Refund '.$refundId.' completed, but stock restoration needs reconciliation for order '.$order->id);}
+		}
+		if($shouldRestock)$this->db->where('store_id',(int)$storeId)->where('online_order_id',(int)$order->id)->where_in('provider_status',['completed','processed','success'])->update('db_online_order_refunds',['restocked'=>1]);
+		$data=['refund_reference'=>(string)$refund->provider_refund_reference,'refund_amount'=>(float)$refund->transaction_amount,
+			'refund_currency'=>(string)$refund->transaction_currency,'refund_base_amount'=>(float)$refund->base_amount,'refund_provider_status'=>(string)$refund->provider_status,
+			'refund_disposition'=>(string)$refund->disposition,'refund_restocked'=>$shouldRestock?1:0,
+			'refund_confirmed_by'=>(string)($this->session->userdata('inv_username')??'system'),'refund_confirmed_at'=>date('Y-m-d H:i:s')];
+		$updated=$this->storefront_model->updatePaymentStatus((int)$order->id,'refunded',$data);
+		if($updated){$this->load->model('Promotions_model','promotions_m');$this->promotions_m->release_order_usage((int)$order->id);}
+		return $updated;
+	}
+
 	public function update_payment_status(){
 		if(!$this->_can_edit_orders()){
 			echo json_encode(['status' => 'error', 'message' => 'Access denied']);
@@ -817,6 +1023,10 @@ class Online_store extends MY_Controller {
 		}
 		$orderId = (int)$this->input->post('order_id');
 		$status = $this->input->post('status');
+		if($status === 'refunded'){
+			echo json_encode(['status' => 'error', 'message' => 'Use the refund panel to issue and reconcile a provider refund.']);
+			return;
+		}
 		$validStatuses = ['unpaid','paid','partially_paid','failed','refunded'];
 		if(!in_array($status, $validStatuses)){
 			echo json_encode(['status' => 'error', 'message' => 'Invalid status']);
@@ -838,6 +1048,15 @@ class Online_store extends MY_Controller {
 		if($status === 'refunded' && $previousStatus !== 'paid'){
 			echo json_encode(['status' => 'error', 'message' => 'Only paid orders can be fully refunded.']);
 			return;
+		}
+		if($status==='refunded' && $this->db->table_exists('db_online_order_payments')){
+			$recorded=$this->db->where('store_id',(int)$order->store_id)->where('online_order_id',(int)$order->id)->count_all_results('db_online_order_payments');
+			if($recorded){
+				$paid=$this->db->select('COALESCE(SUM(amount),0) AS total',false)->where('store_id',(int)$order->store_id)
+					->where('online_order_id',(int)$order->id)->where('status','verified')->get('db_online_order_payments')->row();
+				$baseDue=(float)($order->base_grand_total??$order->grand_total);
+				if((float)($paid->total??0)+0.005<$baseDue){echo json_encode(['status'=>'error','message'=>'The verified captured amount is below the full-order refund amount. Reconcile the payments before recording a full refund.']);return;}
+			}
 		}
 		if($previousStatus === 'paid' && in_array($status, ['failed','unpaid'], true)){
 			echo json_encode(['status' => 'error', 'message' => 'Paid orders must use the full-refund action.']);
@@ -883,12 +1102,17 @@ class Online_store extends MY_Controller {
 		if($status === 'refunded'){
 			$refundData = [
 				'refund_reference'    => $refundReference,
-				'refund_amount'       => $order->grand_total,
+				'refund_amount'       => $order->transaction_grand_total ?? $order->grand_total,
 				'refund_disposition'  => $refundDisposition,
 				'refund_restocked'    => $shouldRestock ? 1 : 0,
 				'refund_confirmed_by' => (string)($this->session->userdata('inv_username') ?? 'system'),
 				'refund_confirmed_at' => date('Y-m-d H:i:s'),
 			];
+			if($this->db->field_exists('refund_currency','db_online_orders')){
+				$refundData['refund_currency']=(string)($order->transaction_currency??$order->base_currency??'');
+				$refundData['refund_base_amount']=(float)($order->base_grand_total??$order->grand_total);
+				$refundData['refund_provider_status']='recorded_unverified';
+			}
 		}
 		if(!$this->storefront_model->updatePaymentStatus($orderId, $status, $refundData)){
 			$this->db->trans_rollback();
@@ -933,7 +1157,7 @@ class Online_store extends MY_Controller {
 		}
 		if($status === 'refunded'){
 			$message = 'Refund recorded against provider reference ' . $refundReference
-				. ' for ' . store_number_format($order->grand_total) . '. '
+				. ' for ' . (string)($order->transaction_currency??$order->base_currency??'') . ' ' . store_number_format($order->transaction_grand_total??$order->grand_total) . '. '
 				. ($shouldRestock
 					? 'Stock returned to inventory.'
 					: 'Goods kept by the customer — stock was NOT restocked.');
@@ -2325,6 +2549,38 @@ class Online_store extends MY_Controller {
 	}
 
 	/** Tenant-scoped manager for non-PHP HTML theme packages. */
+	public function html_theme_content($themeId = 0){
+		if(!$this->_can_edit()){ $this->show_access_denied_page(); return; }
+		$this->load->library(['html_theme_manager','html_theme_content']);
+		$storeId = (int)get_current_store_id();
+		$theme = $this->html_theme_manager->getTheme((int)$themeId, $storeId);
+		if(!$theme){ show_404(); return; }
+		$manifest = json_decode((string)$theme->manifest_json, true);
+		if(!is_array($manifest)){ show_error('Invalid theme manifest.', 422); return; }
+		$this->_editor_render('Website content', 'online_store/html_theme_content', [
+			'html_theme'=>$theme, 'content_fields'=>$this->html_theme_content->fields($manifest),
+			'content_values'=>$this->html_theme_content->values($theme, $manifest),
+			'settings'=>$this->storefront_model->getSettings($storeId),
+		]);
+	}
+
+	public function save_html_theme_content($themeId = 0){
+		if(!$this->_can_edit()){ $this->themeJson(['status'=>'error','message'=>'Access denied'],403); return; }
+		if($this->input->method() !== 'post'){ $this->themeJson(['status'=>'error','message'=>'Submit content as POST.'],405); return; }
+		$this->load->library('html_theme_content');
+		try {
+			$input = $this->input->post('content');
+			if(!is_array($input)) throw new InvalidArgumentException('Enter website content.');
+			$this->html_theme_content->save((int)get_current_store_id(), (int)$themeId, $input);
+			$this->themeJson(['status'=>'success','message'=>'Website content saved.','csrf_hash'=>$this->security->get_csrf_hash()]);
+		} catch(InvalidArgumentException $e){
+			$this->themeJson(['status'=>'error','message'=>$e->getMessage(),'csrf_hash'=>$this->security->get_csrf_hash()],422);
+		} catch(Throwable $e){
+			log_message('error','HTML theme content: '.$e->getMessage());
+			$this->themeJson(['status'=>'error','message'=>'Could not save website content. Please try again.','csrf_hash'=>$this->security->get_csrf_hash()],500);
+		}
+	}
+
 	public function html_themes(){
 		if(!$this->_can_edit()){ $this->show_access_denied_page(); return; }
 		$this->load->library('html_theme_manager');
@@ -2336,8 +2592,7 @@ class Online_store extends MY_Controller {
 			'page_title' => 'HTML Themes', 'settings' => $settings, 'store' => get_store_details($storeId),
 			'current_theme' => $this->theme_engine->currentTheme(), 'uploaded_themes' => $this->html_theme_manager->listForStore($storeId),
 		]);
-		$data['content'] = $this->load->view('online_store/html_themes', $data, TRUE);
-		$this->load->view('mp_layout', $data);
+		$this->_editor_render('HTML Themes', 'online_store/html_themes', $data);
 	}
 
 	public function upload_theme(){

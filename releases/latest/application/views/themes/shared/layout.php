@@ -170,6 +170,7 @@
     $this->load->view('themes/shared/header');
   }
 ?>
+<?php $this->load->view('themes/shared/currency_selector'); ?>
 
 <?= $category_navigation ?? ''; ?>
 <?= $content; ?>

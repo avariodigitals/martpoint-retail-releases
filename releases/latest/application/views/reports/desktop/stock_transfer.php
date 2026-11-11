@@ -72,7 +72,7 @@
           <label for="from_date"><?= $this->lang->line('from_date'); ?></label>
           <div class="input-group date">
             <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
-            <input type="text" class="form-control pull-right datepicker" id="from_date" name="from_date" value="<?php echo show_date(date('d-m-Y')); ?>">
+          <input type="text" class="form-control pull-right datepicker" id="from_date" name="from_date" value="<?php echo show_date(date('d-m-Y', strtotime('-30 days'))); ?>">
           </div>
           <span id="Sales_date_msg" style="display:none" class="text-danger"></span>
         </div>
@@ -174,6 +174,11 @@
       processData: false,
       success: function(result){
         $("#tbodyid").empty().append(result);
+        $("#view").attr('disabled', false);
+        $(".overlay").remove();
+      },
+      error: function(){
+        $("#tbodyid").html('<tr><td class="text-center text-danger" colspan="9">Could not load the report. Please retry.</td></tr>');
         $("#view").attr('disabled', false);
         $(".overlay").remove();
       }

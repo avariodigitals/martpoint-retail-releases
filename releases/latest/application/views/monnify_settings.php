@@ -24,8 +24,8 @@
 
 <div class="mp-card">
   <div class="mp-card-body">
-    <form class="form-horizontal" id="monnify-settings-form">
-      <div class="alert alert-info">
+    <form class="form-horizontal mp-settings-form" id="monnify-settings-form">
+      <div class="alert alert-info mp-settings-note">
         <i class="fa fa-info-circle"></i> <strong>Webhook URL:</strong> <code><?=base_url('monnify/webhook');?></code><br>
         <small>Copy this URL into your Monnify Dashboard &gt; Developers &gt; Webhook URLs (Transaction Completion and Disbursement).<br>
         Whitelist Monnify's webhook IP <code>35.242.133.146</code> on your server for live notifications.</small>
@@ -46,25 +46,29 @@
       </div>
 
 <?php if(empty($central_managed)): ?>
-      <hr>
-      <h4 class="text-center"><i class="fa fa-random"></i> Payment fee policy</h4>
-      <div class="alert alert-info">This policy sets the MartPoint fee deducted before the remaining balance reaches the merchant payout account.</div>
-      <div class="form-group"><label class="col-sm-3 control-label">MartPoint fee</label><div class="col-sm-3"><select class="form-control" name="platform_fee_type"><option value="none" <?=($platform_fee_type==='none')?'selected':'';?>>No platform fee</option><option value="percentage" <?=($platform_fee_type==='percentage')?'selected':'';?>>Percentage</option><option value="flat" <?=($platform_fee_type==='flat')?'selected':'';?>>Fixed NGN amount</option></select></div><div class="col-sm-3"><input type="number" min="0" step="0.01" class="form-control" name="platform_fee_value" value="<?=htmlspecialchars($platform_fee_value);?>" placeholder="Fee value"></div></div>
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-random"></i> Payment fee policy</h4>
+      <div class="alert alert-info mp-settings-note">This policy sets the MartPoint fee deducted before the remaining balance reaches the merchant payout account.</div>
+      <div class="form-group"><label class="col-sm-3 control-label">MartPoint fee</label><div class="mp-settings-inline-fields"><select class="form-control" name="platform_fee_type"><option value="none" <?=($platform_fee_type==='none')?'selected':'';?>>No platform fee</option><option value="percentage" <?=($platform_fee_type==='percentage')?'selected':'';?>>Percentage</option><option value="flat" <?=($platform_fee_type==='flat')?'selected':'';?>>Fixed NGN amount</option></select><input type="number" min="0" step="0.01" class="form-control" name="platform_fee_value" value="<?=htmlspecialchars($platform_fee_value);?>" placeholder="Fee value"></div></div>
       <div class="form-group"><label class="col-sm-3 control-label">Gateway fee bearer</label><div class="col-sm-6"><select class="form-control" name="fee_bearer"><option value="platform" <?=($fee_bearer==='platform')?'selected':'';?>>MartPoint</option><option value="merchant" <?=($fee_bearer==='merchant')?'selected':'';?>>Merchant</option></select></div></div>
+      </section>
 <?php else: ?>
-      <div class="alert alert-info">Your Administrator manages payment fees and settings. Manage your payout account below.</div>
+      <div class="alert alert-info mp-settings-note">Your Administrator manages payment fees and settings. Manage your payout account below.</div>
 <?php endif; ?>
 
-      <hr>
-      <h4 class="text-center"><i class="fa fa-bank"></i> Merchant payout account</h4>
-      <div class="alert alert-success">The merchant only needs to choose a bank, enter the account number, verify the name, and turn payouts on. No Monnify API settings are required here.</div>
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-bank"></i> Merchant payout account</h4>
+      <div class="alert alert-success mp-settings-note">The merchant only needs to choose a bank, enter the account number, verify the name, and turn payouts on. No Monnify API settings are required here.</div>
       <div class="form-group"><label class="col-sm-3 control-label">Bank</label><div class="col-sm-6"><select class="form-control" id="payout_bank_code" name="payout_bank_code"><option value="">Loading banks...</option></select><input type="hidden" id="payout_bank_name" name="payout_bank_name" value="<?=htmlspecialchars($payout->bank_name ?? '');?>"></div></div>
       <div class="form-group"><label class="col-sm-3 control-label">Account number</label><div class="col-sm-6"><input type="text" inputmode="numeric" maxlength="10" class="form-control" id="payout_account_number" name="payout_account_number" value="<?=htmlspecialchars($payout->account_number ?? '');?>"></div></div>
       <div class="form-group"><label class="col-sm-3 control-label">Payout email</label><div class="col-sm-6"><input type="email" class="form-control" id="payout_email" name="payout_email" value="<?=htmlspecialchars($payout->contact_email ?? '');?>"></div></div>
       <div class="form-group"><label class="col-sm-3 control-label">Payout status</label><div class="col-sm-6"><select class="form-control" id="payout_enabled" name="payout_enabled"><option value="0" <?=empty($payout->enabled)?'selected':'';?>>Off</option><option value="1" <?=!empty($payout->enabled)?'selected':'';?>>On</option></select><small class="text-muted">Current: <?=htmlspecialchars($payout->status ?? 'Not connected');?><?=!empty($payout->account_name) ? ' — '.htmlspecialchars($payout->account_name) : '';?></small></div></div>
-      <div class="text-center"><button type="button" id="save_payout_account" class="mp-btn-primary">Verify and save payout account</button></div>
+      <div class="mp-settings-actions"><button type="button" id="save_payout_account" class="mp-btn-primary">Verify and save payout account</button></div>
+      </section>
 
 <?php if(empty($central_managed)): ?>
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-key"></i> Monnify API credentials</h4>
       <div class="form-group">
         <label class="col-sm-3 control-label">Mode</label>
         <div class="col-sm-6">
@@ -127,17 +131,14 @@
           <span id="wallet_account_number_msg" style="display:none" class="text-danger"></span>
         </div>
       </div>
+      </section>
 <?php endif; ?>
 
-      <div class="col-sm-8 col-sm-offset-2 text-center">
+      <div class="mp-settings-actions">
 <?php if(empty($central_managed)): ?>
-        <div class="col-md-3 col-md-offset-3">
-          <button type="button" id="save_settings" class="mp-btn-primary">Save Settings</button>
-        </div>
+        <button type="button" id="save_settings" class="mp-btn-primary">Save settings</button>
 <?php endif; ?>
-        <div class="col-sm-3">
-          <a href="<?=base_url('dashboard');?>"><button type="button" class="col-sm-3 mp-btn-secondary close_btn">Close</button></a>
-        </div>
+        <a href="<?=base_url('dashboard');?>" class="mp-btn-secondary close_btn">Close</a>
       </div>
     </form>
   </div>
@@ -150,7 +151,7 @@ $(function(){
   $.getJSON('<?=base_url('monnify/banks');?>', function(res){
     var sel=$('#payout_bank_code'); sel.empty().append('<option value="">Select bank</option>');
     (res.banks||[]).forEach(function(b){ var code=b.code||b.bankCode; var name=b.name||b.bankName; if(code){ sel.append($('<option>',{value:code,text:name}).attr('data-name',name)); }});
-    sel.val(currentBank);
+    sel.val(currentBank).select2({width:'100%', placeholder:'Search or select a bank', allowClear:true});
   });
   $('#payout_bank_code').on('change',function(){ $('#payout_bank_name').val($(this).find('option:selected').data('name')||''); });
   $('#save_payout_account').on('click',function(){
