@@ -81,6 +81,7 @@
       </div>
 <?php endif; ?>
 
+<?php if(empty($central_managed) || !empty($allow_payout_account_edit)): ?>
       <section class="mp-settings-section">
       <h4 class="mp-settings-section-title"><i class="fa fa-bank"></i> Merchant payout account</h4>
       <p class="mp-form-hint" style="margin:0 0 20px;">Choose the settlement bank and enter the account details for this store.</p>
@@ -109,6 +110,11 @@
       <?php if(!empty($payout->status)): ?><p class="mp-payout-help" style="margin-top:16px!important;">Account status: <strong><?=htmlspecialchars($payout->status, ENT_QUOTES, 'UTF-8');?></strong></p><?php endif; ?>
       <div class="mp-payout-actions"><button type="button" id="save_payout_account" class="mp-btn-primary" <?=(!empty($central_managed) && empty($enabled)) ? 'disabled title="Available after MartPoint Pay is activated"' : '';?>><?php if(!empty($central_managed) && empty($enabled)): ?>Available after activation<?php elseif(!$has_current_fee_acceptance): ?>Review fees &amp; activate MartPoint Pay<?php elseif(empty($payout->enabled)): ?>Verify account &amp; activate<?php else: ?>Verify account and save<?php endif; ?></button></div>
       </section>
+<?php elseif(empty($payout_edit_policy_available)): ?>
+      <div class="alert alert-warning mp-settings-note"><strong>Payout account details are hidden.</strong> Central’s edit policy could not be confirmed, so account viewing and changes are paused. Reload after the Central connection is available.</div>
+<?php else: ?>
+      <div class="alert alert-info mp-settings-note"><strong>Payout account details are managed by Central.</strong> The bank account and account number are hidden on this fleet. Ask your Central administrator to enable editing if these details need correction.</div>
+<?php endif; ?>
 
 <?php if(empty($central_managed)): ?>
       <section class="mp-settings-section">
@@ -201,6 +207,7 @@
 <script src="<?php echo $theme_link; ?>js/paystack_settings.js?v=4.0.9.268"></script>
 <script>
 $(function(){
+<?php if(empty($central_managed) || !empty($allow_payout_account_edit)): ?>
   var currentBank = '<?=htmlspecialchars($payout->bank_code ?? '', ENT_QUOTES);?>';
   var lookupTimer = null, lookupRequest = null;
   function updatePlatformFeeSummary(){
@@ -269,6 +276,7 @@ $(function(){
     $('#martpoint-pay-terms-modal').modal('hide');
     savePayoutAccount(true);
   });
+<?php endif; ?>
 });
 </script>
 <script>$(".paystack_settings-active-li").addClass("active");$(".paystack_settings-active-li").closest(".mp-nav-group").addClass("open");</script>

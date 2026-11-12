@@ -20,7 +20,7 @@ class Messaging extends MY_Controller {
     public function action() {
         if ($this->input->method()!=='post') show_error('POST is required.',405);
         $action = (string)$this->input->post('action');
-        if (!in_array($action,array('purchase','limits','request_addon','verify_purchase'),true)) show_error('Unknown messaging action.',400);
+        if (!in_array($action,array('purchase','limits','request_addon'),true)) show_error('Unknown messaging action.',400);
         $result = $this->messaging_client->request($action,get_current_store_id(),array(
             'provider'=>$this->input->post('provider'),'amount'=>$this->input->post('amount'),'email'=>$this->input->post('email'),
             'request_key'=>$this->input->post('request_key'),'daily_limit'=>$this->input->post('daily_limit'),

@@ -26,6 +26,14 @@ class Paystack extends MY_Controller {
 		$data['settings']=$this->paystack->get_settings();
 		$data['payout_account']=$this->paystack->refresh_payout_account_status((int)get_current_store_id());
 		$data['central_managed'] = !function_exists('mp_is_central') || !mp_is_central();
+		$data['payout_edit_policy_available'] = true;
+		$data['allow_payout_account_edit'] = true;
+		if($data['central_managed']){
+			$this->load->library('messaging_client');
+			$policy = $this->messaging_client->payoutAccountEditPolicy((int)get_current_store_id());
+			$data['payout_edit_policy_available'] = !empty($policy['success']) && array_key_exists('allow_payout_account_edit', $policy);
+			$data['allow_payout_account_edit'] = $data['payout_edit_policy_available'] && !empty($policy['allow_payout_account_edit']);
+		}
 		if(!$data['central_managed']){
 			$billing_base = rtrim(trim((string)getenv('CENTRAL_BILLING_API_URL')), '/');
 			$billing_host = $billing_base !== '' ? parse_url($billing_base, PHP_URL_HOST) : false;
@@ -444,6 +452,10 @@ class Paystack extends MY_Controller {
 
 	public function resolve_payout_account(){
 		$this->permission_check_with_msg('paystack_settings');
+		if(!$this->fleet_payout_account_edit_allowed()){
+			echo json_encode(['status'=>false, 'message'=>'Central has disabled payout account viewing and editing for this fleet.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
 		$accountNumber = preg_replace('/\D+/', '', (string)$this->input->post('account_number', TRUE));
 		$bankCode = trim((string)$this->input->post('bank_code', TRUE));
 		if(strlen($accountNumber) !== 10 || $bankCode === ''){
@@ -463,6 +475,10 @@ class Paystack extends MY_Controller {
 
 	public function save_payout_account(){
 		$this->permission_check_with_msg('paystack_settings');
+		if(!$this->fleet_payout_account_edit_allowed()){
+			echo json_encode(['status'=>false, 'message'=>'Central has disabled payout account editing for this fleet.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
 		$store_id = (int)get_current_store_id();
 		$result = $this->paystack->save_payout_account($store_id, array(
 			'account_number' => $this->input->post('payout_account_number', TRUE),
@@ -478,5 +494,12 @@ class Paystack extends MY_Controller {
 		));
 		$result['csrf_hash'] = $this->security->get_csrf_hash();
 		echo json_encode($result);
+	}
+
+	private function fleet_payout_account_edit_allowed(){
+		if(function_exists('mp_is_central') && mp_is_central()) return true;
+		$this->load->library('messaging_client');
+		$policy = $this->messaging_client->payoutAccountEditPolicy((int)get_current_store_id());
+		return !empty($policy['success']) && !empty($policy['allow_payout_account_edit']);
 	}
 }

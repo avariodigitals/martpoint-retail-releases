@@ -658,6 +658,7 @@ return [
 		  '4.0.9.269v' => '4.0.9.269_paystack_fee_columns_auto_repair.sql',
 		  // .270 supports legacy Paystack settings tables without platform_fee_value.
 		  '4.0.9.270v' => '4.0.9.270_paystack_legacy_fee_schema_repair.sql',
-		  // .271 publishes Next-owned Automation plan offers and preserves active subscriber access.
-		  '4.0.9.271v' => '4.0.9.271_automation_plan_catalogue_sync.sql',
+		  // .272 controls whether fleet admins may view or edit Paystack payout details.
+		  // .271 was not released; this code-only update needs no schema change.
+		  '4.0.9.272v' => '4.0.9.272_paystack_payout_account_edit_policy.sql',
 ];

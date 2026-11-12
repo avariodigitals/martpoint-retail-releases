@@ -107,6 +107,29 @@ class Messaging_client {
         return $this->transport($centralUrl.'/paystack_route_api/register', $envelope, true);
     }
 
+    /** Ask Central whether this mapped fleet may view or edit settlement details. */
+    public function payoutAccountEditPolicy($storeId) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false, 'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false, 'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode(array('store_id'=>(int)$storeId), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false, 'message'=>'Could not prepare the payout policy request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_payout_account_policy', $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/policy', $envelope);
+    }
+
     public function sendEmail($storeId, $to, $subject, $html, $text, array $options = array()) {
         $recipients = is_array($to) ? $to : preg_split('/[,;]/',(string)$to);
         if (!empty($options['send_copy_to_owner'])) {

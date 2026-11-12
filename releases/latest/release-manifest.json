@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.271",
-    "previous_version": "4.0.9.255",
+    "version": "4.0.9.272",
+    "previous_version": "4.0.9.188",
     "release_date": "2026-11-12",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -3671,8 +3671,8 @@
         },
         {
             "path": "application/views/communications/_requests.php",
-            "hash": "e3a7d1bfde694fde547027cb4794ff7e65656704627c242ca21812ef286bf4dc",
-            "size": 2690
+            "hash": "b3602878e039b17d08877e7f2b2042591277bce4694cf36e5e4d2f19b48048bb",
+            "size": 2447
         },
         {
             "path": "application/views/communications/_workflow_create.php",
@@ -3681,8 +3681,8 @@
         },
         {
             "path": "application/views/communications/central.php",
-            "hash": "a52925d008f6fe995cebef19269c18b725fd2cbc4be277432f21bd42fd668ed3",
-            "size": 17689
+            "hash": "ae538e8609bbf1a06b69449a666d724ccb8c96d9d78b85b47da0ace937c78de7",
+            "size": 17774
         },
         {
             "path": "application/views/communications/_adoption_overrides.php",
@@ -5216,8 +5216,8 @@
         },
         {
             "path": "application/views/messaging/balance.php",
-            "hash": "075e5a1af74b9cbcad0b646713ad30861de6acffb05347a4512a9b9e14c7aed3",
-            "size": 11345
+            "hash": "004803d0e5798e94d45ca209267a8282e35b798a4233538af74d5b39efc09b9f",
+            "size": 11644
         },
         {
             "path": "application/views/messaging/navigation.php",
@@ -5486,8 +5486,8 @@
         },
         {
             "path": "application/views/paystack_settings.php",
-            "hash": "9fe7f5dd3d9eed84be7fb5eafb39a55d7c7a73e3c28ef4c95408c5476f657b77",
-            "size": 19373
+            "hash": "dd91aba413e3a7a1687d39f32c78088a1958dac9ec834554bcf4da7dbbb7faf4",
+            "size": 20150
         },
         {
             "path": "application/views/print-sales-invoice-2.php",
@@ -7091,8 +7091,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "c6ae2244da6d5872c28b0da8e0839cd6f87c133f5afd338dcf157013bd711440",
-            "size": 43948
+            "hash": "02dc6e3c3a26000cc71d69945ee2399160924ad73c047e02b70889ae04780e30",
+            "size": 44017
         },
         {
             "path": "application/config/routes.php",
@@ -8316,8 +8316,8 @@
         },
         {
             "path": "application/controllers/Communications_admin.php",
-            "hash": "4e2e251eea6b6cf03320e22485353b6baecbdd7922bf41fc24a68d152c175a31",
-            "size": 18131
+            "hash": "f894753f4f16e9e3bc16d53d9db524a240d3190d0f146cdaf0f6af2d68088fd6",
+            "size": 17793
         },
         {
             "path": "application/controllers/Payment_types.php",
@@ -8356,8 +8356,8 @@
         },
         {
             "path": "application/controllers/Communications.php",
-            "hash": "a2735eb32aef9a754473e0f6f498b657967d304a894e2cb3f3b516b7d06ae3be",
-            "size": 37891
+            "hash": "e51ff20ac28e7dbbce90cf133880ecf94f3cd8e066a1e3867ab3ca64331dab16",
+            "size": 37832
         },
         {
             "path": "application/controllers/Investigations.php",
@@ -8736,8 +8736,8 @@
         },
         {
             "path": "application/controllers/Messaging.php",
-            "hash": "d92f11b1763d26ffaf7d44ce10c3e42dfe8d0b64e2341dd87809b6de51ea339a",
-            "size": 2496
+            "hash": "8ad1bf1a9867925f812fad3850071574b92d3ce1393681e38a9f21fc46fd155a",
+            "size": 2478
         },
         {
             "path": "application/controllers/Inventory.php",
@@ -8911,8 +8911,8 @@
         },
         {
             "path": "application/controllers/Paystack_route_api.php",
-            "hash": "e97e126ade0ba343552f2fdeff3aab193a3cd33377fa608763c8987fd27d0bc2",
-            "size": 3268
+            "hash": "55c7437f6ebb6f4e8b3afc89392f88a51746554e5f6875d6054b0d9a4a436065",
+            "size": 5714
         },
         {
             "path": "application/controllers/Tax.php",
@@ -9066,8 +9066,8 @@
         },
         {
             "path": "application/controllers/Paystack.php",
-            "hash": "509c45cfcf4d6867e12af36b64ab027aa7527b79bbbb617c2c2174b01728e5a0",
-            "size": 20939
+            "hash": "a28a67c6914203e4f459310e1e7300a212e590cea61a08e47a6602c418c36d08",
+            "size": 22277
         },
         {
             "path": "application/controllers/Debt_reminders.php",
@@ -10901,8 +10901,8 @@
         },
         {
             "path": "application/libraries/Messaging_client.php",
-            "hash": "c026b8837764b0c04b2aeb397137e0f13f8b8fb5696dfcf2e045456ffc7df860",
-            "size": 9963
+            "hash": "4186df27bf2bea8515ea0bdae0dcab178542c155d1f1cf0ee4be5c66788034b0",
+            "size": 11339
         },
         {
             "path": "application/libraries/Communication_designs.php",
@@ -13596,7 +13596,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "c4cc5757058cc5eb8717c962ca5f6b78136f747f9beca32f0b75bf56c426e645",
+            "hash": "ce1a7653b42d6ef82ae477b76c5fd516bf30e1464ce5d25dd9f0e29621824cde",
             "size": 137027
         },
         {
@@ -20639,7 +20639,7 @@
         "4.0.9.268_paystack_fee_columns_repair.sql",
         "4.0.9.269_paystack_fee_columns_auto_repair.sql",
         "4.0.9.270_paystack_legacy_fee_schema_repair.sql",
-        "4.0.9.271_automation_plan_catalogue_sync.sql"
+        "4.0.9.272_paystack_payout_account_edit_policy.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20648,6 +20648,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d3f0bdafea9fd45c2043ad2432e59da4bbe9bec67c598e103d83e144982b041c8bf1bffff2b4dedbee221014ce00d76afc7f85f568202b27bcd453326e1ab504",
-    "changelog": "Release 4.0.9.271"
+    "signature": "089457d0c7a51639f88e23ae9ec1d81d3de69a14f8d6032f69a6c52498927ab83c06f6b07ba16260c0890fd745f775a87ad437c2bd1d7ce592230269ea1ff30e",
+    "changelog": "Release 4.0.9.272"
 }

@@ -117,11 +117,11 @@ class Communications extends MY_Controller {
     }
     public function action(){
         $this->post();$key=(string)$this->input->post('module_key');$this->guard($key);$action=(string)$this->input->post('action');
-        if(!in_array($action,array('communication_request','communication_toggle','purchase','verify_purchase'),true)){show_error('Unknown action.',400);return;}
+        if(!in_array($action,array('communication_request','communication_toggle','purchase'),true)){show_error('Unknown action.',400);return;}
         $p=array();foreach(array('module_key','purpose','period','plan_key','package_id','amount','vat_mode','email','provider','request_key','enabled','reference') as $field)$p[$field]=$this->input->post($field);
         $r=$this->messaging_client->request($action,get_current_store_id(),$p);
         if(in_array($action,array('purchase','communication_request'),true) && !empty($p['provider']) && !empty($r['success']) && parse_url($r['checkout_url']??'',PHP_URL_SCHEME)==='https'){redirect($r['checkout_url']);return;}
-        $this->session->set_flashdata(!empty($r['success'])?'success':'failed',$r['message']??'Request saved.');$this->go($key,$action==='verify_purchase'?'requests':($p['purpose']==='recharge'?'recharge':'subscription'));
+        $this->session->set_flashdata(!empty($r['success'])?'success':'failed',$r['message']??'Request saved.');$this->go($key,$p['purpose']==='recharge'?'recharge':'subscription');
     }
     public function import_contacts(){
         $this->post();$channel=$this->input->post('channel')==='sms'?'sms':'email';$this->guard($channel);
