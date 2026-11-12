@@ -51,7 +51,7 @@ class MY_Security extends CI_Security {
                 $mp_path = ltrim((string)$mp_path, '/');
                 // Strip a sub-directory install prefix (e.g. /app/index.php/...).
                 $mp_path = preg_replace('#^.*?index\.php/#i', '', $mp_path);
-                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|fleet/verify_usage_install$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase)$)#i', $mp_path))
+                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|fleet/verify_usage_install$|paystack_route_api/register$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase|payout_subaccount_route|installation_directory)$)#i', $mp_path))
                 {
                         return $this;
                 }

@@ -272,6 +272,29 @@ class Paystack_model extends CI_Model {
 			->get('db_payment_subaccounts')->row();
 	}
 
+	/** Refresh the locally displayed verification state from Paystack's current record. */
+	public function refresh_payout_account_status($store_id = null)
+	{
+		$account = $this->get_payout_account($store_id);
+		if(!$account || empty($account->provider_subaccount_code)
+			|| !$this->db->table_exists('db_payment_subaccounts')){ return $account; }
+
+		$result = $this->api_request('GET', '/subaccount/'.rawurlencode($account->provider_subaccount_code), null, $store_id);
+		if(empty($result['status']) || !is_array($result['data'] ?? null)
+			|| !array_key_exists('is_verified', $result['data'])){ return $account; }
+
+		$provider = $result['data'];
+		$verified = filter_var($provider['is_verified'], FILTER_VALIDATE_BOOLEAN);
+		$this->db->where('id', (int)$account->id)->where('provider', 'paystack')
+			->where('store_id', (int)($store_id ?: get_current_store_id()))
+			->update('db_payment_subaccounts', array(
+				'status' => $verified ? 'ACTIVE' : 'PENDING_VERIFICATION',
+				'provider_verified' => $verified ? 1 : 0,
+				'provider_payload' => json_encode($provider),
+			));
+		return $this->get_payout_account($store_id);
+	}
+
 	/** True when this fleet accepted the currently configured MartPoint Pay fees. */
 	public function has_current_paystack_terms_acceptance($store_id)
 	{
@@ -377,15 +400,15 @@ class Paystack_model extends CI_Model {
 		// the fleet that owns this store.
 		if($this->db->table_exists('db_payment_gateway_accounts') && $account && !empty($account->provider_subaccount_code)){
 			try {
-				$this->load->library('central_billing_client');
-				if(!$this->central_billing_client->ready()) throw new RuntimeException('Central webhook routing is not configured.');
-				$this->central_billing_client->post('payout-subaccount', array(
-					'install_url' => rtrim(base_url(), '/'),
-					'store_id' => $store_id,
-					'subaccount_code' => $account->provider_subaccount_code,
-					'enabled' => (int)$account->enabled === 1,
-				));
+				$this->load->library('messaging_client');
+				$route = $this->messaging_client->registerPaystackPayoutRoute(
+					$store_id,
+					$account->provider_subaccount_code,
+					(int)$account->enabled === 1
+				);
+				if(empty($route['success'])) throw new RuntimeException($route['message'] ?? 'Central could not confirm the payout route.');
 			} catch(Throwable $e) {
+				log_message('error', 'Paystack Central payout route registration failed: '.mb_substr(strip_tags($e->getMessage()), 0, 300));
 				if((int)$account->enabled === 1){
 					$this->db->where('id', $account->id)->update('db_payment_subaccounts', array('enabled'=>0, 'last_error'=>'Central webhook route registration is pending.'));
 					return array('status'=>false, 'message'=>'Account details were saved, but Central webhook routing is not ready. The payout account remains disabled until Central confirms the route.');

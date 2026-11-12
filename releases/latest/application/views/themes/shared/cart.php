@@ -415,7 +415,7 @@ function renderCart(){
   html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Order &amp; Payment</div>';
   html += '<div class="mp-payment-options">';
   <?php if($settings->allow_paystack && $paystack_enabled): ?>
-  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" aria-label="Pay with MartPoint Pay" value="paystack" checked><div><div class="mp-pay-label">MartPoint Pay</div><div class="mp-pay-desc">Pay securely with card, bank or USSD</div></div></div>';
+  html += '<div class="mp-payment-option active" onclick="selPay(this,\'paystack\')"><input type="radio" name="paymethod" aria-label="Pay with MartPoint Pay" value="paystack" checked><div><div class="mp-pay-label">MartPoint Pay</div><div class="mp-pay-desc">Pay securely with card, bank or USSD · checkout provided by Paystack</div></div></div>';
   <?php endif; ?>
   <?php if(!empty($paypal_enabled)): ?>
   html += '<div class="mp-payment-option<?= !$paystack_enabled?' active':''; ?>" onclick="selPay(this,\'paypal\')"><input type="radio" name="paymethod" aria-label="Pay securely with PayPal" value="paypal"<?= !$paystack_enabled?' checked':''; ?>><div><div class="mp-pay-label">Pay securely with PayPal</div><div class="mp-pay-desc">Complete payment in <?= htmlspecialchars($store_currency['code']??'foreign currency',ENT_QUOTES); ?> through PayPal</div></div></div>';

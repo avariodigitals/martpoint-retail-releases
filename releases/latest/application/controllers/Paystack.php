@@ -24,7 +24,7 @@ class Paystack extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']='MartPoint Pay';
 		$data['settings']=$this->paystack->get_settings();
-		$data['payout_account']=$this->paystack->get_payout_account();
+		$data['payout_account']=$this->paystack->refresh_payout_account_status((int)get_current_store_id());
 		$data['central_managed'] = !function_exists('mp_is_central') || !mp_is_central();
 		if(!$data['central_managed']){
 			$billing_base = rtrim(trim((string)getenv('CENTRAL_BILLING_API_URL')), '/');

@@ -287,7 +287,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     <?php if($settings->allow_paystack && $paystack_enabled): ?>
     html += '<div class="sf-pay-opt active" onclick="selectPayment(this,\'paystack\')">';
     html += '<input type="radio" name="paymethod" value="paystack" checked>';
-    html += '<div><div class="sf-pay-label">MartPoint Pay</div><div class="sf-pay-desc">Pay securely with card, bank or USSD</div></div>';
+    html += '<div><div class="sf-pay-label">MartPoint Pay</div><div class="sf-pay-desc">Pay securely with card, bank or USSD · checkout provided by Paystack</div></div>';
     html += '</div>';
     <?php endif; ?>
     <?php if(!empty($paypal_enabled)): ?>

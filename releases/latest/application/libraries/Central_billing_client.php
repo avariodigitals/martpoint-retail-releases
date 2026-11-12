@@ -9,7 +9,17 @@ class Central_billing_client {
         $this->base = rtrim((string)getenv('CENTRAL_BILLING_API_URL'), '/');
         $this->secret = (string)getenv('CENTRAL_BILLING_API_SECRET');
     }
-    public function ready() { return $this->base !== '' && parse_url($this->base, PHP_URL_SCHEME)==='https' && parse_url($this->base, PHP_URL_HOST) && strlen($this->secret) >= 32 && function_exists('curl_init'); }
+    public function configuration_error() {
+        $issues = array();
+        $scheme = $this->base !== '' ? parse_url($this->base, PHP_URL_SCHEME) : false;
+        $host = $this->base !== '' ? parse_url($this->base, PHP_URL_HOST) : false;
+        if ($this->base === '') $issues[] = 'CENTRAL_BILLING_API_URL is empty in this PHP request';
+        elseif ($scheme !== 'https' || !$host) $issues[] = 'CENTRAL_BILLING_API_URL must be a valid HTTPS base URL';
+        if (strlen($this->secret) < 32) $issues[] = 'CENTRAL_BILLING_API_SECRET is missing or shorter than 32 characters in this PHP request';
+        if (!function_exists('curl_init')) $issues[] = 'PHP cURL is unavailable';
+        return $issues ? implode('; ', $issues) : '';
+    }
+    public function ready() { return $this->configuration_error() === ''; }
     public function post($path, array $payload) {
         if (!$this->ready()) throw new RuntimeException('Central billing is not configured.');
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

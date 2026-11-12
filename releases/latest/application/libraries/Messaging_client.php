@@ -56,18 +56,55 @@ class Messaging_client {
         return $this->transport($url.'/messaging_api/'.$action,$envelope);
     }
 
-    protected function transport($url, array $body) {
+    protected function transport($url, array $body, $logPaystackRouteFailure = false) {
         $ch = curl_init($url);
         curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($body),
             CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>45,
             CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,
             CURLOPT_HTTPHEADER=>array('Accept: application/json')));
-        $raw = curl_exec($ch); $http = (int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
+        $raw = curl_exec($ch); $http = (int)curl_getinfo($ch,CURLINFO_HTTP_CODE);
+        $contentType = (string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE);
+        $curlErrno = curl_errno($ch); $curlError = curl_error($ch); curl_close($ch);
         $result = is_string($raw) ? json_decode($raw,true) : null;
-        if (!is_array($result) || $http !== 200) return array('success'=>false,'code'=>'central_unavailable',
-            'message'=>'Your request could not be confirmed. Check its history before retrying, or contact your Administrator.');
+        if (!is_array($result) || $http !== 200) {
+            if ($logPaystackRouteFailure) {
+                $reason = !is_array($result) ? 'response was not valid JSON' : 'unexpected HTTP status';
+                log_message('error', 'Paystack Central route transport failed: '.$reason.' (HTTP '.$http
+                    .', content-type '.mb_substr($contentType, 0, 100).', cURL '.$curlErrno
+                    .($curlError !== '' ? ': '.mb_substr($curlError, 0, 160) : '').').');
+            }
+            return array('success'=>false,'code'=>'central_unavailable',
+                'message'=>'Your request could not be confirmed. Check its history before retrying, or contact your Administrator.');
+        }
         if(isset($result['message']))$result['message']=Communication_copy::message($result['message']);
         return $result;
+    }
+
+    /** Register a fleet Paystack subaccount through its existing signed Central connection. */
+    public function registerPaystackPayoutRoute($storeId, $subaccountCode, $enabled) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false,'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false,'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode(array(
+            'store_id'=>(int)$storeId,
+            'subaccount_code'=>(string)$subaccountCode,
+            'enabled'=>(bool)$enabled,
+        ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false,'message'=>'Could not prepare the payout route request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_payout_route_register', $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/register', $envelope, true);
     }
 
     public function sendEmail($storeId, $to, $subject, $html, $text, array $options = array()) {

@@ -66,7 +66,7 @@
           <div><span class="mp-fee-component-label">Percentage of payment (%)</span><input type="number" min="0" max="100" step="0.01" class="form-control" name="platform_fee_percent" value="<?=htmlspecialchars($platform_fee_percent);?>" placeholder="e.g. 2.5"></div>
           <div><span class="mp-fee-component-label">Fixed amount (₦)</span><input type="number" min="0" step="0.01" class="form-control" name="platform_fee_fixed" value="<?=htmlspecialchars($platform_fee_fixed);?>" placeholder="e.g. 100"></div>
         </div>
-        <div class="col-sm-6 col-sm-offset-3"><small class="help-block">Enter each part in its own box: 2.5 in Percentage and 100 in Fixed amount gives 2.5% + ₦100 per successful online payment.</small></div>
+        <div class="col-sm-6 col-sm-offset-3"><small class="help-block" id="paystack-fee-example"></small></div>
       </div>
       <div class="form-group"><label class="col-sm-3 control-label">Gateway fee bearer</label><div class="col-sm-6"><select class="form-control" name="fee_bearer"><option value="platform" <?=($fee_bearer==='platform')?'selected':'';?>>MartPoint</option><option value="merchant" <?=($fee_bearer==='merchant')?'selected':'';?>>Merchant</option></select></div></div>
       </section>
@@ -203,6 +203,18 @@
 $(function(){
   var currentBank = '<?=htmlspecialchars($payout->bank_code ?? '', ENT_QUOTES);?>';
   var lookupTimer = null, lookupRequest = null;
+  function updatePlatformFeeSummary(){
+    var percent = parseFloat($('[name="platform_fee_percent"]').val()) || 0;
+    var fixed = parseFloat($('[name="platform_fee_fixed"]').val()) || 0;
+    var parts = [];
+    if(percent > 0) parts.push(percent.toLocaleString(undefined, {maximumFractionDigits: 2}) + '%');
+    if(fixed > 0) parts.push('₦' + fixed.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    $('#paystack-fee-example').text(parts.length
+      ? 'Current fields calculate: ' + parts.join(' + ') + ' per successful online payment.'
+      : 'No platform charge is currently configured.');
+  }
+  $('[name="platform_fee_percent"], [name="platform_fee_fixed"]').on('input change', updatePlatformFeeSummary);
+  updatePlatformFeeSummary();
   function resolvePayoutAccount(){
     var bank=$('#payout_bank_code').val(), number=($('#payout_account_number').val()||'').replace(/\D/g,'');
     $('#payout_account_name').val('');
