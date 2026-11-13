@@ -110,6 +110,10 @@
   .mp-citysel-opt { padding:10px 14px; font-size:14px; color:var(--mp-dark); cursor:pointer; }
   .mp-citysel-opt:hover { background:var(--mp-light-gray); }
   .mp-citysel-opt.disabled { color:var(--mp-gray); cursor:not-allowed; opacity:.7; }
+  .mp-location-suggestions { display:none; margin-top:4px; border:1px solid var(--mp-border); border-radius:var(--mp-radius-sm); background:var(--mp-white); max-height:200px; overflow-y:auto; }
+  .mp-location-suggestions.open { display:block; }
+  .mp-location-suggestions button { display:block; width:100%; border:0; border-bottom:1px solid var(--mp-border); background:transparent; padding:10px 12px; text-align:left; color:var(--mp-dark); cursor:pointer; }
+  .mp-location-suggestions button:hover,.mp-location-suggestions button:focus { background:var(--mp-light-gray); }
 
   /* Payment/Shipping option rows — hairline borders, tinted active state */
   .mp-payment-options { display:flex; flex-direction:column; gap:8px; }
@@ -194,6 +198,7 @@ let selectedPayment = 'pay_on_delivery';
 let selectedShippingMethod = '';
 let selectedCityIdx = -1;
 let cityShipMode = false;
+let selectedFulfilment = '';
 const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
 const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
 const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && (trim($z['city'] ?? '') !== '' || trim($z['state'] ?? '') !== '' || trim($z['country'] ?? '') !== ''); })) : []); ?>;
@@ -307,21 +312,28 @@ function renderCart(){
   html += '<div><label class="mp-cart-label" for="cust-name">Full Name *</label><input type="text" class="mp-cart-input" id="cust-name" placeholder="John Doe" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-name">Please enter your name</div></div>';
   html += '<div><label class="mp-cart-label" for="cust-phone">Phone Number *</label><input type="tel" class="mp-cart-input" id="cust-phone" placeholder="08012345678" oninput="clearErr(this)"><div class="mp-field-error" id="err-cust-phone">Please enter your phone number</div></div>';
   html += '<div class="mp-field-full"><label class="mp-cart-label" for="cust-email">Email (optional)</label><input type="email" class="mp-cart-input" id="cust-email" placeholder="john@example.com"></div>';
-  html += '<div class="mp-field-full"><label class="mp-cart-label" for="cust-address">' + (needsDelivery ? 'Delivery / Service Address' : 'Address (optional)') + '</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="cust-address" placeholder="Enter your address..."></textarea></div>';
+  html += '<div class="mp-field-full"><details><summary class="mp-cart-label" style="cursor:pointer;">Customer address (optional)</summary><textarea class="mp-cart-input" style="min-height:64px;resize:vertical;margin-top:8px;" id="cust-address" placeholder="Use this for a billing or customer-record address"></textarea></details></div>';
   html += '</div>';
   html += '</div>';
 
   // Delivery — only when the cart contains a deliverable item
   cityShipMode = needsDelivery && !TABLE_NUMBER && CITY_SHIPPING.length > 0;
-  if(needsDelivery && (cityShipMode || SHIPPING_METHODS.length > 0 || SHIPPING_NOTICE)){
+  if(needsDelivery && !TABLE_NUMBER){
     html += '<div class="mp-checkout-card">';
-    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> ' + (cityShipMode ? 'Delivery options' : 'Shipping Method') + '</div>';
+    html += '<div class="mp-checkout-card-title"><span class="mp-step-num">'+stepNum+'</span> Delivery or pickup</div>';
     stepNum++;
+    const deliveryMethods=SHIPPING_METHODS.filter(m=>!PICKUP_METHODS.some(p=>p.name===m.name));
+    html += '<div class="mp-payment-options" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px;">';
+    html += '<button type="button" class="mp-payment-option" id="fulfil-delivery" onclick="setFulfilment(\'delivery\')" style="text-align:left;cursor:pointer"><span><span class="mp-pay-label">Deliver</span><span class="mp-pay-desc">Choose your address and see the delivery fee</span></span></button>';
+    if(PICKUP_METHODS.length) html += '<button type="button" class="mp-payment-option" id="fulfil-pickup" onclick="setFulfilment(\'pickup\')" style="text-align:left;cursor:pointer"><span><span class="mp-pay-label">Pickup</span><span class="mp-pay-desc">Collect your order from the store</span></span></button>';
+    html += '</div><div id="delivery-fields" style="display:none">';
     if(SHIPPING_NOTICE){
       html += '<div class="mp-ship-notice"><i class="fa fa-info-circle"></i><span>' + SHIPPING_NOTICE.replace(/</g,'&lt;') + '</span></div>';
     }
+    html += '<div class="mp-checkout-fields" style="margin-bottom:12px"><div><label class="mp-cart-label" for="delivery-state">State / region *</label><input class="mp-cart-input" id="delivery-state" autocomplete="address-level1" placeholder="Choose or type a state" onfocus="showDeliveryStates()" oninput="filterDeliveryAreas()"><div class="mp-location-suggestions" id="delivery-state-options"></div></div><div><label class="mp-cart-label" for="delivery-city">City / town *</label><input class="mp-cart-input" id="delivery-city" autocomplete="address-level2" placeholder="Choose a state first" onfocus="showDeliveryCities()" oninput="filterDeliveryAreas()"><div class="mp-location-suggestions" id="delivery-city-options"></div></div><div class="mp-field-full"><label class="mp-cart-label" for="delivery-street">Street address *</label><textarea class="mp-cart-input" style="min-height:72px;resize:vertical;" id="delivery-street" autocomplete="street-address" placeholder="House number, street and nearby landmark"></textarea></div></div><div class="mp-field-error" id="err-delivery-fields">Enter the delivery state, city and street address</div>';
+    html += '<div class="mp-cart-hint" id="delivery-fee-status" aria-live="polite">Enter your state and city to check delivery availability.</div>';
     if(cityShipMode){
-      html += '<label class="mp-cart-label">Where should we deliver? *</label>';
+      html += '<label class="mp-cart-label">Available delivery options</label>';
       // Inline custom select — the hidden input keeps the posted semantics
       // while the list expands inside the page (no OS dropdown).
       html += '<input type="hidden" id="ship-city" value="">';
@@ -338,7 +350,8 @@ function renderCart(){
           const z = CITY_SHIPPING[idx];
           const freeOver = parseFloat(z.free_over)||0;
           const minOrder = parseFloat(z.min_order)||0;
-          let lbl = (z.city === '*' ? 'Other areas' : (z.city||z.state||z.country||'Other areas'));
+          const destination = z.city === '*' ? 'Other cities' : [z.city, z.state].filter(Boolean).join(', ');
+          let lbl = (z.name ? z.name + (destination ? ' · ' + destination : '') : (destination||z.country||'Other areas'));
           if(minOrder > 0 && cartSubtotal < minOrder){
             lbl += ' — min order ' + formatMoney(minOrder);
             html += '<div class="mp-citysel-opt disabled" data-idx="' + idx + '">' + String(lbl).replace(/</g,'&lt;') + '</div>';
@@ -353,22 +366,10 @@ function renderCart(){
       html += '</div></div>';
       html += '<div class="mp-field-error" id="err-ship-city">Please select a delivery area</div>';
       html += '<div style="font-size:12px;color:var(--mp-gray);margin-top:6px;">Delivery fee is based on the selected area.</div>';
-      if(PICKUP_METHODS.length){
-        html += '<div class="mp-cart-label" style="margin-top:14px;">Or collect in person</div><div class="mp-payment-options">';
-        PICKUP_METHODS.forEach((m)=>{
-          const feeLabel=(m.quote?'Quoted after order':(m.fee>0?formatMoney(m.fee):'Free'));
-          const active=selectedShippingMethod===m.name?' active':'';
-          const checked=selectedShippingMethod===m.name?' checked':'';
-          html += '<div class="mp-payment-option'+active+'" onclick="selShip(this,\''+m.name.replace(/'/g,"\\'")+'\')"><input type="radio" name="shipmethod" value="'+m.name.replace(/"/g,'&quot;')+'"'+checked+'><div><div class="mp-pay-label">'+m.name.replace(/</g,'&lt;')+'</div>';
-          if(m.description) html += '<div class="mp-pay-desc">'+m.description.replace(/</g,'&lt;')+'</div>';
-          html += '</div><div class="mp-pay-fee">'+feeLabel+'</div></div>';
-        });
-        html += '</div>';
-      }
-    }
-    else if(SHIPPING_METHODS.length > 0){
+
+    } else if(deliveryMethods.length > 0){
       html += '<div class="mp-payment-options">';
-      SHIPPING_METHODS.forEach((m,idx)=>{
+      deliveryMethods.forEach((m,idx)=>{
         const feeLabel = (m.quote ? 'Quoted after order' : (m.fee > 0 ? formatMoney(m.fee) : 'Free'));
         const active = idx === 0 ? ' active' : '';
         const checked = idx === 0 ? ' checked' : '';
@@ -379,6 +380,17 @@ function renderCart(){
         html += '</div><div class="mp-pay-fee">'+feeLabel+'</div></div>';
       });
       html += '</div>';
+    }
+    html += '</div>';
+    if(PICKUP_METHODS.length){
+      html += '<div id="pickup-options" style="display:none"><div class="mp-payment-options">';
+      PICKUP_METHODS.forEach((m)=>{
+        const feeLabel=(m.quote?'Quoted after order':(m.fee>0?formatMoney(m.fee):'Free'));
+        html += '<div class="mp-payment-option" onclick="selShip(this,\''+m.name.replace(/'/g,"\\'")+'\')"><input type="radio" name="shipmethod" value="'+m.name.replace(/"/g,'&quot;')+'"><div><div class="mp-pay-label">'+m.name.replace(/</g,'&lt;')+'</div>';
+        if(m.description) html += '<div class="mp-pay-desc">'+m.description.replace(/</g,'&lt;')+'</div>';
+        html += '</div><div class="mp-pay-fee">'+feeLabel+'</div></div>';
+      });
+      html += '</div></div>';
     }
     html += '</div>';
   }
@@ -519,6 +531,8 @@ function renderCart(){
   selectedShippingMethod=MP_CART_REVIEW_ONLY?'':(document.querySelector('input[name="shipmethod"]:checked')?.value||((needsDelivery && !cityShipMode && SHIPPING_METHODS.length>0)?SHIPPING_METHODS[0].name:''));
   selectedCityIdx=savedCity;
   Object.keys(savedFields).forEach(id=>{const el=document.getElementById(id);if(el)el.value=savedFields[id];});
+  if(selectedFulfilment){setFulfilment(selectedFulfilment,false);}
+  if(document.getElementById('delivery-state') && document.getElementById('delivery-state').value) filterDeliveryAreas();
   if(savedPrescription && savedPrescription.files && savedPrescription.files.length){const el=document.getElementById('prescription_file');if(el)el.replaceWith(savedPrescription);}
   [['paymethod',savedPay],['shipmethod',savedShip]].forEach(([name,value])=>{
     const input=Array.from(document.querySelectorAll('input[name="'+name+'"]')).find(el=>el.value===value);
@@ -573,6 +587,64 @@ function selectedShipIsQuote(){
   const sm=SHIPPING_METHODS.find(m=>m.name===selectedShippingMethod);
   return !!(sm && sm.quote);
 }
+function setFulfilment(kind,refresh){
+  selectedFulfilment=kind;
+  const delivery=kind==='delivery';
+  const fields=document.getElementById('delivery-fields'),pickup=document.getElementById('pickup-options');
+  if(fields) fields.style.display=delivery?'block':'none';
+  if(pickup) pickup.style.display=delivery?'none':'block';
+  document.getElementById('fulfil-delivery')?.classList.toggle('active',delivery);
+  document.getElementById('fulfil-pickup')?.classList.toggle('active',!delivery);
+  document.querySelectorAll('input[name="shipmethod"]').forEach(input=>{input.checked=false;input.closest('.mp-payment-option')?.classList.remove('active');});
+  if(delivery){
+    if(selectedShippingMethod && PICKUP_METHODS.some(m=>m.name===selectedShippingMethod)) selectedShippingMethod='';
+    if(cityShipMode && selectedCityIdx>=0){pickCity(selectedCityIdx);}
+    else if(!selectedShippingMethod){const first=document.querySelector('#delivery-fields input[name="shipmethod"]');if(first){first.checked=true;selectedShippingMethod=first.value;first.closest('.mp-payment-option')?.classList.add('active');}}
+  } else {
+    selectedCityIdx=-1;
+    const hidden=document.getElementById('ship-city');if(hidden)hidden.value='';
+    selectedShippingMethod='';
+  }
+  if(refresh!==false) updateShipSummary(cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));
+}
+function showDeliveryStates(){
+  const input=document.getElementById('delivery-state'),panel=document.getElementById('delivery-state-options');if(!input||!panel)return;
+  const q=input.value.trim().toLowerCase(),states=Array.from(new Set(CITY_SHIPPING.map(z=>(z.state||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  panel.textContent='';states.filter(name=>!q||name.toLowerCase().includes(q)).forEach(name=>{const option=document.createElement('button');option.type='button';option.textContent=name;option.onclick=()=>{input.value=name;panel.classList.remove('open');const city=document.getElementById('delivery-city');if(city){city.disabled=false;city.placeholder='Choose or type a city';city.value='';}selectedCityIdx=-1;selectedShippingMethod='';showDeliveryCities();updateShipSummary(cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));};panel.appendChild(option);});
+  panel.classList.toggle('open',!!panel.children.length);
+}
+function showDeliveryCities(){
+  const state=(document.getElementById('delivery-state')?.value||'').trim().toLowerCase(),input=document.getElementById('delivery-city'),panel=document.getElementById('delivery-city-options');if(!state||!input||!panel)return;
+  const q=input.value.trim().toLowerCase(),cities=Array.from(new Set(CITY_SHIPPING.filter(z=>(z.state||'').trim().toLowerCase()===state).map(z=>(z.city||'').trim()).filter(city=>city&&city!=='*'))).sort((a,b)=>a.localeCompare(b));
+  panel.textContent='';cities.filter(name=>!q||name.toLowerCase().includes(q)).forEach(name=>{const option=document.createElement('button');option.type='button';option.textContent=name;option.onclick=()=>{input.value=name;panel.classList.remove('open');input.blur();filterDeliveryAreas();};panel.appendChild(option);});
+  if(CITY_SHIPPING.some(z=>(z.state||'').trim().toLowerCase()===state&&(z.city||'').trim()==='*')){const other=document.createElement('button');other.type='button';other.textContent='Other city in this state';other.onclick=()=>{input.value='Other';panel.classList.remove('open');input.blur();filterDeliveryAreas();};panel.appendChild(other);}
+  panel.classList.toggle('open',!!panel.children.length);
+}
+function filterDeliveryAreas(){
+  const stateInput=document.getElementById('delivery-state'),cityInput=document.getElementById('delivery-city');
+  const state=(stateInput?.value||'').trim().toLowerCase(),city=(cityInput?.value||'').trim().toLowerCase();
+  if(cityInput){cityInput.disabled=!state;cityInput.placeholder=state?'Choose or type a city':'Choose a state first';}
+  if(stateInput && document.activeElement===stateInput) showDeliveryStates();
+  if(cityInput && document.activeElement===cityInput) showDeliveryCities();
+  const options=document.querySelectorAll('#ship-city-list .mp-citysel-opt');
+  let exact=-1,fallback=-1;
+  options.forEach(option=>{
+    const idx=parseInt(option.dataset.idx,10),z=CITY_SHIPPING[idx];if(!z)return;
+    const zState=(z.state||'').trim().toLowerCase(),zCity=(z.city||'').trim().toLowerCase();
+    const stateOk=!state||!zState||zState===state,cityOk=!city||!zCity||zCity==='*'||zCity===city;
+    option.style.display=stateOk&&cityOk?'':'none';
+    const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0),minimum=parseFloat(z.min_order)||0;
+    if(!state||!city||!stateOk)return;
+    if(zCity===city) exact=idx;
+    else if(fallback<0 && (zCity==='*'||zCity==='')) fallback=idx;
+  });
+  const groups=document.querySelectorAll('#ship-city-list .mp-citysel-group');
+  groups.forEach(group=>{let next=group.nextElementSibling,visible=false;while(next&&!next.classList.contains('mp-citysel-group')){if(next.classList.contains('mp-citysel-opt')&&next.style.display!=='none')visible=true;next=next.nextElementSibling;}group.style.display=visible?'':'none';});
+  const status=document.getElementById('delivery-fee-status'),match=exact>=0?exact:fallback;
+  if(match>=0){pickCity(match);if(status){const z=CITY_SHIPPING[match],fee=getShipFee(),minimum=parseFloat(z.min_order)||0,subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);status.textContent=minimum>0&&subtotal<minimum?'This area requires a minimum order of '+formatMoney(minimum)+'.':('Delivery available · '+(fee>0?formatMoney(fee):'Free delivery')+(z.free_over?' · Free over '+formatMoney(z.free_over):''));}}
+  else if(cityShipMode){selectedCityIdx=-1;selectedShippingMethod='';const hidden=document.getElementById('ship-city');if(hidden)hidden.value='';if(status)status.textContent=state&&city?'No delivery option is configured for this city yet. Try another city or contact the store.':'Select a state and city to check delivery availability.';updateShipSummary(cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0));}
+}
+
 function toggleCitySel(e){
   if(e) e.stopPropagation();
   const box=document.querySelector('.mp-citysel');
@@ -590,8 +662,11 @@ function pickCity(idx){
   hidden.value=idx;
   const freeOver=parseFloat(z.free_over)||0;
   const subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);
-  let name=(z.city==='*'?'Other areas':(z.city||z.state||z.country||'Other areas'));
-  if(freeOver>0&&subtotal>=freeOver) name+=' — Free delivery';
+  const destination=z.city==='*'?'Other cities':[z.city,z.state].filter(Boolean).join(', ');
+  let name=(z.name?(z.name+(destination?' · '+destination:'')):(destination||z.country||'Other areas'));
+  const minOrder=parseFloat(z.min_order)||0;
+  if(minOrder>0&&subtotal<minOrder) name+=' — Minimum order '+formatMoney(minOrder);
+  else if(freeOver>0&&subtotal>=freeOver) name+=' — Free delivery';
   else if(freeOver>0) name+=' — '+formatMoney(parseFloat(z.fee)||0)+' (free over '+formatMoney(freeOver)+')';
   else name+=(parseFloat(z.fee)>0?' — '+formatMoney(z.fee):' — Free');
   if(lbl) lbl.textContent=name;
@@ -610,7 +685,7 @@ function selCity(){
     if(z.city&&z.city!=='*') locationParts.push(z.city);
     if(z.state&&z.city!=='*') locationParts.push(z.state);
     if(z.country) locationParts.push(z.country);
-    selectedShippingMethod='Delivery - '+(z.city==='*'?'Other areas':(locationParts.join(', ')||'Other areas'));
+    selectedShippingMethod='Delivery - '+(z.name?(z.name+(locationParts.length?' · '+locationParts.join(', '):'')):(z.city==='*'?'Other areas':(locationParts.join(', ')||'Other areas')));
   } else {
     selectedShippingMethod='';
   }
@@ -790,14 +865,27 @@ async function placeOrder(){
   const name=document.getElementById('cust-name').value.trim();
   const phone=document.getElementById('cust-phone').value.trim();
   const email=document.getElementById('cust-email').value.trim();
-  const address=document.getElementById('cust-address').value.trim();
+  const recordAddress=document.getElementById('cust-address')?.value.trim()||'';
+  const deliveryState=document.getElementById('delivery-state')?.value.trim()||'';
+  const deliveryCity=document.getElementById('delivery-city')?.value.trim()||'';
+  const deliveryStreet=document.getElementById('delivery-street')?.value.trim()||'';
+  const address=selectedFulfilment==='delivery'?[deliveryStreet,deliveryCity,deliveryState].filter(Boolean).join(', '):recordAddress;
   const sDate=document.getElementById('service-date')?.value||'';
   const sTime=document.getElementById('service-time')?.value||'';
   const sNote=document.getElementById('service-note')?.value||'';
   let firstBad=null;
   if(!name){ setErr('cust-name'); firstBad=firstBad||'cust-name'; }
   if(!phone){ setErr('cust-phone'); firstBad=firstBad||'cust-phone'; }
-  if(cityShipMode && selectedCityIdx<0 && !PICKUP_METHODS.some(m=>m.name===selectedShippingMethod)){ setErr('ship-city'); firstBad=firstBad||'ship-city'; }
+  if(selectedFulfilment==='delivery' && (!deliveryState||!deliveryCity||!deliveryStreet)){
+    const error=document.getElementById('err-delivery-fields');if(error)error.classList.add('show');
+    const missing=!deliveryState?'delivery-state':(!deliveryCity?'delivery-city':'delivery-street');
+    document.getElementById(missing)?.focus();firstBad=firstBad||missing;
+  }
+  if(selectedFulfilment==='delivery' && cityShipMode && selectedCityIdx<0){ setErr('ship-city'); firstBad=firstBad||'ship-city'; }
+  if(selectedFulfilment==='delivery' && cityShipMode && selectedCityIdx>=0){const z=CITY_SHIPPING[selectedCityIdx],min=parseFloat(z.min_order)||0,subtotal=cartData.reduce((sum,item)=>sum+sfCartLineTotal(item),0);if(min>0&&subtotal<min){showToast('Delivery to this area requires a minimum order of '+formatMoney(min));return;}}
+  if(cartNeedsDelivery() && !TABLE_NUMBER && !selectedFulfilment){showToast('Choose delivery or pickup to continue');return;}
+  if(selectedFulfilment==='pickup' && PICKUP_METHODS.length && !PICKUP_METHODS.some(m=>m.name===selectedShippingMethod)){showToast('Choose a pickup option to continue');return;}
+  if(selectedFulfilment==='delivery' && !cityShipMode && SHIPPING_METHODS.some(m=>!PICKUP_METHODS.some(p=>p.name===m.name)) && !SHIPPING_METHODS.some(m=>m.name===selectedShippingMethod)){showToast('Choose a delivery option to continue');return;}
   if(firstBad){ const el=document.getElementById(firstBad); if(el&&el.focus) el.focus(); return; }
   if(OUTLETS.length>1 && !selectedOutlet){
     const err=document.getElementById('err-outlet'); if(err) err.classList.add('show');

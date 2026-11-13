@@ -277,6 +277,14 @@ class Theme_engine {
         return in_array($this->catalogueMode(), ['products', 'both'], true);
     }
 
+    /** Wishlists are for consumer product storefronts, never B2B or service trades. */
+    public function wishlistEnabled(): bool {
+        if (!$this->sellsProducts() || $this->isBuildingMaterialsTheme()) return false;
+        $industry = $this->CI->storefront_model->normalizeThemeIndustry($this->industry);
+        $consumerProductIndustries = ['general', 'garden', 'pharmacy', 'beauty', 'fashion', 'electronics', 'grocery', 'restaurant', 'perfumery', 'skincare'];
+        return in_array($industry, $consumerProductIndustries, true);
+    }
+
     /**
      * How this store sells, as chosen in Online Store → Appearance.
      *
@@ -607,6 +615,25 @@ class Theme_engine {
             'theme_key' => $themeKey,
             'logo_url' => $this->logoUrl()
         ]);
+        $wishlistEnabled = $this->wishlistEnabled();
+        $storeSlug = (string)($this->settings->store_slug ?? '');
+        $wishlistCustomer = null;
+        if ($wishlistEnabled) {
+            $wishlistToken = $this->CI->input->cookie('customer_token', TRUE);
+            if ($wishlistToken) $wishlistCustomer = $this->CI->storefront_model->getCustomerPortalSession($wishlistToken, (int)$this->settings->store_id);
+        }
+        $merged['wishlist_enabled'] = $wishlistEnabled;
+        $merged['wishlist_url'] = base_url('store/' . $storeSlug . '/wishlist');
+        $merged['wishlist_toggle_url'] = base_url('store/' . $storeSlug . '/wishlist/toggle');
+        $merged['wishlist_verify_url'] = base_url('store/' . $storeSlug . '/verify?return=wishlist');
+        $merged['wishlist_signed_in'] = (bool)$wishlistCustomer;
+        $merged['wishlist_item_ids'] = $wishlistCustomer
+            ? $this->CI->storefront_model->getCustomerWishlistIds((int)$this->settings->store_id, (int)$wishlistCustomer->customer_id)
+            : [];
+        if ($themeKey === 'maison_forme') {
+            $this->CI->load->helper('maison_forme_content');
+            $merged['maison_forme_content'] = mp_maison_forme_values($this->settings->theme_content_json ?? '');
+        }
         // Resolve the shopper's per-store currency once for every built-in and
         // uploaded theme. Product records and source prices remain base-currency
         // data; only the values exposed to storefront presentation are converted.
@@ -673,7 +700,7 @@ class Theme_engine {
         // not enter CodeIgniter's PHP view loader, so a package can style the
         // storefront without gaining PHP execution privileges. Commerce
         // bindings still come from the controller data assembled above.
-        $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout'];
+        $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout', 'track'];
         $htmlManifest = json_decode((string)($this->theme->manifest_json ?? ''), true);
         foreach(['about','privacy','contact','blog','services','service_detail','branches'] as $optionalView){
             if(isset($htmlManifest['templates'][$optionalView])) $htmlThemeViews[] = $optionalView;
@@ -685,6 +712,10 @@ class Theme_engine {
                 ((int)$this->CI->input->get('mp_theme_preview') === (int)$this->theme->id &&
                  (int)$this->CI->session->userdata('html_theme_preview_theme_id') === (int)$this->theme->id);
             $categories = (array)($merged['categories'] ?? []);
+            if(!array_key_exists('categories', $merged) && $this->sellsProducts()){
+                $categories = $this->CI->storefront_model->getCategoriesWithItems((int)($this->settings->store_id ?? 0));
+                $merged['categories'] = $categories;
+            }
             $merged['storefront_nav'] = $this->configuredNav($categories);
             $tree = function_exists('mp_category_tree_model') ? mp_category_tree_model()->public_tree((int)$this->settings->store_id, $categories) : [];
             $merged['storefront_navigation_rows'] = $this->navigationRows($categories, $tree);
@@ -694,6 +725,21 @@ class Theme_engine {
             // this library, so reading $this->html_theme_renderer here resolved
             // to nothing and every uploaded-theme page died.
             $html = $this->CI->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => $merged['html_theme_preview']]);
+            // Uploaded themes control their checkout layout, but the shared
+            // cart connector reports the items subtotal only. Make that
+            // distinction explicit in every theme's order-summary sidebar so
+            // customers don't mistake it for a delivery-inclusive final total.
+            if($view === 'checkout' && stripos($html, 'data-mp-cart-total') !== false){
+                if(stripos($html, 'Estimated subtotal') !== false) $html = str_ireplace('Estimated subtotal', 'Items subtotal', $html);
+                if(stripos($html, 'mp-gadgets-summary-note') === false && stripos($html, 'mp-html-checkout-breakdown') === false){
+                    $note = '<div class="mp-html-checkout-breakdown"><strong>Delivery and final total</strong><p>The amount shown is your items subtotal. Delivery charges, applicable discounts and taxes are confirmed from your checkout choices before payment.</p></div>';
+                    if(preg_match('~</aside>~i', $html)) $html = preg_replace('~</aside>~i', $note . '</aside>', $html, 1);
+                    if(stripos($html, '</head>') !== false){
+                        $style = '<style>.mp-html-checkout-breakdown{margin-top:14px;padding:13px;border:1px solid var(--line,#e7e5e4);border-radius:8px;background:var(--soft,#f7f6f8);font-size:12px;line-height:1.6;font-family:inherit;color:var(--ink,#29262f)}.mp-html-checkout-breakdown strong{font-size:11px}.mp-html-checkout-breakdown p{margin:5px 0 0;color:var(--muted,#79777f);font-size:10px;line-height:1.65}</style>';
+                        $html = preg_replace('~</head>~i', $style . '</head>', $html, 1);
+                    }
+                }
+            }
             // Uploaded themes get shared retail footer branding without gaining
             // PHP execution privileges.
             require_once APPPATH . 'helpers/storefront_footer_helper.php';
@@ -734,6 +780,15 @@ class Theme_engine {
             if ($eventWidget !== '') {
                 if (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $eventWidget . "\n</body>", $html, 1);
                 else $html .= $eventWidget;
+            }
+            // Uploaded themes share account-owned wishlist behavior without
+            // needing theme-specific markup or executable PHP templates.
+            if ($wishlistEnabled) {
+                $wishlistRuntime = $this->CI->load->view('themes/shared/wishlist_runtime', $merged, true);
+                if ($wishlistRuntime !== '') {
+                    if (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $wishlistRuntime . "\n</body>", $html, 1);
+                    else $html .= $wishlistRuntime;
+                }
             }
             if($return) return $html;
             echo $html;
@@ -980,6 +1035,7 @@ class Theme_engine {
             $brand = $brands[(int)$p->id] ?? '';
             // With no item brand, the merchant's store name is its display brand.
             $brand = $brand !== '' ? $brand : $merchantName;
+            $copy->display_brand = $brand;
             $fallback = sf_product_placeholder_path($sid, $brand, $color);
             if ($fallback && !empty($p->item_image)) {
                 $source = (string)$p->item_image;

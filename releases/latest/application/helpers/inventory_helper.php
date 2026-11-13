@@ -1,4 +1,38 @@
 <?php
+if (!function_exists('mp_shipping_zone_states')) {
+ function mp_shipping_zone_states($store_id=0){
+  $CI =& get_instance();$states=[];
+  if($CI->db->table_exists('ng_states')) $states=$CI->db->select('id,name,capital,type')->from('ng_states')->order_by('name','ASC')->get()->result_array();
+  if($states)return $states;
+  if(!$CI->db->table_exists('db_states'))return [];
+  $CI->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where('store_id',NULL)->order_by('state','ASC');
+  $states=$CI->db->get()->result_array();
+  if(!$states && (int)$store_id>0)$states=$CI->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where('store_id',(int)$store_id)->order_by('state','ASC')->get()->result_array();
+  if(!$states)$states=$CI->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->order_by('state','ASC')->get()->result_array();
+  $seen=[];$out=[];
+  foreach($states as $state){$name=trim((string)($state['name']??''));$key=strtolower($name);if($name===''||isset($seen[$key]))continue;$seen[$key]=true;$out[]=['id'=>'ng-legacy-'.(int)$state['id'],'name'=>$name,'capital'=>'','type'=>'state'];}
+  return $out;
+ }
+}
+
+if (!function_exists('mp_shipping_zone_editor_rows')) {
+ function mp_shipping_zone_editor_rows($json){
+  $rows=json_decode((string)$json,true);if(!is_array($rows)||!$rows)return [['name'=>'','country'=>'','fee'=>'','min_order'=>'','free_over'=>'','states'=>[],'cities'=>[],'wildcard'=>false]];
+  $groups=[];
+  foreach($rows as $index=>$row){if(!is_array($row))continue;
+   $name=trim((string)($row['name']??''));$country=trim((string)($row['country']??''));$fee=(float)($row['fee']??0);$min=(float)($row['min_order']??0);$free=(float)($row['free_over']??0);
+   $key=$name!==''?hash('sha256',json_encode([$name,$country,$fee,$min,$free])):'legacy-'.$index;
+   if(!isset($groups[$key]))$groups[$key]=['name'=>$name,'country'=>$country,'fee'=>$fee,'min_order'=>$min,'free_over'=>$free,'states'=>[],'cities'=>[],'wildcard'=>false];
+   $state=trim((string)($row['state']??''));$city=trim((string)($row['city']??''));
+   if($state!=='')$groups[$key]['states'][$state]=$state;
+   if($city==='*')$groups[$key]['wildcard']=true;
+   elseif($city!=='')$groups[$key]['cities'][$state.'|'.$city]=['name'=>$city,'state'=>$state];
+  }
+  foreach($groups as &$group){$group['states']=array_values($group['states']);$group['cities']=array_values($group['cities']);}unset($group);
+  return array_values($groups)?:[['name'=>'','country'=>'','fee'=>'','min_order'=>'','free_over'=>'','states'=>[],'cities'=>[],'wildcard'=>false]];
+ }
+}
+
  function get_brands_select_list($select_id='',$store_id=''){
  	  $CI =& get_instance();
 
@@ -254,6 +288,20 @@
 
  function get_state_select_list_by_country($country_name='',$select_id=''){
  	  $CI =& get_instance();
+	  // Prefer one shared canonical Nigeria state list over duplicated
+	  // workspace-specific rows. IDs remain db_states IDs for legacy forms.
+	  if(strcasecmp(trim((string)$country_name),'Nigeria')===0 && $CI->db->table_exists('ng_states')){
+	    $global=$CI->db->select('*')->from('db_states')->where('status',1)->where('store_id',NULL)
+	      ->where('country','Nigeria')->order_by('state','asc')->get();
+	    if($global->num_rows()>0){
+	      $str='<option value="">Select State</option>';
+	      foreach($global->result() as $res){
+	        $selected=((string)$select_id===(string)$res->id)?'selected':'';
+	        $str.='<option '.$selected.' value="'.htmlspecialchars((string)$res->id,ENT_QUOTES,'UTF-8').'">'.htmlspecialchars((string)$res->state,ENT_QUOTES,'UTF-8').'</option>';
+	      }
+	      return $str;
+	    }
+	  }
 
 	  $q1=$CI->db->select("*")
 	             ->where("status=1")
@@ -281,6 +329,40 @@
 
 	  if(empty($state_id)){
 	    return '<option value="">Select State First</option>';
+	  }
+	  // Nigeria's complete place source is shared and searchable in the database;
+	  // legacy address fields use the curated shortlist to keep forms responsive.
+	  if($CI->db->table_exists('ng_places') && $CI->db->table_exists('ng_states')){
+	    $state=$CI->db->select('state,state_code,country')->from('db_states')->where('id',(int)$state_id)->where('status',1)->get()->row();
+	    if($state && strcasecmp(trim((string)$state->country),'Nigeria')===0 && strpos((string)$state->state_code,'NG')===0){
+	      $adminCode=substr((string)$state->state_code,2);
+	      $geo=$CI->db->select('id')->from('ng_states')->where('geonames_admin1_code',$adminCode)->get()->row();
+      if(!$geo){
+        $stateName=trim((string)$state->state);
+        $CI->db->from('ng_states');
+        if(strcasecmp($stateName,'FCT')===0){$CI->db->where('id','ng-federal-capital-territory');}
+        else{$CI->db->where('name',$stateName);}
+        $geo=$CI->db->select('id')->get()->row();
+      }
+	      if($geo){
+	        $places=$CI->db->select('name,MAX(is_state_capital) AS is_capital')->from('ng_places')
+	          ->where('state_id',$geo->id)->where('is_shortlisted',1)->group_by('name')
+	          ->order_by('is_capital','DESC')->order_by('name','ASC')->get()->result();
+	        $str='<option value="">Select City / Town</option>';
+	        $hasSelected=false;
+	        foreach($places as $place){
+	          $name=(string)$place->name;$selected=((string)$select_id===$name)?'selected':'';
+	          if($selected)$hasSelected=true;
+	          $safe=htmlspecialchars($name,ENT_QUOTES,'UTF-8');
+	          $str.='<option '.$selected.' value="'.$safe.'">'.$safe.'</option>';
+	        }
+	        if(trim((string)$select_id)!=='' && !$hasSelected){
+	          $safe=htmlspecialchars((string)$select_id,ENT_QUOTES,'UTF-8');
+	          $str.='<option selected value="'.$safe.'">'.$safe.' (saved)</option>';
+	        }
+	        return $str;
+	      }
+	    }
 	  }
 
 	  $q1=$CI->db->select("*")
@@ -312,6 +394,20 @@
  }
  function get_state_select_list($select_id=''){
  	  $CI =& get_instance();
+	  // Registration has no country selector, so use the shared Nigerian state
+	  // catalogue instead of duplicating per-workspace rows when it is installed.
+	  if($CI->db->table_exists('ng_states')){
+	    $global=$CI->db->select('*')->from('db_states')->where('status',1)->where('store_id',NULL)
+	      ->where('country','Nigeria')->order_by('state','asc')->get();
+	    if($global->num_rows()>0){
+	      $str='<option value="">Select State</option>';
+	      foreach($global->result() as $res){
+	        $selected=((string)$select_id===(string)$res->id)?'selected':'';
+	        $str.='<option '.$selected.' value="'.htmlspecialchars((string)$res->id,ENT_QUOTES,'UTF-8').'">'.htmlspecialchars((string)$res->state,ENT_QUOTES,'UTF-8').'</option>';
+	      }
+	      return $str;
+	    }
+	  }
 
 	  //if not admin
 	  /*if(!is_admin()){

@@ -10,6 +10,7 @@ $initial = mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8');
     <div><h2><?= htmlspecialchars($name); ?></h2><p><?= htmlspecialchars($customer->email ?? ''); ?></p><p><?= htmlspecialchars($customer->mobile ?? ''); ?></p></div>
   </section>
   <nav class="fx-profile-actions" aria-label="Your restaurant account">
+    <?php if(!empty($wishlist_enabled)): ?><a href="<?= htmlspecialchars($wishlist_url); ?>"><span class="fx-profile-action-icon" aria-hidden="true">♡</span><span><strong>Your wishlist</strong><small>Saved dishes and products</small></span><b aria-hidden="true">›</b></a><?php endif; ?>
     <a href="<?= $home; ?>/account/orders"><span class="fx-profile-action-icon" aria-hidden="true">↗</span><span><strong>Your orders</strong><small>Recent meals and order history</small></span><b aria-hidden="true">›</b></a>
     <a href="<?= $home; ?>/branches"><span class="fx-profile-action-icon" aria-hidden="true">⌖</span><span><strong>Your kitchen</strong><small data-fx-location-value>Choose a restaurant location</small></span><b aria-hidden="true">›</b></a>
     <a href="<?= $home; ?>/track"><span class="fx-profile-action-icon" aria-hidden="true">◷</span><span><strong>Track an order</strong><small>Check its latest status</small></span><b aria-hidden="true">›</b></a>

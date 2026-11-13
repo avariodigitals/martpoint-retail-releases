@@ -89,6 +89,67 @@ class Online_store extends MY_Controller {
 
 	// ============== SETTINGS ==============
 
+	/** Search the shared Nigeria location catalogue for shipping-zone pickers. */
+	public function location_states(){
+		if(!$this->_can_edit()){ $this->output->set_status_header(403)->set_output('Access denied'); return; }
+		$rows=[];
+		if($this->db->table_exists('ng_states')) $rows=$this->db->select('id,name,capital,type')->from('ng_states')->order_by('name','ASC')->get()->result_array();
+		// Older installs may not have run the full location import yet. Keep the
+		// zone editor usable from the app's existing Nigeria state records meanwhile.
+		if(!$rows && $this->db->table_exists('db_states')){
+			$storeId=(int)get_current_store_id();
+			$rows=$this->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where('store_id',NULL)->order_by('state','ASC')->get()->result_array();
+			if(!$rows) $rows=$this->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where('store_id',$storeId)->order_by('state','ASC')->get()->result_array();
+			if(!$rows) $rows=$this->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->order_by('state','ASC')->get()->result_array();
+			$seen=[];$normalized=[];
+			foreach($rows as $row){$key=strtolower(trim((string)$row['name']));if($key===''||isset($seen[$key]))continue;$seen[$key]=true;$normalized[]=['id'=>'ng-legacy-'.(int)$row['id'],'name'=>(string)$row['name'],'capital'=>'','type'=>'state'];}
+			$rows=$normalized;
+		}
+		if(!$rows){$this->output->set_status_header(503)->set_content_type('application/json')->set_output(json_encode(['status'=>false,'message'=>'Nigeria location data is not available yet. Run the location-data migration or add Nigeria states first.']));return;}
+		$this->output->set_content_type('application/json')->set_output(json_encode(['status'=>true,'states'=>$rows]));
+	}
+
+	/** Search cities by selected state IDs; bounded results keep large states fast. */
+	public function location_cities(){
+		if(!$this->_can_edit()){ $this->output->set_status_header(403)->set_output('Access denied'); return; }
+		$raw=(string)$this->input->get('states',TRUE);$q=trim((string)$this->input->get('q',TRUE));
+		$states=array_values(array_unique(array_filter(array_map('trim',explode(',',$raw)),function($id){return (bool)preg_match('/^ng-[a-z0-9-]{2,70}$/',$id);})));
+		if(!$states||strlen($q)<2){$this->output->set_content_type('application/json')->set_output(json_encode(['status'=>true,'cities'=>[]]));return;}
+		$rows=[];$stateNames=[];
+		if($this->db->table_exists('ng_states')){
+			$valid=$this->db->select('id,name')->from('ng_states')->where_in('id',$states)->get()->result_array();
+			foreach($valid as $state)$stateNames[$state['id']]=$state['name'];
+			if($stateNames && $this->db->table_exists('ng_places')){
+				$this->db->select('state_id,name,MIN(id) AS id,MAX(is_shortlisted) AS is_shortlisted,MAX(is_state_capital) AS is_state_capital',FALSE)
+					->from('ng_places')->where_in('state_id',array_keys($stateNames))
+					->group_start()->like('name',$q)->or_like('ascii_name',$q)->group_end()
+					->group_by(['state_id','name'])->order_by('is_state_capital','DESC')->order_by('is_shortlisted','DESC')->order_by('name','ASC')->limit(60);
+				$rows=$this->db->get()->result_array();
+				foreach($rows as &$row)$row['state_name']=$stateNames[$row['state_id']]??'';unset($row);
+			}
+		}
+		// Fall back to the legacy application city table if the full import is
+		// pending, or if this database still has only its older state/city records.
+		if(!$rows && $this->db->table_exists('db_states') && $this->db->table_exists('db_cities')){
+			$legacyIds=[];
+			foreach($states as $id) if(preg_match('/^ng-legacy-([0-9]+)$/',$id,$match)) $legacyIds[]=(int)$match[1];
+			$legacyStates=[];
+			if($legacyIds){$legacyStates=$this->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where_in('id',$legacyIds)->get()->result_array();}
+			elseif($stateNames){$names=array_values($stateNames);if(in_array('Federal Capital Territory',$names,true))$names[]='FCT';$legacyStates=$this->db->select('id,state AS name')->from('db_states')->where('status',1)->where('country','Nigeria')->where_in('state',$names)->get()->result_array();}
+			$legacyNames=[];foreach($legacyStates as $state)$legacyNames[(int)$state['id']]=$state['name'];
+			if($legacyNames){
+				$pickerStateIds=[];
+				foreach($states as $requestedId){
+					if(preg_match('/^ng-legacy-([0-9]+)$/',$requestedId,$match)) $pickerStateIds[(int)$match[1]]=$requestedId;
+					elseif(isset($stateNames[$requestedId])) foreach($legacyNames as $legacyId=>$legacyName) if(strcasecmp(trim((string)$legacyName),trim((string)$stateNames[$requestedId]))===0) $pickerStateIds[(int)$legacyId]=$requestedId;
+				}
+				$legacyRows=$this->db->select('id,state_id,city')->from('db_cities')->where('status',1)->where_in('state_id',array_keys($legacyNames))->like('city',$q)->order_by('city','ASC')->limit(60)->get()->result_array();
+				foreach($legacyRows as $city){$legacyId=(int)$city['state_id'];$rows[]=['id'=>'lc-'.(int)$city['id'],'state_id'=>$pickerStateIds[$legacyId]??('ng-legacy-'.$legacyId),'name'=>(string)$city['city'],'state_name'=>(string)($legacyNames[$legacyId]??'')];}
+			}
+		}
+		$this->output->set_content_type('application/json')->set_output(json_encode(['status'=>true,'cities'=>$rows]));
+	}
+
 	public function settings(){
 		if(!$this->_can_edit()){ echo "You Don't Have Enough Permission for this Operation!"; exit; }
 		if($this->_building_website()){
@@ -106,6 +167,10 @@ class Online_store extends MY_Controller {
 			'paystack_enabled' => $this->paystack->is_enabled(),
 			'paypal_account' => $this->storefront_paypal->accountSummary($storeId)
 		]);
+		$data['shipping_countries']=$this->db->select('country')->from('db_country')->where('status',1)->order_by('country','ASC')->get()->result_array();
+		$this->load->helper('inventory');
+		$data['shipping_states']=mp_shipping_zone_states($storeId);
+		$data['shipping_zone_rows']=mp_shipping_zone_editor_rows($data['settings']->city_shipping_json ?? '');
 		$data['content'] = $this->load->view('online_store/settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
@@ -377,9 +442,13 @@ class Online_store extends MY_Controller {
 	 * City, region, or country may be used as the destination level.
 	 */
 	private function _build_city_shipping_json(){
+		$names = $this->input->post('cz_name');
 		$countries = $this->input->post('cz_country');
 		$states = $this->input->post('cz_state');
 		$cities = $this->input->post('cz_city');
+		$statesJson = $this->input->post('cz_states_json');
+		$citiesJson = $this->input->post('cz_cities_json');
+		$wildcards = $this->input->post('cz_wildcard');
 		$fees   = $this->input->post('cz_fee');
 		$mins   = $this->input->post('cz_min_order');
 		$frees  = $this->input->post('cz_free_over');
@@ -389,23 +458,62 @@ class Online_store extends MY_Controller {
 			$city = trim($city);
 			$country = trim(is_array($countries) ? ($countries[$i] ?? '') : '');
 			$state = trim(is_array($states) ? ($states[$i] ?? '') : '');
-			if($city === '' && $state === '' && $country === '') continue;
-			$zone = [
+			$baseZone = [
+				'name' => trim(is_array($names) ? ($names[$i] ?? '') : ''),
 				'country' => $country,
-				'state' => $state,
-				'city'  => $city,
 				'fee'   => (float)(is_array($fees) ? ($fees[$i] ?? 0) : 0),
 			];
-			// Optional rule fields — only emitted when set so old consumers
-			// (older storefront builds, API clients) see the plain shape.
 			$min = (float)(is_array($mins) ? ($mins[$i] ?? 0) : 0);
 			$free = (float)(is_array($frees) ? ($frees[$i] ?? 0) : 0);
-			if($min > 0) $zone['min_order'] = $min;
-			if($free > 0) $zone['free_over'] = $free;
-			$zones[] = $zone;
+			if($min > 0) $baseZone['min_order'] = $min;
+			if($free > 0) $baseZone['free_over'] = $free;
+			$selectedStates=json_decode(is_array($statesJson)?(string)($statesJson[$i]??''):'',true);
+			$selectedCities=json_decode(is_array($citiesJson)?(string)($citiesJson[$i]??''):'',true);
+			$includeWildcard=is_array($wildcards)&&isset($wildcards[$i]);
+			if(strcasecmp($country,'Nigeria')===0 && $this->db->table_exists('ng_states') && $this->db->table_exists('ng_places') && is_array($selectedStates)){
+				$ids=array_values(array_unique(array_filter(array_map(function($row){return is_array($row)?(string)($row['id']??''):'';},$selectedStates),function($id){return (bool)preg_match('/^ng-[a-z0-9-]{2,70}$/',$id);})));
+				$validStates=$ids?$this->db->select('id,name')->where_in('id',$ids)->get('ng_states')->result_array():[];
+				$stateNames=[];foreach($validStates as $row)$stateNames[$row['id']]=$row['name'];
+				if($selectedCities && is_array($selectedCities) && $stateNames){
+					$placeIds=array_values(array_unique(array_filter(array_map(function($row){return is_array($row)?(string)($row['id']??''):'';},$selectedCities),function($id){return (bool)preg_match('/^gn-[0-9]+$/',$id);})));
+					$places=$placeIds?$this->db->select('id,state_id,name')->where_in('id',$placeIds)->where_in('state_id',array_keys($stateNames))->get('ng_places')->result_array():[];
+					if($places){
+						foreach($places as $place){
+							$zone=$baseZone;$zone['state']=$stateNames[$place['state_id']];$zone['city']=$place['name'];$zones[]=$zone;
+						}
+						if($includeWildcard)foreach($stateNames as $stateName){$zone=$baseZone;$zone['state']=$stateName;$zone['city']='*';$zones[]=$zone;}
+						continue;
+					}
+				}
+				if($stateNames && !$selectedCities){foreach($stateNames as $stateName){$zone=$baseZone;$zone['state']=$stateName;$zone['city']=$includeWildcard?'*':'';$zones[]=$zone;}continue;}
+			}
+			// Support the editor against legacy application state/city rows when
+			// the full GeoNames migration has not reached this database yet.
+			if(strcasecmp($country,'Nigeria')===0 && is_array($selectedStates) && $this->db->table_exists('db_states') && $this->db->table_exists('db_cities')){
+				$legacyStateIds=[];$selectedStateNames=[];
+				foreach($selectedStates as $selectedState){$id=is_array($selectedState)?(string)($selectedState['id']??''):'';$name=is_array($selectedState)?trim((string)($selectedState['name']??'')):'';if(preg_match('/^ng-legacy-([0-9]+)$/',$id,$match))$legacyStateIds[]=(int)$match[1];if($name!=='')$selectedStateNames[]=$name;}
+				$legacyStates=$legacyStateIds?$this->db->select('id,state')->from('db_states')->where('status',1)->where('country','Nigeria')->where_in('id',$legacyStateIds)->get()->result_array():[];
+				if(!$legacyStates && $selectedStateNames){if(in_array('Federal Capital Territory',$selectedStateNames,true))$selectedStateNames[]='FCT';$legacyStates=$this->db->select('id,state')->from('db_states')->where('status',1)->where('country','Nigeria')->where_in('state',$selectedStateNames)->get()->result_array();}
+				$legacyStateNames=[];foreach($legacyStates as $legacyState)$legacyStateNames[(int)$legacyState['id']]=$legacyState['state'];
+				if($legacyStateNames){
+					$cityIds=[];if(is_array($selectedCities))foreach($selectedCities as $selectedCity){$id=is_array($selectedCity)?(string)($selectedCity['id']??''):'';if(preg_match('/^lc-([0-9]+)$/',$id,$match))$cityIds[]=(int)$match[1];}
+					if($cityIds){
+						$legacyCities=$this->db->select('id,state_id,city')->from('db_cities')->where('status',1)->where_in('id',$cityIds)->where_in('state_id',array_keys($legacyStateNames))->get()->result_array();
+						foreach($legacyCities as $legacyCity){$zone=$baseZone;$zone['state']=$legacyStateNames[(int)$legacyCity['state_id']];$zone['city']=$legacyCity['city'];$zones[]=$zone;}
+						if($includeWildcard)foreach($legacyStateNames as $stateName){$zone=$baseZone;$zone['state']=$stateName;$zone['city']='*';$zones[]=$zone;}
+						continue;
+					}
+					if($selectedCities) continue;
+					foreach($legacyStateNames as $stateName){$zone=$baseZone;$zone['state']=$stateName;$zone['city']=$includeWildcard?'*':'';$zones[]=$zone;}
+					continue;
+				}
+			}
+			if($city === '' && $state === '' && $country === '') continue;
+			$baseZone['state']=$state;$baseZone['city']=$includeWildcard?'*':$city;$zones[]=$baseZone;
 		}
 		return json_encode($zones);
 	}
+
 	public function debug_storefront(){
 		if(!$this->_can_edit()){ echo json_encode(['status' => 'error', 'message' => 'Access denied']); return; }
 		$storeId = get_current_store_id();
@@ -2361,6 +2469,10 @@ class Online_store extends MY_Controller {
 			$this->load->helper('food_content');
 			return ['key'=>'food_express','building'=>false,'name'=>(string)($theme->theme_name ?? 'Food Express'),'fields'=>mp_food_fields()];
 		}
+		if($key === 'maison_forme'){
+			$this->load->helper('maison_forme_content');
+			return ['key'=>'maison_forme','building'=>false,'name'=>(string)($theme->theme_name ?? 'Maison Forme'),'fields'=>mp_maison_forme_fields()];
+		}
 		$this->load->helper('botanical_content');
 		return ['key'=>'botanical_elegance','building'=>false,'name'=>(string)($theme->theme_name ?? 'Botanical Elegance'),'fields'=>mp_botanical_fields()];
 	}
@@ -2373,9 +2485,10 @@ class Online_store extends MY_Controller {
 		$settings=$this->storefront_model->getSettings($storeId);
 		$json=$settings->theme_content_json ?? '';
 		$isFood = $catalog['key'] === 'food_express';
+		$isMaisonForme = $catalog['key'] === 'maison_forme';
 		$values = $catalog['building']
 			? mp_building_values($json, $catalog['key'])
-			: ($isFood ? mp_food_values($json) : mp_botanical_values($json));
+			: ($isFood ? mp_food_values($json) : ($isMaisonForme ? mp_maison_forme_values($json) : mp_botanical_values($json)));
 		$data=array_merge($this->data,[
 			'page_title'=>'Storefront Content',
 			'settings'=>$settings,
@@ -2567,15 +2680,35 @@ class Online_store extends MY_Controller {
 	public function save_html_theme_content($themeId = 0){
 		if(!$this->_can_edit()){ $this->themeJson(['status'=>'error','message'=>'Access denied'],403); return; }
 		if($this->input->method() !== 'post'){ $this->themeJson(['status'=>'error','message'=>'Submit content as POST.'],405); return; }
-		$this->load->library('html_theme_content');
+		$this->load->library(['html_theme_manager','html_theme_content']);
+		$storeId=(int)get_current_store_id();$uploads=[];$saved=false;
 		try {
 			$input = $this->input->post('content');
 			if(!is_array($input)) throw new InvalidArgumentException('Enter website content.');
-			$this->html_theme_content->save((int)get_current_store_id(), (int)$themeId, $input);
+			$theme=$this->html_theme_manager->getTheme((int)$themeId,$storeId);
+			if(!$theme) throw new InvalidArgumentException('Theme not found for this store.');
+			$manifest=json_decode((string)$theme->manifest_json,true);
+			if(!is_array($manifest)) throw new InvalidArgumentException('Invalid theme manifest.');
+			$fields=$this->html_theme_content->fields($manifest);
+			foreach($fields as $key=>$field){
+				$fileKey='theme_image_'.$key;
+				if($field['type']!=='image'||empty($_FILES[$fileKey]['name'])) continue;
+				$media=check_media_storage_limit($storeId);
+				if($media!==true) throw new RuntimeException($media);
+				$dir='uploads/storefront/'.$storeId.'/content/html_theme_'.(int)$themeId.'/';
+				if(!is_dir(FCPATH.$dir)&&!mkdir(FCPATH.$dir,0755,true)&&!is_dir(FCPATH.$dir)) throw new RuntimeException('Could not prepare image storage.');
+				$this->load->library('upload');
+				$this->upload->initialize(['upload_path'=>FCPATH.$dir,'allowed_types'=>'jpg|jpeg|png|webp|avif','max_size'=>3072,'file_name'=>$key.'_'.bin2hex(random_bytes(8)),'detect_mime'=>true,'file_ext_tolower'=>true]);
+				if(!$this->upload->do_upload($fileKey)) throw new RuntimeException(strip_tags($this->upload->display_errors('','')));
+				$uploaded=$this->upload->data();$path=$dir.$uploaded['file_name'];$uploads[]=$path;$input[$key]=base_url($path);
+			}
+			$this->html_theme_content->save($storeId, (int)$themeId, $input);$saved=true;
 			$this->themeJson(['status'=>'success','message'=>'Website content saved.','csrf_hash'=>$this->security->get_csrf_hash()]);
 		} catch(InvalidArgumentException $e){
+			foreach($uploads as $path) @unlink(FCPATH.$path);
 			$this->themeJson(['status'=>'error','message'=>$e->getMessage(),'csrf_hash'=>$this->security->get_csrf_hash()],422);
 		} catch(Throwable $e){
+			if(!$saved) foreach($uploads as $path) @unlink(FCPATH.$path);
 			log_message('error','HTML theme content: '.$e->getMessage());
 			$this->themeJson(['status'=>'error','message'=>'Could not save website content. Please try again.','csrf_hash'=>$this->security->get_csrf_hash()],500);
 		}

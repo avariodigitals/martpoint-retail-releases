@@ -951,7 +951,7 @@ if (!function_exists('mp_get_business_presets')) {
                 'business_model'=>'product_based',
                 'features'=>['accounts','warehouse','online_store','loyalty','memberships','gift_cards','store_credit','multi_unit_inventory','multi_unit_selling','batch_tracking','expiry_tracking','mfg_tracking','manager_approvals','price_catalogue','public_catalogue','delivery_scheduling'],
                 'theme_key'=>'general_retail','dashboard_template'=>'supplements_wellness','workflow_template'=>'retail_standard',
-                'labels'=>['item'=>'Product','customer'=>'Member','warehouse'=>'Branch','batch'=>'Batch','expiry'=>'Best Before'],
+                'labels'=>['item'=>'Product','warehouse'=>'Branch','batch'=>'Batch','expiry'=>'Best Before'],
             ],
             'clinic' => [
                 'business_model'=>'service_based',
@@ -2046,6 +2046,13 @@ if (!function_exists('mp_get_store_profile')) {
             $store_labels = json_decode($store->label_overrides_json,true);
             if (is_array($store_labels)) $profile['labels']=array_merge($profile['labels'],$store_labels);
         }
+        // Older Supplements presets saved "Member" as the customer label.
+        // Keep customers as the shared person record and surface membership
+        // separately, even when an existing store still has that old value.
+        if ($industry === 'supplements_wellness'
+            && in_array(strtolower(trim((string)($profile['labels']['customer'] ?? ''))), ['member','members'], true)) {
+            unset($profile['labels']['customer']);
+        }
         if (!empty($store->industry_settings_json)) {
             $settings = json_decode($store->industry_settings_json,true);
             if (is_array($settings)) $profile['settings']=$settings;
@@ -2082,6 +2089,9 @@ if (!function_exists('mp_label')) {
         $CI =& get_instance();
         $reader = mp_read_db();
         $store_id = get_current_store_id();
+        $profile = mp_get_store_profile($store_id);
+        $legacy_supplements_customer_label = $key === 'customer'
+            && ($profile['industry_type'] ?? '') === 'supplements_wellness';
 
         // 1. Prefer modular industry settings table
         if ($reader->table_exists('db_store_industry_settings')) {
@@ -2090,7 +2100,10 @@ if (!function_exists('mp_label')) {
                 $store = $q->row();
                 if ($store && !empty($store->label_overrides_json)) {
                     $overrides = json_decode($store->label_overrides_json,true);
-                    if (is_array($overrides) && isset($overrides[$key]) && $overrides[$key]!=='') return $overrides[$key];
+                    if (is_array($overrides) && isset($overrides[$key]) && $overrides[$key]!=='') {
+                        $value = trim((string)$overrides[$key]);
+                        if (!$legacy_supplements_customer_label || !in_array(strtolower($value), ['member','members'], true)) return $value;
+                    }
                 }
             }
         }
@@ -2102,11 +2115,13 @@ if (!function_exists('mp_label')) {
                 $store = $q->row();
                 if ($store && !empty($store->label_overrides_json)) {
                     $overrides = json_decode($store->label_overrides_json,true);
-                    if (is_array($overrides) && isset($overrides[$key]) && $overrides[$key]!=='') return $overrides[$key];
+                    if (is_array($overrides) && isset($overrides[$key]) && $overrides[$key]!=='') {
+                        $value = trim((string)$overrides[$key]);
+                        if (!$legacy_supplements_customer_label || !in_array(strtolower($value), ['member','members'], true)) return $value;
+                    }
                 }
             }
         }
-        $profile = mp_get_store_profile($store_id);
         if (isset($profile['labels'][$key]) && $profile['labels'][$key]!=='') return $profile['labels'][$key];
         $defaults = mp_get_label_defaults();
         if (isset($defaults[$key])) return $defaults[$key];

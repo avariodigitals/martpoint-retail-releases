@@ -2749,6 +2749,7 @@ class Storefront_model extends CI_Model {
 			['theme_key' => 'fashion_boutique', 'theme_name' => 'Boutique Luxe', 'industry' => 'fashion', 'description' => 'Elegant serif-driven boutique experience with refined gold accents and graceful transitions.', 'default_primary_color' => '#7C2D12', 'default_secondary_color' => '#D4AF37', 'default_font_family' => 'Playfair Display', 'sort_order' => 9],
 			['theme_key' => 'fashion_modest', 'theme_name' => 'Modest Studio', 'industry' => 'fashion', 'description' => 'Warm, modest-wear focused storefront with soft neutrals, calm spacing and inclusive imagery.', 'default_primary_color' => '#1F2937', 'default_secondary_color' => '#C2956A', 'default_font_family' => 'Lora', 'sort_order' => 10],
 			['theme_key' => 'fashion_luxe', 'theme_name' => 'Fashion Luxe', 'industry' => 'fashion', 'description' => 'Editorial luxury fashion theme with dramatic imagery, refined serif typography, and warm gold accents.', 'default_primary_color' => '#1A1A1A', 'default_secondary_color' => '#C9A961', 'default_font_family' => 'Playfair Display', 'sort_order' => 11],
+			['theme_key' => 'maison_forme', 'theme_name' => 'Maison Forme', 'industry' => 'fashion', 'description' => 'A considered fashion boutique with editorial photography, warm ivory surfaces and deep wine accents.', 'default_primary_color' => '#571E28', 'default_secondary_color' => '#22231F', 'default_font_family' => 'Instrument Serif', 'sort_order' => 12],
 		['theme_key' => 'tech_hub', 'theme_name' => 'Tech Hub', 'industry' => 'electronics', 'description' => 'Modern electronics and gadgets theme with tech-forward design.', 'default_primary_color' => '#0A2540', 'default_secondary_color' => '#635BFF', 'default_font_family' => 'Inter', 'sort_order' => 12],
 			['theme_key' => 'fresh_market', 'theme_name' => 'Fresh Market', 'industry' => 'grocery', 'description' => 'Warm supermarket and grocery theme with organic feel.', 'default_primary_color' => '#2E7D32', 'default_secondary_color' => '#FF6F00', 'default_font_family' => 'Inter', 'sort_order' => 13],
 			// Grocery / supermarket presets (3 world-class designs)
@@ -2823,6 +2824,7 @@ class Storefront_model extends CI_Model {
 			'fashion_boutique' => 'fashion',
 			'fashion_modest' => 'fashion',
 			'fashion_luxe' => 'fashion',
+			'maison_forme' => 'fashion',
 			'tech_hub' => 'electronics',
 			'fresh_market' => 'grocery',
 			'market_fresh' => 'grocery',
@@ -3422,6 +3424,54 @@ class Storefront_model extends CI_Model {
 	public function createPortalSession($data){
 		$this->db->insert('db_storefront_customer_sessions', $data);
 		return $this->db->insert_id();
+	}
+
+	/** Persisted, store-scoped customer wishlists. */
+	public function getCustomerWishlistIds($storeId, $customerId){
+		if(!$this->db->table_exists('db_storefront_wishlist')) return [];
+		$rows = $this->db->select('item_id')->where('store_id', (int)$storeId)
+			->where('customer_id', (int)$customerId)->get('db_storefront_wishlist')->result();
+		return array_values(array_map(function($row){ return (int)$row->item_id; }, $rows));
+	}
+
+	public function customerWishlistProducts($storeId, $customerId){
+		if(!$this->db->table_exists('db_storefront_wishlist')) return [];
+		$products = $this->db->select('i.id, i.item_name, i.item_image, i.sales_price, i.mrp, i.online_price, i.stock, i.product_type, i.item_group, i.parent_id, w.created_at')
+			->from('db_storefront_wishlist w')->join('db_items i', 'i.id=w.item_id AND i.store_id=w.store_id', 'inner')
+			->where('w.store_id', (int)$storeId)->where('w.customer_id', (int)$customerId)
+			->where('i.publish_online', 1)->where('i.status', 1)->where('i.service_bit', 0)
+			->where('(i.not_for_sale IS NULL OR i.not_for_sale = 0)', null, false)
+			->order_by('w.created_at', 'desc')->get()->result();
+		foreach($products as $product){
+			$product->effective_price = (float)($product->online_price ?: ($product->mrp ?: $product->sales_price));
+		}
+		return $products;
+	}
+
+	public function wishlistToggle($storeId, $customerId, $itemId){
+		if(!$this->db->table_exists('db_storefront_wishlist')) return false;
+		$existing = $this->db->where('store_id', (int)$storeId)->where('customer_id', (int)$customerId)
+			->where('item_id', (int)$itemId)->get('db_storefront_wishlist')->row();
+		if($existing){
+			$this->db->where('id', (int)$existing->id)->delete('db_storefront_wishlist');
+			return false;
+		}
+		$this->db->insert('db_storefront_wishlist', [
+			'store_id' => (int)$storeId, 'customer_id' => (int)$customerId, 'item_id' => (int)$itemId
+		]);
+		return true;
+	}
+
+	public function ensureCustomerWishlistItem($storeId, $customerId, $itemId){
+		if(!$this->db->table_exists('db_storefront_wishlist')) return false;
+		$exists = $this->db->where('store_id', (int)$storeId)->where('customer_id', (int)$customerId)
+			->where('item_id', (int)$itemId)->count_all_results('db_storefront_wishlist');
+		if(!$exists){
+			$this->db->insert('db_storefront_wishlist', [
+				'store_id' => (int)$storeId, 'customer_id' => (int)$customerId, 'item_id' => (int)$itemId
+			]);
+		}
+		return true;
 	}
 
 	public function cleanupPortalSessions($storeId, $phone, $email = ''){

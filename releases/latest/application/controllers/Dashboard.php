@@ -149,7 +149,7 @@ class Dashboard extends MY_Controller {
 	}
 
 	/**
-	 * Supplements & Wellness gets a product and member focused workspace.
+	 * Supplements & Wellness gets a product and customer focused workspace.
 	 * Its purchasing, location and online-store tools use the existing retail rails.
 	 */
 	private function supplementsWellnessWorkspace(){
@@ -166,7 +166,7 @@ class Dashboard extends MY_Controller {
 		$previousTo = date('Y-m-d', strtotime('-1 day', strtotime($fromDate)));
 		$previousDays = $rangeDays[$range];
 		$previousFrom = $range === 'today' ? $previousTo : date('Y-m-d', strtotime('-'.$previousDays.' days', strtotime($previousTo)));
-		$workspace = ['sales_today'=>0.0,'invoices_today'=>0,'members'=>0,'low_stock'=>0,'expiring_soon'=>0,'expired'=>0,'online_orders'=>0,'branch_count'=>0,'recent_sales'=>[], 'range'=>$range,'range_from'=>$fromDate,'range_to'=>$today,'financial'=>['sales'=>0,'previous_sales'=>0,'receipts'=>0,'online_receipts'=>0,'expenses'=>0], 'communications'=>['sms'=>0,'email'=>0], 'license'=>null];
+		$workspace = ['sales_today'=>0.0,'invoices_today'=>0,'customers'=>0,'low_stock'=>0,'expiring_soon'=>0,'expired'=>0,'online_orders'=>0,'branch_count'=>0,'recent_sales'=>[], 'range'=>$range,'range_from'=>$fromDate,'range_to'=>$today,'financial'=>['sales'=>0,'previous_sales'=>0,'receipts'=>0,'online_receipts'=>0,'expenses'=>0], 'communications'=>['sms'=>0,'email'=>0], 'license'=>null];
 		try {
 			if($this->db->table_exists('db_sales')){
 				$sales = $this->db->select('COALESCE(SUM(grand_total),0) AS amount, COUNT(*) AS invoices', false)
@@ -205,7 +205,7 @@ class Dashboard extends MY_Controller {
 			if($this->db->table_exists('db_customers')){
 				$customerQuery = $this->db->where('store_id', $storeId);
 				if($this->db->field_exists('status', 'db_customers')) $customerQuery->where('status', 1);
-				$workspace['members'] = (int)$customerQuery->count_all_results('db_customers');
+				$workspace['customers'] = (int)$customerQuery->count_all_results('db_customers');
 			}
 			if($this->db->table_exists('db_items') && $this->db->field_exists('stock', 'db_items') && $this->db->field_exists('alert_qty', 'db_items')){
 				$workspace['low_stock'] = (int)$this->db->where('store_id', $storeId)->where('status', 1)->where('alert_qty >', 0)->where('stock <= alert_qty', null, false)->count_all_results('db_items');

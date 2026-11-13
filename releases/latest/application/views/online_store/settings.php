@@ -150,7 +150,7 @@
 
       <div class="os-section-title"><i class="fa fa-truck"></i> Shipping</div>
       <div class="mp-form-group" style="margin-bottom:14px;"><label for="shipping_notice">Shipping Notice</label><textarea class="mp-form-control" id="shipping_notice" name="shipping_notice" rows="3" placeholder="e.g. We deliver within Lagos only. Orders placed after 4pm ship next day."><?= htmlspecialchars($settings->shipping_notice ?? ''); ?></textarea><div class="mp-form-hint">Shown to customers at checkout above the shipping options.</div></div>
-      <div class="mp-form-group"><label>Shipping Methods</label><div class="mp-form-hint" style="margin-bottom:10px;">Add the shipping/delivery options customers can pick at checkout. The fee is added to the order total.</div>
+      <div class="mp-form-group"><label>Shipping Methods</label><div class="mp-form-hint" style="margin-bottom:10px;">Add store-wide options such as pickup or delivery by quote. Destination zones below set location-based delivery rates and take priority for delivery.</div>
         <div id="shipping-methods-container">
           <?php
             $savedMethods = json_decode($settings->shipping_methods_json ?? '', true);
@@ -176,30 +176,20 @@
       <div class="mp-form-group" style="margin-top:18px;border-top:1px dashed var(--mp-border);padding-top:16px;">
         <label class="os-ship-en" style="font-size:13px;padding:10px 14px;border:1px solid var(--mp-border);border-radius:10px;background:var(--mp-surface);display:inline-flex;">
           <input type="checkbox" id="city_shipping_enabled" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>>
-          Enable City-based Delivery Fees
+          Enable Shipping Zones
         </label>
-        <div class="mp-form-hint" style="margin-top:6px;">When on, customers pick their delivery city at checkout and the fee below is added automatically — it replaces the shipping methods list above.</div>
+        <div class="mp-form-hint" style="margin-top:6px;">Customers choose a covered destination at checkout and its zone rate is applied. Pickup methods remain available. Zones work for every store type and match from the most specific location (city, then state, then country); use a broad or * rule for fallback coverage.</div>
       </div>
-      <div class="mp-form-group"><label>Delivery Cities &amp; States</label><div class="mp-form-hint" style="margin-bottom:10px;">List every city you deliver to. State is optional but helps customers find their city faster. Use city <strong>*</strong> as a catch-all for other areas. Optional per-zone rules: <strong>Min order</strong> blocks small orders for that zone; <strong>Free over</strong> waives the fee above a subtotal.</div>
-        <div id="city-zones-container">
+      <div class="mp-form-group"><label>Shipping Zones</label><div class="mp-form-hint" style="margin-bottom:10px;">Add a destination at country, state/region, or city level. Leave a location field blank to make that rule broader. Use city <strong>*</strong> for other cities within its selected state/country. If zones overlap, the most specific matching destination wins. <strong>Minimum order</strong> blocks smaller baskets; <strong>Free over</strong> removes the zone fee once the subtotal reaches that amount.</div>
+        <div id="city-zones-container" data-location-states-url="<?= base_url('online_store/location_states'); ?>" data-location-cities-url="<?= base_url('online_store/location_cities'); ?>" data-location-states="<?= htmlspecialchars(json_encode($shipping_states ?? []), ENT_QUOTES, 'UTF-8'); ?>">
           <?php
-            $savedZones = json_decode($settings->city_shipping_json ?? '', true);
-            if(!is_array($savedZones) || empty($savedZones)){
-              $savedZones = [['state'=>'','city'=>'','fee'=>'']];
-            }
-            foreach($savedZones as $z):
+            foreach(($shipping_zone_rows ?? []) as $z):
           ?>
-          <div class="os-ship-row city-zone-row">
-            <input type="text" class="os-ship-name cz-state" name="cz_state[]" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="State (e.g. Lagos)">
-            <input type="text" class="os-ship-name cz-city" name="cz_city[]" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja, or * for other areas)">
-            <input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee 0.00" title="Delivery fee">
-            <input type="number" step="0.01" min="0" class="os-ship-fee cz-minorder" name="cz_min_order[]" value="<?= htmlspecialchars($z['min_order'] ?? ''); ?>" placeholder="Min order" title="Minimum order subtotal for this zone">
-            <input type="number" step="0.01" min="0" class="os-ship-fee cz-freeover" name="cz_free_over[]" value="<?= htmlspecialchars($z['free_over'] ?? ''); ?>" placeholder="Free over" title="Free delivery when subtotal reaches this amount">
-            <button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>
-          </div>
+          <?php $this->load->view('online_store/_shipping_zone_row', ['zone'=>$z,'shipping_countries'=>$shipping_countries ?? []]); ?>
           <?php endforeach; ?>
         </div>
-        <button type="button" class="mp-qa-btn blue" onclick="addCityZone()" style="margin-top:8px;padding:8px 14px;font-size:13px;"><i class="fa fa-plus"></i> Add City</button>
+        <template id="mp-zone-row-template"><?php $this->load->view('online_store/_shipping_zone_row', ['zone'=>['name'=>'','country'=>'','fee'=>'','min_order'=>'','free_over'=>'','states'=>[],'cities'=>[],'wildcard'=>false],'shipping_countries'=>$shipping_countries ?? []]); ?></template>
+        <button type="button" class="mp-qa-btn blue" onclick="addCityZone()" style="margin-top:8px;padding:8px 14px;font-size:13px;"><i class="fa fa-plus"></i> Add Zone</button>
       </div>
 
       <div class="os-section-title"><i class="fa fa-sliders"></i> Store Features</div>
@@ -351,27 +341,20 @@ function removeShippingMethod(btn){
 }
 function addCityZone(){
   var container = document.getElementById('city-zones-container');
-  var row = document.createElement('div');
-  row.className = 'os-ship-row city-zone-row';
-  row.innerHTML = ''
-    + '<input type="text" class="os-ship-name cz-state" name="cz_state[]" value="" placeholder="State (e.g. Lagos)">'
-    + '<input type="text" class="os-ship-name cz-city" name="cz_city[]" value="" placeholder="City (e.g. Ikeja, or * for other areas)">'
-    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-fee" name="cz_fee[]" value="" placeholder="Fee 0.00" title="Delivery fee">'
-    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-minorder" name="cz_min_order[]" value="" placeholder="Min order" title="Minimum order subtotal for this zone">'
-    + '<input type="number" step="0.01" min="0" class="os-ship-fee cz-freeover" name="cz_free_over[]" value="" placeholder="Free over" title="Free delivery when subtotal reaches this amount">'
-    + '<button type="button" class="os-ship-rm cz-remove" onclick="removeCityZone(this)"><i class="fa fa-trash"></i></button>';
-  container.appendChild(row);
+  var node=document.getElementById('mp-zone-row-template').content.firstElementChild.cloneNode(true);
+  container.appendChild(node);window.MPShippingZones.initRow(node);
 }
 function removeCityZone(btn){
   var container = document.getElementById('city-zones-container');
-  if(container.children.length <= 1){
-    var row = btn.closest('.city-zone-row');
-    row.querySelectorAll('input').forEach(function(i){ i.value=''; });
+  var rows=container.querySelectorAll('[data-zone-row]');
+  if(rows.length <= 1){
+    window.MPShippingZones.clear(btn.closest('[data-zone-row]'));
     return;
   }
   btn.closest('.city-zone-row').remove();
 }
 </script>
+<script src="<?= base_url('theme/js/shipping_zones.js?v=20261113-3'); ?>"></script>
 <script>
 (function(){
   var button=document.getElementById('save-paypal-settings');

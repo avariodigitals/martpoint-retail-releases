@@ -7,7 +7,7 @@ $money = function($amount) use ($CI){ return $CI->currency((float)$amount); };
 <div class="pharma-workspace supplements-workspace">
   <section class="pharma-hero">
     <div><div class="pharma-kicker"><span class="pharma-pulse"></span> Supplements &amp; wellness</div><h1>Business overview</h1><p><?= htmlspecialchars($storeName); ?> · <?= date('l, j F Y'); ?></p></div>
-    <div class="pharma-hero-actions"><a href="<?= base_url('purchase'); ?>" class="pharma-btn pharma-btn-light"><i class="fa fa-truck"></i> New purchase</a><a href="<?= base_url(!empty($supplements_mobile) ? 'mobile/pos' : 'pos'); ?>" class="pharma-btn pharma-btn-primary"><i class="fa fa-plus"></i> Member checkout</a></div>
+    <div class="pharma-hero-actions"><a href="<?= base_url('purchase'); ?>" class="pharma-btn pharma-btn-light"><i class="fa fa-truck"></i> New purchase</a><a href="<?= base_url(!empty($supplements_mobile) ? 'mobile/pos' : 'pos'); ?>" class="pharma-btn pharma-btn-primary"><i class="fa fa-plus"></i> New sale</a></div>
   </section>
   <section class="pharma-panel supplements-finance" style="margin-bottom:20px;">
     <div class="pharma-panel-head"><div><span class="pharma-eyebrow">Financial reconciliation</span><h2>Money in and out</h2></div>
@@ -35,19 +35,19 @@ $money = function($amount) use ($CI){ return $CI->currency((float)$amount); };
   <?php endif; ?>
   <section class="pharma-kpis" aria-label="Today's business snapshot">
     <div class="pharma-kpi pharma-kpi-blue"><span class="pharma-kpi-icon"><i class="fa fa-line-chart"></i></span><div><small>Sales today</small><strong><?= $money($w['sales_today'] ?? 0); ?></strong><em><?= (int)($w['invoices_today'] ?? 0); ?> purchases</em></div></div>
-    <div class="pharma-kpi pharma-kpi-purple"><span class="pharma-kpi-icon"><i class="fa fa-users"></i></span><div><small>Members &amp; customers</small><strong><?= number_format((int)($w['members'] ?? 0)); ?></strong><em>customer records</em></div></div>
+    <div class="pharma-kpi pharma-kpi-purple"><span class="pharma-kpi-icon"><i class="fa fa-users"></i></span><div><small>Customers</small><strong><?= number_format((int)($w['customers'] ?? 0)); ?></strong><em>customer records</em></div></div>
     <div class="pharma-kpi pharma-kpi-amber"><span class="pharma-kpi-icon"><i class="fa fa-exclamation-triangle"></i></span><div><small>Stock attention</small><strong><?= (int)($w['low_stock'] ?? 0); ?></strong><em>products below reorder level</em></div></div>
     <div class="pharma-kpi pharma-kpi-red"><span class="pharma-kpi-icon"><i class="fa fa-calendar-times-o"></i></span><div><small>Expiry watch</small><strong><?= (int)($w['expiring_soon'] ?? 0); ?></strong><em><?= (int)($w['expired'] ?? 0); ?> expired products</em></div></div>
   </section>
   <section class="pharma-action-grid">
-    <a href="<?= base_url('customers'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><i class="fa fa-users"></i></span><span><strong>Members &amp; customers</strong><small>Profiles and purchase history</small></span><i class="fa fa-angle-right"></i></a>
+    <a href="<?= base_url('customers'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><i class="fa fa-users"></i></span><span><strong>Customers</strong><small>Profiles, purchase history and membership status</small></span><i class="fa fa-angle-right"></i></a>
     <a href="<?= base_url('purchase'); ?>" class="pharma-action-card"><span class="pharma-action-icon violet"><i class="fa fa-truck"></i></span><span><strong>Purchasing</strong><small>Order and receive supplier stock</small></span><i class="fa fa-angle-right"></i></a>
     <a href="<?= base_url('online_store/orders'); ?>" class="pharma-action-card"><span class="pharma-action-icon teal"><i class="fa fa-shopping-bag"></i></span><span><strong>Online orders</strong><small><?= (int)($w['online_orders'] ?? 0); ?> orders in progress</small></span><i class="fa fa-angle-right"></i></a>
     <a href="<?= base_url('supplements_workspace/locations'); ?>" class="pharma-action-card"><span class="pharma-action-icon blue"><i class="fa fa-map-marker"></i></span><span><strong>Locations &amp; fulfilment</strong><small><?= (int)($w['branch_count'] ?? 0); ?> active locations</small></span><i class="fa fa-angle-right"></i></a>
   </section>
   <section class="pharma-columns">
-    <div class="pharma-panel"><div class="pharma-panel-head"><div><span class="pharma-eyebrow">Recent activity</span><h2>Latest member purchases</h2></div><a href="<?= base_url('sales'); ?>">Open sales <i class="fa fa-angle-right"></i></a></div>
-      <?php if(empty($w['recent_sales'])): ?><div class="pharma-empty"><i class="fa fa-inbox"></i><strong>No recent purchases</strong><span>Completed member purchases will appear here.</span></div><?php else: foreach($w['recent_sales'] as $sale): ?>
+    <div class="pharma-panel"><div class="pharma-panel-head"><div><span class="pharma-eyebrow">Recent activity</span><h2>Latest sales</h2></div><a href="<?= base_url('sales'); ?>">Open sales <i class="fa fa-angle-right"></i></a></div>
+      <?php if(empty($w['recent_sales'])): ?><div class="pharma-empty"><i class="fa fa-inbox"></i><strong>No recent sales</strong><span>Completed sales will appear here.</span></div><?php else: foreach($w['recent_sales'] as $sale): ?>
       <div class="pharma-list-row"><span class="pharma-list-avatar teal"><i class="fa fa-shopping-bag"></i></span><div class="pharma-list-main"><strong><?= htmlspecialchars($sale->customer_name ?: 'Walk-in customer'); ?></strong><small><?= htmlspecialchars($sale->sales_code ?: 'Sale'); ?> · <?= !empty($sale->created_time) ? date('H:i', strtotime($sale->created_time)) : ''; ?></small></div><strong class="pharma-amount"><?= $money($sale->grand_total ?? 0); ?></strong></div>
       <?php endforeach; endif; ?>
     </div>

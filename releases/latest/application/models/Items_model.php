@@ -231,12 +231,50 @@ class Items_model extends CI_Model {
 		$this->item_vehicle_compat_model->replace_from_post($store_id, $item_id);
 	}
 
+	/** Only allow reusing image files already referenced by this store's products or galleries. */
+	private function _store_product_media_is_referenced($path, $store_id)
+	{
+		$path = str_replace('\\', '/', trim((string)$path));
+		if ($path === '' || strpos($path, 'uploads/items/') !== 0 || strpos($path, '..') !== false) return false;
+		if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp','avif'], true)) return false;
+		$root = realpath(FCPATH . 'uploads/items');
+		$file = realpath(FCPATH . $path);
+		if (!$root || !$file || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) return false;
+
+		$used_by_item = $this->db->where('store_id', (int)$store_id)->where('item_image', $path)->count_all_results('db_items') > 0;
+		if ($used_by_item) return true;
+		return $this->db->table_exists('db_item_images')
+			&& $this->db->where('store_id', (int)$store_id)->where('image_path', $path)->count_all_results('db_item_images') > 0;
+	}
+
+	/** Remove an uploaded gallery file only when no product in the fleet still references it. */
+	private function _delete_unreferenced_gallery_file($path)
+	{
+		$path = str_replace('\\', '/', trim((string)$path));
+		if (strpos($path, 'uploads/items/gallery/') !== 0 || strpos($path, '..') !== false) return;
+		$used_by_item = $this->db->where('item_image', $path)->count_all_results('db_items') > 0;
+		$used_by_gallery = $this->db->table_exists('db_item_images')
+			&& $this->db->where('image_path', $path)->count_all_results('db_item_images') > 0;
+		if ($used_by_item || $used_by_gallery) return;
+		$root = realpath(FCPATH . 'uploads/items/gallery');
+		$file = realpath(FCPATH . $path);
+		if ($root && $file && strpos($file, $root . DIRECTORY_SEPARATOR) === 0 && is_file($file)) @unlink($file);
+	}
+
 	/** Save extra storefront gallery photos without changing db_items.item_image. */
 	private function save_product_gallery($item_id, $store_id, &$new_files, &$deleted_files)
 	{
 		if (!$this->db->table_exists('db_item_images') || !$item_id) return true;
 		$item = $this->db->where('id', (int)$item_id)->where('store_id', (int)$store_id)->get('db_items')->row();
 		if (!$item) return 'Product was not found in this store.';
+		$requested_paths = $this->input->post('gallery_existing_paths');
+		if (!is_array($requested_paths)) $requested_paths = [];
+		$validated_paths = [];
+		foreach ($requested_paths as $path) {
+			$path = str_replace('\\', '/', trim((string)$path));
+			if (!$this->_store_product_media_is_referenced($path, $store_id)) return 'One of the selected media files is no longer available for this store. Refresh the form and choose it again.';
+			$validated_paths[$path] = $path;
+		}
 
 		$delete_ids = $this->input->post('gallery_delete_ids');
 		if (!is_array($delete_ids)) $delete_ids = [];
@@ -249,6 +287,30 @@ class Items_model extends CI_Model {
 				$this->db->where('id', $image_id)->where('store_id', (int)$store_id)
 					->where('item_id', (int)$item_id)->delete('db_item_images');
 			}
+		}
+
+		$current_rows = $this->db->select('image_path')->where('store_id', (int)$store_id)
+			->where('item_id', (int)$item_id)->get('db_item_images')->result();
+		$current_paths = [];
+		foreach ($current_rows as $row) $current_paths[(string)$row->image_path] = true;
+		$current_count = count($current_paths);
+		$linked_paths = [];
+		foreach ($validated_paths as $path) {
+			if (isset($current_paths[$path])) continue;
+			$linked_paths[$path] = $path;
+		}
+		$upload_count = 0;
+		if (!empty($_FILES['item_gallery']['name']) && is_array($_FILES['item_gallery']['name'])) {
+			$upload_count = count(array_filter($_FILES['item_gallery']['name'], 'strlen'));
+		}
+		if ($current_count + count($linked_paths) + $upload_count > 8) return 'A product can have at most 8 gallery photos. Remove a photo or choose fewer files.';
+		$position = $current_count;
+		foreach ($linked_paths as $path) {
+			$ok = $this->db->insert('db_item_images', [
+				'store_id' => (int)$store_id, 'item_id' => (int)$item_id,
+				'image_path' => $path, 'sort_order' => $position++, 'created_at' => date('Y-m-d H:i:s'),
+			]);
+			if (!$ok) return 'Could not link the selected gallery image.';
 		}
 
 		if (empty($_FILES['item_gallery']) || empty($_FILES['item_gallery']['name'])) return true;
@@ -627,6 +689,10 @@ class Items_model extends CI_Model {
 			if(!empty($file_name)){
 								$info['item_image'] = 'uploads/items/'.$file_name;
 							}
+			elseif ($this->input->post('item_image_existing', TRUE) !== false) {
+				$selected_media = trim((string)$this->input->post('item_image_existing', TRUE));
+				if ($this->_store_product_media_is_referenced($selected_media, $store_id)) $info['item_image'] = $selected_media;
+			}
 							// Only include recipe fields if the Recipe & Costing section was visible
 							if ($this->input->post('recipe_id') !== false) {
 								$info['recipe_id'] = $recipe_id;
@@ -840,6 +906,10 @@ class Items_model extends CI_Model {
 			}
 			if(!empty($file_name)){
 				$parent_info['item_image'] = 'uploads/items/'.$file_name;
+			}
+			elseif ($this->input->post('item_image_existing', TRUE) !== false) {
+				$selected_media = trim((string)$this->input->post('item_image_existing', TRUE));
+				if ($this->_store_product_media_is_referenced($selected_media, $store_id)) $parent_info['item_image'] = $selected_media;
 			}
 			// Only include recipe fields if the Recipe & Costing section was visible
 			if ($this->input->post('recipe_id') !== false) {
@@ -1099,8 +1169,7 @@ class Items_model extends CI_Model {
 				}
 				$this->db->trans_commit();
 				foreach ($gallery_deleted_files as $path) {
-					$full_path = FCPATH . ltrim(str_replace('..', '', (string)$path), '/\\');
-					if (strpos($full_path, FCPATH . 'uploads/items/gallery/') === 0 && is_file($full_path)) @unlink($full_path);
+					$this->_delete_unreferenced_gallery_file($path);
 				}
 				if ($command=='save') {
 					@$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');

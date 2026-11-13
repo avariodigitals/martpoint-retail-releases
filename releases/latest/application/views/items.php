@@ -1216,12 +1216,19 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
       <span>PNG, JPG, WEBP or AVIF up to 1MB</span>
     </div>
     <input type="file" name="item_image" id="item_image" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" accept="image/png,image/jpeg,image/webp,image/avif,.avif">
+    <input type="hidden" name="item_image_existing" id="item_image_existing" value="<?= htmlspecialchars((string)($item_image ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+    <button type="button" class="mp-qa-btn" id="choose_existing_product_image" style="margin-top:10px;background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Choose from uploaded product images</button>
+    <p class="mp-form-hint">Reuse a product image already uploaded for this store, or upload a new image above.</p>
     <div id="image_preview_wrap" style="margin-top:12px;display:none;">
       <img id="image_preview" src="" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
       <button type="button" class="btn-xs-danger" onclick="removeImagePreview()" style="margin-left:8px;"><i class="fa fa-trash"></i></button>
     </div>
+    <div id="selected_product_image_preview" style="margin-top:12px;display:none;">
+      <img id="selected_product_image_thumb" src="" alt="Selected product image" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
+      <span id="selected_product_image_path" class="mp-form-hint" style="display:block;"></span>
+    </div>
     <?php if(!empty($q_id) && isset($item_image) && !empty($item_image)): ?>
-    <div style="margin-top:12px;">
+    <div id="current_product_image_photo" style="margin-top:12px;">
       <img src="<?= base_url($item_image); ?>" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
     </div>
     <?php endif; ?>
@@ -1232,12 +1239,13 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     <div class="mp-form-group full">
       <label for="item_gallery">Product gallery (optional)</label>
       <input type="file" name="item_gallery[]" id="item_gallery" class="mp-form-control" accept="image/jpeg,image/png,image/webp,image/avif" multiple>
-      <p class="mp-form-hint">Add up to 8 extra product photos. JPG, PNG, WEBP or AVIF; max 3MB each. The main product image remains unchanged.</p>
+      <button type="button" class="mp-qa-btn" id="choose_existing_gallery_images" style="margin-top:8px;background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Add from uploaded product images</button>
+      <p class="mp-form-hint">Add up to 8 extra photos by reusing an uploaded product image or uploading new files. Reused images are linked without making another file copy.</p>
     </div>
     <?php if(!empty($gallery_images)): ?>
     <div class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">
       <?php foreach($gallery_images as $gallery_image): ?>
-      <label style="display:block;border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;">
+      <label class="existing-gallery-card" style="display:block;border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;">
         <img src="<?= base_url(htmlspecialchars($gallery_image->image_path, ENT_QUOTES, 'UTF-8')); ?>" alt="Product gallery image" style="width:100%;height:90px;object-fit:cover;border-radius:5px;">
         <span style="display:block;margin-top:6px;"><input type="checkbox" name="gallery_delete_ids[]" value="<?= (int)$gallery_image->id; ?>"> Remove photo</span>
       </label>
@@ -1245,6 +1253,7 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
     </div>
     <p class="mp-form-hint">Select photos to remove, then save the product.</p>
     <?php endif; ?>
+    <div id="selected_gallery_media" class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-top:12px;"></div>
     <?php endif; // Gallery upload is for physical/digital products; service media uses its existing image field. ?>
   </div>
   <div class="mp-form-actions">
@@ -1258,6 +1267,15 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
 
 <?= form_close(); ?>
 </div><!-- /.box.mp-items-box -->
+
+<section id="product_media_picker" aria-label="Uploaded product images" style="display:none;margin:0 0 18px;padding:16px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div><h3 style="margin:0;">Uploaded product images</h3><p id="product_media_picker_hint" class="mp-form-hint" style="margin:4px 0 0;">Choose an image already used by a product in this store.</p></div>
+    <button type="button" id="close_product_media_picker" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Close</button>
+  </div>
+  <p id="product_media_picker_status" class="mp-form-hint" role="status" aria-live="polite"></p>
+  <div id="product_media_picker_grid" class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;"></div>
+</section>
 
 <!-- Modals -->
 <?php include "modals/modal_brand.php"; ?>
@@ -1367,6 +1385,8 @@ $(function(){
   // Image upload preview
   $('#item_image').on('change', function(){
     if(this.files && this.files[0]){
+      var currentImage = document.getElementById('current_product_image_photo');
+      if(currentImage) currentImage.style.display = 'none';
       var file = this.files[0];
       if(file.size > 1048576){
         toastr["warning"]("Image size must be less than 1MB.");
@@ -1387,6 +1407,111 @@ function removeImagePreview(){
   $('#item_image').val('');
   $('#image_preview_wrap').hide();
 }
+
+// Reuse image files already attached to products in this store. New uploads
+// remain available from the normal file inputs above.
+(function(){
+  var picker = document.getElementById('product_media_picker');
+  var grid = document.getElementById('product_media_picker_grid');
+  var status = document.getElementById('product_media_picker_status');
+  var hint = document.getElementById('product_media_picker_hint');
+  var media = [];
+  var target = 'main';
+  var selectedGallery = {};
+  if (!picker || !grid) return;
+
+  function galleryCount(){
+    var existing = document.querySelectorAll('.existing-gallery-card').length;
+    var removed = document.querySelectorAll('.existing-gallery-card input[name="gallery_delete_ids[]"]:checked').length;
+    return Math.max(0, existing - removed) + Object.keys(selectedGallery).length;
+  }
+  function addHiddenGalleryPath(path){
+    var input = document.createElement('input');
+    input.type = 'hidden'; input.name = 'gallery_existing_paths[]'; input.value = path;
+    document.getElementById('items-form').appendChild(input);
+  }
+  function drawGallerySelections(){
+    var wrap = document.getElementById('selected_gallery_media');
+    if (!wrap) return;
+    wrap.textContent = '';
+    Object.keys(selectedGallery).forEach(function(path){
+      var entry = selectedGallery[path];
+      var card = document.createElement('div');
+      card.style.cssText = 'border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;';
+      var img = document.createElement('img'); img.src = entry.url; img.alt = entry.label;
+      img.style.cssText = 'width:100%;height:90px;object-fit:cover;border-radius:5px;';
+      var label = document.createElement('span'); label.textContent = entry.label; label.style.cssText = 'display:block;margin:6px 0;overflow-wrap:anywhere;';
+      var remove = document.createElement('button'); remove.type = 'button'; remove.className = 'mp-qa-btn'; remove.textContent = 'Remove selection';
+      remove.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:5px 8px;';
+      remove.addEventListener('click', function(){ delete selectedGallery[path]; drawGallerySelections(); });
+      card.appendChild(img); card.appendChild(label); card.appendChild(remove); wrap.appendChild(card);
+    });
+    document.querySelectorAll('#items-form input[name="gallery_existing_paths[]"]').forEach(function(input){ input.remove(); });
+    Object.keys(selectedGallery).forEach(addHiddenGalleryPath);
+  }
+  function chooseMain(entry){
+    document.getElementById('item_image_existing').value = entry.path;
+    var currentImage = document.getElementById('current_product_image_photo');
+    if(currentImage) currentImage.style.display = 'none';
+    document.getElementById('selected_product_image_thumb').src = entry.url;
+    document.getElementById('selected_product_image_path').textContent = 'Selected existing image: ' + entry.label;
+    document.getElementById('selected_product_image_preview').style.display = 'block';
+    picker.style.display = 'none';
+  }
+  function chooseGallery(entry){
+    if (selectedGallery[entry.path]) return;
+    if (galleryCount() >= 8) { status.textContent = 'A product can have at most 8 gallery photos. Remove a photo or selection first.'; return; }
+    selectedGallery[entry.path] = entry;
+    drawGallerySelections();
+    status.textContent = 'Image added to the gallery selection. Save the product to link it.';
+  }
+  function render(){
+    grid.textContent = '';
+    if (!media.length) { status.textContent = 'No previously uploaded product images found for this store. Upload a new image using the upload control above.'; return; }
+    status.textContent = '';
+    media.forEach(function(entry){
+      var card = document.createElement('article');
+      card.style.cssText = 'border:1px solid var(--mp-border);border-radius:10px;padding:10px;min-width:0;';
+      var img = document.createElement('img'); img.src = entry.url; img.alt = entry.label;
+      img.loading = 'lazy'; img.style.cssText = 'width:100%;height:120px;object-fit:cover;border-radius:7px;background:var(--mp-bg);';
+      var label = document.createElement('p'); label.textContent = entry.label; label.title = entry.path;
+      label.style.cssText = 'font-size:12px;overflow-wrap:anywhere;margin:7px 0;';
+      card.appendChild(img); card.appendChild(label);
+      if (target === 'main') {
+        var use = document.createElement('button'); use.type = 'button'; use.className = 'mp-qa-btn'; use.textContent = 'Use as product image';
+        use.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:6px 8px;';
+        use.addEventListener('click', function(){ chooseMain(entry); }); card.appendChild(use);
+      } else {
+        var add = document.createElement('button'); add.type = 'button'; add.className = 'mp-qa-btn'; add.textContent = 'Add to gallery';
+        add.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:6px 8px;';
+        add.addEventListener('click', function(){ chooseGallery(entry); }); card.appendChild(add);
+      }
+      grid.appendChild(card);
+    });
+  }
+  function openPicker(which){
+    target = which;
+    picker.style.display = 'block';
+    hint.textContent = which === 'main' ? 'Choose an image already used by a product in this store.' : 'Add existing images to this product gallery without uploading another copy.';
+    picker.scrollIntoView({behavior:'smooth', block:'nearest'});
+    if (media.length) { render(); return; }
+    status.textContent = 'Loading uploaded images…';
+    fetch((document.getElementById('base_url').value || '/') + 'items/media_library', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+      .then(function(response){ if(!response.ok) throw new Error('Could not load the image library.'); return response.json(); })
+      .then(function(data){ if(!data.success) throw new Error(data.message || 'Could not load the image library.'); media = Array.isArray(data.images) ? data.images : []; render(); })
+      .catch(function(error){ status.textContent = error.message + ' You can still upload a new image above.'; });
+  }
+  document.getElementById('choose_existing_product_image').addEventListener('click', function(){ openPicker('main'); });
+  var galleryButton = document.getElementById('choose_existing_gallery_images');
+  if (galleryButton) galleryButton.addEventListener('click', function(){ openPicker('gallery'); });
+  document.getElementById('close_product_media_picker').addEventListener('click', function(){ picker.style.display = 'none'; });
+  var current = document.getElementById('item_image_existing').value;
+  if (current && !document.getElementById('current_product_image_photo')) {
+    document.getElementById('selected_product_image_thumb').src = (document.getElementById('base_url').value || '/') + current;
+    document.getElementById('selected_product_image_path').textContent = 'Current product image: ' + current;
+    document.getElementById('selected_product_image_preview').style.display = 'block';
+  }
+})();
 </script>
 
 <script>

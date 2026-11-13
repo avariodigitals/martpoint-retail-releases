@@ -240,7 +240,9 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
                                                       <select class="form-control select2" id="state" name="state"  style="width: 100%;" onkeyup="shift_cursor(event,'city')">
                                                          <?php
                                                             if(!empty($country)){
-                                                              $q2=$this->db->where('status',1)->where('country',$country)->get('db_states');
+                                                              $this->db->where('status',1)->where('country',$country);
+                                                              if(strcasecmp(trim((string)$country),'Nigeria')===0 && $this->db->table_exists('ng_states')) $this->db->where('store_id',NULL);
+                                                              $q2=$this->db->order_by('state','asc')->get('db_states');
                                                             } else {
                                                               $q2 = $this->db->where('id',0)->get('db_states');
                                                             }
@@ -271,22 +273,11 @@ $snooze_image        = isset($snooze_image) ? $snooze_image : '';
                                                       <select class="form-control select2" id="city" name="city"  style="width: 100%;" onkeyup="shift_cursor(event,'postcode')">
                                                          <?php
                                                             if(!empty($state)){
-                                                              $state_row = $this->db->where('state',$state)->where('status',1)->get('db_states')->row();
+                                                              $this->db->where('state',$state)->where('status',1);
+                                                              if(strcasecmp(trim((string)$country),'Nigeria')===0 && $this->db->table_exists('ng_states')) $this->db->where('store_id',NULL);
+                                                              $state_row = $this->db->get('db_states')->row();
                                                               if($state_row){
-                                                                $q3 = $this->db->where('status',1)->where('state_id',$state_row->id)->get('db_cities');
-                                                                // Fallback: if no cities mapped to this state, show all active cities
-                                                                if($q3->num_rows()==0){
-                                                                  $q3 = $this->db->where('status',1)->get('db_cities');
-                                                                }
-                                                                if($q3->num_rows()>0){
-                                                                  echo '<option value="">Select City</option>';
-                                                                  foreach($q3->result() as $res1){
-                                                                    $selected = ($res1->city == $city) ? 'selected' : '';
-                                                                    echo "<option $selected value='".$res1->city."'>".$res1->city."</option>";
-                                                                  }
-                                                                } else {
-                                                                  echo '<option value="">No Records Found</option>';
-                                                                }
+                                                                echo get_city_select_list($state_row->id,$city);
                                                               } else {
                                                                 // State not found in db_states, show all active cities
                                                                 $q3 = $this->db->where('status',1)->get('db_cities');

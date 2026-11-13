@@ -153,6 +153,11 @@ class Storefront extends CI_Controller {
 
 	/** Serve only non-executable uploaded theme assets from private storage. */
 	public function theme_asset($storeId = 0, $themeId = 0, $relative = ''){
+		// CI3 passes each remaining URI segment as a separate method argument.
+		// Rejoin the relative path so nested assets such as assets/theme.css
+		// resolve as a single, store-confined path in Html_theme_manager.
+		$segments = func_get_args();
+		$relative = implode('/', array_slice($segments, 2));
 		$theme = $this->html_theme_manager->getTheme((int)$themeId, (int)$storeId);
 		$path = $this->html_theme_manager->assetPath($theme, rawurldecode((string)$relative));
 		$ext = strtolower(pathinfo((string)$relative, PATHINFO_EXTENSION));
@@ -1985,30 +1990,25 @@ class Storefront extends CI_Controller {
 			$selectedStateName = $selectedParts[1] ?? '';
 			$selectedCountryName = $selectedParts[2] ?? '';
 			$zoneMatch = null;
-			$wildcard = null;
+			$zoneMatchScore = -1;
 			foreach($cityZones as $z){
 				$zoneCity = trim($z['city'] ?? '');
 				$zoneState = trim($z['state'] ?? '');
 				$zoneCountry = trim($z['country'] ?? '');
-				// A '*' city is the catch-all zone for unlisted destinations.
-				if($zoneCity === '*'){
-					if(($zoneState === '' || strcasecmp($zoneState, $selectedStateName) === 0)
-						&& ($zoneCountry === '' || strcasecmp($zoneCountry, $selectedCountryName) === 0)) $wildcard = $z;
-					continue;
-				}
-				// Match the exact destination level the customer selected. Blank
-				// location fields are meaningful (for a country- or region-wide rate).
-				if(strcasecmp($zoneCity, $selectedCityName) === 0
-					&& strcasecmp($zoneState, $selectedStateName) === 0
-					&& strcasecmp($zoneCountry, $selectedCountryName) === 0){
+				// Blank fields mean all locations at that level. This allows a
+				// country-wide or state-wide rule to cover destinations not listed
+				// individually, like WooCommerce shipping zones.
+				if($zoneCountry !== '' && strcasecmp($zoneCountry, $selectedCountryName) !== 0) continue;
+				if($zoneState !== '' && strcasecmp($zoneState, $selectedStateName) !== 0) continue;
+				if($zoneCity !== '' && $zoneCity !== '*' && strcasecmp($zoneCity, $selectedCityName) !== 0) continue;
+				$score = ($zoneCountry !== '' ? 1 : 0) + ($zoneState !== '' ? 2 : 0) + ($zoneCity !== '' && $zoneCity !== '*' ? 4 : 0);
+				// A wildcard is a fallback within its country/state, so an exact
+				// city match always wins even when the wildcard row appears first.
+				if($zoneCity === '*') $score += ($selectedCityName === '*' ? 4 : -0.5);
+				if($score > $zoneMatchScore){
 					$zoneMatch = $z;
-					break;
+					$zoneMatchScore = $score;
 				}
-			}
-			// The customer may pick the '*' zone directly ("Other areas"), and
-			// an unlisted city also resolves to the wildcard when configured.
-			if(!$zoneMatch){
-				$zoneMatch = $wildcard;
 			}
 			if(!$zoneMatch){
 				echo json_encode(['status' => false, 'message' => 'Please select your delivery area', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -2026,9 +2026,12 @@ class Storefront extends CI_Controller {
 			if($zoneFreeOver > 0 && $subtotal >= $zoneFreeOver){
 				$shippingFee = 0;
 			}
-			$zoneLabel = (trim($zoneMatch['city'] ?? '') === '*')
-				? 'Other areas'
-				: trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : '') . (!empty($zoneMatch['country']) ? ', ' . trim($zoneMatch['country']) : ''));
+			$destinationLabel = trim($zoneMatch['city'] ?? '') === '*'
+				? 'Other cities'
+				: trim(trim($zoneMatch['city'] ?? '') . (!empty($zoneMatch['state']) ? ', ' . trim($zoneMatch['state']) : ''));
+			$zoneLabel = trim($zoneMatch['name'] ?? '');
+			if($zoneLabel !== '' && $destinationLabel !== '') $zoneLabel .= ' · ' . $destinationLabel;
+			if($zoneLabel === '') $zoneLabel = $destinationLabel ?: trim($zoneMatch['country'] ?? '') ?: 'Other areas';
 			$shippingMethod = mb_substr('Delivery - ' . $zoneLabel, 0, 100);
 		} else {
 			// Resolve shipping method fee from store settings
@@ -3515,6 +3518,9 @@ class Storefront extends CI_Controller {
 			'store' => $store,
 			'seo_title' => 'Verify Phone - ' . ($store->store_name ?? 'Store'),
 			'prefill_phone' => $prefillPhone,
+			'wishlist_return_item' => ((string)$this->input->get('return') === 'wishlist') ? (int)$this->input->get('item') : 0,
+			'wishlist_return' => ((string)$this->input->get('return') === 'wishlist'),
+			'store_industry' => $this->storefront_model->normalizeThemeIndustry($this->theme_engine->getIndustry()),
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
@@ -3663,6 +3669,72 @@ class Storefront extends CI_Controller {
 		]);
 	}
 
+	/** Account-owned wishlist page. The optional item is added after OTP sign-in. */
+	public function wishlist($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = (int)$settings->store_id;
+		$store = get_store_details($storeId);
+		$this->theme_engine->init($storeId, $this->_previewThemeForVisitor($settings));
+		if(!$this->theme_engine->wishlistEnabled()) show_404();
+
+		$token = $this->input->cookie('customer_token', TRUE);
+		$session = $token ? $this->storefront_model->getCustomerPortalSession($token, $storeId) : null;
+		if(!$session){
+			$this->load->helper('cookie');
+			if($token) delete_cookie('customer_token');
+			$itemId = (int)$this->input->get('item');
+			$redirect = base_url('store/' . $settings->store_slug . '/verify?return=wishlist' . ($itemId > 0 ? '&item=' . $itemId : ''));
+			redirect($redirect);
+			return;
+		}
+
+		$itemId = (int)$this->input->get('item');
+		if($itemId > 0){
+			$item = $this->storefront_model->getOnlineProduct($itemId, $storeId);
+			if($item && (int)($item->service_bit ?? 0) === 0 && (int)($item->status ?? 0) === 1){
+				$this->storefront_model->ensureCustomerWishlistItem($storeId, (int)$session->customer_id, $itemId);
+			}
+		}
+
+		$this->theme_engine->view('wishlist', [
+			'settings' => $settings,
+			'store' => $store,
+			'wishlist_products' => $this->storefront_model->customerWishlistProducts($storeId, (int)$session->customer_id),
+			'seo_title' => 'Wishlist'
+		]);
+	}
+
+	/** AJAX save/remove; authentication and product ownership are checked server-side. */
+	public function wishlist_toggle($storeSlug = ''){
+		$settings = $this->_getSettingsOr404($storeSlug);
+		$storeId = (int)$settings->store_id;
+		$this->theme_engine->init($storeId, $this->_previewThemeForVisitor($settings));
+		$this->output->set_content_type('application/json');
+		if(!$this->theme_engine->wishlistEnabled()){
+			$this->output->set_status_header(404)->set_output(json_encode(['status' => false, 'message' => 'Wishlist is unavailable']));
+			return;
+		}
+		$itemId = (int)$this->input->post('item_id');
+		$item = $itemId > 0 ? $this->storefront_model->getOnlineProduct($itemId, $storeId) : null;
+		if(!$item || (int)($item->service_bit ?? 0) !== 0 || (int)($item->status ?? 0) !== 1){
+			$this->output->set_status_header(422)->set_output(json_encode(['status' => false, 'message' => 'This product is not available for wishlisting', 'csrf_hash' => $this->security->get_csrf_hash()]));
+			return;
+		}
+		$token = $this->input->cookie('customer_token', TRUE);
+		$session = $token ? $this->storefront_model->getCustomerPortalSession($token, $storeId) : null;
+		if(!$session){
+			$redirect = base_url('store/' . $settings->store_slug . '/verify?return=wishlist&item=' . $itemId);
+			$this->output->set_output(json_encode(['status' => false, 'login_required' => true, 'redirect' => $redirect, 'csrf_hash' => $this->security->get_csrf_hash()]));
+			return;
+		}
+		$saved = $this->storefront_model->wishlistToggle($storeId, (int)$session->customer_id, $itemId);
+		$this->output->set_output(json_encode([
+			'status' => true, 'saved' => (bool)$saved,
+			'count' => count($this->storefront_model->getCustomerWishlistIds($storeId, (int)$session->customer_id)),
+			'csrf_hash' => $this->security->get_csrf_hash()
+		]));
+	}
+
 	public function account($storeSlug = ''){
 		$settings = $this->_getSettingsOr404($storeSlug);
 		$storeId = $settings->store_id;
@@ -3691,6 +3763,8 @@ class Storefront extends CI_Controller {
 			$this->theme_engine->view('account', [
 				'settings' => $settings, 'store' => $store, 'customer' => $customer,
 				'orders' => $orders, 'seo_title' => 'Your profile',
+				'wishlist_enabled' => $this->theme_engine->wishlistEnabled(),
+				'wishlist_url' => base_url('store/' . $settings->store_slug . '/wishlist'),
 				'store_currency' => $this->theme_engine->getStoreCurrency(),
 				'outlets' => $this->_publicOrderableOutlets($storeId),
 				'social_links' => $this->theme_engine->socialLinks(),
@@ -3761,6 +3835,8 @@ class Storefront extends CI_Controller {
 			'downloads' => $downloads,
 			'courses' => $courses,
 			'memberships' => $memberships,
+			'wishlist_enabled' => $this->theme_engine->wishlistEnabled(),
+			'wishlist_url' => base_url('store/' . $settings->store_slug . '/wishlist'),
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];

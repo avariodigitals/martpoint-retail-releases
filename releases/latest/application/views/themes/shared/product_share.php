@@ -27,7 +27,7 @@ $mpShareEncoded = rawurlencode($mpShareText . ' ' . $mpShareUrl);
   <span class="mp-product-share__status" data-share-status role="status" aria-live="polite"></span>
 </section>
 <style>
-  .mp-product-share{margin:18px 0 26px;padding:14px 0;border-top:1px solid var(--mp-border,#e5e7eb);border-bottom:1px solid var(--mp-border,#e5e7eb)}
+  .mp-product-share{width:calc(100% - 96px);max-width:1280px;box-sizing:border-box;margin:18px auto 26px;padding:14px 0;border-top:1px solid var(--mp-border,#e5e7eb);border-bottom:1px solid var(--mp-border,#e5e7eb)}
   .mp-product-share__label{display:block;margin-bottom:9px;font-size:13px;font-weight:700;color:var(--mp-dark,#1f2937)}
   .mp-product-share__actions{display:flex;flex-wrap:wrap;gap:8px}
   .mp-product-share__button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 13px;border:1px solid var(--mp-border,#d1d5db);border-radius:8px;background:var(--mp-white,#fff);color:var(--mp-dark,#1f2937);font:inherit;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
@@ -35,6 +35,7 @@ $mpShareEncoded = rawurlencode($mpShareText . ' ' . $mpShareUrl);
   .mp-product-share__status{display:block;min-height:1em;margin-top:6px;font-size:12px;color:var(--mp-gray,#64748b)}
   .mp-product-share__native[hidden]{display:none!important}
   @media(prefers-reduced-motion:no-preference){.mp-product-share__button{transition:border-color .15s ease,color .15s ease}}
+  @media(max-width:768px){.mp-product-share{width:calc(100% - 32px)}}
 </style>
 <script>
 (function(){

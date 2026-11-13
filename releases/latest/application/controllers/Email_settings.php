@@ -15,6 +15,19 @@ class Email_settings extends MY_Controller {
 		$this->permission_check('smtp_settings');
 	}
 
+	/** Only Central operators may edit the sending account of another store. */
+	protected function settingsStoreId(){
+		$current=(int)get_current_store_id();
+		$requested=$this->input->post('store_id');
+		if($requested===NULL || $requested==='') $requested=$this->input->get('store_id');
+		if($requested===NULL || $requested==='' || $requested==='0' || $requested===0) return $current;
+		if(!is_scalar($requested) || !ctype_digit((string)$requested)) { show_error('Choose a valid email sending account.',400); exit; }
+		$storeId=(int)$requested;
+		if($storeId!==$current && (!mp_is_central() || !special_access())) { show_error('Central administrator access is required for this sending account.',403); exit; }
+		if(!$this->db->where('id',$storeId)->count_all_results('db_store')) { show_404(); exit; }
+		return $storeId;
+	}
+
 	/* ---------- Main Settings Page ---------- */
 
 	public function index(){
@@ -23,7 +36,11 @@ class Email_settings extends MY_Controller {
 		$data['page_title'] = 'Email Settings';
 
 		$this->load->model('email_settings_model');
-		$data['settings'] = $this->email_settings_model->getSettings();
+		$storeId=$this->settingsStoreId();
+		$data['settings'] = $this->email_settings_model->getSettings($storeId);
+		$data['email_settings_store_id']=$storeId;
+		$store=$this->db->select('store_name')->where('id',$storeId)->get('db_store')->row_array();
+		$data['email_settings_store_name']=$store['store_name']??'Store';
 
 		$data['content'] = $this->load->view('email-settings', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -48,7 +65,14 @@ class Email_settings extends MY_Controller {
 			}
 		}
 
-		$store_id = get_current_store_id();
+		$store_id = $this->settingsStoreId();
+		if(isset($update['email_provider']) && !in_array($update['email_provider'],array('smtp','resend'),true)) { show_error('Choose SMTP or Resend.',400); return; }
+		if(($update['email_provider']??'')==='resend'){
+			$existing=$this->email_settings_model->getSettings($store_id);
+			$key=$update['resend_api_key']??$existing['resend_api_key'];
+			$from=$update['resend_from_email']??($existing['resend_from_email']?:$existing['from_email']);
+			if(trim((string)$key)==='' || !filter_var($from,FILTER_VALIDATE_EMAIL)) { echo 'Resend requires an API key and a valid sending email address.'; return; }
+		}
 		$ok = $this->email_settings_model->saveSettings($store_id, $update);
 
 		echo $ok ? 'success' : 'failed';
@@ -68,6 +92,7 @@ class Email_settings extends MY_Controller {
 		}
 
 		$this->load->model('email_service');
+		$this->email_service->setStoreId($this->settingsStoreId());
 		$result = $this->email_service->testProvider($test_email, $provider ?: NULL);
 
 		if($result['success']){

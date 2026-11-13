@@ -141,6 +141,19 @@ class Customers extends MY_Controller {
 	public function ajax_list()
 	{
 		$list = $this->customers->get_datatables();
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+		$showMembershipStatus = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('memberships')
+			&& $this->db->table_exists('db_customer_memberships');
+		$activeMembershipIds = [];
+		if($showMembershipStatus && !empty($list)){
+			$customerIds = array_map(function($customer){ return (int)$customer->id; }, $list);
+			$memberships = $this->db->select('customer_id')->from('db_customer_memberships')
+				->where('store_id', (int)get_current_store_id())->where_in('customer_id', $customerIds)
+				->where('status', 'active')->where('start_date <=', date('Y-m-d'))->where('end_date >=', date('Y-m-d'))
+				->group_by('customer_id')->get()->result();
+			foreach($memberships as $membership) $activeMembershipIds[(int)$membership->customer_id] = true;
+		}
 		
 		$data = array();
 		$no = $_POST['start'];
@@ -163,6 +176,11 @@ class Customers extends MY_Controller {
 			$row[] = $customers->customer_name;
 			$row[] = $customers->mobile;
 			$row[] = $customers->email;
+			if($showMembershipStatus){
+				$row[] = isset($activeMembershipIds[(int)$customers->id])
+					? '<span class="label label-success">Active member</span>'
+					: '<span class="label label-default">Customer</span>';
+			}
 			$store_name = get_store_name($customers->store_id);
 			$location_display = (!empty($store_name)) ? '<span class="label label-default"><i class="fa fa-building"></i> '.$store_name.'</span>' : '-';
 			if(!empty($customers->location_link)){

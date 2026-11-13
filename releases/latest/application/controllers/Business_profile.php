@@ -172,6 +172,10 @@ class Business_profile extends MY_Controller {
                     unset($clean_labels[$k]);
                 }
             }
+            if ($industry_type === 'supplements_wellness'
+                && in_array(strtolower(trim((string)($clean_labels['customer'] ?? ''))), ['member','members'], true)) {
+                unset($clean_labels['customer']);
+            }
             if (!empty($clean_labels)) {
                 $label_overrides_json = json_encode($clean_labels);
             }

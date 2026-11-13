@@ -121,7 +121,8 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   const OUTLETS = <?= json_encode(array_map(function($outlet){ return ['id' => (int)$outlet->id, 'name' => (string)$outlet->warehouse_name, 'address' => (string)($outlet->address ?? ''), 'city' => (string)($outlet->city ?? '')]; }, $mp_cart_outlets), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   const SHIPPING_NOTICE = <?= json_encode($settings->shipping_notice ?? ''); ?>;
   const SHIPPING_METHODS = <?= json_encode(array_values(array_filter(json_decode($settings->shipping_methods_json ?? '[]', true) ?? [], function($m){ return !empty($m['enabled']); }))); ?>;
-  const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && trim($z['city'] ?? '') !== ''; })) : []); ?>;
+  const PICKUP_METHODS = SHIPPING_METHODS.filter(m => /pick[\s-]*up|collect/i.test(String(m.name || '')));
+  const CITY_SHIPPING = <?= json_encode(!empty($settings->city_shipping_enabled) ? array_values(array_filter(json_decode($settings->city_shipping_json ?? '[]', true) ?? [], function($z){ return is_array($z) && (trim($z['city'] ?? '') !== '' || trim($z['state'] ?? '') !== '' || trim($z['country'] ?? '') !== ''); })) : []); ?>;
 
   function refreshLocationAvailability(){
     if(OUTLETS.length<2||!cart.length)return;
@@ -233,16 +234,31 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
 
     // City-based delivery fee selector (replaces flat methods when enabled)
     if(CITY_SHIPPING.length > 0){
-      html += '<label class="sf-label" style="margin-top:8px;">Delivery City *</label>';
+      html += '<label class="sf-label" style="margin-top:8px;">Delivery Area *</label>';
       html += '<div class="sf-city-options">';
       CITY_SHIPPING.forEach((z, idx) => {
         const active = selectedCityIdx === idx ? ' active' : '';
         const fee = parseFloat(z.fee) > 0 ? formatMoney(z.fee) : 'Free';
-        const city = String(z.city || 'Delivery area');
+        const destination = z.city === '*' ? 'Other cities' : [z.city, z.state].filter(Boolean).join(', ');
+        const city = String(z.name ? (z.name + (destination ? ' · ' + destination : '')) : (destination || z.country || 'Delivery area'));
         const state = String(z.state || '').trim();
-        html += '<button type="button" class="sf-city-option' + active + '" onclick="selectCityOption(this,' + idx + ')"><strong>' + city.replace(/</g,'&lt;') + '</strong><small>' + (state ? state + ' · ' : '') + fee + '</small></button>';
+        const place = [z.city && z.city !== '*' ? z.city : '', z.state, z.country].filter(Boolean).join(' · ');
+        const minOrder = parseFloat(z.min_order) || 0;
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const blocked = minOrder > 0 && subtotal < minOrder;
+        html += '<button type="button" class="sf-city-option' + active + '"' + (blocked ? ' disabled' : '') + ' onclick="selectCityOption(this,' + idx + ')"><strong>' + city.replace(/</g,'&lt;') + '</strong><small>' + (blocked ? 'Minimum order ' + formatMoney(minOrder) : (place ? place + ' · ' : '') + fee) + '</small></button>';
       });
       html += '</div>';
+      if(PICKUP_METHODS.length){
+        html += '<div class="sf-rx-hint" style="margin-top:12px;">Or collect in person</div><div class="sf-pay-options">';
+        PICKUP_METHODS.forEach(m => {
+          const fee = m.quote ? 'Fee confirmed by the store' : (parseFloat(m.fee) > 0 ? formatMoney(parseFloat(m.fee)) : 'Free');
+          const active = selectedShippingMethod === m.name ? ' active' : '';
+          const checked = selectedShippingMethod === m.name ? ' checked' : '';
+          html += '<div class="sf-pay-opt' + active + '" onclick="selectShipping(this,\'' + m.name.replace(/'/g,"\\'") + '\')"><input type="radio" name="shipmethod" value="' + m.name.replace(/"/g,'&quot;') + '"' + checked + '><div><div class="sf-pay-label">' + m.name.replace(/</g,'&lt;') + ' — ' + fee + '</div>' + (m.description ? '<div class="sf-pay-desc">' + m.description.replace(/</g,'&lt;') + '</div>' : '') + '</div></div>';
+        });
+        html += '</div>';
+      }
     }
     // Shipping method selector
     else if(SHIPPING_METHODS.length > 0){
@@ -350,9 +366,16 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
   }
 
   function getShippingFee(){
+    const selectedMethod = SHIPPING_METHODS.find(m => m.name === selectedShippingMethod);
+    if(selectedMethod) return selectedMethod.quote ? 0 : (parseFloat(selectedMethod.fee) || 0);
     if(CITY_SHIPPING.length > 0){
       const z = CITY_SHIPPING[selectedCityIdx];
-      return z ? (parseFloat(z.fee) || 0) : 0;
+      if(!z) return 0;
+      const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+      const minOrder = parseFloat(z.min_order) || 0;
+      if(minOrder > 0 && subtotal < minOrder) return 0;
+      const freeOver = parseFloat(z.free_over) || 0;
+      return freeOver > 0 && subtotal >= freeOver ? 0 : (parseFloat(z.fee) || 0);
     }
     if(!selectedShippingMethod) return 0;
     const sm = SHIPPING_METHODS.find(m => m.name === selectedShippingMethod);
@@ -363,10 +386,13 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     document.querySelectorAll('.sf-city-option').forEach(function(option){ option.classList.remove('active'); });
     if(el) el.classList.add('active');
     selectedCityIdx = parseInt(idx, 10);
+    document.querySelectorAll('input[name="shipmethod"]').forEach(function(input){ input.checked=false; input.closest('.sf-pay-opt')?.classList.remove('active'); });
     selectedShippingMethod = '';
     if(selectedCityIdx >= 0){
       const z = CITY_SHIPPING[selectedCityIdx];
-      selectedShippingMethod = 'Delivery - ' + z.city + ((z.state || '').trim() ? ', ' + z.state.trim() : '');
+      const destination = z.city === '*' ? 'Other cities' : [z.city, z.state].filter(Boolean).join(', ');
+      const label = z.name ? (z.name + (destination ? ' · ' + destination : '')) : (destination || z.country || 'Delivery area');
+      selectedShippingMethod = 'Delivery - ' + label;
     }
     const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
     updateShippingSummary(subtotal);
@@ -393,6 +419,10 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     el.classList.add('active');
     el.querySelector('input').checked = true;
     selectedShippingMethod = method;
+    if(PICKUP_METHODS.some(m => m.name === method)){
+      selectedCityIdx = -1;
+      document.querySelectorAll('.sf-city-option').forEach(option => option.classList.remove('active'));
+    }
     const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
     updateShippingSummary(subtotal);
   }
@@ -463,7 +493,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     if(!name || !phone){ showToast('Please enter name and phone'); return; }
     if(cart.length === 0){ showToast('Cart is empty'); return; }
     if(!ALLOW_BACKORDER && cart.some(item=>item.available===false)){showToast('Reduce the quantity of unavailable items or choose another location.');return;}
-    if(CITY_SHIPPING.length > 0 && selectedCityIdx < 0){ showToast('Please select your delivery city'); return; }
+    if(CITY_SHIPPING.length > 0 && selectedCityIdx < 0 && !PICKUP_METHODS.some(m => m.name === selectedShippingMethod)){ showToast('Please select a delivery area or choose pickup'); return; }
     if(OUTLETS.length > 1 && !selectedWarehouseId){ showToast('Please choose the location you want this order from'); return; }
     if(rxRequired){
       const rxInput = document.getElementById('prescription-file');
@@ -528,7 +558,7 @@ $mp_cart_outlets = !empty($outlets) && is_array($outlets) ? array_values($outlet
     data.append('shipping_method', selectedShippingMethod || '');
     if(CITY_SHIPPING.length > 0 && selectedCityIdx >= 0){
       const z = CITY_SHIPPING[selectedCityIdx];
-      data.append('shipping_city', (z.city || '') + '|' + (z.state || '').trim());
+      data.append('shipping_city', (z.city || '') + '|' + (z.state || '').trim() + '|' + (z.country || '').trim());
     }
     data.append('service_date', serviceDate);
     data.append('service_time', serviceTime);

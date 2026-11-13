@@ -661,4 +661,10 @@ return [
 		  // .272 controls whether fleet admins may view or edit Paystack payout details.
 		  // .271 was not released; this code-only update needs no schema change.
 		  '4.0.9.272v' => '4.0.9.272_paystack_payout_account_edit_policy.sql',
+		  // Shared Nigeria state and populated-place data for application and storefront location pickers.
+		  '4.0.9.273v' => '4.0.9.273_nigeria_location_data.sql',
+		  // Account-owned, per-store consumer product wishlists.
+		  '4.0.9.274v' => '4.0.9.274_storefront_customer_wishlists.sql',
+		  // .275 adds reuse of already-uploaded product and gallery images without removing upload support.
+		  '4.0.9.275v' => '4.0.9.275_product_media_library_reuse.sql',
 ];

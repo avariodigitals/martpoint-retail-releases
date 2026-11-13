@@ -2,6 +2,9 @@
 <?php $CI =& get_instance(); ?>
 <?php
 $store_id = get_current_store_id();
+$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store_id) : [];
+$showMembershipStatus = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+  && mp_feature_enabled('memberships') && $CI->db->table_exists('db_customer_memberships');
 $total_customers = $CI->db->where('store_id', $store_id)->count_all_results('db_customers');
 $active_customers = $CI->db->where('store_id', $store_id)->where('status', 1)->count_all_results('db_customers');
 $inactive_customers = $CI->db->where('store_id', $store_id)->where('status', 0)->count_all_results('db_customers');
@@ -78,6 +81,16 @@ $total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0
 <div class="mp-card box">
   <div class="mp-card-head" style="flex-wrap:wrap;gap:12px;">
     <h3><?= mp_label('customer'); ?> List</h3>
+    <?php if($showMembershipStatus): ?>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-weight:600;">
+      Membership status
+      <select id="membership_status_filter" class="form-control" style="width:auto;min-width:190px;">
+        <option value="">All customers</option>
+        <option value="active">Active members</option>
+        <option value="none">No active membership</option>
+      </select>
+    </label>
+    <?php endif; ?>
     <label class="checkbox" style="margin:0;">
       <input type="checkbox" name="show_account_receivable" id="show_account_receivable"> Show account receivable only
     </label>
@@ -91,6 +104,7 @@ $total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0
           <th><?= mp_label('customer'); ?> Name</th>
           <th><?= $this->lang->line('mobile'); ?></th>
           <th><?= $this->lang->line('email'); ?></th>
+          <?php if($showMembershipStatus): ?><th>Membership</th><?php endif; ?>
           <th><?= $this->lang->line('location'); ?></th>
           <th><?= $this->lang->line('credit_limit'); ?></th>
           <th><?= $this->lang->line('previous_due'); ?></th>
@@ -107,22 +121,13 @@ $total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0
       <tbody></tbody>
       <tfoot>
         <tr>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th style="text-align:right">Total</th>
-          <th style="text-align:right"></th>
-          <th style="text-align:right"></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
+          <?php for($footerColumn=0; $footerColumn<($showMembershipStatus ? 17 : 16); $footerColumn++): ?>
+            <?php if($footerColumn === ($showMembershipStatus ? 7 : 6)): ?>
+              <th style="text-align:right">Total</th>
+            <?php else: ?>
+              <th></th>
+            <?php endif; ?>
+          <?php endfor; ?>
         </tr>
       </tfoot>
     </table>
@@ -171,7 +176,8 @@ function load_datatable(show_account_receivable){
       "url": "<?= base_url('customers/ajax_list'); ?>",
       "type": "POST",
       "data": {
-        show_account_receivable: show_account_receivable
+        show_account_receivable: show_account_receivable,
+        membership_status: $('#membership_status_filter').val() || ''
       },
       complete: function (data) {
         $('.column_checkbox').iCheck({
@@ -184,7 +190,7 @@ function load_datatable(show_account_receivable){
     },
     "columnDefs": [
       {
-        "targets": [0, 15],
+        "targets": [0, <?= $showMembershipStatus ? 16 : 15; ?>],
         "orderable": false
       },
       {
@@ -200,15 +206,15 @@ function load_datatable(show_account_receivable){
           typeof i === 'number' ? i : 0;
       };
       var previous_total = api
-        .column(7, { page: 'none' })
+        .column(<?= $showMembershipStatus ? 8 : 7; ?>, { page: 'none' })
         .data()
         .reduce(function (a, b) { return intVal(a) + intVal(b); }, 0);
       var return_due_total = api
-        .column(8, { page: 'none' })
+        .column(<?= $showMembershipStatus ? 9 : 8; ?>, { page: 'none' })
         .data()
         .reduce(function (a, b) { return intVal(a) + intVal(b); }, 0);
-      $(api.column(7).footer()).html(to_Fixed(previous_total));
-      $(api.column(8).footer()).html(to_Fixed(return_due_total));
+      $(api.column(<?= $showMembershipStatus ? 8 : 7; ?>).footer()).html(to_Fixed(previous_total));
+      $(api.column(<?= $showMembershipStatus ? 9 : 8; ?>).footer()).html(to_Fixed(return_due_total));
     }
   });
   new $.fn.dataTable.FixedHeader(table);
@@ -225,6 +231,9 @@ $('#show_account_receivable').on('ifChanged change', function(event) {
   } else {
     load_datatable();
   }
+});
+$('#membership_status_filter').on('change', function() {
+  if($.fn.DataTable.isDataTable('#example2')) $('#example2').DataTable().ajax.reload();
 });
 </script>
 <script>

@@ -180,38 +180,21 @@
             <button type="button" class="btn btn-ghost" onclick="addShippingMethod()" style="margin-top:6px;"><i class="fa fa-plus"></i> Add Method</button>
           </div>
           <div class="form-group">
-            <label class="check"><input type="checkbox" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>> Enable City-based Delivery Fees</label>
-            <div class="hint" style="margin-top:4px;">Set a fee for each destination. Customers can choose delivery by area or an enabled pickup method at checkout.</div>
+            <label class="check"><input type="checkbox" name="city_shipping_enabled" value="1" <?= !empty($settings->city_shipping_enabled) ? 'checked' : ''; ?>> Enable Shipping Zones</label>
+            <div class="hint" style="margin-top:4px;">Destination zones apply across all store types. Customers choose a covered area at checkout; enabled pickup methods remain available. More specific city rules take priority over state and country rules.</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Delivery areas</label>
-            <div class="hint" style="margin-bottom:10px;">Set a rate at country, region/state or city level. Leave narrower fields blank for broader coverage. Use * as the city for an “Other areas” rate within that country or region.</div>
-            <div id="city-zones-container">
+            <label class="form-label">Shipping Zones</label>
+            <div class="hint" style="margin-bottom:10px;">Set a rate at country, state/region, or city level. Leave location fields blank for broader coverage. Use * as the city for other areas in that country or state. When zones overlap, the most specific matching destination wins. Minimum order blocks smaller baskets; Free delivery over removes the fee at the entered subtotal.</div>
+            <div id="city-zones-container" data-location-states-url="<?= base_url('online_store/location_states'); ?>" data-location-cities-url="<?= base_url('online_store/location_cities'); ?>" data-location-states="<?= htmlspecialchars(json_encode($shipping_states ?? []), ENT_QUOTES, 'UTF-8'); ?>">
               <?php
-                $savedZones = json_decode($settings->city_shipping_json ?? '', true);
-                if(!is_array($savedZones) || empty($savedZones)){ $savedZones = [['country'=>'','state'=>'','city'=>'','fee'=>'']]; }
-                foreach($savedZones as $z):
+                foreach(($shipping_zone_rows ?? []) as $z):
               ?>
-              <div class="sm-card city-zone-row">
-                <div class="sm-grid" style="margin-bottom:10px;">
-                  <input type="text" name="cz_country[]" class="form-control" value="<?= htmlspecialchars($z['country'] ?? ''); ?>" placeholder="Country (e.g. Nigeria)">
-                  <input type="text" name="cz_state[]" class="form-control" value="<?= htmlspecialchars($z['state'] ?? ''); ?>" placeholder="Region / State (e.g. Lagos)">
-                </div>
-                <div class="sm-grid">
-                  <input type="text" name="cz_city[]" class="form-control" value="<?= htmlspecialchars($z['city'] ?? ''); ?>" placeholder="City (e.g. Ikeja)">
-                  <input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" value="<?= htmlspecialchars($z['fee'] ?? ''); ?>" placeholder="Fee">
-                </div>
-                <div class="sm-grid" style="margin-top:10px;">
-                  <input type="number" step="0.01" min="0" name="cz_min_order[]" class="form-control" value="<?= htmlspecialchars($z['min_order'] ?? ''); ?>" placeholder="Minimum order (optional)">
-                  <input type="number" step="0.01" min="0" name="cz_free_over[]" class="form-control" value="<?= htmlspecialchars($z['free_over'] ?? ''); ?>" placeholder="Free delivery over (optional)">
-                </div>
-                <div style="display:flex;justify-content:flex-end;margin-top:10px;">
-                  <button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button>
-                </div>
-              </div>
+              <?php $this->load->view('online_store/_shipping_zone_row', ['zone'=>$z,'shipping_countries'=>$shipping_countries ?? []]); ?>
               <?php endforeach; ?>
             </div>
-            <button type="button" class="btn btn-ghost" onclick="addCityZone()" style="margin-top:6px;"><i class="fa fa-plus"></i> Add City</button>
+            <template id="mp-zone-row-template"><?php $this->load->view('online_store/_shipping_zone_row', ['zone'=>['name'=>'','country'=>'','fee'=>'','min_order'=>'','free_over'=>'','states'=>[],'cities'=>[],'wildcard'=>false],'shipping_countries'=>$shipping_countries ?? []]); ?></template>
+            <button type="button" class="btn btn-ghost" onclick="addCityZone()" style="margin-top:6px;"><i class="fa fa-plus"></i> Add Zone</button>
           </div>
         </div>
 
@@ -314,19 +297,13 @@
     }
     function addCityZone(){
       const c = document.getElementById('city-zones-container');
-      const d = document.createElement('div');
-      d.className = 'sm-card city-zone-row';
-      d.innerHTML = '<div class="sm-grid" style="margin-bottom:10px;"><input type="text" name="cz_country[]" class="form-control" placeholder="Country (e.g. Nigeria)"><input type="text" name="cz_state[]" class="form-control" placeholder="Region / State (e.g. Lagos)"></div>'
-        + '<div class="sm-grid"><input type="text" name="cz_city[]" class="form-control" placeholder="City (e.g. Ikeja)"><input type="number" step="0.01" min="0" name="cz_fee[]" class="form-control" placeholder="Fee"></div>'
-        + '<div class="sm-grid" style="margin-top:10px;"><input type="number" step="0.01" min="0" name="cz_min_order[]" class="form-control" placeholder="Minimum order (optional)"><input type="number" step="0.01" min="0" name="cz_free_over[]" class="form-control" placeholder="Free delivery over (optional)"></div>'
-        + '<div style="display:flex;justify-content:flex-end;margin-top:10px;">'
-        + '<button type="button" class="btn btn-danger" onclick="removeCityZone(this)" style="width:auto;padding:8px 12px;font-size:12px;"><i class="fa fa-trash"></i> Remove</button></div>';
-      c.appendChild(d);
+      const node=document.getElementById('mp-zone-row-template').content.firstElementChild.cloneNode(true);
+      c.appendChild(node);window.MPShippingZones.initRow(node);
     }
     function removeCityZone(btn){
       const c = document.getElementById('city-zones-container');
-      if(c.children.length <= 1){
-        btn.closest('.city-zone-row').querySelectorAll('input').forEach(i => i.value = '');
+      if(c.querySelectorAll('[data-zone-row]').length <= 1){
+        window.MPShippingZones.clear(btn.closest('[data-zone-row]'));
         return;
       }
       btn.closest('.city-zone-row').remove();
@@ -345,5 +322,6 @@
       }).catch(err=>{ showToast(mpErrorText(err), true); btn.disabled = false; btn.textContent = 'Save Settings'; });
     }
   </script>
+  <script src="<?= base_url('theme/js/shipping_zones.js?v=20261113-3'); ?>"></script>
 </body>
 </html>

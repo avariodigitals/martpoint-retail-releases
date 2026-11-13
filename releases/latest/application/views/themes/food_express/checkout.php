@@ -78,7 +78,7 @@ $fxSelectedOutlet = count($fxOutlets) === 1 ? (int)$fxOutlets[0]->id : 0;
               $mode = preg_match('/pick\\s*up|collect/i', $method['name']) ? 'pickup' : 'delivery';
               if($fxCityZones && $mode==='delivery' && $index>0) continue;
             ?>
-              <label><input type="radio" name="delivery_method" value="<?= $mode; ?>" data-method="<?= htmlspecialchars($method['name'], ENT_QUOTES, 'UTF-8'); ?>" data-fee="<?= !empty($method['quote']) ? 0 : (float)($method['fee'] ?? 0); ?>" data-quote="<?= !empty($method['quote']) ? '1' : '0'; ?>" <?= $index===0?'checked':''; ?>><span><?= htmlspecialchars($method['name']); ?></span></label>
+              <label><input type="radio" name="delivery_method" value="<?= $mode; ?>" data-method="<?= htmlspecialchars($method['name'], ENT_QUOTES, 'UTF-8'); ?>" data-fee="<?= !empty($method['quote']) ? 0 : (float)($method['fee'] ?? 0); ?>" data-quote="<?= !empty($method['quote']) ? '1' : '0'; ?>" ><span><?= htmlspecialchars($method['name']); ?></span></label>
             <?php endforeach; ?>
             <?php if(!empty($table_number)): ?>
             <label><input type="radio" name="delivery_method" value="dine_in" data-method="Dine-in" data-fee="0"><span>Dine-in · Table <?= htmlspecialchars($table_number); ?></span></label>
@@ -96,10 +96,14 @@ $fxSelectedOutlet = count($fxOutlets) === 1 ? (int)$fxOutlets[0]->id : 0;
           <div id="delivery-address-fields" style="background:var(--fx-white); border:1px solid var(--fx-border); border-radius:var(--fx-radius); padding:24px; margin-bottom:24px;">
             <legend style="font-size:16px; font-weight:700; color:var(--fx-ink); padding:0 8px; margin-bottom:16px;">Delivery Address</legend>
             <div style="margin-bottom:16px;">
-              <label style="display:block; font-size:13px; font-weight:600; color:var(--fx-ink); margin-bottom:6px;">Address <span style="color:var(--fx-danger);">*</span></label>
-              <textarea name="address" rows="3" class="fx-input" style="width:100%; padding:12px 16px; border:1px solid var(--fx-border); border-radius:var(--fx-radius-sm); font-size:15px; background:var(--fx-white); color:var(--fx-ink); outline:none; resize:vertical;" placeholder="House number, street, landmark"></textarea>
+              <label for="fx-delivery-address" style="display:block; font-size:13px; font-weight:600; color:var(--fx-ink); margin-bottom:6px;">Address <span style="color:var(--fx-danger);">*</span></label>
+              <textarea id="fx-delivery-address" name="address" rows="3" class="fx-input" style="width:100%; padding:12px 16px; border:1px solid var(--fx-border); border-radius:var(--fx-radius-sm); font-size:15px; background:var(--fx-white); color:var(--fx-ink); outline:none; resize:vertical;" placeholder="House number, street, landmark"></textarea>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div id="fx-delivery-location-fields" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+              <div>
+                <label style="display:block; font-size:13px; font-weight:600; color:var(--fx-ink); margin-bottom:6px;">State <span style="color:var(--fx-danger);">*</span></label>
+                <input type="text" name="state" class="fx-input" style="width:100%; padding:12px 16px; border:1px solid var(--fx-border); border-radius:var(--fx-radius-sm); font-size:15px; background:var(--fx-white); color:var(--fx-ink); outline:none;" placeholder="Lagos" autocomplete="address-level1">
+              </div>
               <div>
                 <label style="display:block; font-size:13px; font-weight:600; color:var(--fx-ink); margin-bottom:6px;">City <span style="color:var(--fx-danger);">*</span></label>
                 <input type="text" name="city" class="fx-input" style="width:100%; padding:12px 16px; border:1px solid var(--fx-border); border-radius:var(--fx-radius-sm); font-size:15px; background:var(--fx-white); color:var(--fx-ink); outline:none;" placeholder="Lagos">
@@ -243,16 +247,21 @@ document.addEventListener('DOMContentLoaded',function(){
     const isDelivery=selected&&selected.value==='delivery';
     const zones=document.getElementById('fx-city-options');
     if(zones){zones.hidden=!isDelivery;zones.querySelectorAll('input').forEach(el=>el.required=isDelivery);}
-    document.getElementById('delivery-address-fields').style.display=isDelivery?'block':'none';
+    document.getElementById('delivery-address-fields').style.display=selected?'block':'none';
+    document.getElementById('fx-delivery-location-fields').style.display=isDelivery?'grid':'none';
+    document.querySelectorAll('#delivery-address-fields input[name="state"],#delivery-address-fields input[name="city"],#delivery-address-fields textarea[name="address"]').forEach(el=>el.required=!!isDelivery);
+    const addressLabel=document.querySelector('#delivery-address-fields label[for="fx-delivery-address"]');if(addressLabel)addressLabel.innerHTML=isDelivery?'Street address <span style="color:var(--fx-danger);">*</span>':'Address (optional)';
+    if(isDelivery&&zones){zones.querySelectorAll('[name="shipping_city"]').forEach(input=>input.checked=false);const state=(document.querySelector('[name="state"]')?.value||'').trim().toLowerCase(),city=(document.querySelector('[name="city"]')?.value||'').trim().toLowerCase();if(state&&city){let match=null;zones.querySelectorAll('[name="shipping_city"]').forEach(input=>{const parts=input.value.split('|'),zoneCity=(parts[0]||'').trim().toLowerCase(),zoneState=(parts[1]||'').trim().toLowerCase();if(zoneState===state&&zoneCity===city)match=input;});if(!match)zones.querySelectorAll('[name="shipping_city"]').forEach(input=>{const parts=input.value.split('|');if((parts[1]||'').trim().toLowerCase()===state&&(parts[0]||'').trim()==='*')match=input;});if(match)match.checked=true;}}
+
     document.getElementById('pickup-fields').style.display=selected&&selected.value==='pickup'?'block':'none';
-    const zone=zones&&document.querySelector('[name="shipping_city"]:checked');
+    const zone=isDelivery&&zones&&document.querySelector('[name="shipping_city"]:checked');
     let fee=zone?Number(zone.dataset.fee):Number(selected?.dataset.fee||0);
     if(zone && Number(zone.dataset.freeOver)>0 && subtotal>=Number(zone.dataset.freeOver))fee=0;
     const awaiting=isDelivery&&zones&&!zone;
     document.getElementById('checkout-delivery').textContent=awaiting?'Choose an area':(selected?.dataset.quote==='1'?'Confirmed by restaurant':formatMoney(fee));
     document.getElementById('checkout-total').textContent=awaiting?'Choose delivery area':formatMoney(subtotal+fee);
   }
-  document.querySelectorAll('[name="delivery_method"],[name="shipping_city"]').forEach(el=>el.addEventListener('change',totals));totals();
+  document.querySelectorAll('[name="delivery_method"],[name="shipping_city"]').forEach(el=>el.addEventListener('change',totals));document.querySelectorAll('[name="state"],[name="city"]').forEach(el=>el.addEventListener('input',totals));totals();
 });
 let fxSelectedOutlet = parseInt(localStorage.getItem('sf_outlet_' + STORE_ID) || '<?= $fxSelectedOutlet; ?>', 10) || 0;
 document.addEventListener('DOMContentLoaded',function(){
@@ -297,6 +306,7 @@ const checkoutForm = document.getElementById('checkout-form');
 if(checkoutForm){
   checkoutForm.addEventListener('submit', async function(event){
     event.preventDefault();
+    if(!this.querySelector('[name="delivery_method"]:checked')){showToast('Choose delivery or pickup to continue');return;}
     if(!this.reportValidity()) return;
     if(FX_OUTLETS.length > 1 && !fxSelectedOutlet){
       showToast('Please choose a fulfilment location');
@@ -312,6 +322,7 @@ if(checkoutForm){
     const email = (form.querySelector('[name="email"]')?.value || '').trim();
     const address = (form.querySelector('[name="address"]')?.value || '').trim();
     const city = (form.querySelector('[name="city"]')?.value || '').trim();
+    const state = (form.querySelector('[name="state"]')?.value || '').trim();
     const area = (form.querySelector('[name="area"]')?.value || '').trim();
     const deliveryMethod = form.querySelector('[name="delivery_method"]:checked')?.value || 'delivery';
     const paymentMethod = form.querySelector('[name="payment_method"]:checked')?.value || 'pay_on_delivery';
@@ -333,7 +344,7 @@ if(checkoutForm){
     data.append('customer_name', (firstName + ' ' + lastName).trim());
     data.append('customer_phone', phone);
     data.append('customer_email', email);
-    data.append('customer_address', [address, area, city].filter(Boolean).join(', '));
+    data.append('customer_address', [address, city, state, area].filter(Boolean).join(', '));
     data.append('payment_method', paymentMethod);
     data.append('warehouse_id', fxSelectedOutlet || '');
     data.append('table_number', deliveryMethod === 'dine_in' ? <?= json_encode($table_number ?? ''); ?> : '');

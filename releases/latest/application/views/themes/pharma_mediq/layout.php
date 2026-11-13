@@ -117,6 +117,7 @@ $consentKey = 'mp_track_consent_' . (int)($settings->store_id ?? 0);
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?></script>
 <?php endif; ?>
 <?php $this->load->view('themes/shared/product_image_fallbacks'); ?>
+<?php $this->load->view('themes/shared/wishlist_runtime'); ?>
 <?php if ($consentRequired && !empty($settings->google_analytics_id . $settings->facebook_pixel_id . $settings->tiktok_pixel_id)): ?>
 <div id="mp-consent-bar" style="display:none;position:fixed;inset:auto 0 0;z-index:1100;background:#17244f;color:#fff;padding:14px 18px;font-size:13px;">
   <div style="max-width:1480px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;">

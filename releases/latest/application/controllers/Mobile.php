@@ -7294,6 +7294,10 @@ class Mobile extends MY_Controller {
 			case 'settings':
 				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
 				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$this->load->helper('inventory');
+				$data['shipping_countries']=$this->db->select('country')->from('db_country')->where('status',1)->order_by('country','ASC')->get()->result_array();
+				$data['shipping_states']=mp_shipping_zone_states($store_id);
+				$data['shipping_zone_rows']=mp_shipping_zone_editor_rows($data['settings']->city_shipping_json ?? '');
 				$data['is_saved'] = $this->db->where('store_id', $store_id)->get('db_storefront_settings')->num_rows() > 0;
 				$data['store'] = get_store_details($store_id);
 				$data['categories'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_category')->result();

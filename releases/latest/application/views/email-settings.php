@@ -10,6 +10,7 @@
     <div class="callout callout-info">
       <h4><i class="fa fa-envelope"></i> Email Configuration</h4>
       <p>Configure how MartPoint sends emails for invoices, receipts, payment links, daily summaries, staff accounts, password resets and customer reminders.</p>
+      <?php if(!empty($email_settings_store_name)): ?><p><strong>Sending account: <?= htmlspecialchars($email_settings_store_name,ENT_QUOTES,'UTF-8'); ?></strong></p><?php endif; ?>
     </div>
 
     <!-- Nav tabs -->
@@ -158,7 +159,8 @@
                 <input type="text" class="form-control" id="resend_from_name" value="<?=htmlspecialchars($settings['resend_from_name']);?>" placeholder="MartPoint Retail">
               </div>
               <div class="form-group">
-                <button type="button" class="btn btn-success" id="save-resend"><i class="fa fa-save"></i> Save Resend</button>
+                <button type="button" class="btn btn-success" id="save-resend"><i class="fa fa-save"></i> Save and use Resend</button>
+                <p class="help-block">Saves these credentials and selects Resend as the active provider for this sending account.</p>
               </div>
             </div>
           </div>
@@ -206,6 +208,7 @@ function showResult(el, msg, type) {
 
 function csrfData() {
   return {
+    store_id: <?= (int)($email_settings_store_id??0); ?>,
     '<?=$this->security->get_csrf_token_name();?>': '<?=$this->security->get_csrf_hash();?>'
   };
 }
@@ -217,7 +220,7 @@ $('#save-provider').on('click', function(){
     email_provider: $('#email_provider').val()
   }), function(res){
     btn.attr('disabled', false).html('<i class="fa fa-save"></i> Save Provider');
-    if(res=='success') toastr['success']('Provider saved.'); else toastr['error']('Failed to save.');
+    if(res=='success') toastr['success']('Provider saved.'); else toastr['error'](res || 'Failed to save.');
   });
 });
 
@@ -267,12 +270,14 @@ $('#btn-toggle-pass').on('click', function(){
 $('#save-resend').on('click', function(){
   var btn = $(this); btn.attr('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
   $.post('<?=base_url("email_settings/save");?>', $.extend(csrfData(), {
+    email_provider:    'resend',
+    email_from_email:  $('#resend_from_email').val(),
     resend_api_key:     $('#resend_api_key').val(),
     resend_from_email:  $('#resend_from_email').val(),
     resend_from_name:   $('#resend_from_name').val()
   }), function(res){
-    btn.attr('disabled', false).html('<i class="fa fa-save"></i> Save Resend');
-    if(res=='success') toastr['success']('Resend settings saved.'); else toastr['error']('Failed to save.');
+    btn.attr('disabled', false).html('<i class="fa fa-save"></i> Save and use Resend');
+    if(res=='success') { $('#email_provider').val('resend').trigger('change'); $('#email_from_email').val($('#resend_from_email').val()); toastr['success']('Resend is now the active email provider for this account.'); } else toastr['error'](res || 'Failed to save.');
   });
 });
 

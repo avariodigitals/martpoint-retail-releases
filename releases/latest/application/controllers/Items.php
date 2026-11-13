@@ -298,6 +298,47 @@ class Items extends MY_Controller {
 		$data['content'] = $this->load->view('items', $data, TRUE);
 		$this->load->view('mp_layout', $data);
 	}
+
+	/** Return this store's existing product image files for the inline media picker. */
+	public function media_library(){
+		if (!$this->permissions('items_add') && !$this->permissions('items_edit')) {
+			show_error('You do not have permission to use the product media library.', 403);
+			return;
+		}
+		$store_id = (int)get_current_store_id();
+		$images = [];
+		$add = function($path, $label) use (&$images){
+			$path = str_replace('\\', '/', trim((string)$path));
+			if ($path === '' || strpos($path, 'uploads/items/') !== 0 || strpos($path, '..') !== false) return;
+			$extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+			if (!in_array($extension, ['jpg','jpeg','png','gif','webp','avif'], true)) return;
+			$root = realpath(FCPATH . 'uploads/items');
+			$file = realpath(FCPATH . $path);
+			if (!$root || !$file || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) return;
+			if (!isset($images[$path])) {
+				$images[$path] = ['path' => $path, 'url' => base_url($path), 'label' => trim((string)$label) ?: basename($path)];
+			}
+		};
+
+		if ($this->db->table_exists('db_items')) {
+			$rows = $this->db->select('item_name, item_image')->where('store_id', $store_id)
+				->where('item_image !=', '')->order_by('item_name', 'ASC')->get('db_items')->result();
+			foreach ($rows as $row) $add($row->item_image, $row->item_name);
+		}
+		if ($this->db->table_exists('db_item_images')) {
+			$rows = $this->db->select('g.image_path, i.item_name')->from('db_item_images g')
+				->join('db_items i', 'i.id = g.item_id AND i.store_id = g.store_id', 'left')
+				->where('g.store_id', $store_id)->order_by('g.id', 'DESC')->get()->result();
+			foreach ($rows as $row) $add($row->image_path, $row->item_name ?? 'Product gallery');
+		}
+		usort($images, function($a, $b){ return strcasecmp($a['label'], $b['label']); });
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'success' => true,
+			'images' => array_values($images),
+			'csrf_hash' => $this->security->get_csrf_hash(),
+		]));
+	}
+
 	public function update_items(){
 		$this->form_validation->set_rules('item_name', 'Item Name', 'trim|required');
 		$this->form_validation->set_rules('category_id', 'Category Name', 'trim|required');

@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Sign In | <?= htmlspecialchars($store->store_name ?? 'Store'); ?></title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <?php
     $primary = $settings->primary_color ?? '#7C3AED';
@@ -11,7 +10,39 @@
     $verifyProfile = function_exists('mp_get_store_profile') ? mp_get_store_profile((int)($settings->store_id ?? 0)) : [];
     $verifyIndustry = strtolower(trim((string)($verifyProfile['industry_type'] ?? '')));
     $verifyFood = in_array($verifyIndustry, ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'], true);
+    $verifyStoreName = trim((string)($store->store_name ?? 'Store')) ?: 'Store';
+    $verifyIndustryKey = (string)($store_industry ?? 'general');
+    $verifyWords = [
+      'fashion' => ['wardrobe', 'fashion finds'], 'pharmacy' => ['health essentials', 'health essentials'],
+      'beauty' => ['beauty routine', 'beauty favourites'], 'skincare' => ['skincare routine', 'skincare favourites'],
+      'supplements' => ['wellness routine', 'wellness essentials'], 'wellness' => ['wellness routine', 'wellness essentials'],
+      'electronics' => ['tech collection', 'tech picks'], 'garden' => ['garden', 'garden finds'],
+      'grocery' => ['shopping', 'favourites'], 'restaurant' => ['dining', 'favourites'],
+      'laundry' => ['laundry account', 'laundry services'], 'services' => ['service', 'saved services'],
+      'printing' => ['print orders', 'print products'], 'building_materials' => ['project', 'materials'],
+      'general' => ['store', 'favourite products'],
+    ];
+    $verifyIndustryLabel = trim(ucwords(str_replace(['_', '-'], ' ', $verifyIndustryKey)));
+    $verifyTerms = $verifyWords[$verifyIndustryKey] ?? [($verifyIndustryLabel ?: 'store') . ' store', 'favourite products'];
+    $verifyAccountNoun = $verifyTerms[0];
+    $verifyWishlistNoun = $verifyTerms[1];
+    if (!empty($wishlist_return)) {
+      $verifyHeroTitle = 'Keep your ' . $verifyWishlistNoun . ' close.';
+      $verifyHeroText = 'Sign in to save products from ' . $verifyStoreName . ' to your wishlist and find them again whenever you are ready.';
+      $verifyBullets = ['Save ' . $verifyWishlistNoun . ' for later', 'Find your saved products from this account', 'Keep your ' . $verifyWishlistNoun . ' together', 'A secure one-time code; no password to remember'];
+      $verifyPageTitle = 'Save your wishlist';
+      $verifyCardTitle = 'Sign in to save your wishlist';
+      $verifyStepText = 'Enter your phone or email to save this product to your ' . $verifyStoreName . ' wishlist.';
+    } else {
+      $verifyHeroTitle = 'Your ' . $verifyAccountNoun . ' account.';
+      $verifyHeroText = 'Sign in to see your orders and account details for ' . $verifyStoreName . '.';
+      $verifyBullets = ['View your recent orders', 'Keep your details with ' . $verifyStoreName, 'Return to your store account whenever you need it', 'A secure one-time code; no password to remember'];
+      $verifyPageTitle = 'Sign in to your account';
+      $verifyCardTitle = 'Sign In to Your Account';
+      $verifyStepText = 'Choose how you would like to receive your one-time sign-in code.';
+    }
   ?>
+  <title><?= htmlspecialchars($verifyPageTitle); ?> | <?= htmlspecialchars($verifyStoreName); ?></title>
   <style>
     :root { --primary:<?= $primary;?>; --primary-dark:<?= $primaryDark;?>; --success:#059669; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:20px; --radius-sm:12px; }
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -117,13 +148,10 @@
           </div>
         <?php endif; ?>
       </div>
-      <h1>Access your library</h1>
-      <p>Sign in to see your courses, downloads, memberships and order history in one place.</p>
+      <h1><?= htmlspecialchars($verifyHeroTitle); ?></h1>
+      <p><?= htmlspecialchars($verifyHeroText); ?></p>
       <div class="crv-hero-list">
-        <div><span>✓</span>Instant access to purchased content</div>
-        <div><span>✓</span>Track progress and resume courses</div>
-        <div><span>✓</span>Download files and manage memberships</div>
-        <div><span>✓</span>One-time code, no password needed</div>
+        <?php foreach($verifyBullets as $bullet): ?><div><span>✓</span><?= htmlspecialchars($bullet); ?></div><?php endforeach; ?>
       </div>
     </div>
   </div>
@@ -133,8 +161,8 @@
       <?php if($verifyFood): ?><div class="crv-brand"><?= htmlspecialchars($store->store_name ?? 'Restaurant'); ?></div><?php endif; ?>
       <div class="crv-card-top">
         <div class="crv-avatar">&#128274;</div>
-        <h2>Sign In to Your Account</h2>
-        <p id="step-subtitle"><?= $verifyFood ? 'Enter your phone or email to receive a one-time code.' : "Choose how you'd like to receive your one-time code and view your order history."; ?></p>
+        <h2><?= htmlspecialchars($verifyCardTitle); ?></h2>
+        <p id="step-subtitle"><?= htmlspecialchars($verifyFood ? 'Enter your phone or email to receive a one-time code.' : $verifyStepText); ?></p>
       </div>
 
       <div class="crv-tabs" id="method-tabs">
@@ -181,6 +209,8 @@
   const STORE_SLUG = '<?= $settings->store_slug ?? ''; ?>';
   const CSRF_NAME = document.getElementById('csrf-name').value;
   const CSRF_HASH = document.getElementById('csrf-hash').value;
+  const VERIFY_WISHLIST = <?= !empty($wishlist_return) ? 'true' : 'false'; ?>;
+  const VERIFY_STORE_NAME = <?= json_encode($verifyStoreName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   let currentMethod = 'phone';
 
   function showError(el, msg){
@@ -205,7 +235,8 @@
     document.getElementById('tab-email').classList.toggle('active', method === 'email');
     document.getElementById('phone-fields').classList.toggle('hidden', method !== 'phone');
     document.getElementById('email-fields').classList.toggle('hidden', method !== 'email');
-    document.getElementById('step-subtitle').textContent = method === 'email' ? 'Enter your name and email to receive a one-time code.' : 'Enter your phone number to receive a one-time code.';
+    const purpose = VERIFY_WISHLIST ? ' to save your wishlist at ' + VERIFY_STORE_NAME : ' to access your store account';
+    document.getElementById('step-subtitle').textContent = method === 'email' ? 'Enter your name and email' + purpose + ' with a one-time code.' : 'Enter your phone number' + purpose + ' with a one-time code.';
   }
 
   function postData(url, body){
@@ -267,7 +298,11 @@
       .then(res => {
         if(res.csrf_hash) document.getElementById('csrf-hash').value = res.csrf_hash;
         if(res.status){
+          <?php if(!empty($wishlist_return)): ?>
+          window.location.href = '<?= base_url('store/'); ?>' + STORE_SLUG + '/wishlist' + <?= json_encode(!empty($wishlist_return_item) ? '?item=' . (int)$wishlist_return_item : ''); ?>;
+          <?php else: ?>
           window.location.href = '<?= base_url('store/'); ?>' + STORE_SLUG + <?= json_encode($this->input->get('return') === 'cart' ? '/cart' : '/account'); ?>;
+          <?php endif; ?>
         } else {
           showError('otp-error', res.message || 'Invalid code');
           enableBtn('verify-otp-btn', 'Verify & continue');

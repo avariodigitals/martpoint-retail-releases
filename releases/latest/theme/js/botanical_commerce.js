@@ -53,7 +53,7 @@ if(auth){
  change.addEventListener('click',function(){if(busy)return;contact.hidden=false;codeForm.hidden=true;otp.value='';codeError.textContent='';description.textContent=auth.dataset.intro||'Sign in with a one-time code. No password to remember.';(method==='phone'?phone:email).focus();});
  codeForm.addEventListener('submit',function(event){event.preventDefault();if(busy)return;codeError.textContent='';if(!/^\d{6}$/.test(otp.value.trim())){codeError.textContent='Enter the six-digit code from your message.';return;}
   controls(true);verify.textContent='Signing you in…';var data=body();data.otp=otp.value.trim();
-  post(auth.dataset.verify,data).then(function(result){if(!result.status)throw new Error(result.message||'The code did not match. Please try again.');window.location.assign(auth.dataset.account);}).catch(function(error){codeError.textContent=error.message||'Connection interrupted. Please try again.';}).finally(function(){controls(false);verify.textContent='Sign in ↗';});
+  post(auth.dataset.verify,data).then(function(result){if(!result.status)throw new Error(result.message||'The code did not match. Please try again.');var destination=auth.dataset.account;if(auth.dataset.wishlistReturn==='1')destination=destination.replace(/\/account\/?$/,'/wishlist')+(Number(auth.dataset.wishlistItem)>0?'?item='+encodeURIComponent(auth.dataset.wishlistItem):'');window.location.assign(destination);}).catch(function(error){codeError.textContent=error.message||'Connection interrupted. Please try again.';}).finally(function(){controls(false);verify.textContent='Sign in ↗';});
  });
 }
 })();

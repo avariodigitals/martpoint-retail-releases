@@ -67,6 +67,16 @@ class Customers_model extends CI_Model {
 	    //if(!is_admin()){
 	      $this->db->where("a.store_id",get_current_store_id());
 	    //}
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+		$membershipFilterEnabled = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('memberships')
+			&& $this->db->table_exists('db_customer_memberships');
+		if($membershipFilterEnabled && in_array(($_POST['membership_status'] ?? ''), ['active','none'], true)){
+			$activeMembership = "EXISTS (SELECT 1 FROM db_customer_memberships cm
+				WHERE cm.store_id=a.store_id AND cm.customer_id=a.id AND cm.status='active'
+				AND cm.start_date <= CURDATE() AND cm.end_date >= CURDATE())";
+			$this->db->where(($_POST['membership_status'] === 'active' ? $activeMembership : 'NOT '.$activeMembership), null, false);
+		}
 		$i = 0;
 
 		foreach ($columns as $item) // loop column

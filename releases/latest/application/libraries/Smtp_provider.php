@@ -96,9 +96,32 @@ class Smtp_provider implements Email_provider_interface {
 		if($this->CI->email->send()){
 			return ['success' => TRUE, 'error' => NULL, 'provider_response' => 'SMTP_SENT'];
 		} else {
-			$error = $this->CI->email->print_debugger();
-			$error = !empty($error) ? strip_tags($error) : 'SMTP send failed';
-			return ['success' => FALSE, 'error' => $error, 'provider_response' => NULL, 'acceptance_unknown'=>TRUE];
+			return $this->failureResult($this->CI->email->print_debugger(array()));
 		}
+	}
+
+	/** CI3 records each SMTP command reply before transmitting the message body. */
+	protected function failureResult($debug){
+		$unknown=FALSE;
+		$error='SMTP failed before message submission. Check the sending account connection and credentials.';
+		preg_match_all('~<pre>\s*data:\s*354\b.*?</pre>~is',(string)$debug,$dataReplies,PREG_OFFSET_CAPTURE);
+		if(!empty($dataReplies[0])){
+			// After DATA, a lost final response is ambiguous: the server may
+			// already have accepted the email. Never refund or resend on a guess.
+			$unknown=TRUE;
+			$error='SMTP submission result is uncertain because the final acceptance response was not confirmed.';
+			if(count($dataReplies[0])===1){
+				$dataReply=$dataReplies[0][0];
+				$afterData=substr((string)$debug,$dataReply[1]+strlen($dataReply[0]));
+				$afterData=preg_split('~<pre>\s*(?:quit|reset):~i',$afterData,2)[0];
+				$reply=trim(html_entity_decode(strip_tags($afterData),ENT_QUOTES,'UTF-8'));
+				if(preg_match('/^([45][0-9]{2})(?:[ -]|$)/',$reply,$code)){
+					$unknown=FALSE;
+					$error='SMTP did not accept the message (response '.$code[1].').';
+				}
+			}
+		}
+		// Do not persist the debugger's raw headers, email body or credentials.
+		return ['success'=>FALSE,'error'=>$error,'provider_response'=>NULL,'acceptance_unknown'=>$unknown];
 	}
 }

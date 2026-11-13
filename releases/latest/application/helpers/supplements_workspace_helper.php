@@ -5,10 +5,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 function supplements_workspace_tools() {
     $ci =& get_instance();
     $catalog = [
-        'Members & selling' => [
-            ['sales_add', 'pos', 'Member checkout', 'Sell products and record member purchases'],
-            ['sales_view', 'sales', 'Sales history', 'Review receipts, payments and member purchases'],
-            ['customers_view', 'customers', 'Members & customers', 'Manage member profiles and purchase history'],
+        'Customers & selling' => [
+            ['sales_add', 'pos', 'New sale', 'Sell products and record customer purchases'],
+            ['sales_view', 'sales', 'Sales history', 'Review receipts, payments and customer purchases'],
+            ['customers_view', 'customers', 'Customers', 'Manage customer profiles, purchase history and membership status'],
             ['sales_return_view', 'sales_return', 'Sales returns', 'Review returned products and credit records'],
             ['sales_report', 'reports/sales_and_payments', 'Sales reports', 'Review sales and payment activity'],
         ],
@@ -31,9 +31,9 @@ function supplements_workspace_tools() {
             ['batch_reconciliation_view', 'batch_reports', 'Batch reports', 'Trace product batches across purchases and sales', 'batch_tracking'],
         ],
         'Membership & engagement' => [
-            ['loyalty_view', 'loyalty', 'Loyalty & rewards', 'Manage member points and rewards', 'loyalty'],
-            ['memberships_view', 'operations/memberships', 'Membership plans', 'Manage paid member plans and subscriptions', 'memberships'],
-            ['send_sms', 'marketing/campaigns?screen=mobile', 'Member campaigns', 'Send approved member offers and updates'],
+            ['loyalty_view', 'loyalty', 'Loyalty & rewards', 'Manage customer points and rewards', 'loyalty'],
+            ['memberships_view', 'operations/memberships', 'Membership plans', 'Manage paid membership plans and subscriptions', 'memberships'],
+            ['send_sms', 'marketing/campaigns?screen=mobile', 'Customer campaigns', 'Send approved customer offers and updates'],
         ],
         'Business & team' => [
             ['expense_view', 'expense', 'Expenses', 'Record and review operating costs'],

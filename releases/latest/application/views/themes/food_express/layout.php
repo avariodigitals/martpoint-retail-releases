@@ -220,5 +220,6 @@ if('serviceWorker' in navigator){
 </script>
 <?php endif; ?>
 <?php $this->load->view('themes/shared/product_image_fallbacks'); ?>
+<?php $this->load->view('themes/shared/wishlist_runtime'); ?>
 </body>
 </html>

@@ -435,6 +435,8 @@
                     }
                     foreach ($label_defaults as $k => $v):
                       $val = isset($saved_labels[$k]) ? $saved_labels[$k] : '';
+                      if (($profile['industry_type'] ?? '') === 'supplements_wellness' && $k === 'customer'
+                          && in_array(strtolower(trim((string)$val)), ['member','members'], true)) $val = '';
                       $default_label = ucwords(str_replace('_', ' ', $k));
                   ?>
                     <div class="bp-label-item">

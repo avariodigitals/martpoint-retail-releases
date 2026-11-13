@@ -202,6 +202,8 @@
   <?php $this->load->view('themes/pharma_mediq/footer'); ?>
 <?php elseif(($theme_key ?? '') === 'bella_reve'): ?>
   <?php $this->load->view('themes/skin_core/footer'); ?>
+<?php elseif(($theme_key ?? '') === 'maison_forme'): ?>
+  <?php $this->load->view('themes/maison_forme/footer'); ?>
 <?php else: ?>
   <?php $this->load->view('themes/shared/footer'); ?>
 <?php endif; ?>
@@ -265,5 +267,6 @@
 </script>
 <?php endif; ?>
 <?php $this->load->view('themes/shared/product_image_fallbacks'); ?>
+<?php $this->load->view('themes/shared/wishlist_runtime'); ?>
 </body>
 </html>
