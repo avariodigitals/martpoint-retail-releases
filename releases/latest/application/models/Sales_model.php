@@ -837,7 +837,7 @@ class Sales_model extends CI_Model {
 				$sold_imei_number   =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
 				$sold_imei_number_2 =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_2_'.$i] ?? ''));
 				$barcode_id         =intval($_REQUEST['barcode_id_'.$i] ?? 0);
-				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'wholesale'));
+				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'retail'));
 				$unit_id			=$this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
 				$unit_name			=$this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
 				$conversion_factor	=isset($_REQUEST['conversion_factor_'.$i]) ? (float)$_REQUEST['conversion_factor_'.$i] : 1;
@@ -1755,7 +1755,7 @@ class Sales_model extends CI_Model {
 		$customer_id = $this->input->post('customer_id', TRUE);
 		$warehouse_id = $this->input->post('warehouse_id', TRUE);
 		$barcode = $this->input->post('barcode', TRUE) ?? '';
-		$price_type = $this->input->post('price_type', TRUE) ?? 'wholesale';
+		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
 
 		// Barcode-specific lookup
 		if(!empty($barcode)){
@@ -1771,7 +1771,9 @@ class Sales_model extends CI_Model {
 				$bc_data->tax = (float)($bc_data->tax ?? 0);
 				$bc_data->tax_id = (int)($bc_data->tax_id ?? 0);
 				$bc_data->tax_name = $bc_data->tax_name ?? 'No Tax';
-				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
+				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0)
+					? $bc_data->mrp
+					: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $bc_data->sales_price);
 				$sales_price = get_price_level_price($customer_id,$sales_price,$bc_data->sales_price);
 				$sales_price = number_format($sales_price,decimals(),'.','');
 
@@ -1839,8 +1841,10 @@ class Sales_model extends CI_Model {
 		$q3=get_document_item_tax($res1->tax_id);
 
 		//Get Customer Price
-		$price_type = $this->input->post('price_type', TRUE) ?? 'wholesale';
-		$base_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
+		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+		$base_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0)
+			? $res1->mrp
+			: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $res1->sales_price);
 		$sales_price = get_price_level_price($customer_id,$base_price,$res1->sales_price);
 		$sales_price = number_format($sales_price,decimals(),'.','');
 
@@ -2095,7 +2099,7 @@ class Sales_model extends CI_Model {
                <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars(mp_catalogue_name($description),ENT_QUOTES,'UTF-8');?>">
                <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
                <input type="hidden" id="barcode_<?=$rowcount;?>" name="barcode_<?=$rowcount;?>" value="<?=isset($info['barcode']) ? $info['barcode'] : '';?>">
-               <input type="hidden" id="price_type_<?=$rowcount;?>" name="price_type_<?=$rowcount;?>" value="<?=isset($info['price_type']) ? $info['price_type'] : 'wholesale';?>">
+               <input type="hidden" id="price_type_<?=$rowcount;?>" name="price_type_<?=$rowcount;?>" value="<?=isset($info['price_type']) ? $info['price_type'] : 'retail';?>">
 
                <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
                <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">

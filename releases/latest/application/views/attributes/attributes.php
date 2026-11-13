@@ -66,6 +66,7 @@ $btn_name = $is_update ? 'Update' : 'Save';
         <div class="mp-form-group">
           <label for="attribute_value">Attribute Value <span class="text-danger">*</span></label>
           <input type="text" class="mp-form-control" id="attribute_value" name="attribute_value" value="<?= htmlspecialchars($attribute_value ?? ''); ?>" placeholder="e.g. S, Red, Short">
+          <p class="mp-form-hint">Use this for one value. To add several values under this type, use the bulk box below.</p>
           <span id="attribute_value_msg" style="display:none" class="text-danger"></span>
         </div>
 
@@ -75,6 +76,14 @@ $btn_name = $is_update ? 'Update' : 'Save';
           <p class="mp-form-hint">Lower numbers appear first in dropdowns.</p>
         </div>
       </div>
+      <?php if(!$is_update): ?>
+      <div class="mp-form-group full" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--mp-border);">
+        <label for="bulk_values">Add multiple values <span class="text-muted" style="font-weight:400;">(optional)</span></label>
+        <textarea class="mp-form-control" id="bulk_values" name="bulk_values" rows="4" placeholder="One per line, or separate with commas: 16GB, 32GB, 64GB"></textarea>
+        <p class="mp-form-hint">Values are saved separately under the Attribute Type above. Existing values are skipped.</p>
+        <button type="button" class="mp-qa-btn" id="use_storage_values" style="align-self:flex-start;background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Use common storage sizes</button>
+      </div>
+      <?php endif; ?>
     </form>
 
     <div class="mp-form-actions">
@@ -90,6 +99,11 @@ $btn_name = $is_update ? 'Update' : 'Save';
 
 <script type="text/javascript">
 var base_url = "<?= $base_url; ?>";
+$("#use_storage_values").on("click", function(){
+    if(!$("#attribute_type").val().trim()) $("#attribute_type").val("storage");
+    $("#bulk_values").val("16GB\n32GB\n64GB\n128GB\n256GB").trigger("input");
+    $("#bulk_values").focus();
+});
 $("#save").on("click", function(){
     var flag = true;
     function check_field(id){
@@ -101,7 +115,7 @@ $("#save").on("click", function(){
         }
     }
     check_field("attribute_type");
-    check_field("attribute_value");
+    if(!$("#bulk_values").length || !$("#bulk_values").val().trim()) check_field("attribute_value");
     if(!flag){ toastr["warning"]("You have missed something to fill up!"); return; }
 
     var $btn = $(this);

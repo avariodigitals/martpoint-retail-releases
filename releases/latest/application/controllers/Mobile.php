@@ -640,7 +640,7 @@ class Mobile extends MY_Controller {
 			: [];
 		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
 		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
-		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
+		$data['default_price_type'] = 'retail';
 		// Tables for restaurant quick-sale
 		$data['tables'] = [];
 		if(mp_feature_enabled('table_management')){
@@ -706,7 +706,7 @@ class Mobile extends MY_Controller {
 					'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
 					'discount' => $hold->discount_to_all_input ?? 0,
 					'sales_note' => $hold->sales_note ?? '',
-					'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'wholesale',
+					'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'retail',
 					'items' => []
 				];
 				foreach($hold->items as $it){
@@ -736,7 +736,7 @@ class Mobile extends MY_Controller {
 
 		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
 		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
-		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
+		$data['default_price_type'] = 'retail';
 		// Tables for restaurant quick-sale
 		$data['tables'] = [];
 		if(mp_feature_enabled('table_management')){
@@ -2836,7 +2836,9 @@ class Mobile extends MY_Controller {
 		try { $has_promotions = $this->db->table_exists('db_promotions'); } catch(Exception $e) {}
 		if($has_promotions) $this->load->model('promotions_model');
 		foreach($rows as &$row){
-				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0) ? $row->mrp_price : $row->sales_price;
+				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0)
+					? $row->mrp_price
+					: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $row->sales_price);
                 $row->raw_sales_price = $row->sales_price;
                 $row->raw_mrp_price = $row->mrp_price;
 				$row->is_bundle = !empty($row->is_bundle);
@@ -3001,7 +3003,7 @@ class Mobile extends MY_Controller {
 			$base_price = (float) ($item['base_price'] ?? $price);
 			$tax_value = (float) ($item['tax_value'] ?? 0);
 			$tax_type = $item['tax_type'] ?? 'Exclusive';
-			$price_type = $item['price_type'] ?? 'wholesale';
+			$price_type = $item['price_type'] ?? 'retail';
 			$tax_id = (int) ($item['tax_id'] ?? 0);
 
 			if($item_id <= 0){
@@ -3186,7 +3188,7 @@ class Mobile extends MY_Controller {
 			'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
 			'discount' => $hold->discount_to_all_input ?? 0,
 			'sales_note' => $hold->sales_note ?? '',
-			'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'wholesale',
+			'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'retail',
 			'items' => []
 		];
 		foreach($hold->items as $it){

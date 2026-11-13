@@ -68,6 +68,7 @@ class Items_model extends CI_Model {
 		
 
 		$this->db->select(implode(',', $this->column_order));
+		$this->db->select('a.mrp');
 		$this->db->from($this->table);
 		$this->db->join('db_category as b',"b.id=a.category_id","left");
 		$this->db->join('db_units as c',"c.id=a.unit_id","left");

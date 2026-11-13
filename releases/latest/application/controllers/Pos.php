@@ -419,7 +419,7 @@ class Pos extends MY_Controller {
 		$data['medical_note_customer_id'] = $medical_note ? (int) $medical_note->customer_id : null;
 		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
 		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
-		$data['default_price_type'] = (empty($data['pos_retail_button']) && !empty($data['pos_wholesale_button'])) ? 'wholesale' : 'retail';
+		$data['default_price_type'] = 'retail';
 
 		$this->db->where('store_id', $store_id);
 		$this->db->where('status', 1);

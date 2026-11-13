@@ -7,6 +7,18 @@
 .os-form-grid .mp-form-group{display:flex!important;flex-direction:column!important;gap:6px!important}
 .os-form-grid .mp-form-group>label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin:0!important}
 .os-section-title{font-size:13px!important;font-weight:700!important;color:var(--mp-muted)!important;text-transform:uppercase!important;letter-spacing:.05em!important;margin:24px 0 14px!important;padding-bottom:10px!important;border-bottom:1px solid var(--mp-border)!important}
+.os-settings-group{margin:0 0 14px!important;border:1px solid var(--mp-border)!important;border-radius:12px!important;background:var(--mp-surface)!important;overflow:hidden!important}
+.os-settings-group>summary{list-style:none!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;padding:16px 18px!important;cursor:pointer!important;color:var(--mp-ink)!important;font-weight:700!important}
+.os-settings-group>summary::-webkit-details-marker{display:none!important}
+.os-settings-group>summary:after{content:'+';flex:0 0 auto!important;display:grid!important;place-items:center!important;width:28px!important;height:28px!important;border:1px solid var(--mp-border)!important;border-radius:8px!important;color:var(--mp-muted)!important;font-size:20px!important;line-height:1!important}
+.os-settings-group[open]>summary:after{content:'−'}
+.os-settings-group>summary:hover{background:var(--mp-bg)!important}
+.os-settings-summary-copy{display:flex!important;flex-direction:column!important;gap:4px!important}
+.os-settings-summary-copy strong{font-size:14px!important}
+.os-settings-summary-copy small{font-size:12px!important;font-weight:400!important;color:var(--mp-muted)!important;line-height:1.45!important}
+.os-settings-panel{padding:0 18px 18px!important}
+.os-settings-panel>.os-section-title:first-child{margin-top:4px!important}
+@media(max-width:700px){.os-form-grid,.os-check-list{grid-template-columns:1fr!important}.os-settings-group>summary{padding:14px!important}.os-settings-panel{padding:0 14px 14px!important}.os-ship-row{align-items:stretch!important}}
 .os-check-list{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px 24px!important}
 .os-check-list label{display:inline-flex!important;align-items:center!important;gap:10px!important;font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;cursor:pointer!important;margin:0!important;padding:10px 14px!important;border:1px solid var(--mp-border)!important;border-radius:10px!important;background:var(--mp-surface)!important}
 .os-check-list input[type=checkbox]{width:18px!important;height:18px!important;cursor:pointer!important}
@@ -55,6 +67,9 @@
       <?php if(empty($is_saved)): ?><span class="os-badge-unsaved os-badge-saved"><i class="fa fa-exclamation-triangle"></i> Not Saved Yet</span><?php else: ?><span class="os-badge-saved"><i class="fa fa-check"></i> Saved</span><?php endif; ?>
     </div>
     <div class="mp-card-body">
+      <details class="os-settings-group" open>
+        <summary><span class="os-settings-summary-copy"><strong>Store profile</strong><small>Store URL, status, contact details, address and featured products.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-form-grid">
         <div class="mp-form-group"><label for="store_slug">Store Slug</label><input type="text" class="mp-form-control" id="store_slug" name="store_slug" value="<?= htmlspecialchars($settings->store_slug ?? ''); ?>" placeholder="your-store-name"><div class="mp-form-hint">Used in the store URL. Lowercase letters, numbers, and hyphens only.</div></div>
         <div class="mp-form-group"><label for="store_status">Store Status</label>
@@ -79,7 +94,12 @@
         <div class="mp-form-group full"><label for="store_address">Store Address</label><textarea class="mp-form-control" id="store_address" name="store_address" rows="3"><?= htmlspecialchars($settings->store_address ?? ''); ?></textarea></div>
         <div class="mp-form-group"><label for="featured_products_limit">Featured Products Limit</label><input type="number" class="mp-form-control" id="featured_products_limit" name="featured_products_limit" value="<?= (int)($settings->featured_products_limit ?? 8); ?>"></div>
       </div>
+        </div>
+      </details>
 
+      <details class="os-settings-group">
+        <summary><span class="os-settings-summary-copy"><strong>Checkout &amp; payments</strong><small>Payment methods, customer pricing prompt, tax, currencies and PayPal.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-section-title"><i class="fa fa-credit-card"></i> Payment Options</div>
       <div class="mp-form-hint" style="margin-bottom:10px;">Payment route controls apply store-wide across every online-store theme. MartPoint Pay checkout is for NGN; the PayPal section below lets a fleet activate an additional route for eligible foreign-currency checkouts.</div>
       <div class="os-check-list">
@@ -148,6 +168,12 @@
         </div>
       </div>
 
+        </div>
+      </details>
+
+      <details class="os-settings-group">
+        <summary><span class="os-settings-summary-copy"><strong>Shipping &amp; delivery</strong><small>Customer notices, delivery methods, location zones and delivery fees.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-section-title"><i class="fa fa-truck"></i> Shipping</div>
       <div class="mp-form-group" style="margin-bottom:14px;"><label for="shipping_notice">Shipping Notice</label><textarea class="mp-form-control" id="shipping_notice" name="shipping_notice" rows="3" placeholder="e.g. We deliver within Lagos only. Orders placed after 4pm ship next day."><?= htmlspecialchars($settings->shipping_notice ?? ''); ?></textarea><div class="mp-form-hint">Shown to customers at checkout above the shipping options.</div></div>
       <div class="mp-form-group"><label>Shipping Methods</label><div class="mp-form-hint" style="margin-bottom:10px;">Add store-wide options such as pickup or delivery by quote. Destination zones below set location-based delivery rates and take priority for delivery.</div>
@@ -192,6 +218,12 @@
         <button type="button" class="mp-qa-btn blue" onclick="addCityZone()" style="margin-top:8px;padding:8px 14px;font-size:13px;"><i class="fa fa-plus"></i> Add Zone</button>
       </div>
 
+        </div>
+      </details>
+
+      <details class="os-settings-group">
+        <summary><span class="os-settings-summary-copy"><strong>Store features &amp; cart recovery</strong><small>Catalogue behavior, search, services, partners and abandoned carts.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-section-title"><i class="fa fa-sliders"></i> Store Features</div>
       <div class="os-check-list">
         <label><input type="checkbox" id="allow_services" name="allow_services" <?= ($settings->allow_services ?? 1) ? 'checked' : ''; ?>> Allow Service Orders</label>
@@ -218,6 +250,12 @@
       </div>
       <div class="os-section-title" style="font-size:13px;margin-top:14px;">Automated recovery</div><p class="mp-form-hint">Set up abandoned-cart reminders in Communications → Automation. The workflow uses an Automation plan slot and SMS or email credits, stops after purchase or opt-out, and allows up to three reminders at least 24 hours apart.</p><a class="mp-btn-primary" href="<?= base_url('communications/channel/automation?section=create&recipe=abandoned_cart'); ?>">Set up cart recovery workflow</a>
 
+        </div>
+      </details>
+
+      <details class="os-settings-group">
+        <summary><span class="os-settings-summary-copy"><strong>Social &amp; messaging integrations</strong><small>Instagram, WhatsApp, Facebook Messenger and Instagram Direct credentials.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-section-title"><i class="fa fa-instagram"></i> Instagram Integration</div>
       <div class="os-form-grid">
         <div class="mp-form-group"><label for="instagram_access_token">Access Token</label><input type="text" class="mp-form-control" id="instagram_access_token" name="instagram_access_token" value="<?= htmlspecialchars($settings->instagram_access_token ?? ''); ?>" placeholder="Instagram Basic Display API token"><div class="mp-form-hint"><a href="https://developers.facebook.com/docs/instagram-basic-display-api" target="_blank">Get token from Facebook Developers</a></div></div>
@@ -239,12 +277,17 @@
         <div class="mp-form-group"><label for="instagram_business_account_id">Instagram Business Account ID</label><input type="text" class="mp-form-control" id="instagram_business_account_id" name="instagram_business_account_id" value="<?= htmlspecialchars($settings->instagram_business_account_id ?? ''); ?>" placeholder="Instagram Business Account ID"><div class="mp-form-hint">The Instagram Business Account linked to your Facebook Page. Used to send Instagram Direct replies.</div></div>
       </div>
 
+        </div>
+      </details>
+
+      <details class="os-settings-group">
+        <summary><span class="os-settings-summary-copy"><strong>Storefront content &amp; trust</strong><small>Google Reviews, trust badges and newsletter wording.</small></span></summary>
+        <div class="os-settings-panel">
       <div class="os-section-title"><i class="fa fa-google"></i> Google Reviews Integration</div>
       <div class="os-form-grid">
         <div class="mp-form-group"><label for="google_places_api_key">Places API Key</label><input type="text" class="mp-form-control" id="google_places_api_key" name="google_places_api_key" value="<?= htmlspecialchars($settings->google_places_api_key ?? ''); ?>" placeholder="Google Places API Key"></div>
         <div class="mp-form-group"><label for="gmb_place_id">GMB Place ID</label><input type="text" class="mp-form-control" id="gmb_place_id" name="gmb_place_id" value="<?= htmlspecialchars($settings->gmb_place_id ?? ''); ?>" placeholder="Google Place ID"><div class="mp-form-hint"><a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank">Find your Place ID</a></div></div>
       </div>
-
       <div class="os-section-title"><i class="fa fa-shield"></i> Trust Badges</div>
       <?php $tb = json_decode($settings->trust_badges_json ?? '', true); ?>
       <div class="os-form-grid">
@@ -259,6 +302,8 @@
         <div class="mp-form-group"><label>Headline</label><input type="text" class="mp-form-control" name="newsletter_title" value="<?= htmlspecialchars($settings->newsletter_title ?? 'Stay in the Loop'); ?>"></div>
         <div class="mp-form-group"><label>Sub-headline</label><input type="text" class="mp-form-control" name="newsletter_subtitle" value="<?= htmlspecialchars($settings->newsletter_subtitle ?? 'Subscribe for updates, deals and new arrivals.'); ?>"></div>
       </div>
+        </div>
+      </details>
     </div>
   </div>
 

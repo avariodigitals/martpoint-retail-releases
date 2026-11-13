@@ -680,7 +680,7 @@ $mp_mobile_palette = $mp_is_pharmacy ? [
         $('#customer_id').append(option).trigger('change');
         loadCustomerDue(hold.customer_id);
       }
-      $('#price_type').val(hold.price_type || 'wholesale');
+      $('#price_type').val(hold.price_type || 'retail');
       $('#price_type_chips button').removeClass('active').filter('[data-value="'+hold.price_type+'"]').addClass('active');
       $('#price_type').trigger('change');
       renderCart();
@@ -793,7 +793,7 @@ $mp_mobile_palette = $mp_is_pharmacy ? [
     });
 
     function getActivePriceType(){
-      return $('#price_type_chips button.active').data('value') || $('#price_type').val() || 'wholesale';
+      return $('#price_type_chips button.active').data('value') || $('#price_type').val() || 'retail';
     }
 
     var customerPricePolicy = {source:'normal'}, customerPricingReady = false, customerPricingRequest = 0;
@@ -816,8 +816,8 @@ $mp_mobile_palette = $mp_is_pharmacy ? [
       var retail = parseFloat(item.mrp_price) || 0;
       var wholesale = parseFloat(item.sales_price) || 0;
       if(getActivePriceType() === 'retail'){
-        // Fall back to wholesale when no MRP is set, so a real price is always used.
-        return retail > 0 ? retail : wholesale;
+        if(retail > 0) return retail;
+        return <?= mp_feature_enabled('auto_retail_markup') ? '0' : 'wholesale'; ?>;
       }
       return wholesale;
     }

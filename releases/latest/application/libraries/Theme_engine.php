@@ -983,7 +983,7 @@ class Theme_engine {
             $items[$pid] = [
                 'id' => $pid,
                 'name' => (string)($p->item_name ?? 'Event ticket'),
-                'price' => (float)($p->effective_price ?? $p->online_price ?? $p->sales_price ?? 0),
+                'price' => (float)($p->effective_price ?? $p->online_price ?? $p->mrp ?? $p->sales_price ?? 0),
                 'sessions' => $sessions,
                 'detail' => $isDetail,
             ];
@@ -1315,11 +1315,20 @@ class Theme_engine {
      * Get store logo URL
      */
     public function logoUrl(){
-        if(!empty($this->settings->store_logo) && file_exists($this->settings->store_logo)){
-            return base_url($this->settings->store_logo);
-        }
-        if(!empty($this->store->store_logo) && file_exists($this->store->store_logo)){
-            return base_url($this->store->store_logo);
+        foreach([$this->settings->store_logo ?? '', $this->store->store_logo ?? ''] as $candidate){
+            $candidate = trim((string)$candidate);
+            if($candidate === '') continue;
+            if(preg_match('~^https?://~i', $candidate)){
+                if(filter_var($candidate, FILTER_VALIDATE_URL)) return $candidate;
+                continue;
+            }
+            $candidate = str_replace('\\', '/', $candidate);
+            if(defined('FCPATH') && strpos($candidate, FCPATH) === 0){
+                $candidate = substr($candidate, strlen(FCPATH));
+            }
+            $relative = ltrim($candidate, '/');
+            if($relative !== '' && defined('FCPATH') && is_file(FCPATH . $relative)) return base_url($relative);
+            if(is_file($candidate)) return base_url($candidate);
         }
         return null;
     }

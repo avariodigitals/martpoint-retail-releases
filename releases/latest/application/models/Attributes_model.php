@@ -95,6 +95,70 @@ class Attributes_model extends CI_Model {
 		return "failed";
 	}
 
+	/** Save a comma, semicolon, or newline separated list of values for one type. */
+	public function verify_and_save_bulk($raw_values){
+		$store_id = get_current_store_id();
+		$attribute_type = strtolower(trim($this->input->post('attribute_type', TRUE)));
+		$sort_order = (int)$this->input->post('sort_order', TRUE);
+		$values = preg_split('/[,;\r\n]+/u', (string)$raw_values);
+		$values = array_values(array_unique(array_filter(array_map('trim', $values), 'strlen')));
+
+		if($attribute_type === '' || strlen($attribute_type) > 30){
+			return "Attribute type is required and must be 30 characters or fewer.";
+		}
+		if(empty($values)){
+			return "Enter at least one attribute value.";
+		}
+		if(count($values) > 100){
+			return "Add no more than 100 values at a time.";
+		}
+		foreach($values as $value){
+			if(strlen($value) > 100){
+				return "Each value must be 100 characters or fewer.";
+			}
+		}
+
+		$this->db->trans_begin();
+		$added = 0;
+		$skipped = 0;
+		foreach($values as $index => $value){
+			$exists = $this->db->where('store_id', $store_id)
+				->where('attribute_type', $attribute_type)
+				->where('attribute_value', $value)
+				->limit(1)->get('db_attributes')->num_rows() > 0;
+			if($exists){
+				$skipped++;
+				continue;
+			}
+
+			$inserted = $this->db->insert('db_attributes', array(
+				'store_id' => $store_id,
+				'attribute_type' => $attribute_type,
+				'attribute_value' => $value,
+				'sort_order' => $sort_order + $index,
+				'status' => 1,
+				'created_date' => date('Y-m-d'),
+				'created_time' => date('H:i:s'),
+				'created_by' => $this->session->userdata('inv_username'),
+			));
+			if(!$inserted){
+				$this->db->trans_rollback();
+				return "Could not save the values. No changes were kept.";
+			}
+			$added++;
+		}
+
+		if($this->db->trans_status() === FALSE){
+			$this->db->trans_rollback();
+			return "Could not save the values. No changes were kept.";
+		}
+		$this->db->trans_commit();
+		$this->session->set_flashdata('success', $added > 0
+			? "Success! Added {$added} attribute value(s); skipped {$skipped} already existing."
+			: "Success! No new values added; all {$skipped} value(s) already exist.");
+		return "success";
+	}
+
 	public function update_attribute(){
 		$q_id = (int)$this->input->post('q_id', TRUE);
 		$store_id = get_current_store_id();

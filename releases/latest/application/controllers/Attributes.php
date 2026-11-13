@@ -42,11 +42,16 @@ class Attributes extends MY_Controller {
 
 	public function save(){
 		$this->form_validation->set_rules('attribute_type', 'Attribute Type', 'trim|required');
-		$this->form_validation->set_rules('attribute_value', 'Attribute Value', 'trim|required');
+		$command = $this->input->post('command', TRUE);
+		$bulkValues = trim((string)$this->input->post('bulk_values', TRUE));
+		if($command === 'update' || $bulkValues === ''){
+			$this->form_validation->set_rules('attribute_value', 'Attribute Value', 'trim|required');
+		}
 		if($this->form_validation->run() == TRUE){
-			$command = $this->input->post('command', TRUE);
 			if($command == 'update'){
 				echo $this->attributes->update_attribute();
+			} elseif($bulkValues !== '') {
+				echo $this->attributes->verify_and_save_bulk($bulkValues);
 			} else {
 				echo $this->attributes->verify_and_save();
 			}

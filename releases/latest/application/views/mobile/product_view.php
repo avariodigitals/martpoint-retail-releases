@@ -102,8 +102,8 @@
             <div class='value <?= (float)$item->stock <= 0 ? 'danger' : 'success'; ?>'><?= number_format((float)$item->stock, 0); ?></div>
           </div>
           <div class='kpi'>
-            <div class='label'>Sales Price</div>
-            <div class='value'><?= store_number_format($item->sales_price); ?></div>
+            <div class='label'><?= mp_feature_enabled('auto_retail_markup') ? 'Retail Price' : 'Sales Price'; ?></div>
+            <div class='value'><?= mp_feature_enabled('auto_retail_markup') ? ((float)($item->mrp ?? 0) > 0 ? store_number_format($item->mrp) : '—') : store_number_format($item->sales_price); ?></div>
           </div>
           <?php if((float)$item->online_price > 0): ?>
             <div class='kpi'>
@@ -127,7 +127,7 @@
         <div class='info-row'><span class='label'>Code</span><span class='value'><?= htmlspecialchars($item->item_code ?: '-'); ?></span></div>
         <div class='info-row'><span class='label'>Barcode</span><span class='value'><?= htmlspecialchars($item->custom_barcode ?: '-'); ?></span></div>
         <div class='info-row'><span class='label'>Purchase Price</span><span class='value'><?= store_number_format($item->purchase_price); ?></span></div>
-        <div class='info-row'><span class='label'>Sales Price</span><span class='value'><?= store_number_format($item->sales_price); ?></span></div>
+        <div class='info-row'><span class='label'><?= mp_feature_enabled('auto_retail_markup') ? 'Retail Price' : 'Sales Price'; ?></span><span class='value'><?= mp_feature_enabled('auto_retail_markup') ? ((float)($item->mrp ?? 0) > 0 ? store_number_format($item->mrp) : '—') : store_number_format($item->sales_price); ?></span></div>
         <div class='info-row'><span class='label'>Online Price</span><span class='value'><?= store_number_format($item->online_price); ?></span></div>
       </div>
 

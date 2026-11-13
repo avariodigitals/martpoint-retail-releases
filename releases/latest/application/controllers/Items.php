@@ -420,6 +420,7 @@ class Items extends MY_Controller {
 			// Release the session lock early so concurrent AJAX requests don't block
 			// on the session file while this query runs (fixes "Processing..." / Ajax error).
 			$store_id = get_current_store_id();
+			$show_retail_price = mp_feature_enabled('auto_retail_markup');
 			session_write_close();
 
 			log_message('info', 'ajax_list started');
@@ -517,7 +518,8 @@ class Items extends MY_Controller {
 				$row[] = format_qty($qty)." $str";
 
 				$row[] = $items->alert_qty;
-				$row[] = store_number_format($items->sales_price);
+				$catalogue_price = $show_retail_price ? (float)($items->mrp ?? 0) : (float)$items->sales_price;
+				$row[] = $show_retail_price && $catalogue_price <= 0 ? '—' : store_number_format($catalogue_price);
 				$row[] = $items->tax_name."<br>(".store_number_format($items->tax)."%)";
 
 					// Expiry status badge

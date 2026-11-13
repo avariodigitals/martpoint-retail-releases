@@ -221,7 +221,7 @@ $non_sortable = json_encode([0, $action_col]);
           <th><?= $this->lang->line('unit'); ?></th>
           <th><?= $this->lang->line('stock'); ?></th>
           <th><?= $this->lang->line('alert_quantity'); ?></th>
-          <th><?= $this->lang->line('sales_price'); ?></th>
+          <th><?= mp_feature_enabled('auto_retail_markup') ? 'Retail Price' : $this->lang->line('sales_price'); ?></th>
           <th><?= $this->lang->line('tax'); ?></th>
           <th><?= $this->lang->line('expire_date'); ?></th>
           <th>MFG Date</th>

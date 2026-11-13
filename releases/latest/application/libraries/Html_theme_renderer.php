@@ -47,6 +47,19 @@ class Html_theme_renderer {
         foreach((array)($manifest['assets']['js'] ?? []) as $asset) $js[] = '<script src="' . htmlspecialchars($this->assetUrl($theme, $asset), ENT_QUOTES, 'UTF-8') . '" defer></script>';
         $runtime = $this->runtime($theme, $data, !empty($options['preview']));
         $html = $header . $body . $footer;
+        if(($manifest['theme_key'] ?? '') === 'martpoint_gadgets'){
+            // Use the merchant's own logo in both brand areas. Older uploaded
+            // theme copies hardcoded the MartPoint monogram in the footer and
+            // showed it as the header fallback when no logo URL resolved.
+            $logo = trim((string)($context['store']['logo'] ?? ''));
+            $mark = '~<span class="logomark" aria-hidden="true">M<span>•</span></span>~';
+            if($logo !== ''){
+                $logoImage = '<img class="mp-gadgets-logo-image" src="' . htmlspecialchars($logo, ENT_QUOTES, 'UTF-8') . '" alt="' . htmlspecialchars((string)($context['store']['name'] ?? ''), ENT_QUOTES, 'UTF-8') . '">';
+                $html = preg_replace($mark, $logoImage, $html);
+            } else {
+                $html = preg_replace($mark, '', $html);
+            }
+        }
         if(($manifest['theme_key'] ?? '') === 'martpoint_daily_wellness'){
             // The first Daily Wellness release shipped with a saved static
             // Services/Contact rail. Replace that rail at render time so
@@ -377,7 +390,17 @@ HTML;
         $r = $this->plain($item);
         $id = (int)($r['id'] ?? 0);
         $name = (string)($r['item_name'] ?? $r['service_name'] ?? $r['name'] ?? 'Product');
-        $price = (float)($r['effective_price'] ?? $r['online_price'] ?? $r['sales_price'] ?? $r['price'] ?? 0);
+        if (array_key_exists('effective_price', $r)) {
+            $price = (float)$r['effective_price'];
+        } else {
+            $onlinePrice = (float)($r['online_price'] ?? 0);
+            $retailPrice = (float)($r['mrp'] ?? 0);
+            $storeId = (int)($r['store_id'] ?? get_current_store_id());
+            $separateRetailPrice = function_exists('mp_feature_enabled_for_store')
+                && mp_feature_enabled_for_store('auto_retail_markup', $storeId);
+            $price = $onlinePrice > 0 ? $onlinePrice : ($retailPrice > 0 ? $retailPrice
+                : ($separateRetailPrice ? 0 : (float)($r['sales_price'] ?? $r['price'] ?? 0)));
+        }
         $image = $this->imageUrl($r['item_image'] ?? $r['service_image'] ?? $r['image'] ?? '');
         $type = isset($r['service_name']) ? 'service' : (string)($r['item_type'] ?? 'product');
         $physical = $type !== 'service' && ($r['product_type'] ?? 'physical') === 'physical';

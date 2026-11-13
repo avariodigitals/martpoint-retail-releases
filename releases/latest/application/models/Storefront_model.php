@@ -730,7 +730,7 @@ class Storefront_model extends CI_Model {
 			$this->db->or_like('b.category_name', $search);
 			$this->db->group_end();
 		}
-		foreach($this->_onlineSortColumns($sort) as $column => $direction){
+		foreach($this->_onlineSortColumns($sort, $storeId) as $column => $direction){
 			$this->db->order_by($column, $direction, strpos($column, '(') !== false ? FALSE : TRUE);
 		}
 		if($limit !== null) $this->db->limit($limit, $offset);
@@ -741,12 +741,16 @@ class Storefront_model extends CI_Model {
 	 * Whitelisted catalogue sort orders. An empty sort keeps the historical
 	 * "newest first" ordering, so callers that never pass one are unaffected.
 	 *
-	 * Price sorts on the same base the pricing engine starts from —
-	 * online_price, else mrp, else sales_price — because effective_price is
-	 * resolved in PHP per customer and cannot be ordered in SQL.
+	 * Price sorts follow the public price fields. In separate wholesale/retail
+	 * mode, sales_price is private wholesale pricing and must not be a fallback.
 	 */
-	private function _onlineSortColumns($sort){
-		$price = 'COALESCE(NULLIF(a.online_price,0), NULLIF(a.mrp,0), a.sales_price)';
+	private function _onlineSortColumns($sort, $storeId = null){
+		$storeId = (int)($storeId ?: get_current_store_id());
+		$separateRetailPrice = function_exists('mp_feature_enabled_for_store')
+			&& mp_feature_enabled_for_store('auto_retail_markup', $storeId);
+		$price = $separateRetailPrice
+			? 'COALESCE(NULLIF(a.online_price,0), NULLIF(a.mrp,0), 0)'
+			: 'COALESCE(NULLIF(a.online_price,0), NULLIF(a.mrp,0), a.sales_price)';
 		switch((string)$sort){
 			case 'price_asc':  return [$price => 'asc', 'a.id' => 'desc'];
 			case 'price_desc': return [$price => 'desc', 'a.id' => 'desc'];
@@ -2383,8 +2387,10 @@ class Storefront_model extends CI_Model {
 		$online = (float)($prod->online_price ?? 0);
 		$retail = (float)($prod->mrp ?? 0);
 		$wholesale = (float)($prod->sales_price ?? 0);
-		$base = $online > 0 ? $online : ($retail > 0 ? $retail : $wholesale);
-		$tier = $online > 0 ? 'online' : ($retail > 0 ? 'retail' : 'wholesale');
+		$separateRetailPrice = function_exists('mp_feature_enabled_for_store')
+			&& mp_feature_enabled_for_store('auto_retail_markup', $storeId);
+		$base = $online > 0 ? $online : ($retail > 0 ? $retail : ($separateRetailPrice ? 0 : $wholesale));
+		$tier = $online > 0 ? 'online' : (($retail > 0 || $separateRetailPrice) ? 'retail' : 'wholesale');
 		if(!empty($prod->is_bundle)){
 			$this->load->model('Extras_model', 'extras_model');
 			$base = $this->extras_model->bundleUnitPrice($prod, $storeId);
@@ -3443,7 +3449,7 @@ class Storefront_model extends CI_Model {
 			->where('(i.not_for_sale IS NULL OR i.not_for_sale = 0)', null, false)
 			->order_by('w.created_at', 'desc')->get()->result();
 		foreach($products as $product){
-			$product->effective_price = (float)($product->online_price ?: ($product->mrp ?: $product->sales_price));
+			$product->effective_price = (float)$this->getProductEffectivePrice($product);
 		}
 		return $products;
 	}

@@ -543,8 +543,8 @@ padding-right: 2px;
                                           <div class="input-group">
                                                 <span class="input-group-addon" title="Price Type"><i class="fa fa-tag"></i></span>
                                                 <select class="form-control" id="price_type" name="price_type" style="min-width:120px;">
-                                                  <option value="wholesale" selected>Wholesale</option>
-                                                  <option value="retail">Retail (MRP)</option>
+                                                  <option value="wholesale">Wholesale</option>
+                                                  <option value="retail" selected>Retail (MRP)</option>
                                                 </select>
                                           </div>
                                           <div class="input-group" style="margin-top:4px;">
