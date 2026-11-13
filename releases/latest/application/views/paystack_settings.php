@@ -13,7 +13,7 @@
   $platform_fee_fixed = $s ? ($s->platform_fee_fixed ?? (($s->platform_fee_type ?? 'none') === 'flat' ? $s->platform_fee_value : 0)) : 0;
   $fee_bearer = $s ? ($s->fee_bearer ?? 'platform') : 'platform';
   $payout = $payout_account ?? null;
-  $central_paystack_configured = $s && !empty($s->secret_key);
+  $central_paystack_configured = $s && !empty($s->configured);
   $percent_label = rtrim(rtrim(number_format((float)$platform_fee_percent, 2, '.', ''), '0'), '.');
   $platform_fee_label = ((float)$platform_fee_percent > 0 || (float)$platform_fee_fixed > 0)
     ? ($percent_label !== '' ? $percent_label . '% + ' : '') . '₦' . number_format((float)$platform_fee_fixed, 2) . ' per payment'
@@ -100,11 +100,6 @@
           <label for="payout_account_name">Account name</label>
           <input type="text" class="form-control" id="payout_account_name" value="<?=htmlspecialchars($payout->account_name ?? '', ENT_QUOTES, 'UTF-8');?>" placeholder="Verified account name" readonly>
           <small id="payout_account_lookup_status" class="mp-payout-help">Enter an account number to verify the name.</small>
-        </div>
-        <div class="mp-payout-field full">
-          <label for="payout_email">Payout email</label>
-          <input type="email" class="form-control" id="payout_email" name="payout_email" value="<?=htmlspecialchars($payout->contact_email ?? '');?>" placeholder="name@example.com">
-          <small class="mp-payout-help">Used for settlement and payout notifications.</small>
         </div>
       </div>
       <?php if(!empty($payout->status)): ?><p class="mp-payout-help" style="margin-top:16px!important;">Account status: <strong><?=htmlspecialchars($payout->status, ENT_QUOTES, 'UTF-8');?></strong></p><?php endif; ?>

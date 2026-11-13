@@ -480,11 +480,20 @@ class Paystack extends MY_Controller {
 			return;
 		}
 		$store_id = (int)get_current_store_id();
+		$payoutEmail = trim((string)$this->input->post('payout_email', TRUE));
+		if(!filter_var($payoutEmail, FILTER_VALIDATE_EMAIL)){
+			$store = $this->db->select('email')->where('id', $store_id)->get('db_store')->row();
+			$payoutEmail = trim((string)($store->email ?? ''));
+		}
+		if(!filter_var($payoutEmail, FILTER_VALIDATE_EMAIL)){
+			$user = $this->db->select('email')->where('id', (int)($this->data['CUR_USERID'] ?? 0))->get('db_users')->row();
+			$payoutEmail = trim((string)($user->email ?? ''));
+		}
 		$result = $this->paystack->save_payout_account($store_id, array(
 			'account_number' => $this->input->post('payout_account_number', TRUE),
 			'bank_code' => $this->input->post('payout_bank_code', TRUE),
 			'bank_name' => $this->input->post('payout_bank_name', TRUE),
-			'email' => $this->input->post('payout_email', TRUE),
+			'email' => $payoutEmail,
 			'phone' => $this->input->post('payout_phone', TRUE),
 			'terms_accepted' => (int)$this->input->post('terms_accepted', TRUE) === 1,
 			'accepted_by' => (string)($this->data['CUR_USERNAME'] ?? ''),

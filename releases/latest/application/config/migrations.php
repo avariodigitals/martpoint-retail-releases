@@ -667,4 +667,6 @@ return [
 		  '4.0.9.274v' => '4.0.9.274_storefront_customer_wishlists.sql',
 		  // .275 adds reuse of already-uploaded product and gallery images without removing upload support.
 		  '4.0.9.275v' => '4.0.9.275_product_media_library_reuse.sql',
+		  // .276 fixes retail-price defaults and the Electronics storefront branding/layout.
+		  '4.0.9.276v' => '4.0.9.276_retail_price_defaults_and_electronics_theme.sql',
 ];

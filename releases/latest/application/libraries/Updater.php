@@ -1337,7 +1337,7 @@ subscription to receive updates.';
 
     /**
      * Push a group of operational settings from Central — payload:
-     * {"scope":"assist|paystack|monnify|nin|debt_reminder|audit","fields":{...}}
+     * {"scope":"assist|monnify|nin|debt_reminder|audit","fields":{...}}
      * Each scope maps to a whitelisted table + column set; anything else is
      * rejected. Store-keyed tables upsert on this install's store row.
      */
@@ -1358,16 +1358,7 @@ subscription to receive updates.';
                     ], $fields, 'Assist AI');
 
                 case 'paystack':
-                    if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {
-                        return $this->writeSettingFields('db_payment_gateway_accounts', ['provider' => 'paystack'], [
-                            'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
-                            'platform_fee_type', 'platform_fee_value', 'platform_fee_percent',
-                            'platform_fee_fixed', 'fee_bearer', 'callback_url',
-                        ], $fields, 'Paystack central account', true);
-                    }
-                    return $this->writeSettingFields('db_paystack_settings', ['store_id' => $storeId], [
-                        'enabled', 'public_key', 'secret_key', 'test_mode', 'webhook_secret',
-                    ], $fields, 'Paystack', true);
+                    return ['ok' => false, 'message' => 'Paystack credentials are provided securely by Central; do not push them to a fleet.'];
 
                 case 'monnify':
                     if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {

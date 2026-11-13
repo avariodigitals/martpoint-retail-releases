@@ -130,6 +130,43 @@ class Messaging_client {
         return $this->transport($centralUrl.'/paystack_route_api/policy', $envelope);
     }
 
+    /** Read public MartPoint Pay settings without copying the secret key to a fleet. */
+    public function paystackSettings($storeId) {
+        return $this->paystackRelay('settings', array('store_id'=>(int)$storeId));
+    }
+
+    /** Ask Central to make a Paystack API request with its shared provider key. */
+    public function paystackRequest($storeId, $method, $endpoint, $data = null) {
+        return $this->paystackRelay('request', array(
+            'store_id'=>(int)$storeId,
+            'method'=>strtoupper((string)$method),
+            'endpoint'=>(string)$endpoint,
+            'data'=>$data,
+        ));
+    }
+
+    private function paystackRelay($action, array $payload) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false, 'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false, 'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false, 'message'=>'Could not prepare the MartPoint Pay request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_'.$action, $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/'.$action, $envelope);
+    }
+
     public function sendEmail($storeId, $to, $subject, $html, $text, array $options = array()) {
         $recipients = is_array($to) ? $to : preg_split('/[,;]/',(string)$to);
         if (!empty($options['send_copy_to_owner'])) {

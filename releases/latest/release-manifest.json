@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.275",
+    "version": "4.0.9.276",
     "previous_version": "4.0.9.255",
     "release_date": "2026-11-13",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -5526,8 +5526,8 @@
         },
         {
             "path": "application/views/paystack_settings.php",
-            "hash": "dd91aba413e3a7a1687d39f32c78088a1958dac9ec834554bcf4da7dbbb7faf4",
-            "size": 20150
+            "hash": "6beffecdd969f3c9e56881de7685232993b360a7556e8675505c533c5899a647",
+            "size": 19759
         },
         {
             "path": "application/views/print-sales-invoice-2.php",
@@ -7131,8 +7131,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "ef7bda2a1fa395b85bbc89eccac86f485830d1b844717624291ab7f0bd333820",
-            "size": 44473
+            "hash": "910fbefff947bc700a8552386f17e7284ee36e97acc95da9112c5d374c505c25",
+            "size": 44642
         },
         {
             "path": "application/config/routes.php",
@@ -7891,8 +7891,8 @@
         },
         {
             "path": "application/models/Paystack_model.php",
-            "hash": "50ad69c9e2776ae020652627e14db795c420669e371a9126b99d7a6dfd7c1c77",
-            "size": 27406
+            "hash": "3a50d23d67bfa4f6671100214d5afdc085605721d19f68973eceea9273f53d02",
+            "size": 29977
         },
         {
             "path": "application/models/Subscription_license_model.php",
@@ -8951,8 +8951,8 @@
         },
         {
             "path": "application/controllers/Paystack_route_api.php",
-            "hash": "55c7437f6ebb6f4e8b3afc89392f88a51746554e5f6875d6054b0d9a4a436065",
-            "size": 5714
+            "hash": "1623da93f1dc20239725296765112bfc498b735ed62119516e1b3489c948b7cc",
+            "size": 10935
         },
         {
             "path": "application/controllers/Tax.php",
@@ -9106,8 +9106,8 @@
         },
         {
             "path": "application/controllers/Paystack.php",
-            "hash": "a28a67c6914203e4f459310e1e7300a212e590cea61a08e47a6602c418c36d08",
-            "size": 22277
+            "hash": "a1c0e03c95a44fd07e2d26dd54df790c1f475b849cf424da64f7e79cf1e38f67",
+            "size": 22754
         },
         {
             "path": "application/controllers/Debt_reminders.php",
@@ -9786,8 +9786,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "e9d89700c940197d03c66ef8902d7b45efcedfd8e5308c50ba4ed78c9000e4be",
-            "size": 77927
+            "hash": "1ab7d1c9e0f2c06702a506b802ea8bb96b39302efa0d81ace7059b4a53e6ad69",
+            "size": 78755
         },
         {
             "path": "application/libraries/Communication_documents.php",
@@ -10941,8 +10941,8 @@
         },
         {
             "path": "application/libraries/Messaging_client.php",
-            "hash": "4186df27bf2bea8515ea0bdae0dcab178542c155d1f1cf0ee4be5c66788034b0",
-            "size": 11339
+            "hash": "f132a26a8d64d30a52c97cfe3af25d33a015a1d67c47177680200e1edd8c7279",
+            "size": 13227
         },
         {
             "path": "application/libraries/Communication_designs.php",
@@ -12186,8 +12186,8 @@
         },
         {
             "path": "application/libraries/Updater.php",
-            "hash": "2917e933c13ce8b651b5e70eecec11988c1239494c8555fdc9203978ecd45c87",
-            "size": 170402
+            "hash": "baa57230dc36999f02d18f9eead1810fe9e4c778b0713499cf409db51a637634",
+            "size": 169717
         },
         {
             "path": "application/libraries/Html_theme_content.php",
@@ -13626,8 +13626,8 @@
         },
         {
             "path": "application/core/MY_Security.php",
-            "hash": "967d4decd5b48c29e7237eedd39b9fef79997e8ab43eee35d188938f2e90534c",
-            "size": 6310
+            "hash": "a73756a0cb826e23f56cb3094c39f83f727a5217e1ad96d72afd5325fe889a9c",
+            "size": 6336
         },
         {
             "path": "application/core/MY_Controller.php",
@@ -13636,7 +13636,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "f1872980292205e0edbb587db317c9cda650c3a1eb2dab1cdcb724f9ccb28d7e",
+            "hash": "4075274ef455b4d88d665a4a9823a412fcbd9b7388d0765cc5f32e6367bd64a9",
             "size": 137027
         },
         {
@@ -20692,7 +20692,8 @@
         "4.0.9.272_paystack_payout_account_edit_policy.sql",
         "4.0.9.273_nigeria_location_data.sql",
         "4.0.9.274_storefront_customer_wishlists.sql",
-        "4.0.9.275_product_media_library_reuse.sql"
+        "4.0.9.275_product_media_library_reuse.sql",
+        "4.0.9.276_retail_price_defaults_and_electronics_theme.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20701,6 +20702,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "2d94281bd0e6e8b1e720e37c9ae7e589a74f15d469a80cd537e8bf36b3435214ddca33f60a294aed7b5b702b8eb291b9e20e41e606658a7f7d9097b48906d301",
-    "changelog": "Release 4.0.9.275"
+    "signature": "f5777951883ff858c16fd2520e2db89294c0df1345584ee6fa4a3d0d658a78d75194b8e7b1abfcf31dccb6290d657610f38cd369b8b34e72fb3fe0cfe8edaf0b",
+    "changelog": "Release 4.0.9.276"
 }

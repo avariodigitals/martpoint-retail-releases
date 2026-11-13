@@ -4,6 +4,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Paystack_model extends CI_Model {
 
 	var $table = 'db_paystack_settings';
+	protected $fleet_credentials_cleared = false;
+	protected $fleet_settings_loaded = false;
+	protected $fleet_settings_cache = null;
 
 	// Gateway base URL — overridable for sandbox/mocked testing via
 	// MP_PAYSTACK_API env var. Production traffic always uses the default.
@@ -15,8 +18,20 @@ class Paystack_model extends CI_Model {
 
 	public function get_settings($store_id = null)
 	{
-		// Fleet installs may only use provider credentials copied/configured by
-		// Central. Never fall back to keys entered into the legacy store form.
+		// Fleets read safe settings from Central and proxy provider API calls
+		// through it. Provider secrets remain on Central instead of being copied
+		// into each fleet database.
+		if(function_exists('mp_is_central') && !mp_is_central()){
+			if($this->fleet_settings_loaded) return $this->fleet_settings_cache;
+			$this->fleet_settings_loaded = true;
+			if(empty($store_id)) { $store_id = get_current_store_id(); }
+			$this->load->library('messaging_client');
+			$result = $this->messaging_client->paystackSettings((int)$store_id);
+			if(empty($result['success']) || !is_array($result['settings'] ?? null)) return null;
+			if(!empty($result['settings']['configured'])) $this->clearFleetProviderCredentials();
+			$this->fleet_settings_cache = (object)$result['settings'];
+			return $this->fleet_settings_cache;
+		}
 		if($this->db->table_exists('db_payment_gateway_accounts')){
 			$central = $this->db->where('provider', 'paystack')->get('db_payment_gateway_accounts')->row();
 			if($central){ return $central; }
@@ -25,6 +40,24 @@ class Paystack_model extends CI_Model {
 		if(empty($store_id)) { $store_id = get_current_store_id(); }
 		if(!$this->db->table_exists($this->table)) { return null; }
 		return $this->db->where('store_id', $store_id)->get($this->table)->row();
+	}
+
+	/** Remove keys left behind by older Fleet Manager credential pushes. */
+	private function clearFleetProviderCredentials()
+	{
+		if($this->fleet_credentials_cleared) return;
+		$this->fleet_credentials_cleared = true;
+		foreach(array('db_payment_gateway_accounts','db_paystack_settings') as $table){
+			if(!$this->db->table_exists($table)) continue;
+			$clear=array();
+			foreach(array('secret_key','public_key','webhook_secret') as $column){
+				if($this->db->field_exists($column,$table)) $clear[$column]='';
+			}
+			if($this->db->field_exists('enabled',$table)) $clear['enabled']=0;
+			if(!$clear) continue;
+			if($table==='db_payment_gateway_accounts') $this->db->where('provider','paystack')->update($table,$clear);
+			else $this->db->update($table,$clear);
+		}
 	}
 
 	/**
@@ -106,6 +139,14 @@ class Paystack_model extends CI_Model {
 
 	private function api_request($method, $endpoint, $data = null, $store_id = null)
 	{
+		if(function_exists('mp_is_central') && !mp_is_central()){
+			if(empty($store_id)) { $store_id = get_current_store_id(); }
+			$this->load->library('messaging_client');
+			$result = $this->messaging_client->paystackRequest((int)$store_id, $method, $endpoint, $data);
+			if(empty($result['success'])) return array('status'=>false, 'message'=>$result['message'] ?? 'Central could not process the MartPoint Pay request.');
+			return array('status'=>!empty($result['status']), 'data'=>$result['data'] ?? array(),
+				'raw'=>$result['raw'] ?? array(), 'message'=>$result['message'] ?? null);
+		}
 		$secret_key = $this->get_secret_key($store_id);
 		if(empty($secret_key)){
 			return array('status' => false, 'message' => 'MartPoint Pay is not configured');
@@ -134,6 +175,15 @@ class Paystack_model extends CI_Model {
 			return array('status'=>false, 'message'=>$result['message'] ?? 'The payment provider request failed', 'raw'=>$result);
 		}
 		return array('status'=>true, 'data'=>$result['data'] ?? array(), 'raw'=>$result);
+	}
+
+	/** Central-only provider request entry point used by the signed fleet relay. */
+	public function central_api_request($method, $endpoint, $data = null, $store_id = null)
+	{
+		if(!function_exists('mp_is_central') || !mp_is_central()){
+			return array('status'=>false, 'message'=>'Paystack provider requests must be handled by Central.');
+		}
+		return $this->api_request($method, $endpoint, $data, $store_id);
 	}
 
 	/** Central messaging purchases settle to MartPoint, without merchant payout splits. */
@@ -302,7 +352,7 @@ class Paystack_model extends CI_Model {
 		$acceptance = $this->db->where('provider', 'paystack')->where('store_id', (int)$store_id)
 			->order_by('id', 'DESC')->limit(1)->get('db_payment_subaccount_acceptances')->row();
 		$settings = $this->get_settings($store_id);
-		if(!$acceptance || !$settings || empty($settings->secret_key)){ return false; }
+		if(!$acceptance || !$settings || empty($settings->public_key)){ return false; }
 		$percent = max(0, (float)($settings->platform_fee_percent ?? 0));
 		$fixed = max(0, (float)($settings->platform_fee_fixed ?? 0));
 		if(!isset($settings->platform_fee_percent) && !isset($settings->platform_fee_fixed)){

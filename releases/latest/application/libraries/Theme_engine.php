@@ -395,6 +395,14 @@ class Theme_engine {
         if (!$this->sellsProducts()) {
             return false;
         }
+        // The electronics storefront includes its own online cart and checkout.
+        // Legacy stores can retain allow_products_online=0 from before the
+        // selling-mode setting existed; when the merchant has not selected
+        // catalogue-only mode, that stale flag must not remove every purchase
+        // control from the gadget theme.
+        if ($key === 'martpoint_gadgets' && $this->sellingMode() !== 'catalogue') {
+            return true;
+        }
         // Skinora's Products/Products + Services modes have their own bag and
         // checkout. Existing stores can carry a stale allow_products_online=0
         // flag while publishing products, so the selected theme must supply
@@ -749,8 +757,12 @@ class Theme_engine {
                 if ($footerLogo !== '') {
                     $footerBits .= '<img src="' . htmlspecialchars($footerLogo, ENT_QUOTES, 'UTF-8') . '" alt="Store footer logo" style="display:block;width:auto;height:auto;max-width:180px;max-height:54px;object-fit:contain;margin:12px auto;background:#fff;padding:6px 10px;border-radius:6px">';
                 }
+                // A theme may wrap "MartPoint" in markup between these words,
+                // so compare visible footer text instead of raw HTML. This
+                // avoids injecting a second credit above a theme's own footer.
+                $visibleThemeText = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 if (mp_storefront_show_powered_by($this->settings)
-                    && stripos($html, 'Powered by MartPoint') === false) {
+                    && stripos($visibleThemeText, 'Powered by MartPoint') === false) {
                     $footerBits .= '<span class="mp-html-powered-by" style="display:block;margin-top:8px;text-align:center;font-size:12px;opacity:.75">Powered by MartPoint</span>';
                 }
                 if ($footerBits !== '') {
