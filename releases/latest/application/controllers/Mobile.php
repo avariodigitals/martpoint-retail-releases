@@ -1,0 +1,9514 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Mobile extends MY_Controller {
+	public function __construct(){
+		parent::__construct();
+		$this->load_global();
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
+			$entry = strtolower((string)$this->uri->segment(2));
+			if(in_array($entry,['pos','hold','holds','get_hold','delete_hold','clock'],true)){
+				if($this->input->method() === 'get') redirect('attendance/workspace?screen=mobile');
+				else $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['status'=>'error','message'=>'POS is not available in the Building Materials workspace.']))->_display();
+				exit;
+			}
+		}
+		// Defines physio_staff_select() — a no-op filter for non-physio stores.
+		if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
+
+		$site = get_site_details();
+		$favicon_path = !empty($site->favicon) ? $site->favicon : '';
+		$this->data['favicon_url'] = (!empty($favicon_path) && file_exists($favicon_path)) ? base_url($favicon_path) : base_url('uploads/site/icon.webp');
+
+		$this->load->model('dashboard_model','dashboard');
+		$this->load->model('sales_model','sales');
+	}
+
+	private function _mobile_kitchen_branch_context(){
+		$store_id = get_current_store_id();
+		$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+		$branch = (string)$this->input->post_get('branch_id', TRUE);
+		if($this->input->get('branch_id') === NULL && $this->input->post('branch_id') === NULL){
+			$branch = (string)($this->session->userdata('selected_branch_id') ?: '');
+		}
+		if($branch !== ''){
+			$valid = $this->db->where('id', (int)$branch)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+			if(!$valid || ($allowed !== null && !in_array((int)$branch, $allowed, true))) return ['ok'=>false];
+		}
+		if($this->input->get('branch_id') !== NULL || $this->input->post('branch_id') !== NULL){
+			$this->session->set_userdata('selected_branch_id', $branch);
+		}
+		if($branch === '' && $allowed !== null && count($allowed) === 1){
+			$branch = (string)$allowed[0];
+			$this->session->set_userdata('selected_branch_id', $branch);
+		}
+		$this->db->where('store_id', $store_id)->where('status', 1);
+		if($allowed !== null){
+			$rows = empty($allowed) ? [] : $this->db->where_in('id', $allowed)->order_by('warehouse_name','asc')->get('db_warehouse')->result();
+		}else{
+			$rows = $this->db->order_by('warehouse_name','asc')->get('db_warehouse')->result();
+		}
+		$options = []; $names = [];
+		foreach($rows as $row){ $names[(int)$row->id] = (string)$row->warehouse_name; $options[] = ['id'=>(int)$row->id,'name'=>(string)$row->warehouse_name]; }
+		return ['ok'=>true,'branch'=>$branch,'allowed'=>$allowed,'options'=>count($options)>1?$options:[],'names'=>$names];
+	}
+
+	public function test_variants()
+	{
+		// Bypass auth for CLI testing only
+		if(!is_cli() && php_sapi_name() !== 'cli'){
+			echo "CLI only";
+			return;
+		}
+		// Simulate POST data for a variant product with 3 variants
+		$_POST = array(
+			'command' => 'save',
+			'q_id' => '',
+			'item_code' => '',
+			'item_name' => 'CLI TEST VARIANT ' . date('H:i:s'),
+			'brand_id' => '0',
+			'category_id' => '82',
+			'sku' => '',
+			'hsn' => '',
+			'unit_id' => '61',
+			'alert_qty' => '0',
+			'price' => '100',
+			'tax_id' => '149',
+			'purchase_price' => '100',
+			'tax_type' => 'Inclusive',
+			'profit_margin' => '0',
+			'sales_price' => '120',
+			'seller_points' => '0',
+			'custom_barcode' => '',
+			'description' => '',
+			'item_group' => 'Variants',
+			'discount_type' => 'Percentage',
+			'discount' => '0',
+			'mrp' => '0',
+			'hidden_rowcount' => '3',
+			'tr_variant_id_1' => '261',
+			'td_data_1_2' => 'CLI-SKU-1',
+			'td_data_1_3' => '100',
+			'td_data_1_4' => '100',
+			'td_data_1_5' => '0',
+			'td_data_1_6' => '120',
+			'td_data_1_8' => '',
+			'td_data_1_9' => '',
+			'td_data_1_10' => '0',
+			'td_data_1_11' => '0',
+			'count_id_1' => '',
+			'item_code_1' => '',
+			'tr_variant_id_2' => '262',
+			'td_data_2_2' => 'CLI-SKU-2',
+			'td_data_2_3' => '100',
+			'td_data_2_4' => '100',
+			'td_data_2_5' => '0',
+			'td_data_2_6' => '120',
+			'td_data_2_8' => '',
+			'td_data_2_9' => '',
+			'td_data_2_10' => '0',
+			'td_data_2_11' => '0',
+			'count_id_2' => '',
+			'item_code_2' => '',
+			'tr_variant_id_3' => '265',
+			'td_data_3_2' => 'CLI-SKU-3',
+			'td_data_3_3' => '100',
+			'td_data_3_4' => '100',
+			'td_data_3_5' => '0',
+			'td_data_3_6' => '120',
+			'td_data_3_8' => '',
+			'td_data_3_9' => '',
+			'td_data_3_10' => '0',
+			'td_data_3_11' => '0',
+			'count_id_3' => '',
+			'item_code_3' => '',
+		);
+		$_REQUEST = array_merge($_GET, $_POST, $_COOKIE);
+
+		$this->load->model('items_model','items');
+		echo "Calling save_record...\n";
+		$result = $this->items->save_record(array('command' => 'save'));
+		echo "Result: $result\n";
+
+		// Check what was saved
+		$store_id = get_current_store_id();
+		$parent = $this->db->where('store_id', $store_id)->where('item_group', 'Variants')->order_by('id', 'desc')->limit(1)->get('db_items')->row();
+		if($parent){
+			echo "Parent: id={$parent->id} name={$parent->item_name}\n";
+			$children = $this->db->where('parent_id', $parent->id)->order_by('id', 'asc')->get('db_items')->result();
+			echo "Children count: " . count($children) . "\n";
+			foreach($children as $c){
+				echo "  Child: id={$c->id} name={$c->item_name} sku={$c->sku} variant_id={$c->variant_id}\n";
+			}
+		}
+	}
+
+	public function diag()
+	{
+		header('Content-Type: text/plain');
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		echo "=== MartPoint Mobile Diagnostics ===\n";
+		echo "PHP: " . PHP_VERSION . "\n";
+		echo "CI: " . CI_VERSION . "\n";
+		echo "Time: " . date('Y-m-d H:i:s') . "\n\n";
+
+		// Check session
+		echo "=== SESSION ===\n";
+		echo "user_id: " . $this->session->userdata('inv_userid') . "\n";
+		echo "username: " . $this->session->userdata('inv_username') . "\n";
+		echo "role: " . $this->session->userdata('role_name') . "\n";
+		echo "store_id: " . get_current_store_id() . "\n\n";
+
+		// Check walk-in customer
+		echo "=== WALK-IN CUSTOMER ===\n";
+		$wic_id = get_walk_in_customer_id();
+		echo "walk_in_customer_id: " . ($wic_id ?: 'NULL - MISSING!') . "\n";
+		if($wic_id){
+			$wic = $this->db->where('id', $wic_id)->get('db_customers')->row();
+			echo "  name: " . ($wic->customer_name ?? 'N/A') . "\n";
+			echo "  store_id: " . ($wic->store_id ?? 'N/A') . "\n";
+			echo "  delete_bit: " . ($wic->delete_bit ?? 'N/A') . "\n";
+		} else {
+			echo "  WARNING: No walk-in customer for store_id=" . get_current_store_id() . "!\n";
+			echo "  Mobile POS will fail to save sales.\n";
+		}
+
+		// Check recent mobile sales
+		echo "\n=== RECENT MOBILE SALES ===\n";
+		$recent_sales = $this->db->query("SELECT s.id, s.sales_code, s.customer_id, s.store_id, s.sales_status, s.grand_total, s.paid_amount, c.customer_name, (SELECT COUNT(*) FROM db_salesitems si WHERE si.sales_id = s.id) as item_count FROM db_sales s LEFT JOIN db_customers c ON c.id=s.customer_id WHERE s.store_id = ? ORDER BY s.id DESC LIMIT 5", [get_current_store_id()])->result();
+		foreach($recent_sales as $s){
+			echo "  #{$s->id} code={$s->sales_code} cust_id={$s->customer_id} cust_name=" . ($s->customer_name ?? 'DELETED') . " items={$s->item_count} total={$s->grand_total} paid={$s->paid_amount} status={$s->sales_status}\n";
+		}
+
+		// Check critical tables exist
+		echo "=== TABLE CHECK ===\n";
+		$tables = ['db_sales','db_salesitems','db_salespayments','db_hold','db_holditems',
+			'db_items','db_tax','db_category','db_brands','db_customers','db_warehouse',
+			'db_store','db_payment_modes','db_installment_plans','db_installment_payments',
+			'db_attendance','db_shifts','ac_accounts','ac_transactions','db_store_pos_settings'];
+		$store_id = get_current_store_id();
+		foreach($tables as $t){
+			$exists = $this->db->query("SHOW TABLES LIKE '$t'")->num_rows() > 0;
+			echo ($exists ? "OK  " : "MISS") . " $t";
+			if(!$exists){ echo " <-- MISSING!"; }
+			echo "\n";
+		}
+
+		// Check payment modes have data
+		echo "\n=== PAYMENT MODES ===\n";
+		$modes = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_payment_modes')->result();
+		echo "Count: " . count($modes) . "\n";
+		if(count($modes) === 0){
+			echo "WARNING: No payment modes for store_id=$store_id! Split payment will fail.\n";
+			echo "Run: INSERT INTO db_payment_modes (store_id, code, name, is_default, sort_order, status, created_date) VALUES ($store_id, 'cash', 'Cash', 1, 1, 1, CURDATE());\n";
+		}
+		foreach($modes as $m){
+			echo "  $m->code => $m->name (id=$m->id)\n";
+		}
+
+		// Check critical columns on db_salesitems
+		echo "\n=== SALESITEMS COLUMNS ===\n";
+		$cols = $this->db->query("SHOW COLUMNS FROM db_salesitems")->result();
+		$need = ['price_type','staff_id','commission_amount','barcode_id','sold_serial_number','sold_imei_number'];
+		$have = [];
+		foreach($cols as $c){ $have[$c->Field] = true; }
+		foreach($need as $n){
+			echo (isset($have[$n]) ? "OK  " : "MISS") . " db_salesitems.$n\n";
+		}
+
+		// Check db_salespayments columns
+		echo "\n=== SALESPAYMENTS COLUMNS ===\n";
+		$cols = $this->db->query("SHOW COLUMNS FROM db_salespayments")->result();
+		$need = ['payment_reference','confirmation_status','payment_mode_id','advance_adjusted','cheque_number','cheque_period','cheque_status'];
+		$have = [];
+		foreach($cols as $c){ $have[$c->Field] = true; }
+		foreach($need as $n){
+			echo (isset($have[$n]) ? "OK  " : "MISS") . " db_salespayments.$n\n";
+		}
+
+		// Check db_payment_modes columns (cashflow report depends on affects_cash_in_hand)
+		echo "\n=== PAYMENT MODES COLUMNS ===\n";
+		$pm_cols = $this->db->query("SHOW COLUMNS FROM db_payment_modes")->result();
+		$pm_need = ['affects_cash_in_hand','enabled','is_system','requires_reference','requires_confirmation','icon_class','description'];
+		$pm_have = [];
+		foreach($pm_cols as $c){ $pm_have[$c->Field] = true; }
+		foreach($pm_need as $n){
+			echo (isset($pm_have[$n]) ? "OK  " : "MISS") . " db_payment_modes.$n\n";
+		}
+		// Check if cash mode has affects_cash_in_hand=1
+		$cash_mode = $this->db->where('store_id', $store_id)->where('LOWER(code)', 'cash')->get('db_payment_modes')->row();
+		if($cash_mode){
+			$affects = isset($cash_mode->affects_cash_in_hand) ? (int)$cash_mode->affects_cash_in_hand : 'N/A (column missing)';
+			echo ($affects === 1 ? "OK  " : "WARN") . " cash mode affects_cash_in_hand=$affects\n";
+			if($affects !== 1){
+				echo "  -> Cashflow report will show 0. Run migration to fix.\n";
+			}
+		} else {
+			echo "WARN No cash mode found for store_id=$store_id\n";
+		}
+
+		// Check recent sales items
+		echo "\n=== RECENT SALES ITEMS ===\n";
+		$recent = $this->db->query("SELECT si.sales_id, si.item_id, si.sales_qty, si.price_per_unit, si.store_id, s.sales_code, s.store_id as sale_store_id FROM db_salesitems si LEFT JOIN db_sales s ON s.id=si.sales_id ORDER BY si.id DESC LIMIT 5")->result();
+		if(count($recent) === 0){
+			echo "WARN No sales items found in db_salesitems at all!\n";
+		}
+		foreach($recent as $r){
+			echo "  sale_id={$r->sales_id} code=" . ($r->sales_code ?? 'NULL') . " item_id={$r->item_id} qty={$r->sales_qty} price={$r->price_per_unit} item_store={$r->store_id} sale_store={$r->sale_store_id}\n";
+		}
+
+		// Check PHP extensions
+		echo "\n=== PHP EXTENSIONS ===\n";
+		$exts = ['mysqli','pdo_mysql','json','mbstring','openssl','curl','gd','zip'];
+		foreach($exts as $e){
+			echo (extension_loaded($e) ? "OK  " : "MISS") . " $e\n";
+		}
+
+		// Check writable dirs
+		echo "\n=== WRITABLE DIRS ===\n";
+		$dirs = ['application/logs','application/cache','uploads','updates/migrations'];
+		foreach($dirs as $d){
+			$path = FCPATH . $d;
+			echo (is_writable($path) ? "OK  " : "NOWRITE") . " $d\n";
+		}
+
+		echo "\n=== DONE ===\n";
+		echo "Delete this diagnostic after use by removing the diag() method from Mobile.php\n";
+	}
+
+	public function index()
+	{
+		if(in_array(mp_get_store_profile()['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)){
+			redirect('dashboard?screen=mobile'); return;
+		}
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){
+			redirect($this->permissions('dashboard_view') ? 'building_workspace/actions?screen=mobile' : 'attendance/workspace?screen=mobile');return;
+		}
+		$gardenHomeProfile = mp_get_store_profile();
+		if (($gardenHomeProfile['industry_type'] ?? '') === 'garden_centre_landscaping' && $this->db->table_exists('db_garden_item_attributes')) {
+			redirect('garden?screen=mobile'); return;
+		}
+		// Physiotherapy & rehabilitation stores get a clinical home: the retail
+		// sales/profit dashboard and its POS/Sale tiles are meaningless for a
+		// clinic. Clinical access stays behind explicit physio_can() grants.
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(physio_enabled()){ $this->clinicHome(); return; }
+		$is_oil_processing = function_exists('mp_get_store_profile')
+			&& ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant');
+		if($is_oil_processing && $this->input->get('classic') === NULL){ redirect(base_url('mobile/oil_processing')); return; }
+		if(!$is_oil_processing && stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
+			redirect(base_url().'mobile/pos');
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Mobile';
+		$store_id = get_current_store_id();
+
+		$from = $this->input->get('from', TRUE);
+		$to = $this->input->get('to', TRUE);
+		if(empty($from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)){
+			$from = date('Y-m-d');
+		}
+		if(empty($to) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)){
+			$to = $from;
+		}
+		$seven_days = date('Y-m-d', strtotime($to . ' +7 days'));
+		$data['from'] = $from;
+		$data['to'] = $to;
+
+		// Sales in range
+		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("sales_date >=", $from);
+		$this->db->where("sales_date <=", $to . ' 23:59:59');
+		$sales = $this->db->get("db_sales")->row()->total;
+
+		// Transactions in range
+		$this->db->select("COUNT(*) as total");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("sales_date >=", $from);
+		$this->db->where("sales_date <=", $to . ' 23:59:59');
+		$transactions = $this->db->get("db_sales")->row()->total;
+
+		// Profit in range (revenue - cost)
+		$this->db->select("COALESCE(SUM(a.grand_total),0) as revenue");
+		$this->db->from("db_sales a");
+		$this->db->where("a.sales_status", "Final");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("a.sales_date >=", $from);
+		$this->db->where("a.sales_date <=", $to . ' 23:59:59');
+		$revenue = $this->db->get()->row()->revenue;
+
+		$this->db->select("COALESCE(SUM(CASE WHEN b.purchase_price > 0 THEN b.purchase_price ELSE COALESCE(c.purchase_price,0) END * b.sales_qty),0) as cost");
+		$this->db->from("db_sales a");
+		$this->db->join("db_salesitems b", "a.id = b.sales_id", "left");
+		$this->db->join("db_items c", "c.id = b.item_id", "left");
+		$this->db->where("a.sales_status", "Final");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("a.sales_date >=", $from);
+		$this->db->where("a.sales_date <=", $to . ' 23:59:59');
+		$cost = $this->db->get()->row()->cost;
+		$profit = $revenue - $cost;
+
+		// Expenses for selected range
+		$this->db->select("COALESCE(SUM(expense_amt),0) as total");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("expense_date >=", $from);
+		$this->db->where("expense_date <=", $to . ' 23:59:59');
+		$this->db->where("status", 1);
+		$expenses = $this->db->get("db_expense")->row()->total;
+
+		// Outstanding debt
+		$this->db->select("COALESCE(SUM(grand_total - paid_amount),0) as total_debt, COUNT(*) as debtor_count");
+		$this->db->where_in("sales_status", array("Final", "Opening"));
+		$this->db->where("(grand_total - paid_amount) >", 0);
+		$this->db->where("store_id", $store_id);
+		$debt = $this->db->get("db_sales")->row();
+
+		// Recent sales
+		$this->db->select("a.id, a.sales_code, a.grand_total, a.paid_amount, a.created_time, a.customer_id, c.customer_name, (a.grand_total - a.paid_amount) as due");
+		$this->db->from("db_sales a");
+		$this->db->join("db_customers c", "c.id = a.customer_id", "left");
+		$this->db->where("a.sales_status", "Final");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("a.sales_date >=", $from);
+		$this->db->where("a.sales_date <=", $to . ' 23:59:59');
+		$this->db->order_by("a.id", "desc");
+		$this->db->limit(10);
+		$recent = $this->db->get()->result();
+
+		// Cash in hand
+		$warehouse_id = get_store_warehouse_id();
+		$cash_in_hand = $this->dashboard->get_cash_in_hand($warehouse_id);
+
+		// Low stock count
+		$low_stock = $this->dashboard->get_low_stock_count($warehouse_id);
+
+		// Unpaid invoices
+		$this->db->select("COUNT(*) as count");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("(grand_total - paid_amount) >", 0);
+		$unpaid_count = $this->db->get("db_sales")->row()->count;
+
+		// Top 3 selling products in range
+		$this->db->select("a.item_id, MAX(b.item_name) as item_name, COALESCE(SUM(a.sales_qty),0) as qty");
+		$this->db->from("db_salesitems a");
+		$this->db->join("db_sales s", "s.id = a.sales_id", "left");
+		$this->db->join("db_items b", "b.id = a.item_id", "left");
+		$this->db->where("s.sales_status", "Final");
+		$this->db->where("s.store_id", $store_id);
+		$this->db->where("s.sales_date >=", $from);
+		$this->db->where("s.sales_date <=", $to . ' 23:59:59');
+		$this->db->group_by("a.item_id");
+		$this->db->order_by("qty", "desc");
+		$this->db->limit(3);
+		$top_products = $this->db->get()->result();
+
+		// Upcoming due collections (next 7 days)
+		$this->db->select("a.id, a.sales_code, a.grand_total, a.paid_amount, a.due_date, c.customer_name, (a.grand_total - a.paid_amount) as due");
+		$this->db->from("db_sales a");
+		$this->db->join("db_customers c", "c.id = a.customer_id", "left");
+		$this->db->where("a.sales_status", "Final");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("(a.grand_total - a.paid_amount) >", 0);
+		$this->db->where("a.due_date >=", $from);
+		$this->db->where("a.due_date <=", $seven_days . ' 23:59:59');
+		$this->db->order_by("a.due_date", "asc");
+		$this->db->limit(5);
+		$upcoming_due = $this->db->get()->result();
+
+		// Daily sales target from site settings
+		$site = get_site_details();
+		$daily_target = (float)($site->sales_target ?? 50000);
+
+		// Compute target based on selected date range
+		$days_diff = (strtotime($to) - strtotime($from)) / 86400 + 1;
+		if($days_diff <= 1){
+			$target_label = 'Daily Target';
+			$target = $daily_target;
+		} else if($days_diff <= 7){
+			$target_label = 'Weekly Target';
+			$target = $daily_target * 7;
+		} else if($days_diff <= 30){
+			$target_label = 'Monthly Target';
+			$target = $daily_target * 30;
+		} else {
+			$target_label = 'Custom Target';
+			$target = $daily_target * $days_diff;
+		}
+		$raw_target_progress = ($target > 0) ? round(($sales / $target) * 100, 1) : 0;
+		$target_progress = min(100, $raw_target_progress);
+		if($raw_target_progress > 100){
+			$target_status = 'surpass';
+		} else if($raw_target_progress >= 100){
+			$target_status = 'meet';
+		} else {
+			$target_status = 'behind';
+		}
+
+		// Greeting based on hour
+		$hour = date('G');
+		if($hour < 12) $greeting = 'Good morning';
+		elseif($hour < 17) $greeting = 'Good afternoon';
+		else $greeting = 'Good evening';
+
+		// User profile picture
+		$user_id = $this->session->userdata('inv_userid');
+		$user = $this->db->select('profile_picture')->where('id', $user_id)->get('db_users')->row();
+		$data['profile_picture'] = ($user && !empty($user->profile_picture)) ? $user->profile_picture : '';
+
+		$data['sales'] = $this->currency($sales, true);
+		$data['profit'] = $this->currency($profit, true);
+		$data['expenses'] = $this->currency($expenses, true);
+		$data['transactions'] = number_format($transactions);
+		$data['debt'] = $this->currency($debt->total_debt, true);
+		$data['recent_sales'] = is_array($recent) ? $recent : [];
+		$data['cash_in_hand'] = $this->currency($cash_in_hand, true);
+		$data['low_stock'] = $low_stock;
+		$data['unpaid_count'] = $unpaid_count;
+		$data['top_products'] = is_array($top_products) ? $top_products : [];
+		$data['upcoming_due'] = is_array($upcoming_due) ? $upcoming_due : [];
+		$data['daily_target'] = $daily_target;
+		$data['target'] = $target;
+		$data['target_label'] = $target_label;
+		$data['target_progress'] = $target_progress;
+		$data['target_status'] = $target_status;
+
+		// Intelligence insights
+		$insights = [];
+		$days = (int) max(1, $days_diff);
+
+		// Target vs actual
+		if($target > 0){
+			$target_pct = round(($sales / $target) * 100, 1);
+			if($target_pct >= 100){
+				$insights[] = 'Great job! Sales hit ' . number_format($target_pct) . '% of your ' . strtolower($target_label) . '.';
+			} elseif($target_pct >= 75){
+				$insights[] = 'On track: you are at ' . number_format($target_pct) . '% of your ' . strtolower($target_label) . '.';
+			} else {
+				$insights[] = 'Below target: sales reached ' . number_format($target_pct) . '% of your ' . strtolower($target_label) . '. Push for more sales.';
+			}
+		}
+
+		// Period vs previous period
+		$prev_from = date('Y-m-d', strtotime($from . ' -' . $days . ' days'));
+		$prev_to = date('Y-m-d', strtotime($from . ' -1 day'));
+		$this->db->select("COALESCE(SUM(grand_total),0) as total");
+		$this->db->where("sales_status", "Final");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("sales_date >=", $prev_from);
+		$this->db->where("sales_date <=", $prev_to);
+		$prev_sales = (float) $this->db->get("db_sales")->row()->total;
+		if($prev_sales > 0){
+			$change = round((($sales - $prev_sales) / $prev_sales) * 100, 1);
+			$dir = $change >= 0 ? 'up' : 'down';
+			$insights[] = 'Sales vs previous ' . $days . ' days: ' . $dir . ' ' . number_format(abs($change)) . '%.';
+		}
+
+		// Top product
+		if(!empty($top_products)){
+			$top = $top_products[0];
+			$insights[] = 'Top seller: ' . $top->item_name . ' (' . $top->qty . ' sold).';
+		}
+
+		// Debt and cash
+		if($debt->total_debt > 0){
+			$insights[] = 'Outstanding dues: ' . store_number_format($debt->total_debt) . ' from ' . $debt->debtor_count . ' customer' . ($debt->debtor_count > 1 ? 's' : '') . '.';
+		}
+		if($cash_in_hand > 0){
+			$insights[] = 'Cash in hand: ' . store_number_format($cash_in_hand) . '.';
+		}
+
+		// Expenses warning
+		if($sales > 0 && $expenses > ($sales * 0.3)){
+			$insights[] = 'Expenses are over 30% of sales this period. Review spending.';
+		}
+
+		// Low stock
+		if($low_stock > 0){
+			$insights[] = $low_stock . ' item' . ($low_stock > 1 ? 's' : '') . ' below reorder level. Restock soon.';
+		}
+
+		// Staff status (must be before insights)
+		$excluded_roles = get_excluded_staff_roles($store_id);
+		$this->db->select("COUNT(*) as total");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("status", 1);
+		$this->db->where_not_in("role_id", $excluded_roles);
+		$this->db->where_not_in("id", get_excluded_user_ids($store_id));
+		$staff_count = $this->db->get("db_users")->row()->total ?? 0;
+		$data['staff_count'] = $staff_count;
+
+		// Today's attendance — resolved HERE, before it is read.
+		//
+		// The staff insight below reads $data['attendance_count'], but that was
+		// only assigned 30+ lines further down the method, so at this point it
+		// was still null and the line rendered as " of 2 staff on duty today."
+		// — a number that simply was not there. Reading attendance first is the
+		// fix. The later assignment is left in place because other code on this
+		// screen depends on it being set at that point too; re-reading the same
+		// day's attendance twice is harmless and keeps both paths honest.
+		$this->load->model('attendance_model');
+		$today = date('Y-m-d');
+		$attendance = $this->attendance_model->getTodayAttendance($store_id, $today);
+		$data['attendance_count'] = count(is_array($attendance) ? $attendance : []);
+
+		// Staff
+		if($staff_count > 0){
+			$insights[] = $data['attendance_count'] . ' of ' . $staff_count . ' staff on duty today.';
+		}
+
+		$data['insights'] = $insights;
+
+		// Intelligence Report — the same engine the desktop dashboards use.
+		//
+		// The $insights list above restates today's counters in prose ("Sales vs
+		// previous 7 days: up 4%"). It is useful, but it is a summary, and it was
+		// ALSO retail-only: a print shop on a phone was told about sales targets
+		// and top-selling products, neither of which is how a print business
+		// works. Rather than write a third set of heuristics here, the phone now
+		// asks Intelligence_model for whichever set fits this store's industry,
+		// so the phone, the desktop dashboard and the print shop can never
+		// disagree about the same fact.
+		//
+		// Wrapped defensively — an insight failure must not blank the phone's
+		// home screen.
+		$data['intel'] = [];
+		try {
+			$this->load->model('intelligence_model', 'intel');
+			// mp_is_print_shop() rather than an industry string test: a store can
+			// be relabelled while still running printing themes and holding print
+			// jobs, and the industry label would then pick the wrong insight set.
+			$data['intel'] = mp_is_print_shop()
+				? $this->intel->for_printing($store_id)
+				: $this->intel->for_retail($store_id);
+		} catch (Throwable $e) {
+			log_message('error', 'Mobile dashboard: intelligence failed — ' . $e->getMessage());
+		}
+
+		// Today's attendance and clock-in status
+		$this->load->model('attendance_model');
+		$today = date('Y-m-d');
+		$attendance = $this->attendance_model->getTodayAttendance($store_id, $today);
+		$data['attendance_count'] = count(is_array($attendance) ? $attendance : []);
+		$data['needs_clock_out'] = $this->attendance_model->needsClockOut($user_id, $today);
+
+		$data['greeting'] = $greeting;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['greeting_name'] = function_exists('mp_current_user_first_name') ? mp_current_user_first_name('User') : $data['display_name'];
+		$data['branch_name'] = get_store_name() . ' · Today';
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/dashboard', $data);
+	}
+
+	public function pos()
+	{
+		$this->permission_check('pos');
+		if(function_exists('mp_get_store_profile')
+			&& ((mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant')){
+			redirect(base_url('mobile/production'));
+			return;
+		}
+		if(!$this->is_cashier_clocked_in()){
+			$this->session->set_flashdata('error', 'Please clock in before making a sale.');
+			redirect('mobile/clock');
+		}
+		$data = $this->data;
+		$data['page_title'] = 'POS';
+		$data['weight_scale_mode'] = function_exists('mp_get_store_pos_setting') ? mp_get_store_pos_setting(get_current_store_id(), 'weight_scale_mode', 'analog') : 'analog';
+		if(!in_array($data['weight_scale_mode'], array('digital', 'analog', 'hybrid'), true)) $data['weight_scale_mode'] = 'analog';
+		$data['active'] = 'pos';
+		$data['init_code'] = get_only_init_code('sales');
+		$data['count_id'] = get_last_count_id('db_sales');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name() . ' · Today';
+		$store_id = get_current_store_id();
+		$data['show_sale_stock_labels'] = 1;
+		if($this->db->table_exists('db_storefront_settings') && $this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$storefrontSettings = $this->db->select('show_sale_stock_labels')->where('store_id', $store_id)->get('db_storefront_settings')->row();
+			$data['show_sale_stock_labels'] = (int)($storefrontSettings->show_sale_stock_labels ?? 1) === 1 ? 1 : 0;
+		}
+		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
+		$data['till_account_id'] = get_cash_account_id();
+		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->where('is_enabled', 1)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
+		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
+		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
+		$data['default_price_type'] = 'retail';
+		// Tables for restaurant quick-sale
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','mobile_tables');
+			$data['tables'] = $this->mobile_tables->get_all($store_id);
+		}
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sale', $data);
+	}
+
+	public function sale($hold_id = 0)
+	{
+		$this->permission_check('sales_add');
+		if(!$this->is_cashier_clocked_in()){
+			$this->session->set_flashdata('error', 'Please clock in before making a sale.');
+			redirect('mobile/clock');
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Quick Sale';
+		$data['active'] = 'sale';
+		$data['init_code'] = get_only_init_code('sales');
+		$data['count_id'] = get_last_count_id('db_sales');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name() . ' · Today';
+		$store_id = get_current_store_id();
+		$data['show_sale_stock_labels'] = 1;
+		if($this->db->table_exists('db_storefront_settings') && $this->db->field_exists('show_sale_stock_labels', 'db_storefront_settings')){
+			$storefrontSettings = $this->db->select('show_sale_stock_labels')->where('store_id', $store_id)->get('db_storefront_settings')->row();
+			$data['show_sale_stock_labels'] = (int)($storefrontSettings->show_sale_stock_labels ?? 1) === 1 ? 1 : 0;
+		}
+		$data['payment_modes'] = $this->db->select('code, name, is_default')->where('store_id', $store_id)->where('status', 1)->order_by('sort_order', 'asc')->get('db_payment_modes')->result();
+		$data['till_account_id'] = get_cash_account_id();
+		$data['shipping_fees'] = (mp_feature_enabled('manual_shipping') && $this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->where('is_enabled', 1)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
+
+		// Pre-load a held sale when recalling
+		$hold_id = (int) ($hold_id ?: ($this->input->get('hold_id', TRUE) ?: 0));
+		$data['hold'] = null;
+		if($hold_id > 0){
+			$this->db->where('id', $hold_id)->where('store_id', $store_id);
+			$hold = $this->db->get('db_hold')->row();
+			if($hold){
+				$this->db->select('hi.*, i.item_name, i.purchase_price, t.tax, t.tax_name');
+				$this->db->from('db_holditems hi');
+				$this->db->join('db_items i', 'i.id = hi.item_id', 'left');
+				$this->db->join('db_tax t', 't.id = hi.tax_id', 'left');
+				$this->db->where('hi.hold_id', $hold_id);
+				$hold->items = $this->db->get()->result();
+
+				$customer = $this->db->where('id', $hold->customer_id)->get('db_customers')->row();
+				$hold->customer_name = $customer ? $customer->customer_name : '';
+
+				$hold_data = [
+					'id' => $hold->id,
+					'customer_id' => $hold->customer_id,
+					'customer_name' => $hold->customer_name,
+					'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
+					'discount' => $hold->discount_to_all_input ?? 0,
+					'sales_note' => $hold->sales_note ?? '',
+					'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'retail',
+					'items' => []
+				];
+				foreach($hold->items as $it){
+					$hold_data['items'][] = [
+						'id' => (int) $it->item_id,
+						'name' => (string) ($it->item_name ?? 'Item #'.$it->item_id),
+						'price' => (float) $it->price_per_unit,
+                'pricing_snapshot' => json_decode((string)($it->pricing_snapshot ?? ''), true),
+                'price_type' => $it->price_type ?? 'retail',
+                'unit_id' => $it->unit_id ?? null, 'unit_name' => $it->unit_name ?? '',
+                'conversion_factor' => $it->conversion_factor ?? 1,
+						'purchase_price' => (float) $it->purchase_price,
+						'tax_value' => (float) $it->tax,
+						'tax_id' => (int) $it->tax_id,
+						'tax_name' => (string) ($it->tax_name ?? ''),
+						'tax_type' => (string) $it->tax_type,
+						'qty' => (float) $it->sales_qty,
+					];
+				}
+				$data['hold'] = $hold_data;
+
+				// A recalled hold should not remain in the hold list
+				$this->load->model('pos_model');
+				$this->pos_model->hold_invoice_delete($hold_id);
+			}
+		}
+
+		$data['pos_retail_button'] = mp_feature_enabled('pos_retail_button');
+		$data['pos_wholesale_button'] = mp_feature_enabled('pos_wholesale_button');
+		$data['default_price_type'] = 'retail';
+		// Tables for restaurant quick-sale
+		$data['tables'] = [];
+		if(mp_feature_enabled('table_management')){
+			$this->load->model('tables_model','mobile_tables');
+			$data['tables'] = $this->mobile_tables->get_all($store_id);
+		}
+		$data['pos_vehicle_picker'] = mp_feature_enabled('automobile_workflow')
+			&& $this->db->field_exists('vehicle_id', 'db_sales')
+			&& $this->db->table_exists('db_vehicles');
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sale', $data);
+	}
+
+	public function due()
+	{
+		$data = $this->data;
+		$data['page_title'] = 'Due Payments';
+		$store_id = get_current_store_id();
+
+		$this->db->select("a.id, a.sales_code, a.grand_total, a.paid_amount, a.due_date, a.created_date, c.customer_name, c.mobile, (a.grand_total - a.paid_amount) as due");
+		$this->db->from("db_sales a");
+		$this->db->join("db_customers c", "c.id = a.customer_id", "left");
+		$this->db->where("a.sales_status", "Final");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("(a.grand_total - a.paid_amount) >", 0);
+		$this->db->order_by("a.due_date", "asc");
+		$data['due_list'] = $this->db->get()->result();
+
+		$data['total_due'] = array_sum(array_column($data['due_list'], 'due'));
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/due', $data);
+	}
+
+	public function pay_due($sales_id)
+	{
+		$this->permission_check('sales_payment_add');
+		$data = $this->data;
+		$data['page_title'] = 'Receive Payment';
+		$store_id = get_current_store_id();
+
+		$this->db->where('id', $sales_id);
+		$this->db->where('store_id', $store_id);
+		$this->db->where('sales_status', 'Final');
+		$data['sale'] = $this->db->get('db_sales')->row();
+		if(empty($data['sale'])){
+			redirect('mobile/due');
+			return;
+		}
+		$data['due'] = $data['sale']->grand_total - $data['sale']->paid_amount;
+		if($data['due'] <= 0){
+			redirect('mobile/due');
+			return;
+		}
+		$data['customer'] = $this->db->where('id', $data['sale']->customer_id)->get('db_customers')->row();
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('name', 'asc');
+		$data['payment_modes'] = $this->db->get('db_payment_modes')->result();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/pay_due', $data);
+	}
+
+	public function save_due_payment()
+	{
+		$this->permission_check('sales_payment_add');
+		if(strtolower($this->input->method())!=='post'){show_error('POST is required.',405);return;}
+		$this->load->model('sales_model', 'sales');
+		$result = $this->sales->save_payment();
+		if($result == 'success'){
+			$this->session->set_flashdata('success', 'Payment recorded successfully.');
+		} else {
+			$this->session->set_flashdata('error', $result ?: 'Payment could not be saved.');
+		}
+		redirect('mobile/due');
+	}
+
+	public function sales_list()
+	{
+		$this->permission_check('sales_view');
+		$data = $this->data;
+		$data['page_title'] = 'Sales List';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.id, a.sales_code, a.sales_date, a.reference_no, a.grand_total, a.paid_amount, a.payment_status, a.sales_status, a.customer_id, c.customer_name');
+		$this->db->from('db_sales a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		$this->db->where_in('a.sales_status', array('Final','Draft'));
+		foreach(array('from_date'=>'>=','to_date'=>'<=') as $key=>$op){if($this->input->get($key))$this->db->where('a.sales_date '.$op,mp_dashboard_report_date($key));}
+		if($this->db->field_exists('invoice_status','db_sales'))$this->db->select('a.invoice_status');
+		// Cashiers without cross-user visibility permission may only view their own sales.
+		if(is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
+			$this->db->where("upper(a.created_by)", strtoupper($this->session->userdata('inv_username')));
+		}
+		$this->db->order_by('a.id', 'desc');
+		$this->db->limit(200);
+		$data['records'] = $this->db->get()->result();
+
+		$data['customers'] = get_customers_select_list('', $store_id);
+		$statuses = [];
+		foreach($data['records'] as $r){
+			if(!empty($r->payment_status) && !in_array($r->payment_status, $statuses)){
+				$statuses[] = $r->payment_status;
+			}
+		}
+		$data['statuses'] = $statuses;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_list', $data);
+	}
+
+	public function sales_returns()
+	{
+		$this->permission_check('sales_return_view');
+		$data = $this->data;
+		$data['page_title'] = 'Sales Returns';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.id, a.return_code, a.return_date, a.return_status, a.reference_no, a.grand_total, a.paid_amount, a.payment_status, a.customer_id, a.sales_id, c.customer_name, s.sales_code');
+		$this->db->from('db_salesreturn a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->join('db_sales s', 's.id = a.sales_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		// Cashiers without cross-user visibility permission may only view their own sales returns.
+		if(is_cashier() && !$this->permissions('show_all_users_sales_return_invoices')){
+			$this->db->where("upper(a.created_by)", strtoupper($this->session->userdata('inv_username')));
+		}
+		$this->db->order_by('a.id', 'desc');
+		$this->db->limit(200);
+		$data['records'] = $this->db->get()->result();
+
+		$data['customers'] = get_customers_select_list('', $store_id);
+		$statuses = [];
+		foreach($data['records'] as $r){
+			if(!empty($r->payment_status) && !in_array($r->payment_status, $statuses)){
+				$statuses[] = $r->payment_status;
+			}
+		}
+		$data['statuses'] = $statuses;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_returns', $data);
+	}
+
+	public function sales_return_invoice($id)
+	{
+		$this->belong_to('db_salesreturn', $id);
+		if(!$this->permissions('sales_return_view') && !$this->permissions('sales_return_add') && !$this->permissions('sales_return_edit')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$return = $this->db->where('id', $id)->get('db_salesreturn')->row();
+		// Cashiers without cross-user visibility permission may only open their own return invoices.
+		if($return && is_cashier() && !$this->permissions('show_all_users_sales_return_invoices')){
+			if(strtoupper($return->created_by) !== strtoupper($this->session->userdata('inv_username'))){
+				$this->show_access_denied_page();
+				return;
+			}
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Return Invoice';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['return_id'] = $id;
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_invoice', $data);
+	}
+
+	public function sales_return_form($sales_id = null)
+	{
+		$this->permission_check('sales_return_add');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$data['page_title'] = 'New Return';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode'] = 'create';
+		$data['return_id'] = '';
+		$data['return_header'] = null;
+		$data['sale'] = null;
+		$data['customer_id'] = '';
+		$data['customer_name'] = '';
+		$data['already_refunded'] = 0;
+		$data['prefill_items'] = [];
+
+		if(!empty($sales_id)){
+			$sale = $this->db->where('id', $sales_id)->where('store_id', $store_id)->get('db_sales')->row();
+			if(empty($sale)){
+				$this->session->set_flashdata('failed', 'Sale not found.');
+				redirect('mobile/sales_returns');
+				return;
+			}
+			if($sale->sales_status == 'Quotation'){
+				$this->session->set_flashdata('warning', 'Sorry! Quotation could not be returned!');
+				redirect('mobile/sales_invoice/'.$sales_id);
+				return;
+			}
+			$existing = $this->db->select('id')->where('sales_id', $sales_id)->where('store_id', $store_id)->get('db_salesreturn')->row();
+			if($existing){
+				$this->session->set_flashdata('success', 'Sales Return Invoice Already Generated!');
+				redirect($this->permissions('sales_return_edit') ? 'mobile/sales_return_edit/'.$existing->id : 'mobile/sales_return_invoice/'.$existing->id);
+				return;
+			}
+			$data['sale'] = $sale;
+			$data['page_title'] = 'Return '.$sale->sales_code;
+			$data['customer_id'] = $sale->customer_id;
+			$cust = $this->db->select('customer_name')->where('id', $sale->customer_id)->get('db_customers')->row();
+			$data['customer_name'] = ($cust && !empty($cust->customer_name)) ? $cust->customer_name : 'Walk-in Customer';
+			$data['prefill_items'] = $this->db
+				->select('si.item_id as id, i.item_name as name, si.sales_qty as sold_qty, si.sales_qty as qty, si.price_per_unit as price, si.tax_id, si.tax_type, si.discount_input, si.discount_type, si.discount_amt, si.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitems si')
+				->join('db_items i', 'i.id = si.item_id', 'left')
+				->join('db_tax t', 't.id = si.tax_id', 'left')
+				->where('si.sales_id', $sales_id)
+				->where('si.status', 1)
+				->get()->result();
+		}
+
+		// Payment mode options are rendered via get_payment_modes_select_list() in the view
+		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_form', $data);
+	}
+
+	public function sales_return_edit($return_id)
+	{
+		$this->belong_to('db_salesreturn', $return_id);
+		$this->permission_check('sales_return_edit');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$ret = $this->db->where('id', $return_id)->where('store_id', $store_id)->get('db_salesreturn')->row();
+		if(empty($ret)){
+			$this->session->set_flashdata('failed', 'Return not found.');
+			redirect('mobile/sales_returns');
+			return;
+		}
+		$data['page_title'] = 'Edit '.$ret->return_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode'] = 'edit';
+		$data['return_id'] = $return_id;
+		$data['return_header'] = $ret;
+		$data['sale'] = !empty($ret->sales_id) ? $this->db->where('id', $ret->sales_id)->get('db_sales')->row() : null;
+		$data['customer_id'] = $ret->customer_id;
+		$cust = $this->db->select('customer_name')->where('id', $ret->customer_id)->get('db_customers')->row();
+		$data['customer_name'] = ($cust && !empty($cust->customer_name)) ? $cust->customer_name : 'Walk-in Customer';
+		$data['already_refunded'] = (float)($this->db->select('COALESCE(SUM(payment),0) as p')->where('return_id', $return_id)->get('db_salespaymentsreturn')->row()->p ?? 0);
+
+		if(!empty($ret->sales_id)){
+			$data['prefill_items'] = $this->db
+				->select('ri.item_id as id, i.item_name as name, si.sales_qty as sold_qty, ri.return_qty as qty, ri.price_per_unit as price, ri.tax_id, ri.tax_type, ri.discount_input, ri.discount_type, ri.discount_amt, ri.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitemsreturn ri')
+				->join('db_items i', 'i.id = ri.item_id', 'left')
+				->join('db_tax t', 't.id = ri.tax_id', 'left')
+				->join('db_salesitems si', 'si.sales_id = '.(int)$ret->sales_id.' AND si.item_id = ri.item_id', 'left')
+				->where('ri.return_id', $return_id)
+				->where('ri.status', 1)
+				->get()->result();
+		} else {
+			$data['prefill_items'] = $this->db
+				->select('ri.item_id as id, i.item_name as name, ri.return_qty as qty, ri.price_per_unit as price, ri.tax_id, ri.tax_type, ri.discount_input, ri.discount_type, ri.discount_amt, ri.description, t.tax as tax_value, t.tax_name')
+				->from('db_salesitemsreturn ri')
+				->join('db_items i', 'i.id = ri.item_id', 'left')
+				->join('db_tax t', 't.id = ri.tax_id', 'left')
+				->where('ri.return_id', $return_id)
+				->where('ri.status', 1)
+				->get()->result();
+		}
+
+		// Payment mode options are rendered via get_payment_modes_select_list() in the view
+		$data['accounts'] = get_accounts_select_list(get_store_details()->default_account_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_return_form', $data);
+	}
+
+	public function save_return()
+	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
+		// For JSON requests, manually verify CSRF token before permission check
+		$input = json_decode(file_get_contents('php://input'), true);
+		if(!empty($input) && isset($input['csrf_test_name'])){
+			$csrf_token = $input['csrf_test_name'];
+			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
+			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
+				exit;
+			}
+		}
+
+		$return_id = trim((string)($input['return_id'] ?? ''));
+		if(!empty($return_id)){
+			$this->belong_to('db_salesreturn', $return_id);
+			$this->permission_check('sales_return_edit');
+		} else {
+			$this->permission_check('sales_return_add');
+		}
+		if(empty($input)){
+			$input = $this->input->post();
+		}
+
+		$store_id = get_current_store_id();
+		$customer_id = $input['customer_id'] ?? '';
+		$sales_id = $input['sales_id'] ?? '';
+		$cart = $input['cart'] ?? [];
+		$return_status = in_array(($input['return_status'] ?? ''), ['Return', 'Warranty', 'Cancel']) ? $input['return_status'] : 'Return';
+		$cart = array_values(array_filter($cart, function($it){ return !empty($it['id']) && (float)($it['qty'] ?? 0) > 0; }));
+
+		if(empty($customer_id) || empty($cart)){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Select a customer and at least one item with quantity.']);
+			exit;
+		}
+
+		$subtotal = 0;
+		$grand = 0;
+		$rowcount = count($cart);
+
+		$_POST = [];
+		$_POST['command'] = !empty($return_id) ? 'update' : 'save';
+		$_POST['return_id'] = $return_id;
+		$_POST['sales_id'] = $sales_id;
+		$_POST['return_date'] = !empty($input['return_date']) ? $input['return_date'] : date('Y-m-d');
+		$_POST['reference_no'] = $input['reference_no'] ?? '';
+		$_POST['return_status'] = $return_status;
+		$_POST['customer_id'] = $customer_id;
+		$_POST['other_charges_input'] = '0';
+		$_POST['other_charges_tax_id'] = '';
+		$_POST['other_charges_amt'] = '0';
+		$discount = parse_amount($input['discount'] ?? 0);
+		$_POST['discount_to_all_input'] = number_format($discount, 2, '.', '');
+		$_POST['discount_to_all_type'] = 'in_fixed';
+		$_POST['tot_discount_to_all_amt'] = number_format($discount, 2, '.', '');
+		$_POST['return_note'] = $input['return_note'] ?? '';
+		$_POST['rowcount'] = $rowcount;
+		$_POST['warehouse_id'] = (warehouse_module() && warehouse_count() > 1) ? ($input['warehouse_id'] ?? get_store_warehouse_id()) : get_store_warehouse_id();
+		$_POST['store_id'] = $store_id;
+		$_POST['coupon_code'] = '';
+		$_POST['coupon_discount_amt'] = '0';
+
+		for($i = 1; $i <= $rowcount; $i++){
+			$item = $cart[$i - 1];
+			$qty = (float) $item['qty'];
+			$price = (float) $item['price'];
+			$disc_amt = min(max((float)($item['discount_amt'] ?? 0), 0), $qty * $price);
+			$tax_id = (int)($item['tax_id'] ?? 0);
+			$tax_value = (float)($item['tax_value'] ?? 0);
+			$tax_type = (($item['tax_type'] ?? 'Exclusive') === 'Inclusive') ? 'Inclusive' : 'Exclusive';
+			$line_net = $qty * $price - $disc_amt;
+			if($tax_type == 'Inclusive'){
+				$tax_amount = $line_net - ($line_net / (1 + ($tax_value / 100)));
+				$line_total = $line_net;
+				$subtotal += ($line_net - $tax_amount);
+			} else {
+				$tax_amount = $line_net * $tax_value / 100;
+				$line_total = $line_net + $tax_amount;
+				$subtotal += $line_net;
+			}
+			$grand += $line_total;
+			$unit_total = ($tax_type == 'Exclusive') ? $price + ($tax_value * $price / 100) : $price;
+			$unit_total -= ($qty > 0) ? $disc_amt / $qty : 0;
+
+			$_POST['tr_item_id_'.$i] = $item['id'];
+			$_POST['td_data_'.$i.'_3'] = $qty;
+			$_POST['td_data_'.$i.'_4'] = $price;
+			$_POST['td_data_'.$i.'_8'] = number_format($disc_amt, 2, '.', '');
+			$_POST['td_data_'.$i.'_9'] = number_format($line_total, 2, '.', '');
+			$_POST['td_data_'.$i.'_10'] = number_format($unit_total, 2, '.', '');
+			$_POST['td_data_'.$i.'_11'] = number_format($tax_amount, 2, '.', '');
+			$_POST['td_data_'.$i.'_15'] = $tax_id;
+			$_POST['tr_tax_value_'.$i] = $tax_value;
+			$_POST['tr_tax_type_'.$i] = $tax_type;
+			$_POST['item_discount_type_'.$i] = $item['discount_type'] ?? 'Percentage';
+			$_POST['item_discount_input_'.$i] = (float)($item['discount_input'] ?? 0);
+			$_POST['description_'.$i] = $item['description'] ?? '';
+			$_POST['sold_serial_number_'.$i] = '';
+			$_POST['sold_imei_number_'.$i] = '';
+			$_POST['barcode_id_'.$i] = 0;
+		}
+
+		$grand -= $discount;
+		if($grand < 0){ $grand = 0; }
+		$round_off = round($grand, 2) - $grand;
+		$grand_total = round($grand, 2);
+		$_POST['tot_subtotal_amt'] = number_format($subtotal, 2, '.', '');
+		$_POST['tot_round_off_amt'] = number_format($round_off, 2, '.', '');
+		$_POST['tot_total_amt'] = number_format($grand_total, 2, '.', '');
+
+		$refund = parse_amount($input['amount'] ?? 0);
+		if($refund > 0 && empty($input['payment_type'])){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Choose a payment type for the refund.']);
+			exit;
+		}
+		$prev_paid = 0;
+		if(!empty($return_id)){
+			$prev_paid = (float)($this->db->select('COALESCE(SUM(payment),0) as p')->where('return_id', $return_id)->get('db_salespaymentsreturn')->row()->p ?? 0);
+		}
+		if($refund > ($grand_total - $prev_paid) + 0.01){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Refund amount cannot exceed the return total.']);
+			exit;
+		}
+		$_POST['amount'] = number_format($refund, 2, '.', '');
+		$_POST['payment_type'] = $input['payment_type'] ?? '';
+		$_POST['payment_note'] = $input['payment_note'] ?? '';
+		$_POST['account_id'] = $input['account_id'] ?? '';
+		// The refund must go to an account owned by this store — a stale or
+		// tampered account_id must not post into another store's ledger.
+		if(!empty($_POST['account_id'])){
+			$own = $this->db->where('id', (int)$_POST['account_id'])->where('store_id', $store_id)->get('ac_accounts')->num_rows();
+			if(!$own){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Please choose a valid payment account for this store.']);
+				exit;
+			}
+		}
+
+		// Sales_return_model reads item fields from $_REQUEST (e.g. $_REQUEST['tr_item_id_1']).
+		// $_REQUEST is a snapshot taken at request start and is NOT updated when $_POST is
+		// assigned at runtime, so we must mirror $_POST into $_REQUEST or the item loop
+		// finds nothing and the return is saved without any items.
+		foreach($_POST as $k => $v){
+			$_REQUEST[$k] = $v;
+		}
+
+		$this->load->model('sales_return_model', 'sales_return');
+		ob_start();
+		try {
+			$result = $this->sales_return->verify_save_and_update();
+		} catch (Throwable $e) {
+			$result = 'EXCEPTION: ' . $e->getMessage();
+			log_message('error', 'Mobile save_return() exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+		}
+		$ob_output = ob_get_clean();
+		if($ob_output && stripos($result, 'success') === false){
+			$result = trim($result . "\n" . $ob_output);
+		}
+
+		ob_end_clean();
+		if(stripos($result, 'success') !== false){
+			$parts = explode('<<<###>>>', $result);
+			$rid = isset($parts[1]) ? (int)$parts[1] : 0;
+			echo json_encode(['status' => 'success', 'return_id' => $rid, 'redirect' => base_url('mobile/sales_return_invoice/'.$rid)]);
+		} else {
+			$clean = trim(strip_tags($result));
+			// Never surface technical diagnostics (SQL errors, exceptions, "failed")
+			// to the cashier — log them and show a plain-English message instead.
+			if($clean === '' || $clean === 'failed' || stripos($clean, 'EXCEPTION:') === 0
+				|| stripos($clean, 'Error Number:') !== false || stripos($clean, 'Unknown column') !== false
+				|| stripos($clean, 'Fatal error') !== false || stripos($clean, 'Line Number:') !== false){
+				log_message('error', 'Mobile save_return() failed: ' . $clean);
+				$clean = 'The refund could not be saved. Please check the payment details and try again.';
+			}
+			echo json_encode(['status' => 'error', 'message' => $clean]);
+		}
+		exit;
+	}
+
+	public function staff()
+	{
+		$data = $this->data;
+		$data['page_title'] = 'Staff Attendance';
+		$store_id = get_current_store_id();
+
+		if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
+		$data['staff_list'] = physio_staff_select($store_id, false, 'first_name');
+
+		$this->load->model('attendance_model');
+		$selected_date = date('Y-m-d');
+		$attendance = $this->attendance_model->getTodayAttendance($store_id, $selected_date);
+		$attendance = is_array($attendance) ? $attendance : [];
+		$clocked_in = [];
+		$on_time = 0;
+		$late = 0;
+		$on_duty = 0;
+		$hours_total = 0;
+		$hours_count = 0;
+		foreach($attendance as $a){
+			if(!empty($a->user_id)) $clocked_in[] = $a->user_id;
+			if(!empty($a->clock_in) && !empty($a->start_time)){
+				$ci = strtotime($a->clock_in);
+				$st = strtotime($a->start_time);
+				if($ci !== false && $st !== false && $ci > $st){
+					$late++;
+				} else {
+					$on_time++;
+				}
+			} elseif(!empty($a->clock_in)) {
+				$on_time++;
+			}
+			if(!empty($a->clock_in) && (empty($a->clock_out) || $a->clock_out === '00:00:00')){
+				$on_duty++;
+			}
+			if(!empty($a->clock_in) && !empty($a->clock_out) && $a->clock_out !== '00:00:00'){
+				$diff = strtotime($a->clock_out) - strtotime($a->clock_in);
+				if($diff > 0){
+					$hours_total += ($diff / 3600);
+					$hours_count++;
+				}
+			}
+		}
+		$data['clocked_in'] = $clocked_in;
+		$data['attendance_summary'] = [
+			'on_time'     => $on_time,
+			'late'        => $late,
+			'on_duty'     => $on_duty,
+			'avg_hours'   => $hours_count > 0 ? round($hours_total / $hours_count, 1) : 0,
+			'total_staff' => count($data['staff_list'])
+		];
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/staff', $data);
+	}
+
+	public function customers()
+	{
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Customers';
+		$store_id = get_current_store_id();
+
+		$this->db->select("id, customer_name, mobile, customer_code, email, location_link, credit_limit, opening_balance, sales_due, sales_return_due, tot_advance, loyalty_points, loyalty_tier, store_credit_balance, gift_card_balance, status, store_id");
+		$this->db->where("store_id", $store_id);
+		$this->db->where("status", 1);
+		$this->db->where("delete_bit !=", 1);
+		$this->db->order_by("customer_name", "asc");
+		$data['customers'] = $this->db->get("db_customers")->result();
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/customers', $data);
+	}
+
+	public function leads()
+	{
+		if(!mp_feature_enabled('leads')){
+			$this->show_feature_not_activated('leads');
+			return;
+		}
+		if(!($this->permissions('leads_view') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1)){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Leads';
+		$store_id = get_current_store_id();
+		$this->load->model('leads_model', 'leads');
+		$status = trim($this->input->get('status', TRUE) ?: '');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['leads'] = $this->db->table_exists('db_leads') ? $this->leads->getLeads($store_id, $status, $search) : [];
+		$data['stats'] = $this->db->table_exists('db_leads') ? $this->leads->getLeadStats($store_id) : ['total' => 0];
+		$data['status_filter'] = $status;
+		$data['search'] = $search;
+		$data['can_edit'] = $this->permissions('leads_edit') || $this->permissions('leads_add') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/leads', $data);
+	}
+
+	// ============ PATIENTS (physiotherapy & rehabilitation) ============
+	// All patient endpoints use physio_can() — explicit clinical grants only,
+	// no inv_userid 1/2 bypass for clinical data.
+
+	private function _physio_gate(){
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !mp_feature_enabled('patient_registry')){
+			$this->show_feature_not_activated('patient_registry');
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Clinical mobile home. Counts mirror the desktop gates exactly: every tile
+	 * is shown only when the user holds the matching explicit clinical grant,
+	 * and every figure is read from the same tables/models the desktop screens
+	 * use (encounters queue, bed occupancy, treatment sessions, patient bills,
+	 * wallet ledger). No new permission or money logic is introduced here.
+	 */
+	private function clinicHome()
+	{
+		$data = $this->data;
+		$storeId = get_current_store_id();
+		$branchIds = physio_branch_ids();
+
+		$data['page_title'] = 'Clinic';
+		$data['clinic'] = array();
+
+		// Register snapshot (patient_registry feature)
+		if(physio_can('patients_view') && mp_feature_enabled('patient_registry')){
+			$this->load->model('patients_model', 'patients_m');
+			$data['clinic']['patients'] = $this->patients_m->getPatientStats($storeId);
+		}
+
+		// Live care queue — every visit still open (days=0), so the count on
+		// this tile matches the board the link opens.
+		if(physio_can('care_queue_view')){
+			$this->load->model('encounters_model', 'encounters_m');
+			$queue = $this->encounters_m->getQueue($storeId, $branchIds, 0);
+			$waiting = 0;
+			foreach(array('waiting_nurse','nursing_intake','waiting_physio','with_physio','awaiting_finance') as $stage){
+				$waiting += isset($queue[$stage]) ? count($queue[$stage]) : 0;
+			}
+			$data['clinic']['queue_total'] = $waiting;
+			$data['clinic']['queue'] = $queue;
+			$data['clinic']['queue_url'] = 'mobile/care_queue?days=0';
+		}
+
+		// Today's booked appointments
+		if(physio_can('appointments_view')){
+			$this->load->model('appointments_model', 'appts_m');
+			$todays = $this->appts_m->getAppointments($storeId, array(
+				'date' => date('Y-m-d'),
+				'branch_ids' => physio_can('clinical_cross_branch') ? null : $branchIds,
+			));
+			$data['clinic']['appointments_today'] = count($todays);
+		}
+
+		// Sessions scheduled for today (diary)
+		if(physio_can('sessions_view') && $this->db->table_exists('db_treatment_sessions')){
+			$data['clinic']['sessions_today'] = (int)$this->db->where('store_id', $storeId)
+				->where('DATE(scheduled_at)', date('Y-m-d'))
+				->count_all_results('db_treatment_sessions');
+		}
+
+		// Bed occupancy (inpatient_care feature)
+		if(physio_can('admissions_view') && mp_feature_enabled('inpatient_care')){
+			$this->load->model('inpatient_model', 'ipd_m');
+			$board = $this->ipd_m->bedBoard();
+			$occupied = 0;
+			foreach($board['beds'] as $b){ if(!empty($b->occupancy_id)) $occupied++; }
+			$data['clinic']['beds_total']  = count($board['beds']);
+			$data['clinic']['beds_in_use'] = $occupied;
+			$data['clinic']['beds_free']   = count($board['beds']) - $occupied;
+		}
+
+		// Open ward tasks
+		if(physio_can_any(array('nursing_tasks_view','porter_tasks_view'))){
+			$this->load->model('inpatient_model', 'ipd_m');
+			$nursing = physio_can('nursing_tasks_view') ? $this->ipd_m->tasksBoard() : array();
+			$porter  = physio_can_any(array('porter_tasks_view','admissions_view')) ? $this->ipd_m->porterTasks() : array();
+			$open = 0;
+			foreach($nursing as $t){ if(in_array($t->status, array('open'), true)) $open++; }
+			foreach($porter  as $t){ if(in_array($t->status, array('open'), true)) $open++; }
+			$data['clinic']['tasks_open'] = $open;
+		}
+
+		// Patient money — outstanding patient bills and held funds.
+		// Read through the billing/wallet models so the figures match desktop.
+		if(physio_can('patient_billing_view') && $this->db->table_exists('db_patients')){
+			$outstanding = (float)$this->db->select('COALESCE(SUM(s.grand_total - s.paid_amount),0) AS due', false)
+				->from('db_sales s')
+				->join('db_patients p', 'p.customer_id = s.customer_id AND p.store_id = s.store_id')
+				->where('s.store_id', $storeId)
+				->where('(s.plan_id IS NOT NULL OR s.encounter_id IS NOT NULL OR s.reference_no LIKE "OPENING-%")', null, false)
+				->where('s.grand_total > s.paid_amount', null, false)
+				->get()->row()->due;
+			$data['clinic']['billing_due'] = $this->currency($outstanding, true);
+		}
+		// Compact dashboard analytics use the same range choices as desktop.
+		$valid_ranges = array('Today','Yesterday','7Days','30Days','ThisMonth','LastMonth','ThisYear');
+		$range = $this->input->get('range', TRUE);
+		if(!in_array($range, $valid_ranges, true)) $range = 'Today';
+		$this->load->model('dashboard_model');
+		$range_info = $this->dashboard_model->get_range_info($range);
+		if(physio_can('patient_funds_view')){
+			$this->load->model('patient_funds_model');
+			$held = $this->patient_funds_model->heldForPeriod($storeId, $range_info['from'], $range_info['to']);
+			$data['clinic']['funds_reserved'] = $this->currency($held, true);
+		}
+
+		$analytics = array('inpatient'=>0,'outpatient'=>0,'sales'=>0,'expenses'=>0);
+		if($this->db->table_exists('db_care_episodes')){
+			$episode_rows = $this->db->select('episode_type, COUNT(*) AS n', false)->where('store_id', $storeId)
+				->where('created_date >=', $range_info['from'])->where('created_date <=', $range_info['to'])
+				->group_by('episode_type')->get('db_care_episodes')->result();
+			foreach($episode_rows as $episode){ $analytics[$episode->episode_type] = (int)$episode->n; }
+		}
+		$sales_range = $this->dashboard_model->get_sales_by_range($range);
+		$analytics['sales'] = (float)($sales_range['today'] ?? 0);
+		$analytics['expenses'] = (float)$this->dashboard_model->get_expenses_by_range($range);
+		$data['clinic_range'] = $range;
+		$data['clinic_range_info'] = $range_info;
+		$data['clinic_analytics'] = $analytics;
+		$data['staff_birthdays'] = array();
+		$birthdayDays = 7;
+		if($this->db->table_exists('db_users')){
+			if(!function_exists('physio_staff_select')){ $this->load->helper('physio'); }
+			$staff = physio_staff_select($storeId, false);
+			$today = new DateTimeImmutable(date('Y-m-d'));
+			foreach($staff as $person){
+				if(empty($person->dob)) continue;
+				try { $dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d')); }
+				catch(Exception $e){ continue; }
+				if($next < $today) $next = $next->modify('+1 year'); $days = (int)$today->diff($next)->format('%a'); if($days > $birthdayDays) continue;
+				$name = trim(($person->first_name ?: $person->firstname ?: '').' '.($person->last_name ?: $person->lastname ?: '')); if($name === '') $name = (string)$person->username;
+				$data['staff_birthdays'][] = array('name'=>$name,'date'=>$next->format('M j'),'days'=>$days);
+			}
+			usort($data['staff_birthdays'], function($a,$b){ return $a['days'] <=> $b['days']; }); $data['staff_birthdays'] = array_slice($data['staff_birthdays'], 0, 8);
+		}
+		$data['patient_birthdays'] = array();
+		if(physio_can('patients_view') && $this->db->table_exists('db_patients') && $this->db->field_exists('dob', 'db_patients')){
+			$today = new DateTimeImmutable(date('Y-m-d'));
+			$md = array();
+			for($i = 0; $i <= $birthdayDays; $i++){ $md[] = $today->modify('+'.$i.' day')->format('m-d'); }
+			$in = implode(',', array_map(function($v){ return "'".$v."'"; }, $md));
+			$rows = $this->db->select('p.dob, TRIM(c.customer_name) AS customer_name', false)
+				->from('db_patients p')
+				->join('db_customers c', 'c.id = p.customer_id AND c.store_id = p.store_id', 'left')
+				->where('p.store_id', $storeId)->where('p.deceased', 0)->where('p.status', 1)
+				->where('p.dob IS NOT NULL', null, false)
+				->where("CAST(p.dob AS CHAR) <> '0000-00-00'", null, false)
+				->where("DATE_FORMAT(CASE WHEN CAST(p.dob AS CHAR) = '0000-00-00' THEN NULL ELSE p.dob END, '%m-%d') IN (".$in.")", null, false)
+				->get()->result();
+			foreach($rows as $person){
+				$name = trim((string)$person->customer_name);
+				if($name === '') continue;
+				try { $dob = new DateTimeImmutable(substr($person->dob, 0, 10)); $next = new DateTimeImmutable($today->format('Y').'-'.$dob->format('m-d')); }
+				catch(Exception $e){ continue; }
+				if($next < $today) $next = $next->modify('+1 year');
+				$days = (int)$today->diff($next)->format('%a');
+				if($days > $birthdayDays) continue;
+				$data['patient_birthdays'][] = array('name'=>$name,'date'=>$next->format('M j'),'days'=>$days);
+			}
+			usort($data['patient_birthdays'], function($a,$b){ return $a['days'] <=> $b['days']; });
+			$data['patient_birthdays'] = array_slice($data['patient_birthdays'], 0, 8);
+		}
+
+		// Tiles the current user may work from — each one is a real route.
+		$data['clinic_access'] = array(
+			'patients'     => physio_can('patients_view'),
+			'queue'        => physio_can('care_queue_view'),
+			'appointments' => physio_can('appointments_view'),
+			'sessions'     => physio_can('sessions_view'),
+			'ward'         => physio_can_any(array('nursing_tasks_view','porter_tasks_view','admissions_view')),
+			'accounts'     => physio_can_any(array('patient_billing_view','patient_funds_view')),
+			'imports'      => physio_can_any(array('imports_view','opening_positions_view')),
+		);
+		$data['commercial'] = null;
+		$data['intel'] = array();
+		if(physio_can('patient_billing_view')){
+			try {
+				$this->load->model('workspace_commercial_model', 'workspace_commercial');
+				$data['commercial'] = $this->workspace_commercial->snapshot($storeId, true, $range);
+				$data['intel'] = $this->workspace_commercial->insights($data['commercial'], true, array(), true, $range_info['label']);
+			} catch(Throwable $e) {
+				log_message('error', 'Mobile clinic commercial dashboard failed: '.$e->getMessage());
+			}
+		}
+		$data['clinic_can_add']  = physio_can('patients_add');
+		$data['display_name']    = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['store_name']      = get_store_name();
+		$user = $this->db->select('profile_picture')->where('id', $this->session->userdata('inv_userid'))->get('db_users')->row();
+		$data['profile_picture'] = ($user && !empty($user->profile_picture)) ? $user->profile_picture : '';
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/clinic_home', $data);
+	}
+
+	public function patients()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(['patients_view','patients_add'])){ $this->show_access_denied_page(); return; }
+		$data = $this->data;
+		$patient_term = mp_label('customer');
+		$data['page_title'] = $patient_term.'s';
+		$store_id = get_current_store_id();
+		$this->load->model('patients_model', 'patients_m');
+		$status = trim($this->input->get('status', TRUE) ?: '');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, $status, $search) : array();
+		$data['stats'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatientStats($store_id) : array('total' => 0);
+		$data['status_filter'] = $status;
+		$data['search'] = $search;
+		$data['patient_term'] = $patient_term;
+		$data['can_add'] = physio_can('patients_add');
+		$data['can_edit'] = physio_can('patients_edit');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patients', $data);
+	}
+
+	public function patient_form($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		$id = (int)$id;
+		if(!physio_can($id ? 'patients_edit' : 'patients_add')){ $this->show_access_denied_page(); return; }
+		$data = $this->data;
+		$patient_term = mp_label('customer');
+		$data['patient_term'] = $patient_term;
+		$data['page_title'] = ($id ? 'Edit ' : 'Register ').$patient_term;
+		$data['patient'] = null;
+		if($id){
+			$this->load->model('patients_model', 'patients_m');
+			$data['patient'] = $this->patients_m->getPatient($id, get_current_store_id());
+			if(!$data['patient']){ show_404(); return; }
+		}
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_form', $data);
+	}
+
+	public function patient_profile($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('patients_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('patients_model', 'patients_m');
+		$store_id = get_current_store_id();
+		$patient = $this->patients_m->getPatient((int)$id, $store_id);
+		if(!$patient){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $patient->customer_name;
+		$data['patient_term'] = mp_label('customer');
+		$data['patient'] = $patient;
+		$data['episodes'] = $this->patients_m->getEpisodes($patient->id, $store_id);
+		$data['appointments'] = $this->patients_m->getAppointments($patient->id, $store_id);
+		$data['can_edit'] = physio_can('patients_edit');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_profile', $data);
+	}
+
+	public function patient_accounts()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(array('patient_billing_view','patient_funds_view'))){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Patient Accounts';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_funds'] = physio_can('patient_funds_view');
+		$data['can_billing'] = physio_can('patient_billing_view');
+		$search = trim($this->input->get('search', TRUE) ?: '');
+		$data['search'] = $search;
+		$this->load->model('Patient_funds_model', 'patient_funds_m');
+		$this->db->select('p.id, p.patient_code, p.customer_id, c.customer_name, c.mobile')
+			->from('db_patients p')
+			->join('db_customers c', 'c.id = p.customer_id', 'left')
+			->where('p.store_id', $store_id)
+			->where('p.status', 1);
+		if($search !== ''){
+			$this->db->group_start()
+				->like('c.customer_name', $search)
+				->or_like('c.mobile', $search)
+				->or_like('p.patient_code', $search)
+				->group_end();
+		}
+		$patients = $this->db->order_by('c.customer_name', 'asc')->limit(80)->get()->result();
+		$rows = array();
+		foreach($patients as $p){
+			$balances = $data['can_funds'] ? $this->patient_funds_m->getBalances((int)$p->id, $store_id) : null;
+			$packageHeld = 0.0;
+			$sessionsLeft = 0.0;
+			if($data['can_funds'] && $this->db->table_exists('db_plan_entitlements')){
+				$ent = $this->db->select('COALESCE(SUM(total_value - value_consumed),0) AS held, COALESCE(SUM(sessions_total - sessions_consumed),0) AS sessions_left', false)
+					->where('store_id', $store_id)
+					->where('patient_id', (int)$p->id)
+					->where('status', 'active')
+					->get('db_plan_entitlements')->row();
+				$packageHeld = $ent ? (float)$ent->held : 0.0;
+				$sessionsLeft = $ent ? (float)$ent->sessions_left : 0.0;
+			}
+			$rows[] = array(
+				'patient' => $p,
+				'balances' => $balances ?: array('available'=>0,'reserved'=>0,'pending'=>0,'retail_advance'=>0),
+				'package_held' => $packageHeld,
+				'sessions_left' => $sessionsLeft,
+			);
+		}
+		$data['accounts'] = $rows;
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/patient_accounts', $data);
+	}
+
+	public function save_patient()
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		$id = (int)$this->input->post('patient_id');
+		if(!physio_enabled() || !physio_can($id ? 'patients_edit' : 'patients_add')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('patients_model', 'patients_m');
+		$name = trim($this->input->post('name', TRUE) ?: '');
+		if($name === ''){ echo json_encode(array('status' => 'error', 'message' => 'Patient name is required')); return; }
+		$store_id = get_current_store_id();
+		$mobile = trim($this->input->post('mobile', TRUE) ?: '');
+		$dob = trim($this->input->post('dob', TRUE) ?: '');
+		$dups = $this->patients_m->findDuplicates($store_id, $mobile, $name, $dob ?: null, $id);
+		if($dups && !(int)$this->input->post('confirm_duplicate')){
+			echo json_encode(array('status' => 'duplicates', 'message' => 'Possible duplicate record found', 'duplicates' => $dups)); return;
+		}
+		$gender = trim($this->input->post('gender', TRUE) ?: '');
+		$blood = trim($this->input->post('blood_group', TRUE) ?: '');
+		$patient = array(
+			'gender'          => in_array($gender, Patients_model::GENDERS) ? $gender : null,
+			'dob'             => $dob ?: null,
+			'marital_status'  => trim($this->input->post('marital_status', TRUE) ?: '') ?: null,
+			'occupation'      => trim($this->input->post('occupation', TRUE) ?: '') ?: null,
+			'blood_group'     => in_array($blood, Patients_model::BLOOD_GROUPS) ? $blood : null,
+			'nok_name'        => trim($this->input->post('nok_name', TRUE) ?: '') ?: null,
+			'nok_phone'       => trim($this->input->post('nok_phone', TRUE) ?: '') ?: null,
+			'nok_relationship'=> trim($this->input->post('nok_relationship', TRUE) ?: '') ?: null,
+			'updated_at'      => date('Y-m-d H:i:s'),
+		);
+		$customer = array(
+			'name'    => $name,
+			'mobile'  => $mobile,
+			'email'   => trim($this->input->post('email', TRUE) ?: ''),
+			'phone'   => trim($this->input->post('phone', TRUE) ?: ''),
+			'address' => trim($this->input->post('address', TRUE) ?: ''),
+			'city'    => trim($this->input->post('city', TRUE) ?: ''),
+			'confirm_duplicate' => (int)$this->input->post('confirm_duplicate'),
+		);
+		$result = $this->patients_m->savePatient($patient, $customer, $id ?: null);
+		if(is_array($result)){
+			if(!empty($result['duplicates'])){
+				echo json_encode(array('status' => 'duplicates', 'message' => $result['error'], 'duplicates' => $result['duplicates'])); return;
+			}
+			echo json_encode(array('status' => 'error', 'message' => $result['error'])); }
+		else { echo json_encode(array('status' => 'success', 'message' => 'Patient saved', 'patient_id' => $result)); }
+	}
+
+	// ============ APPOINTMENTS + CARE QUEUE (physiotherapy) ============
+
+	public function appointments()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('appointments_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('appointments_model', 'appts_m');
+		$store_id = get_current_store_id();
+		$from = trim($this->input->get('from', TRUE) ?: trim($this->input->get('date', TRUE) ?: '') ?: date('Y-m-d'));
+		$to   = trim($this->input->get('to', TRUE) ?: $from);
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !checkdate((int)substr($from,5,2),(int)substr($from,8,2),(int)substr($from,0,4))) $from = date('Y-m-d');
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) || !checkdate((int)substr($to,5,2),(int)substr($to,8,2),(int)substr($to,0,4))) $to = $from;
+		if(strtotime($to) < strtotime($from)) $to = $from;
+		$filters = array('date_from' => $from, 'date_to' => $to);
+		if(!physio_can('clinical_cross_branch')) $filters['branch_ids'] = physio_branch_ids();
+		$data = $this->data;
+		$data['page_title'] = 'Appointments';
+		$data['appointments'] = $this->db->table_exists('db_appointments') ? $this->appts_m->getAppointments($store_id, $filters) : array();
+		$data['filter_from'] = $from;
+		$data['filter_to'] = $to;
+		$data['can_checkin'] = physio_can('care_checkin');
+		$data['can_edit'] = physio_can('appointments_edit');
+		$data['can_cancel'] = physio_can('appointments_cancel');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/appointments', $data);
+	}
+
+	public function care_queue()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('care_queue_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('encounters_model', 'encounters_m');
+		$this->load->model('patients_model', 'patients_m');
+		$this->load->model('appointments_model', 'appts_m');
+		$store_id = get_current_store_id();
+		$branchIds = physio_can('clinical_cross_branch') ? null : physio_branch_ids();
+		$waiting = $this->appts_m->getAppointments($store_id, array('date' => date('Y-m-d'), 'branch_ids' => $branchIds));
+		$arrivals = array();
+		foreach($waiting as $a){
+			if(in_array($a->status, array('confirmed','requested','proposed')) && !$a->arrived_at) $arrivals[] = $a;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Care Queue';
+		// How far back the board reaches for visits still ON the queue.
+		// 365 = this year, 0 = every visit still open, however old.
+		$days = in_array((int)$this->input->get('days'), array(1, 7, 30, 365, 0), TRUE) ? (int)$this->input->get('days') : 1;
+		$data['queue'] = $this->db->table_exists('db_encounters') ? $this->encounters_m->getQueue($store_id, $branchIds, $days) : array();
+		$data['queue_days'] = $days;
+		$data['queue_hidden'] = $this->db->table_exists('db_encounters')
+			? $this->encounters_m->countQueueOutside($store_id, $branchIds, $days) : 0;
+		$data['queue_elsewhere'] = $this->db->table_exists('db_encounters')
+			? $this->encounters_m->countQueueElsewhere($store_id, $branchIds) : 0;
+		// Therapist picker + the therapist's own view, same rules as the desk board.
+		$therapists = function_exists('physio_therapist_select') ? physio_therapist_select($store_id, 'first_name') : array();
+		$therapistIds = array();
+		foreach($therapists as $t){ $therapistIds[(int)$t->id] = true; }
+		$me = (int)$this->session->userdata('inv_userid');
+		$data['is_therapist'] = isset($therapistIds[$me]);
+		$data['queue_mine'] = ($data['is_therapist'] && (int)$this->input->get('mine')) ? 1 : 0;
+		if($data['queue_mine']){
+			foreach($data['queue'] as $qSt => $qCards){
+				$data['queue'][$qSt] = array_values(array_filter($qCards, function($c) use ($me){
+					$who = (int)($c->clinician_user_id ?? 0);
+					return $who === 0 || $who === $me;
+				}));
+			}
+		}
+		$data['therapists'] = $therapists;
+		// Paid sessions per patient — the treatment route draws from a package,
+		// so the card can grey the option out before anyone taps it.
+		$queuePatientIds = array();
+		foreach($data['queue'] as $qCards){ foreach($qCards as $qC){ $queuePatientIds[] = (int)$qC->patient_id; } }
+		$this->load->model('Sessions_model', 'sessions_m');
+		$data['session_ent'] = $this->sessions_m->activeEntitlements($queuePatientIds);
+		// Diary bookings whose day has arrived and whose patient is not on the
+		// board yet — checked in here, which raises the ticket and vitals.
+		$data['booked'] = $this->sessions_m->dueBookings($store_id);
+		// Booked for a later day but here today — the desk brings them forward.
+		$data['booked_upcoming'] = physio_can('care_checkin') ? $this->sessions_m->upcomingBookings($store_id, date('Y-m-d'), date('Y-m-d', strtotime('+60 days')), 20) : array();
+		$data['arrivals'] = $arrivals;
+		$data['patients'] = $this->db->table_exists('db_patients') ? $this->patients_m->getPatients($store_id, 'active', '', 300) : array();
+		// Staff who can take a treatment patient — the tasked-nurse picker.
+		// Nurse PROFILES only: vitals_add alone would list the store admin.
+		if(!function_exists('physio_nurse_select')){ $this->load->helper('physio'); }
+		$data['nurses'] = physio_nurse_select($store_id, 'first_name');
+		$data['can_checkin'] = physio_can('care_checkin');
+		$data['can_vitals'] = physio_can('vitals_add');
+		$data['can_physio'] = physio_can('encounters_add');
+		$data['can_route'] = physio_can_any(array('care_checkin','vitals_add','encounters_add'));
+		$data['can_finance'] = physio_can('patient_funds_view');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/care_queue', $data);
+	}
+
+	public function care_checkin()
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_checkin')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$warehouseId = (int)$this->input->post('warehouse_id');
+		if($warehouseId && !physio_can_branch($warehouseId)){
+			echo json_encode(array('status' => 'error', 'message' => 'Branch not in your scope')); return;
+		}
+		$res = $this->encounters_m->checkin(array(
+			'appointment_id' => (int)$this->input->post('appointment_id') ?: null,
+			'session_id'     => (int)$this->input->post('session_id') ?: null,
+			'patient_id'     => (int)$this->input->post('patient_id') ?: null,
+			'checkin_key'    => trim($this->input->post('checkin_key', TRUE) ?: ''),
+			'warehouse_id'   => $warehouseId ?: null,
+			'clinician_user_id' => (int)$this->input->post('clinician_user_id') ?: null,
+			'note'           => trim($this->input->post('note', TRUE) ?: '') ?: null,
+		));
+		if(isset($res['error'])){
+			echo json_encode(array('status' => 'error', 'message' => $res['error']));
+		} else {
+			echo json_encode(array('status' => 'success',
+				'message' => !empty($res['already']) ? 'Already checked in — same visit returned' : 'Checked in',
+				'encounter_id' => $res['encounter_id']));
+		}
+	}
+
+	public function care_move($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_queue_view')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$res = $this->encounters_m->moveStage((int)$id, $to, trim($this->input->post('note', TRUE) ?: '') ?: null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Updated') : $res);
+	}
+
+	/**
+	 * Mobile clinical workspace for one encounter — vitals entry, intake
+	 * handover and read-only record lists. All panels permission-gated.
+	 */
+	public function encounter($id = 0)
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('care_queue_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('encounters_model', 'encounters_m');
+		$this->load->model('patients_model', 'patients_m');
+		$this->load->model('assessments_model', 'assessments_m');
+		$this->load->model('investigations_model', 'investigations_m');
+		$this->load->model('consents_model', 'consents_m');
+		$this->load->model('patient_docs_model', 'docs_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			$this->show_access_denied_page(); return;
+		}
+		$store_id = get_current_store_id();
+		/*
+		 * Care Queue stage contract, same as the desktop workspace:
+		 *   waiting_nurse — registration + billing only. No vitals, no history.
+		 *   business_only — a finance holder (billing/funds, no clinical keys)
+		 *                   sees bills and payments, never clinical records.
+		 */
+		$clinical = physio_can_any(array('vitals_view', 'assessments_view',
+			'investigations_view', 'encounters_view', 'patient_docs_view'));
+		$business_only = !$clinical && (physio_can('patient_billing_view') || physio_can('patient_funds_view'));
+		$show_clinical = !$business_only && $enc->queue_stage !== 'waiting_nurse';
+
+		$data = $this->data;
+		$data['page_title'] = 'Visit ' . $enc->encounter_code;
+		$data['enc'] = $enc;
+		$data['patient'] = $this->patients_m->getPatient((int)$enc->patient_id);
+		$data['business_only'] = $business_only;
+		$data['show_clinical'] = $show_clinical;
+		$data['vitals_sets'] = ($show_clinical && physio_can('vitals_view')) ? $this->encounters_m->getVitals((int)$id) : array();
+
+		/*
+		 * The OPEN DRAFT, so the vitals form continues it instead of starting a
+		 * new set on every save.
+		 *
+		 * The view posts vitals_set_id to update an existing set, but was never
+		 * handed one — so each "Save Draft" inserted a fresh set and a single
+		 * patient intake accumulated "Set #25 draft / #26 draft / #27 draft".
+		 * Only a non-final set is offered: finalised vitals are locked by design
+		 * and must not be reopened.
+		 */
+		$data['vitals_draft'] = null;
+		$data['vitals_draft_entries'] = array();
+		if(!empty($data['vitals_sets'])){
+			foreach($data['vitals_sets'] as $vs){
+				if(($vs->status ?? '') !== 'final'){
+					$data['vitals_draft'] = $vs;
+					// getVitals() already attaches each set's entries.
+					$data['vitals_draft_entries'] = $vs->entries ?? array();
+					break;
+				}
+			}
+		}
+		$data['assessments'] = ($show_clinical && physio_can('assessments_view')) ? $this->assessments_m->listForEncounter((int)$id) : array();
+		$data['investigations'] = ($show_clinical && physio_can('investigations_view')) ? $this->investigations_m->listRows($store_id, array('encounter_id' => (int)$id)) : array();
+		$data['consents'] = ($show_clinical && physio_can('patient_docs_view')) ? $this->consents_m->listRows($store_id, array('patient_id' => (int)$enc->patient_id)) : array();
+		$data['documents'] = ($show_clinical && physio_can('patient_docs_view')) ? $this->docs_m->listForPatient((int)$enc->patient_id) : array();
+		$data['can'] = array(
+			'vitals_add' => $show_clinical && physio_can('vitals_add'),
+			'assessments'=> $show_clinical && physio_can('assessments_add'),
+			'inv_review' => $show_clinical && physio_can('investigations_review'),
+			'docs_upload'=> $show_clinical && physio_can('patient_docs_upload'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/encounter', $data);
+	}
+
+	/** Save a vitals set from mobile — same structured endpoint as desktop. */
+	public function care_vitals($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('vitals_add')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		// The waiting-for-nurse desk is registration + billing only — vitals
+		// begin once the patient is called into Nursing Intake.
+		if($enc->queue_stage === 'waiting_nurse'){
+			echo json_encode(array('status' => 'error', 'message' => 'Move the patient into Nursing Intake before recording vitals')); return;
+		}
+		$entries = array();
+		$keys   = (array)$this->input->post('vit_key');
+		$vals   = (array)$this->input->post('vit_value');
+		$units  = (array)$this->input->post('vit_unit');
+		$nms    = (array)$this->input->post('vit_nm');
+		$labels = (array)$this->input->post('vit_label');
+		foreach($keys as $i => $k){
+			$entries[] = array(
+				'vital_key'    => $k,
+				'label'        => $labels[$i] ?? null,
+				'value'        => $vals[$i] ?? null,
+				'unit'         => $units[$i] ?? null,
+				'not_measured' => !empty($nms[$i]),
+			);
+		}
+		/*
+		 * Pass the vitals_set_id through.
+		 *
+		 * This was hard-coded to 0, so the endpoint ALWAYS inserted a new set: the
+		 * mobile form's "continue this draft" was silently discarded and one
+		 * patient intake accumulated a stack of draft sets (#25, #29, #30 …) with
+		 * no way to finish any of them. A non-zero id updates that set in place;
+		 * saveVitalsSet() refuses one that is already final, so locked readings
+		 * stay locked.
+		 */
+		$vitalsSetId = (int)$this->input->post('vitals_set_id');
+		$res = $this->encounters_m->saveVitalsSet((int)$id, $entries,
+			(bool)$this->input->post('finalize'), $vitalsSetId,
+			trim($this->input->post('vitals_notes', TRUE) ?: '') ?: null);
+		echo json_encode(isset($res['error'])
+			? array('status' => 'error', 'message' => $res['error'])
+			: array('status' => 'success', 'message' => !empty($res['status']) && $res['status']==='final' ? 'Vitals finalised' : 'Draft saved'));
+	}
+
+	public function care_intake_complete($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || !physio_can('care_queue_view')){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->completeIntake((int)$id,
+			trim($this->input->post('note', TRUE) ?: '') ?: null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Intake complete — handed to physiotherapy') : $res);
+	}
+
+	/** POST visit type — the desk decides assessment vs treatment session, and for
+	 *  treatment which nurse is tasked. Same contract as Care_queue::set_visit_type. */
+	public function care_visit_type($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || (!physio_can('care_checkin') && !physio_can('vitals_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->setVisitType((int)$id,
+			trim($this->input->post('visit_type', TRUE) ?: ''),
+			(int)$this->input->post('nurse_user_id') ?: null);
+		echo json_encode($res === true
+			? array('status' => 'success', 'message' => 'Visit type saved — the patient can move on')
+			: $res);
+	}
+
+	/** POST tasked nurse for a treatment visit. */
+	public function care_assign_nurse($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled() || (!physio_can('care_checkin') && !physio_can('vitals_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$res = $this->encounters_m->assignNurse((int)$id, (int)$this->input->post('nurse_user_id'));
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Nurse tasked') : $res);
+	}
+
+	/**
+	 * POST care_route_therapist — send a patient to a named therapist, or move
+	 * them to another one, from the phone. Same model call as the desk board, so
+	 * a routing done at the bedside reads identically on the desktop.
+	 */
+	public function care_route_therapist($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()
+			|| (!physio_can('care_checkin') && !physio_can('vitals_add') && !physio_can('encounters_add'))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('encounters_model', 'encounters_m');
+		$enc = $this->encounters_m->getEncounter((int)$id);
+		if(!$enc || ($enc->warehouse_id && !physio_can_branch($enc->warehouse_id))){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		echo json_encode($this->encounters_m->routeTherapist((int)$id,
+			(int)$this->input->post('clinician_user_id')));
+	}
+
+	public function appt_transition($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$permMap = array('proposed' => 'appointments_edit', 'confirmed' => 'appointments_edit',
+			'cancelled' => 'appointments_cancel', 'no_show' => 'appointments_edit');
+		if(!isset($permMap[$to]) || !physio_can($permMap[$to])){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$this->load->model('appointments_model', 'appts_m');
+		$appt = $this->appts_m->getAppointment((int)$id);
+		if($appt && $appt->warehouse_id && !physio_can_branch($appt->warehouse_id)){
+			echo json_encode(array('status' => 'error', 'message' => 'Branch not in your scope')); return;
+		}
+		$res = $this->appts_m->transition((int)$id, $to, trim($this->input->post('note', TRUE) ?: '') ?: null);
+		echo json_encode($res === true ? array('status' => 'success', 'message' => 'Updated') : $res);
+	}
+
+	/** Treatment session diary — check-in / start / complete / no-show. */
+	public function sessions()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('sessions_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('sessions_model', 'sessions_m');
+		$store_id = get_current_store_id();
+		// Same diary windows as the desktop screen, so phone and desk agree.
+		$range = $this->input->get('range') !== NULL ? (string)$this->input->get('range') : 'week';
+		if(!isset($this->sessions_m->diaryRanges()[$range])) $range = 'week';
+		$rows = $this->sessions_m->diarySessions($store_id, $range, 100);
+		$data = $this->data;
+		$data['page_title'] = 'Sessions';
+		$data['sessions'] = $rows;
+		$data['sess_range'] = $range;
+		$data['sess_ranges'] = $this->sessions_m->diaryRanges();
+		$data['sess_hidden'] = $this->sessions_m->countDiaryOutside($store_id, $range);
+		$data['next_sess'] = $this->sessions_m->nextUpcoming($store_id);
+		$data['can'] = array(
+			'checkin'  => physio_can('sessions_checkin'),
+			'complete' => physio_can('sessions_complete'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/sessions', $data);
+	}
+
+	// ============ INPATIENT (physiotherapy & rehabilitation) ============
+
+	public function admissions()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can('admissions_view')){ $this->show_access_denied_page(); return; }
+		$this->load->model('inpatient_model', 'ipd');
+		$data = $this->data;
+		$data['page_title'] = 'Admissions';
+		$data['admissions'] = $this->ipd->admissions('all');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/admissions', $data);
+	}
+
+	/** Ward task board — nursing tasks + porter movement tasks. */
+	public function ward_tasks()
+	{
+		if(!$this->_physio_gate()) return;
+		if(!physio_can_any(array('nursing_tasks_view','porter_tasks_view','admissions_view'))){
+			$this->show_access_denied_page(); return;
+		}
+		$this->load->model('inpatient_model', 'ipd');
+		$data = $this->data;
+		$data['page_title'] = 'Ward Tasks';
+		$data['nursing'] = physio_can('nursing_tasks_view') ? $this->ipd->tasksBoard() : array();
+		$data['porter']  = physio_can_any(array('porter_tasks_view','admissions_view')) ? $this->ipd->porterTasks() : array();
+		$data['can'] = array(
+			'nurse'  => physio_can('nursing_tasks_complete'),
+			'porter' => physio_can('porter_tasks_complete'),
+		);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		$this->load->view('mobile/ward_tasks', $data);
+	}
+
+	/** JSON action endpoint for ward tasks (claim/complete porter, complete nursing). */
+	public function ward_task_action($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+		$this->load->model('inpatient_model', 'ipd');
+		$act = trim($this->input->post('act', TRUE) ?: '');
+		$r = array('ok'=>false,'error'=>'Unknown action');
+		if($act === 'claim' || $act === 'complete'){
+			if(!physio_can('porter_tasks_complete')){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+			$r = $act === 'claim' ? $this->ipd->claimTask((int)$id) : $this->ipd->completeTask((int)$id);
+		} elseif($act === 'nurse_done'){
+			if(!physio_can('nursing_tasks_complete')){ echo json_encode(array('status'=>'error','message'=>'Access denied')); return; }
+			$r = $this->ipd->completeTaskItem((int)$id, $this->input->post('note', TRUE));
+		}
+		if(!empty($r['ok'])){ echo json_encode(array('status'=>'success','message'=>'Done') + $r); }
+		else { echo json_encode(array('status'=>'error','message'=>$r['error'] ?? 'Failed')); }
+	}
+
+	public function session_action($id = 0)
+	{
+		header('Content-Type: application/json');
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		if(!physio_enabled()){ echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return; }
+		$this->load->model('sessions_model', 'sessions_m');
+		$to = trim($this->input->post('to', TRUE) ?: '');
+		$permMap = array('checkin' => 'sessions_checkin', 'start' => 'sessions_checkin',
+			'complete' => 'sessions_complete', 'cancel' => 'sessions_complete',
+			'no_show' => 'sessions_checkin', 'interrupt' => 'sessions_complete');
+		if(!isset($permMap[$to]) || !physio_can($permMap[$to])){
+			echo json_encode(array('status' => 'error', 'message' => 'Access denied')); return;
+		}
+		$reason = trim($this->input->post('reason', TRUE) ?: '');
+		switch($to){
+			case 'checkin':   $res = $this->sessions_m->checkin((int)$id, trim($this->input->post('checkin_key', TRUE) ?: '') ?: null); break;
+			case 'start':     $res = $this->sessions_m->start((int)$id); break;
+			case 'complete':  $res = $this->sessions_m->complete((int)$id); break;
+			case 'cancel':    $res = $this->sessions_m->cancel((int)$id, $reason, false); break;
+			case 'no_show':   $res = $this->sessions_m->cancel((int)$id, $reason, true); break;
+			case 'interrupt': $res = $this->sessions_m->interrupt((int)$id, $reason); break;
+		}
+		echo json_encode(!empty($res['ok'])
+			? array('status' => 'success', 'message' => 'Updated')
+			: array('status' => 'error', 'message' => $res['error'] ?? 'Failed'));
+	}
+
+	public function add_customer()
+	{
+		$this->permission_check('customers_add');
+		$data = $this->data;
+		$data['page_title'] = 'Add Customer';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/customer_form', $data);
+	}
+
+	public function edit_customer($id)
+	{
+		$this->belong_to('db_customers', $id);
+		$this->permission_check('customers_edit');
+		$data = $this->data;
+		$data['page_title'] = 'Edit Customer';
+		$this->load->model('customers_model', 'customers_m');
+		$result = $this->customers_m->get_details($id, $data);
+		$data = array_merge($data, $result);
+
+		$customer = $this->db->where('id', $id)->get('db_customers')->row();
+		$data['nin_bvn'] = $customer->nin_bvn ?? '';
+		$data['nin_verified'] = $customer->nin_verified ?? 0;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/customer_form', $data);
+	}
+
+	public function save_customer()
+	{
+		$q_id = $this->input->post('q_id', TRUE);
+		$is_update = !empty($q_id);
+		$this->permission_check($is_update ? 'customers_edit' : 'customers_add');
+		$this->load->library('form_validation');
+		$this->load->model('customers_model', 'customers_m');
+
+		$this->form_validation->set_rules('customer_name', 'Customer Name', 'trim|required');
+		$this->form_validation->set_rules('mobile', 'Mobile', 'trim|required');
+
+		if($this->form_validation->run() == TRUE){
+			if($is_update){
+				$result = $this->customers_m->update_customers();
+				if($result === 'success'){
+					$nin_bvn = $this->input->post('nin_bvn', TRUE);
+					$nin_verified = $this->input->post('nin_verified', TRUE);
+					$this->db->where('id', $q_id)->update('db_customers', array(
+						'nin_bvn' => $nin_bvn,
+						'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+					), true);
+					$this->session->set_flashdata('success', 'Customer Updated Successfully!');
+					redirect('mobile/customer_profile/' . $q_id);
+				}
+				$this->session->set_flashdata('failed', $result);
+				redirect('mobile/edit_customer/' . $q_id);
+			} else {
+				$result = $this->customers_m->verify_and_save();
+				if($result === 'success'){
+					$customer_id = $this->db->insert_id();
+					$nin_bvn = $this->input->post('nin_bvn', TRUE);
+					$nin_verified = $this->input->post('nin_verified', TRUE);
+					$this->db->where('id', $customer_id)->update('db_customers', array(
+						'nin_bvn' => $nin_bvn,
+						'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+					));
+					$this->session->set_flashdata('success', 'New Customer Added Successfully!');
+					redirect('mobile/customers');
+				}
+				$this->session->set_flashdata('failed', $result);
+				redirect('mobile/add_customer');
+			}
+		}
+		if($is_update){
+			$this->session->set_flashdata('failed', validation_errors());
+			redirect('mobile/edit_customer/' . $q_id);
+		}
+		$this->session->set_flashdata('failed', validation_errors());
+		redirect('mobile/add_customer');
+	}
+
+	public function delete_customer($id)
+	{
+		$this->permission_check('customers_delete');
+		if($id == 1){
+			$this->session->set_flashdata('failed', "Sorry! This Record Restricted! Can't Delete");
+			redirect('mobile/customers');
+		}
+		if(set_status_of_table($id, 0, 'db_customers')){
+			$this->session->set_flashdata('success', 'Customer removed successfully!');
+		} else {
+			$this->session->set_flashdata('failed', 'Failed to remove customer.');
+		}
+		redirect('mobile/customers');
+	}
+
+	public function customer_profile($id)
+	{
+		$this->belong_to('db_customers', $id);
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Customer Profile';
+		$store_id = get_current_store_id();
+
+		$customer = $this->db->where('id', $id)->get('db_customers')->row();
+		if(!$customer) redirect('mobile/customers');
+		$data['customer'] = $customer;
+		if (mp_feature_enabled('fashion_measurements') && $this->db->table_exists('db_fashion_measurements')) {
+			$data['fashion_measurements'] = $this->db->where('store_id',(int)$store_id)->where('customer_id',(int)$id)->order_by('created_at','desc')->limit(30)->get('db_fashion_measurements')->result();
+			$data['fashion_dress_types'] = $this->db->where('is_active',1)->where_in('store_id',[0,(int)$store_id])->order_by('sort_order')->order_by('name')->get('db_fashion_dress_types')->result();
+		} else { $data['fashion_measurements']=[]; $data['fashion_dress_types']=[]; }
+
+		$opening_balance = $customer->opening_balance ?? 0;
+		$opening_balance -= get_paid_cob($id);
+		$sales_due = $customer->sales_due ?? 0;
+		$sales_return_due = $customer->sales_return_due ?? 0;
+		$data['total_due'] = $opening_balance + $sales_due - $sales_return_due;
+
+		$data['purchases'] = $this->db->where('customer_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->limit(20)
+								  ->get('db_sales')
+								  ->result();
+
+		$data['payments'] = $this->db->where('customer_id', $id)
+								 ->order_by('id', 'desc')
+								 ->limit(20)
+								 ->get('db_customer_payments')
+								 ->result();
+
+		if(mp_feature_enabled('gift_cards') && $this->db->table_exists('db_gift_cards')){
+			$data['gift_cards'] = $this->db->where('customer_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->get('db_gift_cards')
+								  ->result();
+		} else { $data['gift_cards'] = array(); }
+
+		if(mp_feature_enabled('store_credit') && $this->db->table_exists('db_store_credit')){
+			$data['store_credits'] = $this->db->where('customer_id', $id)
+								     ->where('store_id', $store_id)
+								     ->order_by('id', 'desc')
+								     ->get('db_store_credit')
+								     ->result();
+		} else { $data['store_credits'] = array(); }
+
+		if($this->db->table_exists('db_customer_coupons')){
+			$data['coupons'] = $this->db->where('customer_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->get('db_customer_coupons')
+								  ->result();
+		} else { $data['coupons'] = array(); }
+
+		if(mp_feature_enabled('memberships') && $this->db->table_exists('db_customer_memberships')){
+			$this->load->model('membership_model','membership');
+			$data['memberships'] = $this->membership->get_customer_memberships($id);
+			$data['active_membership'] = $this->membership->get_customer_discount($id);
+		} else {
+			$data['memberships'] = array();
+			$data['active_membership'] = null;
+		}
+
+		if(mp_feature_enabled('treatment_notes') && $this->db->table_exists('db_treatment_notes')){
+			$this->load->model('treatment_notes_model','notes');
+			$data['treatment_notes'] = $this->notes->get_by_customer($id);
+		} else { $data['treatment_notes'] = array(); }
+
+		if(mp_feature_enabled('medical_notes') && $this->db->table_exists('db_medical_notes')){
+			$this->load->model('medical_notes_model','medical');
+			$data['medical_notes'] = $this->medical->get_by_customer($id);
+			$data['medical_allergies'] = $this->medical->get_allergies($id);
+			$data['medical_enabled'] = true;
+		} else {
+			$data['medical_notes'] = array();
+			$data['medical_allergies'] = array();
+			$data['medical_enabled'] = false;
+		}
+
+		if(mp_feature_enabled('customer_notes') && $this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
+		} else {
+			$data['customer_notes'] = array();
+			if(mp_feature_enabled('customer_notes') && !empty($customer->notes)){
+				$legacy = new stdClass();
+				$legacy->id = 0;
+				$legacy->note = $customer->notes;
+				$legacy->created_by = $customer->created_by ?? null;
+				$legacy->created_by_id = null;
+				$legacy->created_date = $customer->created_date ?? null;
+				$legacy->created_time = $customer->created_time ?? null;
+				$data['customer_notes'] = array($legacy);
+			}
+		}
+
+		if(mp_feature_enabled('custom_orders') && $this->db->table_exists('db_custom_orders')){
+			$this->load->model('custom_orders_model','custom_orders');
+			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
+		} else { $data['custom_orders'] = array(); }
+
+		if(mp_feature_enabled('laundry_workflow') && $this->db->table_exists('db_laundry_orders')){
+			$data['service_history'] = $this->db->query(
+				"SELECT lo.id, lo.sales_id, lo.status, lo.tag_number, lo.created_at, lo.updated_at,
+						s.sales_code, s.sales_date, s.grand_total, s.paid_amount,
+						(SELECT GROUP_CONCAT(DISTINCT i.item_name SEPARATOR ', ')
+						 FROM db_salesitems si
+						 JOIN db_items i ON i.id = si.item_id
+						 WHERE si.sales_id = lo.sales_id) as items_list
+				 FROM db_laundry_orders lo
+				 JOIN db_sales s ON s.id = lo.sales_id
+				 WHERE s.customer_id = ? AND lo.store_id = ?
+				 ORDER BY lo.created_at DESC",
+				[$id, $store_id]
+			)->result();
+		} else { $data['service_history'] = array(); }
+
+		if($this->db->table_exists('db_installment_plans')){
+			$this->load->model('installments_model','installments');
+			$data['payplans'] = $this->installments->get_customer_active_plans($id);
+		} else { $data['payplans'] = array(); }
+
+		$this->load->model('customers_model','customers');
+		$statement = $this->customers->get_statement($id, $store_id);
+		$data['opening'] = $statement['opening'];
+		$data['statement'] = $statement['rows'];
+		$data['statement_summary'] = $statement['summary'];
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/customer_profile', $data);
+	}
+
+	public function save_customer_notes($customer_id)
+	{
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		$note = trim((string)$this->input->post('notes', TRUE));
+		if($note === ''){
+			$this->session->set_flashdata('failed', 'Please write a note before saving.');
+			redirect('mobile/customer_profile/' . $customer_id . '?tab=notes');
+			return;
+		}
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$this->cust_notes->add($customer_id, $note);
+		} else {
+			// Fallback before the notes-history migration runs: append with
+			// timestamp + author so the single notes blob still keeps history.
+			$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+			$existing = trim((string)($customer->notes ?? ''));
+			$entry = '[' . date('d-m-Y H:i') . ' ' . $this->session->userdata('inv_username') . '] ' . $note;
+			$this->db->where('id', $customer_id)->update('db_customers', array('notes' => ($existing !== '' ? $existing . "\n\n" . $entry : $entry)));
+		}
+		$this->session->set_flashdata('success', 'Note added.');
+		redirect('mobile/customer_profile/' . $customer_id . '?tab=notes');
+	}
+
+	public function edit_customer_note($note_id)
+	{
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		if(!$this->db->table_exists('db_customer_notes')){
+			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
+			redirect('mobile/customers');
+			return;
+		}
+		$this->load->model('customer_notes_model','cust_notes');
+		$note = $this->cust_notes->get($note_id);
+		if(!$note || (int)$note->store_id !== (int)get_current_store_id()){
+			$this->session->set_flashdata('failed', 'Note not found.');
+			redirect('mobile/customers');
+			return;
+		}
+		if(!$this->cust_notes->is_owner($note)){
+			$this->session->set_flashdata('failed', 'Only the creator can edit this note.');
+			redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
+			return;
+		}
+		$text = trim((string)$this->input->post('note', TRUE));
+		if($text === ''){
+			$this->session->set_flashdata('failed', 'Note cannot be empty.');
+			redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
+			return;
+		}
+		$this->cust_notes->update($note_id, $text);
+		$this->session->set_flashdata('success', 'Note updated.');
+		redirect('mobile/customer_profile/' . $note->customer_id . '?tab=notes');
+	}
+
+	public function save_treatment_note($customer_id)
+	{
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('treatment_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		$this->load->model('treatment_notes_model', 'treatment');
+		$data = array(
+			'customer_id' => $customer_id,
+			'treatment_date' => $this->input->post('treatment_date', TRUE),
+			'service_type' => $this->input->post('service_type', TRUE),
+			'staff_name' => $this->input->post('staff_name', TRUE),
+			'notes' => $this->input->post('notes', TRUE),
+			'products_used' => $this->input->post('products_used', TRUE),
+			'store_id' => get_current_store_id(),
+			'created_at' => date('Y-m-d H:i:s')
+		);
+		$this->treatment->save($data);
+		$this->session->set_flashdata('success', 'Treatment note added.');
+		redirect('mobile/customer_profile/' . $customer_id . '?tab=treatment');
+	}
+
+	public function save_medical_note($customer_id)
+	{
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('medical_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		$this->load->model('medical_notes_model', 'medical');
+		$data = array(
+			'customer_id' => $customer_id,
+			'note_date' => $this->input->post('note_date', TRUE),
+			'prescribing_doctor' => $this->input->post('prescribing_doctor', TRUE),
+			'diagnosis' => $this->input->post('diagnosis', TRUE),
+			'allergies_flagged' => $this->input->post('allergies_flagged', TRUE),
+			'notes' => $this->input->post('notes', TRUE),
+			'refills_remaining' => (int)$this->input->post('refills_remaining', TRUE),
+			'next_refill_date' => $this->input->post('next_refill_date', TRUE),
+			'store_id' => get_current_store_id(),
+			'created_at' => date('Y-m-d H:i:s')
+		);
+		$this->medical->save($data);
+		$this->session->set_flashdata('success', 'Medical note added.');
+		redirect('mobile/customer_profile/' . $customer_id . '?tab=medical');
+	}
+
+	public function save_custom_order($customer_id)
+	{
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('custom_orders')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		$this->load->model('custom_orders_model', 'orders');
+		$data = array(
+			'customer_id' => $customer_id,
+			'item_name' => $this->input->post('item_name', TRUE),
+			'status' => $this->input->post('status', TRUE) ?: 'pending',
+			'due_date' => $this->input->post('due_date', TRUE),
+			'total_amount' => (float)$this->input->post('total_amount', TRUE),
+			'deposit_amount' => (float)$this->input->post('deposit_amount', TRUE),
+			'deposit_paid' => (float)$this->input->post('deposit_paid', TRUE),
+			'store_id' => get_current_store_id(),
+			'created_at' => date('Y-m-d H:i:s')
+		);
+		$this->orders->save($data);
+		$this->session->set_flashdata('success', 'Custom order added.');
+		redirect('mobile/customer_profile/' . $customer_id . '?tab=custom');
+	}
+
+	public function statement($customer_id)
+	{
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Customer Statement';
+		$this->load->model('customers_model', 'customers');
+		$data['customer'] = $this->db->where('id', $customer_id)->get('db_customers')->row();
+		$from = $this->input->get('from');
+		$to = $this->input->get('to');
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		$statement = $this->customers->get_statement($customer_id, null, $from, $to);
+		$data = array_merge($data, $statement);
+		$data['from'] = $from;
+		$data['to'] = $to;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/statement', $data);
+	}
+
+	public function suppliers()
+	{
+		$this->permission_check('suppliers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Suppliers';
+		$store_id = get_current_store_id();
+
+		$data['suppliers'] = $this->db->select('id, supplier_name, supplier_code, mobile, email, opening_balance, purchase_due, purchase_return_due, status')
+								  ->where('store_id', $store_id)
+								  ->where('status', 1)
+								  ->order_by('supplier_name', 'asc')
+								  ->get('db_suppliers')
+								  ->result();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/suppliers', $data);
+	}
+
+	public function add_supplier()
+	{
+		$this->permission_check('suppliers_add');
+		$data = $this->data;
+		$data['page_title'] = 'Add Supplier';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/supplier_form', $data);
+	}
+
+	public function edit_supplier($id)
+	{
+		$this->belong_to('db_suppliers', $id);
+		$this->permission_check('suppliers_edit');
+		$data = $this->data;
+		$data['page_title'] = 'Edit Supplier';
+		$this->load->model('suppliers_model', 'suppliers_m');
+		$result = $this->suppliers_m->get_details($id, $data);
+		$data = array_merge($data, $result);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/supplier_form', $data);
+	}
+
+	public function save_supplier()
+	{
+		$q_id = $this->input->post('q_id', TRUE);
+		$is_update = !empty($q_id);
+		$this->permission_check($is_update ? 'suppliers_edit' : 'suppliers_add');
+		$this->load->library('form_validation');
+		$this->load->model('suppliers_model', 'suppliers_m');
+
+		$this->form_validation->set_rules('supplier_name', 'Supplier Name', 'trim|required');
+
+		if($this->form_validation->run() == TRUE){
+			if($is_update){
+				$result = $this->suppliers_m->update_suppliers();
+				if($result === 'success'){
+					$this->session->set_flashdata('success', 'Supplier Updated Successfully!');
+					redirect('mobile/supplier_profile/' . $q_id);
+				}
+				$this->session->set_flashdata('failed', $result);
+				redirect('mobile/edit_supplier/' . $q_id);
+			} else {
+				$result = $this->suppliers_m->verify_and_save();
+				if($result === 'success'){
+					$this->session->set_flashdata('success', 'New Supplier Added Successfully!');
+					redirect('mobile/suppliers');
+				}
+				$this->session->set_flashdata('failed', $result);
+				redirect('mobile/add_supplier');
+			}
+		}
+		if($is_update){
+			$this->session->set_flashdata('failed', validation_errors());
+			redirect('mobile/edit_supplier/' . $q_id);
+		}
+		$this->session->set_flashdata('failed', validation_errors());
+		redirect('mobile/add_supplier');
+	}
+
+	public function delete_supplier($id)
+	{
+		$this->permission_check('suppliers_delete');
+		if(set_status_of_table($id, 0, 'db_suppliers')){
+			$this->session->set_flashdata('success', 'Supplier removed successfully!');
+		} else {
+			$this->session->set_flashdata('failed', 'Failed to remove supplier.');
+		}
+		redirect('mobile/suppliers');
+	}
+
+	public function supplier_profile($id)
+	{
+		$this->belong_to('db_suppliers', $id);
+		$this->permission_check('suppliers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Supplier Profile';
+		$store_id = get_current_store_id();
+
+		$supplier = $this->db->where('id', $id)->get('db_suppliers')->row();
+		if(!$supplier) redirect('mobile/suppliers');
+		$data['supplier'] = $supplier;
+
+		$opening_balance = $supplier->opening_balance ?? 0;
+		$opening_balance -= get_paid_sob($id);
+		$purchase_due = $supplier->purchase_due ?? 0;
+		$purchase_return_due = $supplier->purchase_return_due ?? 0;
+		$data['total_due'] = $opening_balance + $purchase_due - $purchase_return_due;
+
+		$data['purchases'] = $this->db->where('supplier_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->limit(20)
+								  ->get('db_purchase')
+								  ->result();
+
+		$data['payments'] = $this->db->where('supplier_id', $id)
+								 ->order_by('id', 'desc')
+								 ->limit(20)
+								 ->get('db_supplier_payments')
+								 ->result();
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/supplier_profile', $data);
+	}
+
+	public function supplier_payment($id)
+	{
+		$this->belong_to('db_suppliers', $id);
+		$this->permission_check('purchase_payment_add');
+		$data = $this->data;
+		$data['page_title'] = 'Supplier Payment';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$supplier = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_suppliers')->row();
+		if(!$supplier){ show_404(); exit; }
+		$data['supplier'] = $supplier;
+
+		$opening_balance = ($supplier->opening_balance ?? 0) - get_paid_sob($id);
+		$data['total_due'] = $opening_balance + ($supplier->purchase_due ?? 0) - ($supplier->purchase_return_due ?? 0);
+
+		$data['payment_modes'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_payment_modes')->result();
+		$data['accounts'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('account_name')->get('ac_accounts')->result();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/supplier_payment', $data);
+	}
+
+	public function clock()
+	{
+		if(is_store_admin()){
+			$this->session->set_flashdata('failed', 'Store Admin is exempt from attendance.');
+			redirect('mobile');
+		}
+		$userId = (int)$this->session->userdata('inv_userid');
+		$storeId = get_current_store_id();
+		$date = date('Y-m-d');
+
+		$this->load->model('attendance_model');
+		$shift = $this->attendance_model->isOnDuty($userId, $storeId);
+		if(!$shift){
+			$shifts = $this->attendance_model->getShiftsByUser($userId, $storeId);
+			$shift = $shifts[0] ?? null;
+			if(!$shift){
+				$this->session->set_flashdata('failed', 'You are not scheduled for any shift right now.');
+			}
+		}
+
+		$needsClockOut = $this->attendance_model->needsClockOut($userId, $date);
+
+		$data = $this->data;
+		$data['shift'] = $shift;
+		$data['needs_clock_out'] = $needsClockOut;
+		$data['clock_action'] = $needsClockOut ? 'out' : 'in';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['page_title'] = $needsClockOut ? 'Clock Out' : 'Clock In';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/clock', $data);
+	}
+
+	public function customer_search()
+	{
+		$term = $this->input->get('q', TRUE);
+		$store_id = get_current_store_id();
+		$this->db->select('id, customer_name, mobile, customer_code');
+		$this->db->from('db_customers');
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		if(!empty($term)){
+			$this->db->group_start();
+			$this->db->like('customer_name', $term);
+			$this->db->or_like('mobile', $term);
+			$this->db->or_like('customer_code', $term);
+			$this->db->group_end();
+		}
+		$this->db->limit(20);
+		$rows = $this->db->get()->result();
+		echo json_encode($rows);
+	}
+
+	public function item_search()
+	{
+		$term = $this->input->get('q', TRUE);
+		$recent = $this->input->get('recent', TRUE);
+		$price_type = $this->input->get('price_type', TRUE);
+		$category_id = $this->input->get('category', TRUE);
+		$brand_id = $this->input->get('brand', TRUE);
+		$limit = $this->input->get('limit', TRUE);
+		$limit = is_numeric($limit) ? min((int)$limit, 200) : 20;
+		$store_id = get_current_store_id();
+		$bundleSelect = $this->db->field_exists('is_bundle', 'db_items') ? ', a.is_bundle' : '';
+		// Column probes happen before the query builder opens: field_exists() runs
+		// its own lookup and would otherwise discard the conditions being built.
+		$partRefColumns = [];
+		foreach(['manufacturer_part_no', 'oem_reference', 'cross_reference'] as $partRefColumn){
+			if($this->db->field_exists($partRefColumn, 'db_items')) $partRefColumns[] = $partRefColumn;
+		}
+
+		if(!empty($price_type) && $price_type == 'wholesale'){
+			$this->db->where('a.sales_price >', 0);
+		}
+
+		if($recent == 1){
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name, COUNT(c.id) as sold_count'.$bundleSelect, false);
+			$this->db->from('db_items a');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
+			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
+			$this->db->join('db_salesitems c', 'c.item_id = a.id', 'left');
+			$this->db->where('a.store_id', $store_id);
+			$this->db->where('a.status', 1);
+			if(!empty($category_id) && is_numeric($category_id)){
+				mp_category_filter('a.category_id',$category_id,$store_id);
+			}
+			if(!empty($brand_id) && is_numeric($brand_id)){
+				$this->db->where('a.brand_id', $brand_id);
+			}
+			$this->db->group_by('a.id');
+			$this->db->order_by('sold_count', 'desc');
+			$this->db->limit(10);
+		}
+		else {
+			$this->db->select('a.id, a.item_name, a.item_code, a.sku, a.stock, COALESCE((SELECT mrp FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.mrp) as mrp_price, COALESCE((SELECT sales_price FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 ORDER BY bc.id ASC LIMIT 1), a.sales_price) as sales_price, a.discount_type, a.discount, a.purchase_price, a.price as purchase_cost, a.tax_id, a.tax_type, a.item_image, a.weight_pricing_enabled, a.weight_pricing_base_kg, a.weight_pricing_increment_kg, a.weight_pricing_increment_charge, b.tax as tax_value, b.tax_name'.$bundleSelect, false);
+			$this->db->from('db_items a');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
+			$this->db->join('db_tax b', 'b.id = a.tax_id', 'left');
+			$this->db->where('a.store_id', $store_id);
+			$this->db->where('a.status', 1);
+			if(!empty($category_id) && is_numeric($category_id)){
+				mp_category_filter('a.category_id',$category_id,$store_id);
+			}
+			if(!empty($brand_id) && is_numeric($brand_id)){
+				$this->db->where('a.brand_id', $brand_id);
+			}
+			if(!empty($term)){
+				$this->db->group_start();
+				$this->db->like('a.item_name', $term);
+				$this->db->or_like('a.item_code', $term);
+				$this->db->or_like('a.sku', $term);
+				// Parts are asked for by the number on the box.
+				foreach($partRefColumns as $partRefColumn){
+					$this->db->or_like('a.'.$partRefColumn, $term);
+				}
+				$escaped = $this->db->escape_like_str($term);
+				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_selling_units su WHERE su.item_id = a.id AND su.store_id = a.store_id AND su.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
+				$this->db->or_where("EXISTS (SELECT 1 FROM db_item_barcodes bc WHERE bc.item_id = a.id AND bc.status = 1 AND bc.barcode LIKE '%".$escaped."%' ESCAPE '!')", NULL, FALSE);
+				$this->db->group_end();
+			}
+			$this->db->limit($limit);
+		}
+		$rows = $this->db->get()->result();
+
+		// Apply active promotions (with margin protection) if module is available
+		$has_promotions = FALSE;
+		try { $has_promotions = $this->db->table_exists('db_promotions'); } catch(Exception $e) {}
+		if($has_promotions) $this->load->model('promotions_model');
+		foreach($rows as &$row){
+				$base_price = ($price_type == 'retail' && !empty($row->mrp_price) && $row->mrp_price > 0)
+					? $row->mrp_price
+					: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $row->sales_price);
+                $row->raw_sales_price = $row->sales_price;
+                $row->raw_mrp_price = $row->mrp_price;
+				$row->is_bundle = !empty($row->is_bundle);
+				$row->original_price = (float)$base_price;
+				$itemDiscount = (float)($row->discount ?? 0);
+				if($itemDiscount > 0){
+					$amount = strtolower((string)($row->discount_type ?? '')) === 'percentage'
+						? ((float)$base_price * ($itemDiscount / 100)) : $itemDiscount;
+					$base_price = max(0, (float)$base_price - min((float)$base_price, max(0, $amount)));
+					if($price_type === 'retail') $row->mrp_price = $base_price;
+					else $row->sales_price = $base_price;
+				}
+				if($has_promotions) try {
+					$promo = $this->promotions_model->compute_effective_price($row->id, $base_price);
+					if($promo['has_promo']){
+						$row->sales_price = $promo['price'];
+						$row->mrp_price = $promo['price'];
+						$row->promo_name = $promo['promo_name'];
+						$row->promo_discount = $promo['discount_amount'];
+						$row->original_price = $base_price;
+					}
+				} catch(Exception $e) {}
+		}
+		unset($row);
+
+		// Attach selling units for pack/piece/carton picker
+		if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+			if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+			foreach($rows as &$row){
+				$sus = $this->selling_units->get_units($row->id, $store_id);
+				$row->selling_units = [];
+				foreach($sus as $su){
+					$row->selling_units[] = [
+						'unit_id' => $su->unit_id,
+						'unit_name' => $su->unit_name,
+						'unit_shortcode' => $su->shortcode,
+						'conversion_factor' => (float)$su->conversion_factor,
+						'selling_price' => (float)$su->selling_price,
+						'wholesale_price' => (float)$su->wholesale_price,
+						'barcode' => $su->barcode,
+						'is_default' => (bool) $su->is_default,
+					];
+				}
+			}
+			unset($row);
+		}
+
+		header('Content-Type: application/json');
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		echo json_encode($rows);
+	}
+
+	public function categories()
+	{
+		$store_id = get_current_store_id();
+		$this->db->select('id, category_name');
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('category_name', 'asc');
+		$rows = $this->db->get('db_category')->result();
+		echo json_encode($rows);
+	}
+
+	public function brands()
+	{
+		$store_id = get_current_store_id();
+		$this->db->select('id, brand_name');
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('brand_name', 'asc');
+		$rows = $this->db->get('db_brands')->result();
+		echo json_encode($rows);
+	}
+
+	public function customer_due($customer_id)
+	{
+		$store_id = get_current_store_id();
+		$this->db->select("COALESCE(SUM(grand_total - paid_amount),0) as due");
+		$this->db->where('store_id', $store_id);
+		$this->db->where('customer_id', $customer_id);
+		$this->db->where_in('sales_status', array('Final', 'Opening'));
+		$due = $this->db->get('db_sales')->row()->due;
+		$customer = $this->db->select('mobile, tot_advance, store_credit_balance, gift_card_balance, loyalty_points, credit_limit')->where('id', $customer_id)->get('db_customers')->row();
+		echo json_encode([
+			'due' => $due,
+			'mobile' => $customer->mobile ?? '',
+			'tot_advance' => $customer->tot_advance ?? 0,
+			'store_credit_balance' => $customer->store_credit_balance ?? 0,
+			'gift_card_balance' => $customer->gift_card_balance ?? 0,
+			'loyalty_points' => $customer->loyalty_points ?? 0,
+			'credit_limit' => $customer->credit_limit ?? 0,
+		]);
+	}
+
+	public function hold()
+	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
+		$this->permission_check('sales_add');
+
+		$input = json_decode(file_get_contents('php://input'), true);
+		if(empty($input)){
+			$input = $this->input->post();
+		}
+
+		$csrf_token = $input['csrf_test_name'] ?? '';
+		$csrf_cookie = $this->input->cookie('csrf_cookie_name');
+		if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
+			exit;
+		}
+
+		$store_id = get_current_store_id();
+		$requested_warehouse_id = !empty($input['warehouse_id']) ? (int)$input['warehouse_id'] : 0;
+		$warehouse_id = $requested_warehouse_id > 0 ? $requested_warehouse_id : get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null) {
+			if ($requested_warehouse_id > 0 && !in_array($requested_warehouse_id, $allowed_warehouse_ids, true)) {
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'You are not assigned to that branch.']);
+				exit;
+			}
+			if (!in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) $warehouse_id = (int)($allowed_warehouse_ids[0] ?? 0);
+		}
+		$customer_id = $input['customer_id'] ?? 0;
+		$table_id = (int) ($input['table_id'] ?? 0);
+		$cart = $input['cart'] ?? [];
+        try {
+            $cart = mp_customer_pricing()->validate_cart($store_id, $customer_id, (array)$cart, (string)($input['coupon_code'] ?? ''));
+        } catch (RuntimeException $e) {
+            ob_end_clean(); echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
+        }
+
+		$discount = parse_amount($input['discount'] ?? 0);
+		$sales_note = $input['sales_note'] ?? '';
+
+		if(empty($cart) || count($cart) === 0){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Cart is empty']);
+			exit;
+		}
+
+		if(empty($warehouse_id)){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'No warehouse found for this store. Please set up a warehouse in Settings.']);
+			exit;
+		}
+
+		$this->load->model('pos_model');
+
+		$subtotal = 0;
+		$tax_total = 0;
+		$items = [];
+		foreach($cart as $item){
+			$item_id = (int) ($item['id'] ?? 0);
+			$qty = (float) ($item['qty'] ?? 1);
+			$price = (float) ($item['price'] ?? 0);
+			$base_price = (float) ($item['base_price'] ?? $price);
+			$tax_value = (float) ($item['tax_value'] ?? 0);
+			$tax_type = $item['tax_type'] ?? 'Exclusive';
+			$price_type = $item['price_type'] ?? 'retail';
+			$tax_id = (int) ($item['tax_id'] ?? 0);
+
+			if($item_id <= 0){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Invalid item in cart']);
+				exit;
+			}
+
+			$item_details = get_item_details($item_id);
+			if($item_details) $price = mp_weight_pricing_unit_price($item_details, $qty, $base_price, $item['weight_lines'] ?? null);
+			$line = $qty * $price;
+			if($tax_type == 'Exclusive'){
+				$tax_amount = ($line * $tax_value) / 100;
+				$line_total_with_tax = $line + $tax_amount;
+			} else {
+				$tax_amount = $line - ($line / (1 + ($tax_value / 100)));
+				$line_total_with_tax = $line;
+				$line = $line - $tax_amount;
+			}
+			$subtotal += $line;
+			$tax_total += $tax_amount;
+
+			$item_details = get_item_details($item_id);
+			if(!$item_details){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Item not found: '.$item_id]);
+				exit;
+			}
+			$service_bit = $item_details->service_bit ?? 0;
+			$current_stock = total_available_qty_items_of_warehouse($warehouse_id, null, $item_id);
+			if($current_stock < $qty && $service_bit == 0){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => $item_details->item_name.' has only '.$current_stock.' in stock']);
+				exit;
+			}
+
+			$unit_total_cost = ($tax_type == 'Exclusive') ? ($price + ($tax_value * $price / 100)) : $price;
+
+			$items[] = [
+				'store_id' => $store_id,
+				'item_id' => $item_id,
+				'description' => '',
+				'batch_lot' => '',
+				'price_type' => $price_type,
+				'pricing_snapshot' => isset($item['pricing_snapshot']) ? (is_array($item['pricing_snapshot']) ? json_encode($item['pricing_snapshot']) : $item['pricing_snapshot']) : null,
+                'unit_id' => $item['unit_id'] ?? null,
+                'unit_name' => $item['unit_name'] ?? null,
+                'conversion_factor' => $item['conversion_factor'] ?? 1,
+				'sales_qty' => $qty,
+				'price_per_unit' => $price,
+				'tax_id' => $tax_id ? $tax_id : null,
+				'tax_amt' => number_format($tax_amount, 2, '.', ''),
+				'tax_type' => $tax_type,
+				'discount_type' => 'Percentage',
+				'discount_input' => 0,
+				'discount_amt' => 0,
+				'unit_total_cost' => number_format($unit_total_cost, 2, '.', ''),
+				'total_cost' => number_format($line_total_with_tax, 2, '.', ''),
+				'sold_serial_number' => '',
+				'sold_imei_number' => '',
+				'barcode_id' => 0,
+			];
+		}
+
+		// Manual Shipping — same server-side verification as Mobile::save
+		$shipping_fee = 0;
+		$shipping_label = '';
+		$shipping_fee_id = 0;
+		if($table_id <= 0 && !empty($input['shipping']) && is_array($input['shipping'])
+			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_hold')){
+			$ship_id = (int) ($input['shipping']['id'] ?? 0);
+			if($ship_id){
+				$feeRow = $this->db->where('id', $ship_id)->where('store_id', $store_id)->where('is_enabled', 1)
+					->get('db_shipping_fees')->row();
+				if($feeRow){
+					$shipping_fee_id = (int)$feeRow->id;
+					$shipping_fee = (float)$feeRow->fee;
+					$shipping_label = (string)$feeRow->label;
+				}
+			}
+		}
+
+		$total = $subtotal + $tax_total - $discount + $shipping_fee;
+		$grand_total = round($total, 2);
+
+		$this->db->trans_begin();
+
+		$reference_id = trim($input['reference_id'] ?? '');
+		if(empty($reference_id)){
+			$reference_id = 'MOB-' . date('YmdHis') . '-' . mt_rand(100, 999);
+		}
+
+		$hold_entry = [
+			'reference_id' => $reference_id,
+			'store_id' => $store_id,
+			'sales_date' => date('Y-m-d'),
+			'sales_status' => 'Final',
+			'customer_id' => $customer_id,
+			'discount_to_all_input' => number_format($discount, 2, '.', ''),
+			'discount_to_all_type' => 'Fixed',
+			'tot_discount_to_all_amt' => number_format($discount, 2, '.', ''),
+			'subtotal' => number_format($subtotal, 2, '.', ''),
+			'round_off' => number_format($grand_total - ($subtotal + $tax_total), 2, '.', ''),
+			'grand_total' => number_format($grand_total, 2, '.', ''),
+			'pos' => 1,
+			'sales_note' => $sales_note,
+			'warehouse_id' => $warehouse_id,
+		];
+		if($this->db->field_exists('shipping_fee', 'db_hold')){
+			$hold_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+			$hold_entry['shipping_label']  = $shipping_label ?: null;
+			$hold_entry['shipping_fee']    = $shipping_fee ?: null;
+		}
+		if($table_id > 0 && $this->db->field_exists('table_id', 'db_hold')){
+			$hold_entry['table_id'] = $table_id;
+		}
+
+		if(!$this->db->insert('db_hold', $hold_entry)){
+			$err = $this->db->error();
+			$this->db->trans_rollback();
+			log_message('error', 'Mobile hold() db_hold insert failed: ' . ($err['message'] ?? 'unknown'));
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'The sale could not be held. Please try again.']);
+			exit;
+		}
+
+		$hold_id = $this->db->insert_id();
+
+		foreach($items as $it){
+			$it['hold_id'] = $hold_id;
+            foreach(['pricing_snapshot','unit_id','unit_name','conversion_factor'] as $optional) if(!$this->db->field_exists($optional,'db_holditems')) unset($it[$optional]);
+			if(!$this->db->insert('db_holditems', $it)){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				log_message('error', 'Mobile hold() db_holditems insert failed: ' . ($err['message'] ?? 'unknown'));
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'The sale could not be held. Please try again.']);
+				exit;
+			}
+			$this->pos_model->update_items_quantity($it['item_id']);
+		}
+
+		$this->db->trans_commit();
+
+		ob_end_clean();
+		echo json_encode(['status' => 'success', 'message' => 'Sale held.', 'redirect' => base_url('mobile')]);
+		exit;
+	}
+
+	public function get_hold($hold_id = 0)
+	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		$this->permission_check('sales_add');
+		$hold_id = (int) ($hold_id ?: ($this->input->get('hold_id', TRUE) ?: 0));
+		if($hold_id <= 0){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Invalid hold ID']);
+			exit;
+		}
+		$store_id = get_current_store_id();
+		$this->db->where('id', $hold_id)->where('store_id', $store_id);
+		$hold = $this->db->get('db_hold')->row();
+		if(!$hold){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Hold not found']);
+			exit;
+		}
+		$this->db->select('hi.*, i.item_name, i.purchase_price, t.tax, t.tax_name');
+		$this->db->from('db_holditems hi');
+		$this->db->join('db_items i', 'i.id = hi.item_id', 'left');
+		$this->db->join('db_tax t', 't.id = hi.tax_id', 'left');
+		$this->db->where('hi.hold_id', $hold_id);
+		$hold->items = $this->db->get()->result();
+		$customer = $this->db->where('id', $hold->customer_id)->get('db_customers')->row();
+		$hold->customer_name = $customer ? $customer->customer_name : '';
+		$hold_data = [
+			'id' => $hold->id,
+			'customer_id' => $hold->customer_id,
+			'customer_name' => $hold->customer_name,
+			'table_id' => (int) ($hold->table_id ?? 0),
+			'shipping' => (!empty($hold->shipping_fee_id)) ? ['id' => (int)$hold->shipping_fee_id, 'fee' => (float)$hold->shipping_fee, 'label' => (string)($hold->shipping_label ?? '')] : null,
+			'discount' => $hold->discount_to_all_input ?? 0,
+			'sales_note' => $hold->sales_note ?? '',
+			'price_type' => !empty($hold->items) && isset($hold->items[0]->price_type) ? $hold->items[0]->price_type : 'retail',
+			'items' => []
+		];
+		foreach($hold->items as $it){
+			$hold_data['items'][] = [
+				'id' => (int) $it->item_id,
+				'name' => (string) ($it->item_name ?? 'Item #'.$it->item_id),
+				'price' => (float) $it->price_per_unit,
+				'purchase_price' => (float) $it->purchase_price,
+				'tax_value' => (float) $it->tax,
+				'tax_id' => (int) $it->tax_id,
+				'tax_name' => (string) ($it->tax_name ?? ''),
+				'tax_type' => (string) $it->tax_type,
+				'qty' => (float) $it->sales_qty,
+			];
+		}
+		ob_end_clean();
+		echo json_encode($hold_data, JSON_INVALID_UTF8_SUBSTITUTE);
+		exit;
+	}
+
+	public function save()
+	{
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		ob_start();
+		// For JSON requests, manually verify CSRF token before permission check
+		$input = json_decode(file_get_contents('php://input'), true);
+		if(!empty($input) && isset($input['csrf_test_name'])){
+			// Verify CSRF token manually for JSON requests
+			$csrf_token = $input['csrf_test_name'];
+			$csrf_cookie = $this->input->cookie('csrf_cookie_name');
+			if(empty($csrf_token) || $csrf_token !== $csrf_cookie){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'Your security check has expired. Please reload the page and try again.']);
+				exit;
+			}
+		}
+		
+		$this->permission_check('sales_add');
+		if(!$this->is_cashier_clocked_in()){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'Please clock in before making a sale.']);
+			exit;
+		}
+		if(empty($input)){
+			$input = $this->input->post();
+		}
+
+		$store_id = get_current_store_id();
+		$restaurant_order_key = substr(trim((string)($input['restaurant_order_key'] ?? '')), 0, 96);
+		$restaurant_mode = function_exists('mp_feature_enabled') && mp_feature_enabled('restaurant_workspace');
+		// A browser retry must return the committed invoice instead of entering
+		// Sales_model a second time. The key is tenant-scoped and only applies to
+		// restaurant POS requests that explicitly carry the client retry token.
+		if($restaurant_mode && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+			$existing_restaurant_sale = $this->db->where('store_id', $store_id)
+				->where('restaurant_order_key', $restaurant_order_key)->get('db_sales')->row();
+			if($existing_restaurant_sale){
+				ob_end_clean();
+				echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+					'sales_id'=>(int)$existing_restaurant_sale->id, 'sales_code'=>(string)$existing_restaurant_sale->sales_code,
+					'redirect'=>base_url('mobile')]); exit;
+			}
+		}
+		// Offline queue replays are not restaurant-only: every store's queued
+		// till sale carries a client key, and a retry must return the invoice
+		// that was already written instead of selling and depleting stock twice.
+		$pos_idempotency_key = substr(trim((string)($input['pos_idempotency_key'] ?? '')), 0, 96);
+		$pos_dedupe = $pos_idempotency_key !== '' && $this->db->field_exists('pos_idempotency_key', 'db_sales');
+		if($pos_dedupe){
+			$existing_pos_sale = $this->db->where('store_id', $store_id)
+				->where('pos_idempotency_key', $pos_idempotency_key)->get('db_sales')->row();
+			if($existing_pos_sale){
+				ob_end_clean();
+				echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+					'sales_id'=>(int)$existing_pos_sale->id, 'sales_code'=>(string)$existing_pos_sale->sales_code,
+					'plan_id'=>0, 'whatsapp_url'=>'', 'redirect'=>base_url('mobile')]); exit;
+			}
+		}
+		$requested_warehouse_id = !empty($input['warehouse_id']) ? (int)$input['warehouse_id'] : 0;
+		$warehouse_id = $requested_warehouse_id > 0 ? $requested_warehouse_id : get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null) {
+			if ($requested_warehouse_id > 0 && !in_array($requested_warehouse_id, $allowed_warehouse_ids, true)) {
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'message' => 'You are not assigned to that branch.']);
+				exit;
+			}
+			if (!in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) $warehouse_id = (int)($allowed_warehouse_ids[0] ?? 0);
+		}
+		$init_code = get_only_init_code('sales');
+		$count_id = get_last_count_id('db_sales');
+		$sales_code = $init_code . $count_id;
+		$sales_date = date('Y-m-d');
+		$customer_id = $input['customer_id'];
+		$payment_type = $input['payment_type'];
+		$action = $input['action'] ?? 'pay';
+		$cart = $input['cart'] ?? [];
+        try {
+            $cart = mp_customer_pricing()->validate_cart($store_id, $customer_id, (array)$cart, (string)($input['coupon_code'] ?? ''));
+        } catch (RuntimeException $e) {
+            ob_end_clean(); echo json_encode(['status'=>'error','message'=>$e->getMessage()]); return;
+        }
+
+		$discount = parse_amount($input['discount'] ?? 0);
+		$sales_note = $input['sales_note'] ?? '';
+		$amount_paid = parse_amount($input['amount_paid'] ?? 0);
+		$is_hold = ($action === 'hold');
+		$is_plan = ($action === 'plan');
+		$is_split = ($action === 'split');
+		$is_pay = ($action === 'pay');
+
+		if(empty($warehouse_id)){
+			ob_end_clean();
+			echo json_encode(['status' => 'error', 'message' => 'No warehouse found for this store. Please set up a warehouse in Settings.']);
+			exit;
+		}
+
+		$subtotal = 0;
+		$tax_total = 0;
+		$rowcount = count($cart);
+
+		// Prescription-only medicines cannot be dispensed without an approved,
+		// patient-matched prescription linked to the sale.
+		if(function_exists('mp_prescription_gate')){
+			$rx_err = mp_prescription_gate($store_id, array_column($cart, 'id'),
+				(int)($input['medical_note_id'] ?? 0), (int)$customer_id);
+			if($rx_err !== ''){
+				ob_end_clean();
+				echo json_encode(['status' => 'error', 'prescription_required' => true, 'message' => $rx_err]);
+				exit;
+			}
+		}
+
+		$_POST = [];
+		$_POST['command'] = 'save';
+		$_POST['sales_date'] = $sales_date;
+		$_POST['due_date'] = '';
+		$_POST['reference_no'] = '';
+		$_POST['sales_status'] = $is_hold ? 'Pending' : 'Final';
+		$_POST['customer_id'] = $customer_id;
+		$table_id = (int) ($input['table_id'] ?? 0);
+		$_POST['table_id'] = $table_id;
+		// Running tab: Sales_model links the round to the tab the waiter opened.
+		$_POST['tab_id'] = (int) ($input['tab_id'] ?? 0);
+		// Tyre-shop fitment: Sales_model re-validates that this vehicle belongs
+		// to the posted customer and store before writing it.
+		$_POST['vehicle_id'] = (int) ($input['vehicle_id'] ?? 0);
+		$_POST['other_charges_input'] = '0';
+		$_POST['other_charges_tax_id'] = '';
+		$_POST['other_charges_amt'] = '0';
+		$_POST['discount_to_all_input'] = number_format($discount, 2, '.', '');
+		$_POST['discount_to_all_type'] = 'in_fixed';
+		$_POST['tot_discount_to_all_amt'] = number_format($discount, 2, '.', '');
+		$_POST['sales_note'] = $sales_note;
+		$_POST['rowcount'] = $rowcount;
+		$_POST['sales_id'] = '';
+		$_POST['warehouse_id'] = $warehouse_id;
+		$_POST['store_id'] = $store_id;
+		// Pass the client retry key into Sales_model's transaction so the
+		// unique restaurant_order_key constraint protects the insert itself,
+		// not only the post-save operational-order bridge.
+		if($restaurant_order_key !== ''){
+			$_POST['restaurant_order_key'] = $restaurant_order_key;
+		}
+		if($pos_idempotency_key !== ''){
+			$_POST['pos_idempotency_key'] = $pos_idempotency_key;
+		}
+		$_POST['count_id'] = $count_id;
+		$_POST['init_code'] = $init_code;
+		$_POST['coupon_code'] = $input['coupon_code'] ?? '';
+		$_POST['coupon_discount_amt'] = '0';
+		$_POST['invoice_terms'] = '';
+		$_POST['quotation_id'] = '';
+
+		for($i = 1; $i <= $rowcount; $i++){
+			$item = $cart[$i - 1];
+			$qty = (float) $item['qty'];
+			$price = (float) $item['price'];
+			$base_price = (float)($item['base_price'] ?? $price);
+			$item_details = get_item_details((int)($item['id'] ?? 0));
+			$purchase_price = (float) ($item['purchase_price'] ?? 0);
+			$tax_value = (float) ($item['tax_value'] ?? 0);
+			$tax_type = $item['tax_type'] ?? 'Exclusive';
+			$tax_id = $item['tax_id'] ?? 0;
+			$tax_name = $item['tax_name'] ?? '';
+			$discount = 0;
+
+			$line_total = $qty * $price;
+			if($tax_type == 'Exclusive'){
+				$tax_amount = ($line_total * $tax_value) / 100;
+				$line_total_with_tax = $line_total + $tax_amount;
+			} else {
+				$tax_amount = $line_total - ($line_total / (1 + ($tax_value/100)));
+				$line_total_with_tax = $line_total;
+				$line_total = $line_total - $tax_amount;
+			}
+
+			$subtotal += $line_total;
+			$tax_total += $tax_amount;
+
+			$_POST['tr_item_id_'.$i] = $item['id'];
+			$_POST['td_data_'.$i.'_3'] = $qty;
+			// Send the configured base price for stepped-weight items. Sales_model
+			// performs the single authoritative line-price calculation below.
+			$_POST['td_data_'.$i.'_4'] = ($item_details && !empty($item_details->weight_pricing_enabled)) ? $base_price : $price;
+			$_POST['td_data_'.$i.'_5'] = $tax_value;
+			$_POST['td_data_'.$i.'_7'] = number_format($tax_amount, 2, '.', '');
+			$_POST['td_data_'.$i.'_8'] = '0.00';
+			$_POST['td_data_'.$i.'_9'] = number_format($line_total_with_tax, 2, '.', '');
+			$_POST['td_data_'.$i.'_10'] = $price;
+			$_POST['td_data_'.$i.'_11'] = number_format($tax_amount, 2, '.', '');
+			$_POST['td_data_'.$i.'_12'] = $tax_name;
+			$_POST['td_data_'.$i.'_13'] = $purchase_price;
+			$_POST['tr_tax_id_'.$i] = $tax_id;
+			$_POST['tr_tax_value_'.$i] = $tax_value;
+			$_POST['tr_tax_type_'.$i] = $tax_type;
+			$_POST['item_discount_input_'.$i] = '0';
+			$_POST['item_discount_type_'.$i] = 'Percentage';
+			$_POST['description_'.$i] = '';
+			$_POST['price_type_'.$i] = $item['price_type'] ?? 'retail';
+			$_POST['pricing_snapshot_'.$i] = isset($item['pricing_snapshot']) ? (is_array($item['pricing_snapshot']) ? json_encode($item['pricing_snapshot']) : $item['pricing_snapshot']) : null;
+			$_POST['unit_id_'.$i] = $item['unit_id'] ?? '';
+			$_POST['unit_name_'.$i] = $item['unit_name'] ?? '';
+			$_POST['conversion_factor_'.$i] = ($item['conversion_factor'] ?? 1) > 0 ? ($item['conversion_factor'] ?? 1) : 1;
+			$_POST['batch_id_'.$i] = max(0, (int)($item['batch_id'] ?? 0));
+			$_POST['weight_lines_'.$i] = max(0, (int)($item['weight_lines'] ?? 0));
+		}
+
+		// Manual Shipping — verify the chosen fee against db_shipping_fees so the
+		// amount cannot be forged client-side. Falls back to 0 when the flag/table
+		// is unavailable or the fee id is invalid.
+		$shipping_fee = 0;
+		$shipping_label = '';
+		$shipping_fee_id = 0;
+		if($table_id <= 0 && !empty($input['shipping']) && is_array($input['shipping'])
+			&& $this->db->table_exists('db_shipping_fees') && $this->db->field_exists('shipping_fee', 'db_sales')){
+			$ship_id = (int) ($input['shipping']['id'] ?? 0);
+			if($ship_id){
+				$feeRow = $this->db->where('id', $ship_id)->where('store_id', $store_id)->where('is_enabled', 1)
+					->get('db_shipping_fees')->row();
+				if($feeRow){
+					$shipping_fee_id = (int)$feeRow->id;
+					$shipping_fee = (float)$feeRow->fee;
+					$shipping_label = (string)$feeRow->label;
+				}
+			}
+		}
+
+		$total = $subtotal + $tax_total - $discount + $shipping_fee;
+		$round_off = round($total, 2) - $total;
+		$grand_total = round($total, 2);
+
+		if($is_hold){
+			$paid = 0;
+		} else if($is_plan){
+			// PayPlan: down payment paid now; remainder scheduled as installments
+			$paid = ($amount_paid > 0) ? min($amount_paid, $grand_total) : 0;
+		} else if($is_pay){
+			// Full payment by default; if amount_paid provided, record up to grand_total
+			if($amount_paid > 0 && $amount_paid < ($grand_total - 0.01)){
+				$paid = $amount_paid;
+			} else {
+				$paid = $grand_total;
+			}
+		} else if($is_split){
+			// Split may come as a single amount or as multiple payment rows
+			$payment_rows = $input['payment_rows'] ?? [];
+			if(!empty($payment_rows) && is_array($payment_rows)){
+				$row_total = 0;
+				foreach($payment_rows as $pr){
+					$row_total += (float) ($pr['amount'] ?? 0);
+				}
+				$paid = min($row_total, $grand_total);
+			} else {
+				$paid = ($amount_paid > 0) ? min($amount_paid, $grand_total) : 0;
+			}
+		} else {
+			$paid = $grand_total;
+		}
+
+		$_POST['tot_subtotal_amt'] = number_format($subtotal, 2, '.', '');
+		$_POST['tot_round_off_amt'] = number_format($round_off, 2, '.', '');
+		$_POST['tot_total_amt'] = number_format($grand_total, 2, '.', '');
+		$_POST['shipping_fee_id'] = $shipping_fee_id;
+		$_POST['shipping_label'] = $shipping_label;
+		$_POST['shipping_fee'] = number_format($shipping_fee, 2, '.', '');
+		if($is_split && !empty($payment_rows) && is_array($payment_rows)){
+			// For split payments, calculate total paid from all rows for validation
+			$split_total_paid = 0;
+			foreach($payment_rows as $pr){
+				$split_total_paid += (float) ($pr['amount'] ?? 0);
+			}
+			// Pass the actual paid amount for walk-in customer validation
+			$_POST['amount'] = number_format(min($split_total_paid, $grand_total), 2, '.', '');
+			$_POST['payment_type'] = '';
+			$_POST['account_id'] = '';
+			$_POST['payment_note'] = '';
+		} else {
+			$_POST['amount'] = number_format($paid, 2, '.', '');
+			$_POST['payment_type'] = $payment_type;
+			$_POST['payment_note'] = '';
+			$_POST['account_id'] = $input['account_id'] ?? '';
+		}
+		$_POST['cheque_number'] = '';
+		$_POST['cheque_period'] = '';
+		$_POST['allow_tot_advance'] = ($input['allow_tot_advance'] === 'checked') ? 'checked' : '';
+
+		// Discount approvals are enforced here, not in the browser: the UI asks a
+		// manager for a PIN but only this request decides whether the sale may be
+		// written. The redemption is single-use so a replay cannot reuse it.
+		if((float)$discount > 0){
+			$this->load->helper('approval');
+			$gate = mp_discount_approval_gate($discount, $subtotal);
+			if($gate['required']){
+				$approved_log = (int)($input['discount_approval_log'] ?? 0);
+				if(!$approved_log || !mp_redeem_discount_approval($approved_log, $discount, $store_id)){
+					ob_end_clean();
+					echo json_encode(['status' => 'error',
+						'approval_required' => true,
+						'discount_limit_pct' => $gate['threshold'],
+						'message' => 'This discount is over the ' . rtrim(rtrim(number_format((float)$gate['threshold'], 2, '.', ''), '0'), '.') . '% limit and needs a manager PIN first. Enter the discount with Apply Discount and get it approved.']);
+					exit;
+				}
+			}
+		}
+
+		// CRITICAL: Sales_model reads item fields from $_REQUEST (e.g. $_REQUEST['tr_item_id_1']).
+		// $_REQUEST is a snapshot taken at request start and is NOT updated when $_POST is
+		// assigned at runtime, so we must mirror $_POST into $_REQUEST or the item loop
+		// finds nothing and the sale is saved without any items.
+		foreach($_POST as $k => $v){
+			$_REQUEST[$k] = $v;
+		}
+
+		ob_start();
+		try {
+			$result = $this->sales->verify_save_and_update();
+		} catch (Throwable $e) {
+			$result = 'EXCEPTION: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+			log_message('error', 'Mobile save() exception: ' . $result);
+		}
+		$ob_output = ob_get_clean();
+		if($ob_output && stripos($result, 'success') === false){
+			log_message('error', 'Mobile save() hidden output: ' . substr($ob_output, 0, 2000));
+			$result = trim($result . "\n" . $ob_output);
+		}
+
+		if(stripos($result, 'success') !== false){
+			$parts = explode('<<<###>>>', $result);
+			$sales_id = isset($parts[1]) ? (int) $parts[1] : 0;
+			if($restaurant_mode && $sales_id > 0 && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$this->db->where('id', $sales_id)->where('store_id', $store_id)->update('db_sales', [
+					'restaurant_order_key' => $restaurant_order_key,
+					'source_channel' => 'walk_in',
+				]);
+				$this->load->model('order_lifecycle_model');
+				$this->order_lifecycle_model->ensure_counter_order($store_id, $sales_id, [
+					'idempotency_key' => $restaurant_order_key,
+				]);
+				// A completed walk-in sale must enter the kitchen queue as part of
+				// the same request. The KDS screen may still synchronize later, but
+				// POS success must never leave the canonical order without a ticket.
+				$this->load->model('kitchen_model', 'kitchen');
+				$this->kitchen->sync_new_orders($store_id);
+			}
+
+			// Create PayPlan / installment schedule when needed
+			$plan_id = 0;
+			if($is_plan && $sales_id && !empty($input['bnpl'])){
+				$this->load->model('Installments_model','installments');
+				$bnpl = $input['bnpl'];
+				$plan_id = $this->installments->create_plan(array(
+					'store_id'            => $store_id,
+					'sales_id'            => $sales_id,
+					'customer_id'         => $customer_id,
+					'total_amount'        => $grand_total,
+					'down_payment_amount' => $paid,
+					'down_payment_paid'   => ($paid > 0),
+					'down_payment_type'   => $payment_type,
+					'installment_count'   => (int) ($bnpl['count'] ?? 0),
+					'installment_amount'  => (float) ($bnpl['each_amt'] ?? 0),
+					'frequency'           => $bnpl['frequency'] ?? 'biweekly',
+					'first_due_date'      => date('Y-m-d', strtotime(($bnpl['first_due'] ?? date('Y-m-d')))),
+					'late_fee_per_day'    => (float) ($bnpl['late_fee'] ?? 0),
+				));
+			}
+
+			// Record multiple split-payment rows if provided
+			if($is_split && !empty($payment_rows) && is_array($payment_rows) && $sales_id){
+				$total_recorded = 0;
+				foreach($payment_rows as $pr){
+					$pm = (float) ($pr['amount'] ?? 0);
+					if($pm <= 0) continue;
+					// Don't record more than the invoice total
+					if($total_recorded + $pm > $grand_total){
+						$pm = $grand_total - $total_recorded;
+					}
+					if($pm <= 0) break;
+					
+					$pm_type = $pr['payment_type'] ?? get_default_payment_mode_code($store_id);
+					$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $pm_type)->get('db_payment_modes')->row();
+					$payment_mode_id = $pm_row ? $pm_row->id : null;
+					$salespayments_entry = array(
+						'payment_code'        => get_init_code('sales_payment'),
+						'count_id'            => get_count_id('db_salespayments'),
+						'store_id'            => $store_id,
+						'sales_id'            => $sales_id,
+						'payment_date'        => system_fromatted_date($sales_date),
+						'payment_type'        => $pm_type,
+						'payment_mode_id'     => $payment_mode_id,
+						'payment'             => number_format($pm, 2, '.', ''),
+						'payment_note'        => '',
+						'payment_reference'   => ($pr['payment_reference'] ?? ''),
+						'confirmation_status' => 1,
+						'created_date'        => date('Y-m-d'),
+						'created_time'        => date('H:i:s'),
+						'created_by'          => $this->session->userdata('inv_username'),
+						'system_ip'           => $_SERVER['REMOTE_ADDR'] ?? '',
+						'system_name'         => gethostname() ?: '',
+						'status'              => 1,
+						'account_id'          => !empty($pr['account_id']) ? $pr['account_id'] : null,
+						'customer_id'         => $customer_id,
+						'cheque_number'       => '',
+						'cheque_period'       => '',
+						'cheque_status'       => 'Pending',
+					);
+					if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+						$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+						$open_shift = $this->m3_cashier_shifts->get_open_shift($store_id, get_current_user_id());
+						if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+					}
+					$this->db->insert('db_salespayments', $salespayments_entry);
+					$total_recorded += $pm;
+					if($total_recorded >= $grand_total) break;
+				}
+				$this->sales->update_sales_payment_status($sales_id, $customer_id);
+			}
+
+			// Link sale to originating medical note (Pharmacy workflow)
+			if($sales_id){
+				$medical_note_id = (int) ($input['medical_note_id'] ?? 0);
+				if($medical_note_id && $this->db->table_exists('db_medical_notes')){
+					$this->db->where('id', $medical_note_id)->where('store_id', $store_id)->update('db_medical_notes', ['sales_id' => $sales_id]);
+				}
+			}
+
+			// Record loyalty/store-credit/gift-card redemptions after the sale is saved
+			if($sales_id){
+				$redeem_points = (int) ($input['redeem_points'] ?? 0);
+				$redeem_store_credit = parse_amount($input['redeem_store_credit'] ?? 0);
+				$redeem_gift_card_id = (int) ($input['redeem_gift_card_id'] ?? 0);
+				$old_post = $_POST;
+
+				// Capture any output from redemption calls to prevent JSON corruption
+				ob_start();
+				if($redeem_points > 0){
+					$this->load->model('loyalty_model','loyalty');
+					$_POST = array('customer_id' => $customer_id, 'points' => $redeem_points, 'sales_id' => $sales_id);
+					$this->loyalty->redeem_points_ajax();
+				}
+				if($redeem_store_credit > 0){
+					$this->load->model('store_credit_model','store_credit');
+					$_POST = array('customer_id' => $customer_id, 'amount' => $redeem_store_credit, 'sales_id' => $sales_id, 'store_id' => $store_id);
+					$this->store_credit->redeem_ajax();
+				}
+				if($redeem_gift_card_id > 0){
+					$this->load->model('gift_cards_model','gift_cards');
+					$_POST = array('card_id' => $redeem_gift_card_id, 'amount' => (float) ($input['redeem_gift_card_amount'] ?? 0), 'sales_id' => $sales_id, 'customer_id' => $customer_id, 'store_id' => $store_id);
+					$this->gift_cards->redeem_ajax();
+				}
+
+				ob_end_clean();
+				$_POST = $old_post;
+			}
+
+			$msg = $plan_id ? 'Sale and PayPlan saved.' : 'Sale saved.';
+			$whatsapp = ($sales_id) ? get_whatsapp_share_url('sales', $sales_id) : array('url' => '');
+			// Return the real invoice code (prefix + number) so the mobile UI
+			// can show the same invoice number as desktop, not the raw DB id.
+			$invoice_code = '';
+			if($sales_id){
+				$sc = $this->db->select('sales_code')->where('id', $sales_id)->get('db_sales')->row();
+				if($sc){ $invoice_code = $sc->sales_code; }
+			}
+			ob_end_clean();
+			echo json_encode(['status' => 'success', 'message' => $msg, 'sales_id' => $sales_id, 'sales_code' => $invoice_code, 'plan_id' => $plan_id, 'whatsapp_url' => $whatsapp['url'] ?? '', 'redirect' => base_url('mobile')]); exit;
+		} else {
+			if($restaurant_mode && $restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$existing_restaurant_sale = $this->db->where('store_id', $store_id)
+					->where('restaurant_order_key', $restaurant_order_key)->get('db_sales')->row();
+				if($existing_restaurant_sale){
+					ob_end_clean();
+					echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+						'sales_id'=>(int)$existing_restaurant_sale->id, 'sales_code'=>(string)$existing_restaurant_sale->sales_code,
+						'redirect'=>base_url('mobile')]); exit;
+				}
+			}
+			// A concurrent twin may have won the unique-key race on insert; the
+			// losing replay returns that invoice rather than a scary error.
+			if($pos_dedupe){
+				$raced_pos_sale = $this->db->where('store_id', $store_id)
+					->where('pos_idempotency_key', $pos_idempotency_key)->get('db_sales')->row();
+				if($raced_pos_sale){
+					ob_end_clean();
+					echo json_encode(['status'=>'success', 'duplicate'=>true, 'message'=>'Sale already saved.',
+						'sales_id'=>(int)$raced_pos_sale->id, 'sales_code'=>(string)$raced_pos_sale->sales_code,
+						'plan_id'=>0, 'whatsapp_url'=>'', 'redirect'=>base_url('mobile')]); exit;
+				}
+			}
+			ob_end_clean();
+			$clean = is_string($result) ? trim(strip_tags($result)) : '';
+			if($clean === '' || stripos($clean, 'EXCEPTION:') === 0){
+				log_message('error', 'Mobile save() raw failure: ' . (string) $result);
+				$clean = 'The sale could not be saved. Please check the items and payment details, then try again.';
+			}
+			echo json_encode(['status' => 'error', 'message' => $clean]); exit;
+		}
+	}
+
+	public function profile()
+	{
+		$data = $this->data;
+		$data['page_title'] = 'My Profile';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['email'] = $this->session->userdata('email') ?: '';
+		$data['branch_name'] = get_store_name();
+		$user_id = $this->session->userdata('inv_userid');
+		$user = $this->db->select('profile_picture')->where('id', $user_id)->get('db_users')->row();
+		$data['profile_picture'] = ($user && !empty($user->profile_picture)) ? $user->profile_picture : '';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/profile', $data);
+	}
+
+	public function update_profile_picture()
+	{
+		$user_id = $this->session->userdata('inv_userid');
+		if(!$user_id){
+			echo json_encode(['status' => 'error', 'message' => 'Not logged in.']);
+			return;
+		}
+		if(empty($_FILES['avatar']['name'])){
+			echo json_encode(['status' => 'error', 'message' => 'No file selected.']);
+			return;
+		}
+		$upload_dir = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'users' . DIRECTORY_SEPARATOR . (int)$user_id . DIRECTORY_SEPARATOR;
+		if(!is_dir($upload_dir)){
+			if(!@mkdir($upload_dir, 0777, true)){
+				echo json_encode(['status' => 'error', 'message' => 'Could not create upload directory.']);
+				return;
+			}
+		}
+		if(!is_writable($upload_dir)){
+			@chmod($upload_dir, 0777);
+		}
+		$config = [
+			'upload_path' => $upload_dir,
+			'allowed_types' => 'jpg|jpeg|png|gif|webp',
+			'max_size' => 2048,
+			'max_width' => 1600,
+			'max_height' => 1600,
+			'encrypt_name' => TRUE,
+		];
+		$this->load->library('upload', $config);
+		if(!$this->upload->do_upload('avatar')){
+			$err = $this->upload->display_errors('', '');
+			log_message('error', 'Avatar upload failed for user ' . $user_id . ': ' . $err);
+			echo json_encode(['status' => 'error', 'message' => $err]);
+			return;
+		}
+		$upload = $this->upload->data();
+		$ext = strtolower($upload['file_ext'] ?: '.' . pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+		if(!in_array($ext, ['.jpg', '.jpeg', '.png', '.gif', '.webp'])){
+			$ext = '.jpg';
+		}
+		$new_name = 'avatar' . $ext;
+		$new_path = $upload_dir . $new_name;
+		if(file_exists($new_path)){
+			@unlink($new_path);
+		}
+		if(!@rename($upload['full_path'], $new_path)){
+			@unlink($upload['full_path']);
+			echo json_encode(['status' => 'error', 'message' => 'Could not save uploaded file.']);
+			return;
+		}
+		$forward_path = 'uploads/users/' . (int)$user_id . '/' . $new_name;
+		$this->db->where('id', (int)$user_id)->update('db_users', ['profile_picture' => $forward_path]);
+		echo json_encode(['status' => 'success', 'message' => 'Profile picture updated.', 'url' => base_url($forward_path)]);
+	}
+
+	public function update_password()
+	{
+		$old = $this->input->post('old_password', TRUE);
+		$new = $this->input->post('new_password', TRUE);
+		$confirm = $this->input->post('confirm_password', TRUE);
+		$email = $this->session->userdata('email');
+
+		if(empty($old) || empty($new) || empty($confirm)){
+			echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
+			return;
+		}
+
+		if($new !== $confirm){
+			echo json_encode(['status' => 'error', 'message' => 'New passwords do not match.']);
+			return;
+		}
+
+		if(strlen($new) < 6){
+			echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters.']);
+			return;
+		}
+
+		$user = $this->db->where('email', $email)->where('status', 1)->get('db_users')->row();
+		if(!$user){
+			echo json_encode(['status' => 'error', 'message' => 'User not found.']);
+			return;
+		}
+
+		$valid = false;
+		if(password_verify($old, $user->password)){
+			$valid = true;
+		} else if($user->password === md5($old)){
+			$valid = true;
+		}
+
+		if(!$valid){
+			echo json_encode(['status' => 'error', 'message' => 'Current password is incorrect.']);
+			return;
+		}
+
+		$this->load->model('login_model');
+		if($this->login_model->change_password($new, $email)){
+			echo json_encode(['status' => 'success', 'message' => 'Password changed successfully.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Could not change password.']);
+		}
+	}
+
+	public function stock()
+	{
+		$this->permission_check('items_view');
+		$data = $this->data;
+		$data['page_title'] = 'Stock';
+		$store_id = get_current_store_id();
+		$warehouse_id = get_store_warehouse_id();
+
+		// Low-stock snapshot for the current branch/warehouse
+		$data['low_stock_count'] = $this->dashboard->get_low_stock_count($warehouse_id);
+		$data['low_stock_items'] = $this->dashboard->get_low_stock_items($warehouse_id);
+
+		// All active products with their available quantity for the current warehouse
+		$this->db->select("a.id, a.item_name, a.item_code, a.alert_qty, a.status, COALESCE(b.available_qty, a.stock, 0) as stock, c.category_name, d.brand_name");
+		$this->db->from("db_items a");
+		$this->db->join("db_warehouseitems b", "b.item_id = a.id AND b.warehouse_id = '{$warehouse_id}' AND b.store_id = {$store_id}", "left");
+		$this->db->join("db_category c", "c.id = a.category_id", "left");
+		$this->db->join("db_brands d", "d.id = a.brand_id", "left");
+		$this->db->where("a.store_id", $store_id);
+		$this->db->where("a.status", 1);
+		$this->db->where("a.service_bit !=", 1);
+		$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
+		$this->db->order_by("a.item_name", "asc");
+		$data['stock_items'] = $this->db->get()->result();
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+		$data['warehouse_id'] = $warehouse_id;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/stock', $data);
+	}
+
+	/**
+	 * Delivery zones and their charges.  This deliberately has its own mobile
+	 * screen instead of linking to Shipping_fees::index(), which renders the
+	 * desktop mp_layout shell.
+	 */
+	public function shipping_fees()
+	{
+		$this->permission_check('sales_view');
+		$data = $this->data;
+		$data['page_title'] = 'Shipping Fees';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+		$data['fees'] = ($this->db->table_exists('db_shipping_fees'))
+			? $this->db->where('store_id', $store_id)->order_by('sort_order', 'asc')->order_by('id', 'asc')->get('db_shipping_fees')->result()
+			: [];
+		$data['can_add'] = $this->permissions('sales_add');
+		$data['can_delete'] = $this->permissions('sales_delete');
+		$this->load->view('mobile/shipping_fees', $data);
+	}
+
+	/** Mobile receipt ledger for payments already recorded against sales. */
+	public function sales_payments()
+	{
+		$this->permission_check('sales_payment_view');
+		$data = $this->data;
+		$data['page_title'] = 'Sales Payments';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->db->select('p.*, s.sales_code, c.customer_name');
+		$this->db->from('db_salespayments p');
+		$this->db->join('db_sales s', 's.id=p.sales_id', 'left');
+		$this->db->join('db_customers c', 'c.id=p.customer_id', 'left');
+		$this->db->where('p.store_id', get_current_store_id());
+		if(is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
+			$this->db->where('UPPER(p.created_by)', strtoupper($this->session->userdata('inv_username')));
+		}
+		$data['payments'] = $this->db->order_by('p.id', 'desc')->limit(100)->get()->result();
+		$data['can_delete'] = $this->permissions('sales_payment_delete');
+		$this->load->view('mobile/sales_payments', $data);
+	}
+
+	/** Buy-now-pay-later plans, schedule and a lightweight mobile payment flow. */
+	public function installments($plan_id = 0)
+	{
+		if(!mp_feature_enabled('payplan')){ $this->show_feature_not_activated('payplan'); return; }
+		$this->permission_check('installment_plans');
+		$this->load->model('installments_model', 'installments');
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		if(!$plan_id){
+			$data['page_title'] = 'Installment Plans';
+			$data['plans'] = $this->installments->get_plans();
+			$data['stats'] = $this->installments->get_dashboard_stats();
+			$this->load->view('mobile/installments', $data);
+			return;
+		}
+		$plan = $this->installments->get_plan((int)$plan_id);
+		if(!$plan || (int)$plan->store_id !== (int)get_current_store_id()){ show_404(); return; }
+		$data['page_title'] = 'Installment Plan';
+		$data['plan'] = $plan;
+		$data['can_pay'] = $this->permissions('installment_payment') && $plan->status === 'active';
+		$this->load->view('mobile/installment_view', $data);
+	}
+
+	public function save_installment_payment($plan_id = 0)
+	{
+		if(!mp_feature_enabled('payplan')){ show_404(); return; }
+		$this->permission_check('installment_payment');
+		$this->load->model('installments_model', 'installments');
+		$plan = $this->installments->get_plan((int)$plan_id);
+		$payment_id = (int)$this->input->post('payment_id');
+		$payment = $payment_id ? $this->db->where('id', $payment_id)->where('plan_id', (int)$plan_id)->get('db_installment_payments')->row() : null;
+		header('Content-Type: application/json');
+		if(!$plan || (int)$plan->store_id !== (int)get_current_store_id() || !$payment || $payment->status === 'paid'){
+			echo json_encode(['status' => 'error', 'message' => 'That installment is no longer available for payment.']); return;
+		}
+		$amount = parse_amount($this->input->post('amount_paid', TRUE));
+		if($amount <= 0){ echo json_encode(['status' => 'error', 'message' => 'Enter a payment amount greater than zero.']); return; }
+		$result = $this->installments->record_payment([
+			'payment_id' => $payment_id, 'amount_paid' => $amount,
+			'payment_type' => trim($this->input->post('payment_type', TRUE)) ?: 'Cash',
+			'payment_note' => trim($this->input->post('payment_note', TRUE)), 'account_id' => null,
+		]);
+		echo json_encode($result);
+	}
+
+	public function product($id = 0)
+	{
+		$id = (int)$id;
+		$is_update = $id > 0;
+		$this->permission_check($is_update ? 'items_edit' : 'items_add');
+		if($is_update) $this->belong_to('db_items', $id);
+
+		$data = $this->data;
+		$is_plant = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+		$data['page_title'] = $is_plant ? ($is_update ? 'Edit Material / Product' : 'Add Material / Product') : ($is_update ? 'Edit Product' : 'Add Product');
+		$store_id = get_current_store_id();
+		$data['store_id'] = $store_id;
+		$data['item_code'] = $is_update ? '' : get_init_code('item');
+		$data['q_id'] = $is_update ? $id : '';
+		$data['command'] = $is_update ? 'update' : 'save';
+
+		// Defaults (same as desktop items.php)
+		$data['item_name'] = $data['sku'] = $data['hsn'] = '';
+		$data['brand_id'] = $data['category_id'] = $data['tax_id'] = $data['unit_id'] = '';
+		$data['price'] = $data['purchase_price'] = $data['sales_price'] = $data['mrp'] = $data['profit_margin'] = $data['discount'] = '';
+		if(!$is_update && $is_plant){
+			$data['price'] = $data['purchase_price'] = $data['sales_price'] = '0';
+		}
+		$data['alert_qty'] = $data['seller_points'] = $data['custom_barcode'] = $data['description'] = '';
+		$data['discount_type'] = 'Percentage';
+		$data['tax_type'] = 'Exclusive';
+		$data['item_group'] = 'Single';
+		// Fashion stores create more variable products: default new items to Variants
+		// when the feature flag is on and bundles (Variants) are available.
+		if(!$is_update && mp_feature_enabled('fashion_variants_default')){
+			$profile = mp_get_store_profile();
+			if(!empty($profile['industry_type']) && $profile['industry_type']==='fashion' && mp_feature_enabled('item_variants')){
+				$data['item_group'] = 'Variants';
+			}
+		}
+		$data['track_serial'] = $data['track_imei'] = $data['not_for_sale'] = 0;
+		$data['consumable_unit'] = $data['serial_number'] = $data['imei_number'] = $data['warranty_months'] = '';
+		$data['expire_date'] = $data['mfg_date'] = '';
+		$data['adjustment_qty'] = '0';
+		$data['batch_lot'] = '';
+
+		if($is_update){
+			$item = $this->db->where('id', $id)->where('store_id', $store_id)->where('status', 1)->get('db_items')->row();
+			if(!$item){ show_404(); exit; }
+			$data['item_code'] = $item->item_code;
+			$data['item_name'] = $item->item_name;
+			$data['sku'] = $item->sku ?? '';
+			$data['hsn'] = $item->hsn ?? '';
+			$data['brand_id'] = $item->brand_id;
+			$data['category_id'] = $item->category_id;
+			$data['tax_id'] = $item->tax_id;
+			$data['unit_id'] = $item->unit_id;
+			$data['price'] = $item->price;
+			$data['purchase_price'] = $item->purchase_price;
+			$data['sales_price'] = $item->sales_price;
+			$data['mrp'] = $item->mrp;
+			$data['profit_margin'] = $item->profit_margin ?? '';
+			$data['discount'] = $item->discount;
+			$data['alert_qty'] = $item->alert_qty;
+			$data['seller_points'] = $item->seller_points;
+			$data['custom_barcode'] = $item->custom_barcode ?? '';
+			$data['description'] = $item->description ?? '';
+			$data['discount_type'] = $item->discount_type;
+			$data['tax_type'] = $item->tax_type;
+			$data['item_group'] = $item->item_group;
+			$data['track_serial'] = $item->track_serial;
+			$data['track_imei'] = $item->track_imei;
+			$data['not_for_sale'] = $item->not_for_sale;
+			$data['consumable_unit'] = $item->consumable_unit ?? '';
+			$data['serial_number'] = $item->serial_number ?? '';
+			$data['imei_number'] = $item->imei_number ?? '';
+			$data['warranty_months'] = $item->warranty_months;
+			$data['expire_date'] = (is_valid_date($item->expire_date) && $item->expire_date != '1970-01-01' && $item->expire_date != '0000-00-00') ? date('Y-m-d', strtotime($item->expire_date)) : '';
+			$data['mfg_date'] = (is_valid_date($item->mfg_date) && $item->mfg_date != '1970-01-01' && $item->mfg_date != '0000-00-00') ? date('Y-m-d', strtotime($item->mfg_date)) : '';
+			$data['batch_lot'] = $item->batch_lot ?? '';
+		}
+
+		// Recipes (if enabled)
+		$data['recipes_list'] = [];
+		if(recipe_module() && $this->db->table_exists('db_recipes')){
+			$this->load->model('recipe_model');
+			$recipes = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_recipes')->result();
+			foreach($recipes as $r){
+				$r->cost_per_unit = $this->recipe_model->calculate_cost_per_unit($r->id);
+			}
+			$data['recipes_list'] = $recipes;
+		}
+
+		// Available master variants for this store
+		$data['variants'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('variant_name', 'asc')->get('db_variants')->result();
+
+		// Existing variant children when editing a variant product
+		$data['child_items'] = [];
+		if($is_update){
+			$this->db->select('a.*, b.variant_name');
+			$this->db->from('db_items a');
+			$this->db->join('db_variants b', 'b.id = a.variant_id', 'left');
+			$this->db->where('a.parent_id', $id);
+			$this->db->order_by('a.id', 'asc');
+			$data['child_items'] = $this->db->get()->result();
+			if(!empty($data['child_items'])){
+				$data['item_group'] = 'Variants';
+			}
+		}
+
+		// Attribute map
+		$this->load->model('items_model');
+		$data['attribute_map'] = $this->items_model->get_variant_attribute_map($store_id);
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/product', $data);
+	}
+
+	public function save_product()
+	{
+		$command = $this->input->post('command', TRUE) ?: 'save';
+		$this->permission_check($command == 'update' ? 'items_edit' : 'items_add');
+
+		// If the form contains any variant rows, force item_group to Variants so the select state does not matter
+		$rowcount = (int)$this->input->post('hidden_rowcount', TRUE);
+		if($rowcount > 0){
+			$_POST['item_group'] = 'Variants';
+			$_REQUEST['item_group'] = 'Variants';
+		}
+
+		// Pre-validate image before items_model::save_record tries an exit-on-fail upload
+		if(!empty($_FILES['item_image']['name'])){
+			$allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+			$ext = strtolower(pathinfo($_FILES['item_image']['name'], PATHINFO_EXTENSION));
+			if(!in_array($_FILES['item_image']['type'], $allowed) || !in_array($ext, ['jpg','jpeg','png','gif','webp'])){
+				echo json_encode(['status' => 'error', 'message' => 'Invalid image type. Only jpg, png, gif, webp allowed.']);
+				return;
+			}
+			if($_FILES['item_image']['size'] > (1024 * 1024)){
+				echo json_encode(['status' => 'error', 'message' => 'Image must be smaller than 1MB.']);
+				return;
+			}
+		}
+
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('item_name', 'Product Name', 'trim|required');
+		$this->form_validation->set_rules('category_id', 'Category', 'trim|required');
+		$this->form_validation->set_rules('unit_id', 'Unit', 'trim|required');
+		$this->form_validation->set_rules('tax_id', 'Tax', 'trim|required');
+
+		if($this->input->post('item_group') == 'Single'){
+			$this->form_validation->set_rules('price', 'Base/Cost Price', 'trim|required');
+			$this->form_validation->set_rules('purchase_price', 'Purchase Price', 'trim|required');
+			$this->form_validation->set_rules('sales_price', 'Sale Price', 'trim|required');
+		}
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		if($this->input->post('item_group') == 'Variants' && (int)$this->input->post('hidden_rowcount') < 1){
+			echo json_encode(['status' => 'error', 'message' => 'Add at least one variant for a variant product.']);
+			return;
+		}
+
+		if($command == 'save'){
+			$product_check = check_subscription_limit('product_limit');
+			if($product_check !== true){
+				echo json_encode(['status' => 'error', 'message' => strip_tags($product_check)]);
+				return;
+			}
+		}
+
+		// SKU fair-usage check: count how many NEW sellable units this operation adds.
+		//   save + Single  → 1 SKU
+		//   save + Variants → N SKUs (children only; parent is a container, counted by product_limit)
+		//   update + Variants → only the children without an existing tr_item_id
+		$item_group_post = $this->input->post('item_group', TRUE);
+		$variant_rows = (int)$this->input->post('hidden_rowcount', TRUE);
+		$new_skus = 0;
+		if($command == 'save'){
+			$new_skus = ($item_group_post === 'Variants') ? $variant_rows : 1;
+		} elseif($command == 'update' && $item_group_post === 'Variants'){
+			for($i = 1; $i <= $variant_rows; $i++){
+				$child_id = $this->input->post('tr_item_id_'.$i, TRUE);
+				if(empty($child_id)){
+					$new_skus++;
+				}
+			}
+		}
+		if($new_skus > 0){
+			$sku_check = check_sku_limit($new_skus);
+			if($sku_check !== true){
+				echo json_encode(['status' => 'error', 'message' => strip_tags($sku_check)]);
+				return;
+			}
+		}
+
+		// For new attribute-generated variants, create db_variants records and rewrite IDs
+		$store_id = get_current_store_id();
+		$rowcount = (int)$this->input->post('hidden_rowcount', TRUE);
+		log_message('error', "[SAVE_PRODUCT] command=$command rowcount=$rowcount item_group=" . $this->input->post('item_group', TRUE));
+		for($i = 1; $i <= $rowcount; $i++){
+			log_message('error', "[SAVE_PRODUCT] row $i: tr_variant_id=" . var_export($_REQUEST['tr_variant_id_'.$i] ?? 'NOT SET', true) . " variant_name=" . var_export($this->input->post('variant_name_'.$i, TRUE), true) . " td_data_2=" . var_export($_REQUEST['td_data_'.$i.'_2'] ?? 'NOT SET', true));
+			$vid = $_REQUEST['tr_variant_id_'.$i] ?? '';
+			if($vid === 'new' || $vid === '' || !is_numeric($vid)){
+				$variant_name = $this->input->post('variant_name_'.$i, TRUE);
+				if(empty($variant_name)) continue;
+				$existing = $this->db->where('store_id', $store_id)->where('variant_name', $variant_name)->where('status', 1)->get('db_variants')->row();
+				if($existing){
+					$vid = $existing->id;
+				} else {
+					$this->db->insert('db_variants', [
+						'variant_name' => $variant_name,
+						'store_id' => $store_id,
+						'status' => 1,
+						
+						
+					]);
+					$vid = $this->db->insert_id();
+				}
+				$_POST['tr_variant_id_'.$i] = $vid;
+				$_REQUEST['tr_variant_id_'.$i] = $vid;
+			}
+
+			$count_id = $_REQUEST['count_id_'.$i] ?? '';
+			$item_code = $_REQUEST['item_code_'.$i] ?? '';
+			if(empty($count_id)) $count_id = get_count_id('db_items');
+			if(empty($item_code)) $item_code = get_init_code('item');
+			$_POST['count_id_'.$i] = $count_id;
+			$_REQUEST['count_id_'.$i] = $count_id;
+			$_POST['item_code_'.$i] = $item_code;
+			$_REQUEST['item_code_'.$i] = $item_code;
+		}
+
+		$this->load->model('items_model','items');
+		try{
+			$result = $this->items->save_record(array('command' => $command));
+			if(stripos($result, 'success') !== false){
+				echo json_encode(['status' => 'success', 'message' => 'Product saved successfully.', 'redirect' => base_url('mobile/stock')]);
+			} else {
+				echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+			}
+		} catch(Throwable $e){
+			log_message('error', 'mobile save_product error: '.$e->getMessage());
+			echo json_encode(['status' => 'error', 'message' => 'The product could not be saved. Please check the details and try again.']);
+		}
+	}
+
+	public function delete_product()
+	{
+		$this->permission_check('items_delete');
+		$id = (int)$this->input->post('q_id');
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid product ID.']);
+			return;
+		}
+		$store_id = get_current_store_id();
+		$item = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_items')->row();
+		if(!$item){
+			echo json_encode(['status' => 'error', 'message' => 'Product not found.']);
+			return;
+		}
+		$this->belong_to('db_items', $id);
+		$this->load->model('items_model', 'items');
+		ob_start();
+		$result = $this->items->delete_items_from_table($id);
+		$output = ob_get_clean();
+		if(stripos($output, 'success') !== false || $result === 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($output ?: 'Delete failed.')]);
+		}
+	}
+
+	public function stock_adjustments()
+	{
+		$this->permission_check('stock_adjustment_view');
+		$data = $this->data;
+		$data['page_title'] = 'Stock Adjustments';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.id, a.adjustment_date, a.reference_no, a.adjustment_note, a.created_by');
+		$this->db->from('db_stockadjustment a');
+		$this->db->where('a.store_id', $store_id);
+		$this->db->where('a.status', 1);
+		$this->db->order_by('a.id', 'desc');
+		$adjustments = $this->db->get()->result();
+
+		foreach($adjustments as $adj){
+			$items = $this->db->select('SUM(adjustment_qty) as total_qty, COUNT(*) as item_count')
+				->from('db_stockadjustmentitems')
+				->where('adjustment_id', $adj->id)
+				->where('status', 1)
+				->get()->row();
+			$adj->total_qty = $items->total_qty ?? 0;
+			$adj->item_count = $items->item_count ?? 0;
+		}
+
+		$data['adjustments'] = $adjustments;
+		$data['can_record_wastage'] = mp_feature_enabled('wastage_reasons') && $this->permissions('stock_adjustment_add');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/stock_adjustments', $data);
+	}
+
+	/* ===================== MOBILE WASTAGE CAPTURE =====================
+	 * A crate that slips off the bar top is lost at the counter, not at a
+	 * desk, so the write-out has to be recordable from the phone. There is
+	 * exactly one stock write-out path in the app — Stock_adjustment_model —
+	 * and this screen posts into it as a one-line sheet. No second engine.
+	 */
+
+	/**
+	 * The replay token for one wastage sheet. It is issued here and carried by
+	 * the form, never typed by the browser: a POST that repeats a reference
+	 * already on the ledger is treated as a retry of the same sheet instead of
+	 * a second, identical loss. The random tail is a full 16 hex characters so
+	 * two genuine breakages in the same second in one outlet cannot collide.
+	 */
+	private function _wastage_reference()
+	{
+		return 'WST-' . date('Ymd-His') . '-' . bin2hex(random_bytes(8));
+	}
+
+	private function _wastage_reference_ok($reference)
+	{
+		return is_string($reference) && preg_match('/^WST-\d{8}-\d{6}-[a-f0-9]{16}$/', $reference) === 1;
+	}
+
+	/** MySQL lock names are capped at 64 bytes, so the reference is hashed
+	 *  rather than spliced into the key. */
+	private function _wastage_lock_name($store_id, $reference)
+	{
+		return 'mpwst_' . (int) $store_id . '_' . md5($reference);
+	}
+
+	private function _wastage_lock($store_id, $reference)
+	{
+		$res = $this->db->query('SELECT GET_LOCK(?, 8) AS acquired', array($this->_wastage_lock_name($store_id, $reference)));
+		return $res && $res->num_rows() ? (int) $res->row()->acquired === 1 : false;
+	}
+
+	private function _wastage_unlock($store_id, $reference)
+	{
+		$this->db->query('SELECT RELEASE_LOCK(?)', array($this->_wastage_lock_name($store_id, $reference)));
+	}
+
+	public function record_wastage()
+	{
+		$this->permission_check('stock_adjustment_add');
+		if(!mp_feature_enabled('wastage_reasons')){
+			$this->show_feature_not_activated('wastage_reasons',
+				'Recording why stock left the shelf is switched on under Business Profile.');
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Record Wastage';
+		$data['active'] = 'more';
+		$data['reasons'] = mp_get_wastage_reasons();
+		$data['reference_no'] = $this->_wastage_reference();
+		$data['adjustment_date'] = date('Y-m-d');
+		// The same condition the model uses to decide whether it reads a
+		// warehouse from the form or works it out from the store.
+		$data['show_outlet_picker'] = (warehouse_module() && warehouse_count() > 1);
+		// A multi-outlet tenant's item row totals every outlet, so the screen says
+		// whose shelf the number belongs to instead of implying one counter.
+		$data['stock_scope_label'] = $data['show_outlet_picker'] ? 'Across your outlets' : 'On the shelf';
+		$data['default_warehouse_id'] = (int) get_store_warehouse_id();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/wastage_form', $data);
+	}
+
+	public function wastage_items()
+	{
+		$this->permission_check_with_msg('stock_adjustment_add');
+		$term = trim((string) $this->input->get('q', TRUE));
+		if($term === ''){
+			echo json_encode(array('status' => 'success', 'rows' => array()));
+			return;
+		}
+
+		/* Store-scoped on purpose: the only thing a clerk may write off is
+		 * something their own outlet sells. */
+		$rows = $this->db->select('i.id, i.item_name, i.item_code, i.stock, u.unit_name')
+			->from('db_items i')
+			->join('db_units u', 'u.id = i.unit_id', 'left')
+			->where('i.store_id', get_current_store_id())
+			->where('i.status', 1)
+			->where('i.service_bit', 0)
+			->group_start()
+				->like('i.item_name', $term)
+				->or_like('i.item_code', $term)
+				->or_like('i.sku', $term)
+				->or_like('i.custom_barcode', $term)
+			->group_end()
+			->order_by('i.item_name', 'asc')
+			->limit(20)
+			->get()->result();
+
+		$out = array();
+		foreach($rows as $r){
+			$out[] = array(
+				'id'        => (int) $r->id,
+				'item_name' => $r->item_name,
+				'item_code' => (string) $r->item_code,
+				'stock'     => (float) $r->stock,
+				'unit'      => (string) $r->unit_name,
+			);
+		}
+		echo json_encode(array('status' => 'success', 'rows' => $out));
+	}
+
+	public function save_wastage()
+	{
+		$this->permission_check_with_msg('stock_adjustment_add');
+
+		$fail = function($message){
+			echo json_encode(array('status' => 'error', 'message' => $message));
+		};
+
+		if(!mp_feature_enabled('wastage_reasons')){
+			$fail('Wastage reasons are not switched on for this store. Nothing was taken off the shelf.');
+			return;
+		}
+
+		$store_id = (int) get_current_store_id();
+		$reference = (string) $this->input->post('reference_no', TRUE);
+		if(!$this->_wastage_reference_ok($reference)){
+			$fail('This wastage sheet has expired. Reload the screen and record the loss again.');
+			return;
+		}
+
+		$item_id = (int) $this->input->post('tr_item_id_1', TRUE);
+		$item = $this->db->select('id, item_name, service_bit')
+			->where('id', $item_id)
+			->where('store_id', $store_id)
+			->where('status', 1)
+			->get('db_items')->row();
+		if(!$item){
+			$fail('Choose the product that went out — it has to be one of your own items.');
+			return;
+		}
+		if((int) $item->service_bit === 1){
+			$fail('Services do not sit on a shelf, so there is nothing to write off. Choose a product.');
+			return;
+		}
+
+		$qty = (float) $this->input->post('td_data_1_3', TRUE);
+		if($qty <= 0){
+			$fail('Enter how much went out — it has to be more than zero.');
+			return;
+		}
+
+		$reasons = mp_get_wastage_reasons();
+		$reason = trim((string) $this->input->post('tr_reason_1', TRUE));
+		if(!isset($reasons[$reason])){
+			$fail('Choose one of the listed reasons. Nothing was taken off the shelf.');
+			return;
+		}
+
+		$note = trim((string) $this->input->post('adjustment_note', TRUE));
+		if($reason === 'other' && $note === ''){
+			$fail('"Other reason" needs a line saying what happened, so the number can be read later.');
+			return;
+		}
+
+		$date = trim((string) $this->input->post('adjustment_date', TRUE));
+		if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false){
+			$fail('Set a real date for the loss.');
+			return;
+		}
+		if($date > date('Y-m-d')){
+			$fail('A loss cannot be recorded for a date that has not happened yet.');
+			return;
+		}
+
+		$picks_warehouse = (warehouse_module() && warehouse_count() > 1);
+		$warehouse_id = 0;
+		if($picks_warehouse){
+			$warehouse_id = (int) $this->input->post('warehouse_id', TRUE);
+			$allowed = mp_allowed_warehouse_ids($store_id);
+			$in_store = $warehouse_id > 0 && $this->db
+				->where('id', $warehouse_id)
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->count_all_results('db_warehouse') > 0;
+			if(!$in_store || ($allowed !== null && !in_array($warehouse_id, array_map('intval', $allowed), true))){
+				$fail('That outlet is not one you can write stock out from.');
+				return;
+			}
+		}
+
+		/* Two taps, one after the other, must not both reach the ledger. The
+		 * lock makes the "already saved?" question and the insert atomic, so a
+		 * second request either waits for the first to finish or finds its
+		 * slip already there. */
+		if(!$this->_wastage_lock($store_id, $reference)){
+			echo json_encode(array(
+				'status' => 'error',
+				'message' => 'That sheet is still being saved. Give it a moment before trying again.',
+			));
+			return;
+		}
+
+		$existing = $this->db->select('id')
+			->where('store_id', $store_id)
+			->where('reference_no', $reference)
+			->where('status', 1)
+			->get('db_stockadjustment')->row();
+		if($existing){
+			$this->_wastage_unlock($store_id, $reference);
+			echo json_encode(array(
+				'status' => 'success',
+				'replay' => true,
+				'message' => 'Already recorded — this sheet was saved once, so nothing was written out twice.',
+				'adjustment_id' => (int) $existing->id,
+				'reference_no' => $this->_wastage_reference(),
+			));
+			return;
+		}
+
+		/* The model reads its line rows out of $_REQUEST, so the exact values
+		 * validated above are the ones it gets — a query-string pair cannot
+		 * swap in a different item or another store. */
+		$fields = array(
+			'command'         => 'save',
+			'rowcount'        => '1',
+			'reference_no'    => $reference,
+			'store_id'        => (string) $store_id,
+			'adjustment_date' => $date,
+			'adjustment_note' => $note !== '' ? $note : $reasons[$reason],
+			'tr_item_id_1'    => (string) $item_id,
+			'td_data_1_3'     => (string) $qty,
+			'tr_reason_1'     => $reason,
+			'description_1'   => $item->item_name . ' written off — ' . $reasons[$reason],
+		);
+		if($picks_warehouse){
+			$fields['warehouse_id'] = (string) $warehouse_id;
+		} else {
+			unset($_POST['warehouse_id'], $_GET['warehouse_id'], $_REQUEST['warehouse_id']);
+		}
+		foreach($fields as $key => $value){
+			$_POST[$key] = $value;
+			$_REQUEST[$key] = $value;
+		}
+
+		$this->load->model('stock_adjustment_model', 'stock_adjustment');
+		$result = $this->stock_adjustment->verify_save_and_update();
+		$this->_wastage_unlock($store_id, $reference);
+
+		if(stripos((string) $result, 'success') !== false){
+			$parts = explode('<<<###>>>', (string) $result);
+			echo json_encode(array(
+				'status' => 'success',
+				'message' => $item->item_name . ' written off. Stock is updated.',
+				'adjustment_id' => isset($parts[1]) ? (int) $parts[1] : 0,
+				// A fresh sheet needs a fresh replay reference, otherwise the next
+				// breakage would look like a retry of the one just recorded.
+				'reference_no' => $this->_wastage_reference(),
+			));
+		} else {
+			echo json_encode(array(
+				'status' => 'error',
+				'message' => strip_tags((string) $result) ?: 'Could not record that. Nothing was taken off the shelf.',
+			));
+		}
+	}
+
+	public function stock_transfers()
+	{
+		$this->permission_check('stock_transfer_view');
+		$data = $this->data;
+		$data['page_title'] = 'Stock Transfers';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$allowed = function_exists('mp_location_assigned_ids') ? mp_location_assigned_ids((int)$store_id) : null;
+		$scoped = is_array($allowed);
+		$scope_ids = $scoped ? array_map('intval', $allowed) : array();
+
+		$transfers = array();
+		if(!$scoped || !empty($scope_ids)){
+			$this->db->select('a.id, a.transfer_date, a.note, a.warehouse_from, a.warehouse_to, a.created_by, a.receipt_status');
+			$this->db->from('db_stocktransfer a');
+			$this->db->where('a.store_id', $store_id);
+			$this->db->where('a.status', 1);
+			if($scoped){
+				$this->db->group_start();
+				$this->db->where_in('a.warehouse_from', $scope_ids);
+				$this->db->or_where_in('a.warehouse_to', $scope_ids);
+				$this->db->group_end();
+			}
+			$this->db->order_by('a.id', 'desc');
+			$this->db->limit(200);
+			$transfers = $this->db->get()->result();
+		}
+
+		foreach($transfers as $t){
+			$items = $this->db->select('SUM(transfer_qty) as total_qty, COUNT(*) as item_count')
+				->from('db_stocktransferitems')
+				->where('stocktransfer_id', $t->id)
+				->where('status', 1)
+				->get()->row();
+			$t->total_qty = $items->total_qty ?? 0;
+			$t->item_count = $items->item_count ?? 0;
+			$t->from_name = get_warehouse_name($t->warehouse_from);
+			$t->to_name = get_warehouse_name($t->warehouse_to);
+			$t->can_count = ((string)$t->receipt_status === 'In Transit')
+				&& $this->permissions('stock_transfer_edit')
+				&& (!$scoped || in_array((int)$t->warehouse_to, $scope_ids, true));
+		}
+
+		$data['transfers'] = $transfers;
+		$data['arrival_mode'] = (function_exists('mp_feature_enabled') && mp_feature_enabled('transfer_receipt'));
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/stock_transfers', $data);
+	}
+
+	public function stock_transfer_form()
+	{
+		$this->permission_check('stock_transfer_add');
+		$data = $this->data;
+		$data['page_title'] = 'New Stock Transfer';
+		$data['active'] = 'more';
+
+		$data['transfer_date'] = date('Y-m-d');
+		$data['warehouse_from'] = '';
+		$data['warehouse_to'] = '';
+		$data['note'] = '';
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/stock_transfer_form', $data);
+	}
+
+	public function save_stock_transfer()
+	{
+		$this->permission_check_with_msg('stock_transfer_add');
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('transfer_date', 'Transfer Date', 'trim|required');
+		$this->form_validation->set_rules('warehouse_from', 'From Branch', 'trim|required');
+		$this->form_validation->set_rules('warehouse_to', 'To Branch', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$warehouse_from = $this->input->post('warehouse_from', TRUE);
+		$warehouse_to = $this->input->post('warehouse_to', TRUE);
+		if($warehouse_from == $warehouse_to){
+			echo json_encode(['status' => 'error', 'message' => 'From and To branches cannot be the same.']);
+			return;
+		}
+
+		$result = $this->stock_transfer->verify_save_and_update();
+		if(stripos($result, 'success') !== false){
+			$parts = explode('<<<###>>>', $result);
+			echo json_encode(['status' => 'success', 'message' => 'Stock transfer saved.', 'redirect' => base_url('mobile/stock_transfers'), 'transfer_id' => $parts[1] ?? '']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function save_stock_transfer_receive()
+	{
+		$this->permission_check_with_msg('stock_transfer_edit');
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+
+		$id = (int)$this->input->post('stocktransfer_id', TRUE);
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid stock transfer.']);
+			return;
+		}
+		$this->belong_to('db_stocktransfer', $id);
+
+		$lines = $this->input->post('received', TRUE);
+		$reason = (string)$this->input->post('variance_reason', TRUE);
+		$result = $this->stock_transfer->save_receipt($id, is_array($lines) ? $lines : array(), $reason);
+
+		if(stripos($result, 'success') !== false){
+			echo json_encode(['status' => 'success', 'message' => 'Counted in. The stock now shows at the receiving site.', 'redirect' => base_url('mobile/stock_transfers')]);
+		} elseif(strpos($result, 'Recorded.') === 0){
+			echo json_encode(['status' => 'success', 'message' => $result, 'redirect' => base_url('stock_transfer/receive/' . $id)]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function decide_transfer_variance()
+	{
+		$may_decide = is_store_admin() || is_admin() || $this->permissions('approval_logs_view');
+		if(!$may_decide){
+			echo json_encode(['status' => 'error', 'message' => 'Only a manager can decide on a short load.']);
+			return;
+		}
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+
+		$id = (int)$this->input->post('stocktransfer_id', TRUE);
+		$decision = $this->input->post('decision', TRUE);
+		$note = trim((string)$this->input->post('decision_note', TRUE));
+		if($id <= 0 || !in_array($decision, array('approve', 'reject'), TRUE)){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid request.']);
+			return;
+		}
+		if($note === ''){
+			echo json_encode(['status' => 'error', 'message' => 'Please say why before deciding on this load.']);
+			return;
+		}
+		$this->belong_to('db_stocktransfer', $id);
+
+		if($decision === 'approve'){
+			$result = $this->stock_transfer->approve_receipt_variance($id, $note);
+			$message = 'Approved. The counted quantity has been added to the receiving site.';
+		} else {
+			$result = $this->stock_transfer->reject_receipt_variance($id, $note);
+			$message = 'Rejected. The load is back in transit and must be counted in again.';
+		}
+		if(stripos($result, 'success') !== false){
+			echo json_encode(['status' => 'success', 'message' => $message]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function delete_stock_transfer()
+	{
+		$this->permission_check_with_msg('stock_transfer_delete');
+		$id = (int)$this->input->post('q_id', TRUE);
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid stock transfer.']);
+			return;
+		}
+		$this->belong_to('db_stocktransfer', $id);
+
+		$this->load->model('stock_transfer_model', 'stock_transfer');
+		$result = $this->stock_transfer->delete_stock($id);
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Stock transfer deleted.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function find_item_for_transfer()
+	{
+		$item_id = (int)$this->input->post('id', TRUE);
+		$warehouse_id = (int)$this->input->post('warehouse_id', TRUE);
+		$store_id = (int)get_current_store_id();
+		if(!$item_id || !$warehouse_id){
+			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
+			return;
+		}
+		$allowed = function_exists('mp_allowed_warehouse_ids') ? mp_allowed_warehouse_ids($store_id) : null;
+		$warehouse_ok = $this->db->where('id', $warehouse_id)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse') > 0;
+		if(!$warehouse_ok || ($allowed !== null && !in_array($warehouse_id, $allowed, true))){
+			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
+			return;
+		}
+		$item = $this->db->where('id', $item_id)->where('store_id', $store_id)->where('status', 1)->where('service_bit', 0)->get('db_items')->row();
+		if(!$item){
+			echo json_encode(['id' => 0, 'item_name' => '', 'available_qty' => 0]);
+			return;
+		}
+		$available = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $item_id);
+		echo json_encode(['id' => $item->id, 'item_name' => $item->item_name, 'available_qty' => (float)$available]);
+	}
+
+	public function price_catalogue()
+	{
+		$this->permission_check('items_view');
+		$data = $this->data;
+		$data['page_title'] = 'Price Catalogue';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.id, a.item_name, a.item_code, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, b.category_name, c.brand_name');
+		$this->db->from('db_items a');
+		$this->db->group_start()->where('a.item_group', NULL)->or_where('a.item_group !=', 'Variants')->group_end();
+		$this->db->join('db_category b', 'b.id = a.category_id', 'left');
+		$this->db->join('db_brands c', 'c.id = a.brand_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		$this->db->where('a.status', 1);
+		$this->db->where('a.service_bit !=', 1);
+		$this->db->order_by('a.item_name', 'asc');
+		$data['products'] = $this->db->get()->result();
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/price_catalogue', $data);
+	}
+
+	public function catalogue($page = 1)
+	{
+		$this->permission_check('items_view');
+		$data = $this->data;
+		$data['page_title'] = 'Items';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+		$page = max(1, (int)$page);
+		$limit = 50;
+		$offset = ($page - 1) * $limit;
+		$search = trim($this->input->get('search', TRUE) ?? '');
+		$category_id = (int)($this->input->get('category', TRUE) ?? 0);
+		$status_filter = strtolower(trim((string)($this->input->get('status', TRUE) ?? 'active')));
+		if(!in_array($status_filter, array('active', 'inactive', 'all'), true)) $status_filter = 'active';
+		$sort_by = strtolower(trim((string)($this->input->get('sort_by', TRUE) ?? 'code_asc')));
+		if(!in_array($sort_by, array('code_asc', 'code_desc', 'name_asc'), true)) $sort_by = 'code_asc';
+		$price_type = $this->input->get('price_type', TRUE);
+		$price_type = ($price_type === 'wholesale') ? 'wholesale' : 'retail';
+		$data['search'] = $search;
+		$data['category_id'] = $category_id;
+		$data['status_filter'] = $status_filter;
+		$data['sort_by'] = $sort_by;
+		$data['price_type'] = $price_type;
+
+		$data['categories'] = $this->db->where('store_id', $store_id)->where('status', 1)
+			->order_by('category_name', 'asc')->get('db_category')->result();
+
+		$this->db->select('a.id, a.item_name, a.item_code, a.custom_barcode, a.mrp, a.sales_price, a.online_price, a.discount_type, a.discount, a.stock, a.category_id, a.brand_id, a.status, a.child_bit, a.item_group, b.category_name, c.brand_name');
+		$this->db->from('db_items a');
+		$this->db->where('(a.child_bit = 0 OR a.child_bit IS NULL)', null, false);
+		$this->db->join('db_category b', 'b.id = a.category_id', 'left');
+		$this->db->join('db_brands c', 'c.id = a.brand_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		if($status_filter === 'active') $this->db->where('a.status', 1);
+		elseif($status_filter === 'inactive') $this->db->where('a.status', 0);
+		if($search){
+			$this->db->group_start();
+			$this->db->like('a.item_name', $search);
+			$this->db->or_like('a.item_code', $search);
+			$this->db->or_like('a.custom_barcode', $search);
+			$this->db->group_end();
+		}
+		if($category_id){
+			mp_category_filter('a.category_id',$category_id,$store_id);
+		}
+		if($sort_by === 'code_desc') $this->db->order_by('a.item_code', 'desc');
+		elseif($sort_by === 'name_asc') $this->db->order_by('a.item_name', 'asc');
+		else $this->db->order_by('a.item_code', 'asc');
+		$this->db->limit($limit, $offset);
+		$data['products'] = $this->db->get()->result();
+		$data['page'] = $page;
+		$data['limit'] = $limit;
+		$data['has_more'] = count($data['products']) == $limit;
+
+		$data['can_edit'] = $this->permissions('items_edit');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/catalogue', $data);
+	}
+
+	public function update_catalogue_price()
+	{
+		$this->permission_check_with_msg('items_edit');
+		$store_id = get_current_store_id();
+		$id = (int)$this->input->post('item_id', TRUE);
+		$sales_price = (float)$this->input->post('sales_price', TRUE);
+		$online_price = (float)$this->input->post('online_price', TRUE);
+
+		if($id <= 0){
+			echo json_encode(['success' => false, 'message' => 'Invalid product.']);
+			return;
+		}
+
+		$item = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_items')->row();
+		if(!$item){
+			echo json_encode(['success' => false, 'message' => 'Product not found.']);
+			return;
+		}
+
+        $prices = mp_apply_retail_markup([
+            'sales_price' => $sales_price,
+            'online_price' => $online_price,
+            'service_bit' => (int)($item->service_bit ?? 0),
+        ], mp_retail_markup_config($store_id));
+        unset($prices['service_bit']);
+        $this->db->where('id', $id)->where('store_id', $store_id)->update('db_items', $prices);
+        $capture = mp_audit_capture();
+        if ($capture) $capture->priceChanged($store_id, $id, $item,
+            $this->db->where('id', $id)->limit(1)->get('db_items')->row(),
+            'catalogue', 'price_change', 'Changed from the till phone screen.');
+		echo json_encode(['success' => true, 'message' => 'Prices updated.']);
+	}
+
+	public function product_view($id)
+	{
+		$this->permission_check('items_view');
+		$this->belong_to('db_items', $id);
+		$data = $this->data;
+		$data['page_title'] = 'Product Details';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$item = $this->db->where('id', $id)->where('store_id', $store_id)->where('status', 1)->get('db_items')->row();
+		if(!$item){ show_404(); exit; }
+
+		$data['item'] = $item;
+		$data['category'] = $this->db->where('id', $item->category_id)->where('store_id', $store_id)->get('db_category')->row();
+		$data['brand'] = $this->db->where('id', $item->brand_id)->where('store_id', $store_id)->get('db_brands')->row();
+
+		// Child variants for this product
+		$data['child_items'] = [];
+		$this->db->select('a.*, b.variant_name');
+		$this->db->from('db_items a');
+		$this->db->join('db_variants b', 'b.id = a.variant_id', 'left');
+		$this->db->where('a.parent_id', $id);
+		$this->db->order_by('a.id', 'asc');
+		$data['child_items'] = $this->db->get()->result();
+
+		$activities = [];
+
+		// Sales
+		$this->db->select('s.id as ref_id, s.sales_code as reference, s.sales_date as activity_date, c.customer_name as party, si.sales_qty as qty, si.unit_total_cost as amount, si.sold_serial_number as serial, si.sold_imei_number as imei');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->join('db_customers c', 'c.id = s.customer_id', 'left');
+		$this->db->where('si.item_id', $id);
+		$this->db->where('s.sales_status', 'Final');
+		$this->db->where('s.sales_date IS NOT NULL');
+		$this->db->order_by('s.sales_date', 'DESC');
+		$this->db->limit(15);
+		foreach($this->db->get()->result() as $ts){
+			$note = [];
+			if(!empty($ts->serial)) $note[] = 'S/N: '.$ts->serial;
+			if(!empty($ts->imei)) $note[] = 'IMEI: '.$ts->imei;
+			$activities[] = (object)[
+				'type' => 'Sale',
+				'icon' => 'fa-shopping-cart',
+				'color' => 'danger',
+				'date' => $ts->activity_date,
+				'reference' => $ts->reference,
+				'party' => ($ts->party ?: 'Walk-in'),
+				'qty' => (float)$ts->qty * -1,
+				'amount' => $ts->amount,
+				'note' => implode(' ', $note)
+			];
+		}
+
+		// Purchases
+		$this->db->select('p.id as ref_id, p.purchase_code as reference, p.purchase_date as activity_date, s.supplier_name as party, pi.purchase_qty as qty, pi.unit_total_cost as amount, pi.batch_lot as batch, pi.barcode as barcode');
+		$this->db->from('db_purchaseitems pi');
+		$this->db->join('db_purchase p', 'p.id = pi.purchase_id', 'left');
+		$this->db->join('db_suppliers s', 's.id = p.supplier_id', 'left');
+		$this->db->where('pi.item_id', $id);
+		$this->db->where_in('pi.purchase_status', ['Received','Partially Received']);
+		$this->db->where('p.purchase_date IS NOT NULL');
+		$this->db->order_by('p.purchase_date', 'DESC');
+		$this->db->limit(15);
+		foreach($this->db->get()->result() as $tp){
+			$note = [];
+			if(!empty($tp->batch)) $note[] = 'Batch: '.$tp->batch;
+			if(!empty($tp->barcode)) $note[] = 'Barcode: '.$tp->barcode;
+			$activities[] = (object)[
+				'type' => 'Purchase',
+				'icon' => 'fa-truck',
+				'color' => 'success',
+				'date' => $tp->activity_date,
+				'reference' => $tp->reference,
+				'party' => ($tp->party ?: 'Supplier'),
+				'qty' => (float)$tp->qty,
+				'amount' => $tp->amount,
+				'note' => implode(' ', $note)
+			];
+		}
+
+		// Stock Adjustments
+		$this->db->select('a.id as ref_id, a.reference_no as reference, a.adjustment_date as activity_date, a.adjustment_note as party, ai.adjustment_qty as qty, ai.description as note');
+		$this->db->from('db_stockadjustmentitems ai');
+		$this->db->join('db_stockadjustment a', 'a.id = ai.adjustment_id', 'left');
+		$this->db->where('ai.item_id', $id);
+		$this->db->where('a.status', 1);
+		$this->db->where('ai.status', 1);
+		$this->db->where('a.adjustment_date IS NOT NULL');
+		$this->db->order_by('a.adjustment_date', 'DESC');
+		$this->db->limit(15);
+		foreach($this->db->get()->result() as $ta){
+			$activities[] = (object)[
+				'type' => 'Adjustment',
+				'icon' => 'fa-sliders',
+				'color' => 'warning',
+				'date' => $ta->activity_date,
+				'reference' => ($ta->reference ?: 'ADJ-'.$ta->ref_id),
+				'party' => ($ta->party ?: 'Stock adjustment'),
+				'qty' => (float)$ta->qty,
+				'amount' => null,
+				'note' => $ta->note
+			];
+		}
+
+		// Stock Transfers
+		$this->db->select('t.id as ref_id, t.note as reference, t.transfer_date as activity_date, ti.warehouse_from as from_id, ti.warehouse_to as to_id, wf.warehouse_name as wh_from, wt.warehouse_name as wh_to, ti.transfer_qty as qty');
+		$this->db->from('db_stocktransferitems ti');
+		$this->db->join('db_stocktransfer t', 't.id = ti.stocktransfer_id', 'left');
+		$this->db->join('db_warehouse wf', 'wf.id = ti.warehouse_from', 'left');
+		$this->db->join('db_warehouse wt', 'wt.id = ti.warehouse_to', 'left');
+		$this->db->where('ti.item_id', $id);
+		$this->db->where('t.status', 1);
+		$this->db->where('ti.status', 1);
+		$this->db->where('t.transfer_date IS NOT NULL');
+		$this->db->order_by('t.transfer_date', 'DESC');
+		$this->db->limit(15);
+		foreach($this->db->get()->result() as $tt){
+			$from = $tt->wh_from ?: 'Branch #'.$tt->from_id;
+			$to = $tt->wh_to ?: 'Branch #'.$tt->to_id;
+			$activities[] = (object)[
+				'type' => 'Transfer',
+				'icon' => 'fa-exchange',
+				'color' => 'info',
+				'date' => $tt->activity_date,
+				'reference' => ($tt->reference ?: 'Transfer'),
+				'party' => $from.' → '.$to,
+				'qty' => (float)$tt->qty,
+				'amount' => null,
+				'note' => ''
+			];
+		}
+
+		usort($activities, function($a, $b){
+			return strtotime($b->date) - strtotime($a->date);
+		});
+		$data['activities'] = array_slice($activities, 0, 25);
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/product_view', $data);
+	}
+
+	public function attributes()
+	{
+		$this->permission_check('attributes_view');
+		$data = $this->data;
+		$data['page_title'] = 'Attributes';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('attribute_type', 'asc');
+		$this->db->order_by('sort_order', 'asc');
+		$this->db->order_by('attribute_value', 'asc');
+		$data['attributes'] = $this->db->get('db_attributes')->result();
+
+		$types = [];
+		foreach($data['attributes'] as $a){
+			if(!in_array($a->attribute_type, $types)) $types[] = $a->attribute_type;
+		}
+		$data['attribute_types'] = $types;
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/attributes', $data);
+	}
+
+	public function attribute_form($id = 0)
+	{
+		$is_update = (int)$id > 0;
+		$this->permission_check($is_update ? 'attributes_edit' : 'attributes_add');
+		$data = $this->data;
+		$data['page_title'] = $id > 0 ? 'Edit Attribute' : 'New Attribute';
+		$data['active'] = 'more';
+		$store_id = get_current_store_id();
+
+		$data['q_id'] = 0;
+		$data['attribute_type'] = '';
+		$data['attribute_value'] = '';
+		$data['sort_order'] = 0;
+
+		$this->load->model('attributes_model', 'attributes');
+		$data['attribute_types'] = $this->attributes->get_attribute_types($store_id);
+
+		if($id > 0){
+			$this->belong_to('db_attributes', $id);
+			$detail = $this->attributes->get_details($id);
+			if(!$detail){ show_404(); exit; }
+			$data['q_id'] = $detail->id;
+			$data['attribute_type'] = $detail->attribute_type;
+			$data['attribute_value'] = $detail->attribute_value;
+			$data['sort_order'] = $detail->sort_order;
+		}
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/attribute_form', $data);
+	}
+
+	public function save_attribute()
+	{
+		$command = $this->input->post('command', TRUE);
+		$this->permission_check_with_msg($command == 'update' ? 'attributes_edit' : 'attributes_add');
+		$this->load->model('attributes_model', 'attributes');
+
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('attribute_type', 'Attribute Type', 'trim|required');
+		$this->form_validation->set_rules('attribute_value', 'Attribute Value', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		if($command == 'update'){
+			$result = $this->attributes->update_attribute();
+		} else {
+			$result = $this->attributes->verify_and_save();
+		}
+
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Attribute saved.', 'redirect' => base_url('mobile/attributes')]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function delete_attribute()
+	{
+		$this->permission_check_with_msg('attributes_delete');
+		$this->load->model('attributes_model', 'attributes');
+		$id = (int)$this->input->post('q_id', TRUE);
+		if($id <= 0){
+			echo 'Invalid attribute.';
+			return;
+		}
+		echo $this->attributes->delete_attribute($id);
+	}
+
+	public function holds()
+	{
+		$this->permission_check('sales_add');
+		$data = $this->data;
+		$data['page_title'] = 'Held Sales';
+		$data['active'] = 'holds';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->db->select('h.id, h.reference_id, h.sales_date, h.grand_total, h.discount_to_all_input, h.customer_id, c.customer_name, (SELECT COUNT(*) FROM db_holditems hi WHERE hi.hold_id = h.id) as items_count', false);
+		$this->db->from('db_hold h');
+		$this->db->join('db_customers c', 'c.id = h.customer_id', 'left');
+		$this->db->where('h.store_id', $store_id);
+		$this->db->order_by('h.id', 'desc');
+		$data['holds'] = $this->db->get()->result();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/holds', $data);
+	}
+
+	public function delete_hold($id)
+	{
+		$this->permission_check('sales_add');
+		$this->load->model('pos_model');
+		$result = $this->pos_model->hold_invoice_delete($id);
+		if($result == 'success'){
+			$this->session->set_flashdata('success', 'Hold deleted.');
+		} else {
+			$this->session->set_flashdata('failed', 'Could not delete hold.');
+		}
+		redirect('mobile/holds');
+	}
+
+	public function more()
+	{
+		if(in_array(mp_get_store_profile()['industry_type'] ?? '', ['pharmacy', 'medical_store'], true)){
+			redirect('pharmacy_workspace/more?screen=mobile'); return;
+		}
+		if((mp_get_store_profile()['industry_type'] ?? '') === 'building_materials'){redirect('building_workspace/more?screen=mobile');return;}
+		if(stripos(trim($this->session->userdata('role_name') ?: ''), 'cashier') !== false){
+			redirect(base_url().'mobile/pos');
+		}
+		$data = $this->data;
+		$data['page_title'] = 'More';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+		if(!function_exists('physio_enabled')) $this->load->helper('physio');
+		$is_physio = function_exists('physio_enabled') && physio_enabled();
+
+		$menu_groups = [
+			'Overview' => [
+				['title' => 'Dashboard', 'desc' => "Home & today's summary", 'icon' => 'fa-home', 'url' => 'mobile', 'perm' => 'dashboard_view', 'color' => 'blue'],
+				['title' => 'Oil & Gas Workspace', 'desc' => 'Stations, depots & loads on the road', 'icon' => 'fa-tachometer', 'url' => 'oil_gas', 'perm' => 'dashboard_view', 'feature' => 'oil_gas_workspace', 'color' => 'blue'],
+				['title' => 'Location Operations', 'desc' => 'What each site does', 'icon' => 'fa-map-marker', 'url' => 'oil_gas/locations', 'perm' => 'warehouse_view', 'feature' => 'oil_gas_workspace', 'color' => 'teal'],
+				['title' => 'Forecourt', 'desc' => 'Tanks, pumps and duties', 'icon' => 'fa-tachometer', 'url' => 'oil_gas/forecourt', 'perm' => 'warehouse_view', 'feature' => ['pump_metering','fuel_shift_reconciliation'], 'color' => 'blue'],
+				['title' => 'Duty Readings', 'desc' => 'Open or close a duty against the till', 'icon' => 'fa-clock-o', 'url' => 'oil_gas/duty', 'perm' => 'warehouse_view', 'feature' => 'fuel_shift_reconciliation', 'color' => 'orange'],
+			],
+			// Cylinders are a separate half of the trade: an outlet that only lends
+			// and refills shells has no pumps, and a station that only sells litres
+			// has no shell register.
+			'LPG & Cylinders' => (
+				(function_exists('mp_feature_enabled') && (mp_feature_enabled('lpg_refills') || mp_feature_enabled('cylinder_tracking')))
+				? [
+					['title' => 'LPG Board', 'desc' => 'The scale against the till, shells out and money held', 'icon' => 'fa-balance-scale', 'url' => 'oil_gas/lpg', 'perm' => 'warehouse_view', 'color' => 'blue'],
+					['title' => 'Weigh a Fill', 'desc' => 'Record what went into a cylinder', 'icon' => 'fa-tachometer', 'url' => 'oil_gas/refill', 'perm' => 'warehouse_view', 'feature' => 'lpg_refills', 'color' => 'orange'],
+					['title' => 'Cylinder Register', 'desc' => 'Every shell we own and who holds it', 'icon' => 'fa-circle-o', 'url' => 'oil_gas/cylinders', 'perm' => 'warehouse_view', 'feature' => 'cylinder_tracking', 'color' => 'teal'],
+					['title' => 'Cylinder Deposits', 'desc' => 'Money held against a shell on loan', 'icon' => 'fa-money', 'url' => 'oil_gas/deposits', 'perm' => 'warehouse_view', 'feature' => 'cylinder_deposits', 'color' => 'green'],
+				]
+				: []
+			),
+			'Sales' => [
+				['title' => 'POS', 'desc' => 'Quick checkout', 'icon' => 'fa-calculator', 'url' => 'mobile/pos', 'perm' => 'pos', 'color' => 'primary'],
+				['title' => 'New Sale', 'desc' => 'Create an invoice', 'icon' => 'fa-file-text-o', 'url' => 'mobile/sale', 'perm' => 'sales_add', 'color' => 'green'],
+				['title' => 'New Quotation', 'desc' => 'Create a price quote', 'icon' => 'fa-quote-left', 'url' => 'mobile/quotation_form', 'perm' => 'quotation_add', 'color' => 'purple'],
+				['title' => 'Quotations', 'desc' => 'Quotes & converted invoices', 'icon' => 'fa-list-alt', 'url' => 'mobile/quotations', 'perm' => 'quotation_view', 'color' => 'yellow'],
+				['title' => 'Holds', 'desc' => 'Resume saved sales', 'icon' => 'fa-hand-paper-o', 'url' => 'mobile/holds', 'perm' => 'sales_add', 'color' => 'orange'],
+				['title' => 'Sales List', 'desc' => 'View all sales', 'icon' => 'fa-list', 'url' => 'mobile/sales_list', 'perm' => 'sales_view', 'color' => 'blue'],
+				['title' => 'Sales Returns', 'desc' => 'Returned sales invoices', 'icon' => 'fa-undo', 'url' => 'mobile/sales_returns', 'perm' => 'sales_return_view', 'color' => 'orange'],
+				['title' => 'Due Payments', 'desc' => 'Unpaid invoices', 'icon' => 'fa-money', 'url' => 'mobile/due', 'perm' => 'sales_view', 'color' => 'red'],
+				['title' => 'Reconciliation', 'desc' => 'Payment exception queue', 'icon' => 'fa-check-square-o', 'url' => 'mobile/reconcile', 'perm' => 'payments_reconcile', 'color' => 'teal'],
+				['title' => 'Shipping Fees', 'desc' => 'Delivery locations and charges', 'icon' => 'fa-truck', 'url' => 'mobile/shipping_fees', 'perm' => 'sales_view', 'feature' => 'manual_shipping', 'color' => 'orange'],
+				['title' => 'Deliveries', 'desc' => 'Delivery routes, stops & progress', 'icon' => 'fa-map-o', 'url' => 'mobile/deliveries', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
+				['title' => 'Sales Payments', 'desc' => 'Payment receipt ledger', 'icon' => 'fa-credit-card', 'url' => 'mobile/sales_payments', 'perm' => 'sales_payment_view', 'color' => 'teal'],
+				['title' => 'Installment Plans', 'desc' => 'Buy now, pay later schedules', 'icon' => 'fa-calendar-check-o', 'url' => 'mobile/installments', 'perm' => 'installment_plans', 'feature' => 'payplan', 'color' => 'purple'],
+			],
+			'Purchase' => [
+				['title' => 'New Purchase', 'desc' => 'Create a purchase order', 'icon' => 'fa-plus-square', 'url' => 'mobile/purchase_form', 'perm' => 'purchase_add', 'color' => 'green'],
+				['title' => 'Purchase History', 'desc' => 'View purchase invoices', 'icon' => 'fa-list', 'url' => 'mobile/purchase', 'perm' => 'purchase_view', 'color' => 'blue'],
+			],
+			'Inventory' => [
+				['title' => 'Stock', 'desc' => 'Inventory levels', 'icon' => 'fa-cubes', 'url' => 'mobile/stock', 'perm' => 'items_view', 'color' => 'teal'],
+				['title' => 'Expiry & stock rotation', 'desc' => 'Block expired sales and choose FEFO or FIFO', 'icon' => 'fa-calendar-times-o', 'url' => 'expiry_settings?screen=mobile', 'perm' => 'expiry_settings', 'feature' => 'expiry_tracking', 'color' => 'orange'],
+				['title' => 'Batch reconciliation', 'desc' => 'Balance recorded batches against stock quantities', 'icon' => 'fa-balance-scale', 'url' => 'batch_reconciliation?screen=mobile', 'perm' => 'batch_reconciliation_view', 'feature' => 'batch_tracking', 'color' => 'teal'],
+				['title' => 'Batch ledger reports', 'desc' => 'Review batch quantities, sales and expiry dates', 'icon' => 'fa-list-alt', 'url' => 'batch_reports?screen=mobile', 'perm' => 'pharmacy_batch_report_view', 'feature' => 'batch_tracking', 'color' => 'blue'],
+				['title' => 'Add Product', 'desc' => 'Create a new item', 'icon' => 'fa-plus-circle', 'url' => 'mobile/product', 'perm' => 'items_add', 'color' => 'teal'],
+				['title' => 'Stock Adjustments', 'desc' => 'View quantity adjustments', 'icon' => 'fa-sliders', 'url' => 'mobile/stock_adjustments', 'perm' => 'stock_adjustment_view', 'color' => 'teal'],
+				['title' => 'Record Wastage', 'desc' => 'Write off broken, spilled or expired stock', 'icon' => 'fa-exclamation-triangle', 'url' => 'mobile/record_wastage', 'perm' => 'stock_adjustment_add', 'feature' => 'wastage_reasons', 'color' => 'red'],
+				['title' => (mp_vehicle_register_mode() ? 'Customer Vehicles' : 'Vehicles'), 'desc' => (mp_vehicle_register_mode() ? 'Vehicles on file for fitting' : 'Automobile inventory'), 'icon' => 'fa-car', 'url' => 'mobile/automobile', 'perm' => 'items_view', 'color' => 'blue', 'feature' => 'automobile_workflow'],
+				['title' => 'Butchery', 'desc' => 'Carcass & cuts', 'icon' => 'fa-cut', 'url' => 'mobile/butchery', 'perm' => 'items_view', 'color' => 'red', 'feature' => 'meat_butchery_workflow'],
+				['title' => 'Perfume Lab', 'desc' => 'Blending, maceration & losses', 'icon' => 'fa-flask', 'url' => 'mobile/perfume', 'perm' => 'items_view', 'color' => 'purple', 'feature' => 'perfumery_workflow'],
+				['title' => 'Cold Chain', 'desc' => 'Freezers & temperature log', 'icon' => 'fa-snowflake-o', 'url' => 'mobile/butchery_coldchain', 'perm' => 'items_view', 'color' => 'blue', 'feature' => ['meat_butchery_workflow','frozen_food_cold_chain']],
+				['title' => 'Stock Transfers', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'url' => 'mobile/stock_transfers', 'perm' => 'stock_transfer_view', 'color' => 'teal'],
+				['title' => 'Price Catalogue', 'desc' => 'Product & service prices', 'icon' => 'fa-tags', 'url' => 'mobile/price_catalogue', 'perm' => 'items_view', 'color' => 'purple'],
+				['title' => 'Items', 'desc' => 'View & edit products', 'icon' => 'fa-book', 'url' => 'mobile/catalogue', 'perm' => 'items_view', 'color' => 'purple'],
+				['title' => 'Attributes', 'desc' => 'Product variants & options', 'icon' => 'fa-cogs', 'url' => 'mobile/attributes', 'perm' => 'attributes_view', 'color' => 'purple'],
+				['title' => 'Add Brand', 'desc' => 'Create a new brand', 'icon' => 'fa-copyright', 'url' => 'mobile/brand_form', 'perm' => 'brand_add', 'color' => 'purple'],
+				['title' => 'Add Category', 'desc' => 'Create a new category', 'icon' => 'fa-folder', 'url' => 'mobile/category_form', 'perm' => 'items_category_add', 'color' => 'purple'],
+			],
+			'Online Store' => [
+				['title' => 'Store Dashboard', 'desc' => 'Online store overview', 'icon' => 'fa-dashboard', 'url' => 'mobile/online_store/dashboard', 'perm' => 'online_store_view', 'color' => 'blue'],
+				['title' => 'Abandoned Carts', 'desc' => 'Review saved carts and set up recovery workflows', 'icon' => 'fa-shopping-basket', 'url' => 'online_store/abandoned_carts?screen=mobile', 'perm_any' => ['online_store_orders','online_store_view','online_store_edit'], 'color' => 'orange'],
+				['title' => 'Create WhatsApp Order', 'desc' => 'Create a customer order from a direct WhatsApp chat', 'icon' => 'fa-whatsapp', 'url' => 'online_store/quick_wa?screen=mobile', 'perm_any' => ['online_store_orders', 'online_store_edit'], 'color' => 'green'],
+				['title' => 'Orders', 'desc' => 'Website & app orders', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/online_store/orders', 'perm' => 'online_store_view', 'color' => 'primary'],
+				['title' => 'Online Products', 'desc' => 'Products on the storefront', 'icon' => 'fa-cube', 'url' => 'mobile/online_store/products', 'perm' => 'online_store_view', 'color' => 'teal'],
+				['title' => 'Services', 'desc' => 'Bookable services', 'icon' => 'fa-wrench', 'url' => 'mobile/online_store/services', 'perm' => 'online_store_view', 'color' => 'orange'],
+				['title' => 'QR Codes', 'desc' => 'Scan-to-order QR codes', 'icon' => 'fa-qrcode', 'url' => 'mobile/online_store/qr_codes', 'perm' => 'online_store_view', 'color' => 'purple'],
+				['title' => 'Appearance', 'desc' => 'Colours & storefront look', 'icon' => 'fa-paint-brush', 'url' => 'mobile/online_store/appearance', 'perm' => 'online_store_view', 'color' => 'yellow'],
+				['title' => 'Banners', 'desc' => 'Storefront banners', 'icon' => 'fa-image', 'url' => 'mobile/online_store/banners', 'perm' => 'online_store_view', 'color' => 'green'],
+				['title' => 'Homepage Builder', 'desc' => 'Drag & drop homepage', 'icon' => 'fa-th-large', 'url' => 'mobile/online_store/homepage_builder', 'perm' => 'online_store_view', 'color' => 'primary'],
+				['title' => 'Domains', 'desc' => 'Custom web address', 'icon' => 'fa-globe', 'url' => 'mobile/online_store/domains', 'perm' => 'online_store_view', 'color' => 'blue'],
+				['title' => 'Brands', 'desc' => 'Storefront brands', 'icon' => 'fa-copyright', 'url' => 'mobile/online_store/brands', 'perm' => 'online_store_view', 'color' => 'red'],
+				['title' => 'Testimonials', 'desc' => 'Customer reviews', 'icon' => 'fa-comments', 'url' => 'mobile/online_store/testimonials', 'perm' => 'online_store_view', 'color' => 'purple'],
+				['title' => 'Instagram', 'desc' => 'Instagram feed', 'icon' => 'fa-instagram', 'url' => 'mobile/online_store/instagram', 'perm' => 'online_store_view', 'color' => 'purple'],
+				['title' => 'FAQs', 'desc' => 'Frequently asked questions', 'icon' => 'fa-question-circle', 'url' => 'mobile/online_store/faqs', 'perm' => 'online_store_view', 'color' => 'yellow'],
+				['title' => 'Subscribers', 'desc' => 'Newsletter email list', 'icon' => 'fa-envelope-o', 'url' => 'mobile/online_store/subscribers', 'perm' => 'online_store_view', 'color' => 'teal'],
+				['title' => 'Analytics', 'desc' => 'Store traffic & sales', 'icon' => 'fa-bar-chart', 'url' => 'mobile/online_store/analytics', 'perm' => 'online_store_view', 'color' => 'blue'],
+				['title' => 'Store Settings', 'desc' => 'Configure online store', 'icon' => 'fa-cog', 'url' => 'mobile/online_store/settings', 'perm' => 'online_store_view', 'color' => 'primary'],
+			],
+			'Marketing' => (
+					function_exists('marketing_menu_items')
+						? array_map(function($item){
+							return [
+								'title' => $item['title'],
+								'desc'  => $item['desc'],
+								'icon'  => $item['icon'],
+								'url'   => isset($item['url_mobile']) ? $item['url_mobile'] : (isset($item['url_desktop']) ? $item['url_desktop'] : ''),
+								'perm'  => isset($item['perm']) ? $item['perm'] : '',
+								'feature' => isset($item['feature']) ? $item['feature'] : null,
+								'color' => isset($item['color']) ? $item['color'] : 'blue',
+							];
+						}, marketing_menu_items())
+					: [
+						['title' => 'Create Customer Coupon', 'desc' => 'Generate a customer coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/customer_coupon/generate', 'perm' => 'customerCouponAdd', 'color' => 'primary'],
+						['title' => 'Customer Coupons List', 'desc' => 'All customer coupons', 'icon' => 'fa-list', 'url' => 'mobile/customer_coupon', 'perm' => 'customerCouponView', 'color' => 'blue'],
+						['title' => 'Create Coupon', 'desc' => 'Create a discount coupon', 'icon' => 'fa-plus-square', 'url' => 'mobile/discount_coupon/add', 'perm' => 'discountCouponAdd', 'color' => 'primary'],
+						['title' => 'Coupons Master', 'desc' => 'Manage all coupons', 'icon' => 'fa-list', 'url' => 'mobile/discount_coupon/view', 'perm' => 'discountCouponView', 'color' => 'blue'],
+					]
+				),
+			'Customers' => [
+				['title' => 'Customers', 'desc' => 'Customer directory', 'icon' => 'fa-users', 'url' => 'mobile/customers', 'perm' => 'customers_view', 'color' => 'purple'],
+				['title' => 'Customer Pricing Groups', 'desc' => 'Manage customer price rules', 'icon' => 'fa-tags', 'url' => 'customer_groups', 'perm' => 'customers_view', 'color' => 'purple'],
+				['title' => 'Add Customer', 'desc' => 'Register a new customer', 'icon' => 'fa-user-plus', 'url' => 'mobile/add_customer', 'perm' => 'customers_add', 'color' => 'purple'],
+				['title' => 'Leads', 'desc' => 'Enquiries & prospects', 'icon' => 'fa-user-plus', 'url' => 'mobile/leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'teal'],
+			],
+			// physio_perm = explicit clinical grant (physio_can), no admin bypass
+			'Care' => (function_exists('physio_enabled') && physio_enabled()) ? [
+				['title' => mp_label('customer').'s', 'desc' => mp_label('customer').' register & profiles', 'icon' => 'fa-heartbeat', 'url' => 'mobile/patients', 'physio_perm' => 'patients_view', 'color' => 'teal'],
+				['title' => 'Appointments', 'desc' => 'Clinic bookings & arrivals', 'icon' => 'fa-calendar', 'url' => 'mobile/appointments', 'physio_perm' => 'appointments_view', 'color' => 'purple'],
+				['title' => 'Care Queue', 'desc' => 'Check-in & patient flow', 'icon' => 'fa-list-ol', 'url' => 'mobile/care_queue', 'physio_perm' => 'care_queue_view', 'color' => 'teal'],
+				['title' => 'Sessions', 'desc' => 'Treatment session diary', 'icon' => 'fa-clock-o', 'url' => 'mobile/sessions', 'physio_perm' => 'sessions_view', 'color' => 'orange'],
+				['title' => 'Admissions', 'desc' => 'Inpatient stays & beds', 'icon' => 'fa-bed', 'url' => 'mobile/admissions', 'physio_perm' => 'admissions_view', 'color' => 'blue'],
+				['title' => 'Ward Tasks', 'desc' => 'Nursing & porter work', 'icon' => 'fa-tasks', 'url' => 'mobile/ward_tasks', 'physio_perm' => 'nursing_tasks_view', 'color' => 'teal'],
+				['title' => 'Porter Tasks', 'desc' => 'Movement & transfers', 'icon' => 'fa-dolly', 'url' => 'mobile/ward_tasks', 'physio_perm' => 'porter_tasks_view', 'color' => 'purple'],
+				['title' => 'Register '.mp_label('customer'), 'desc' => 'New '.strtolower(mp_label('customer')).' record', 'icon' => 'fa-user-plus', 'url' => 'mobile/patient_form', 'physio_perm' => 'patients_add', 'color' => 'green'],
+			] : [],
+			'Suppliers' => [
+				['title' => 'Suppliers', 'desc' => 'Supplier directory', 'icon' => 'fa-truck', 'url' => 'mobile/suppliers', 'perm' => 'suppliers_view', 'color' => 'yellow'],
+				['title' => 'Add Supplier', 'desc' => 'Register a new supplier', 'icon' => 'fa-plus-circle', 'url' => 'mobile/add_supplier', 'perm' => 'suppliers_add', 'color' => 'yellow'],
+			],
+			'Finance' => [
+				['title' => 'New Account', 'desc' => 'Create a new account', 'icon' => 'fa-plus-square', 'url' => 'mobile/finance/accounts/form', 'perm' => 'accounts_add', 'color' => 'green'],
+				['title' => 'Account List', 'desc' => 'View accounts & books', 'icon' => 'fa-list', 'url' => 'mobile/finance/accounts', 'perm' => 'accounts_view', 'color' => 'blue'],
+				['title' => 'Money Transfers', 'desc' => 'Transfer between accounts', 'icon' => 'fa-exchange', 'url' => 'mobile/finance/money_transfers', 'perm' => 'money_transfer_view', 'color' => 'purple'],
+				['title' => 'Deposits', 'desc' => 'Record cash deposits', 'icon' => 'fa-download', 'url' => 'mobile/finance/money_deposits', 'perm' => 'money_deposit_view', 'color' => 'orange'],
+				['title' => 'Cash Transactions', 'desc' => 'Sales, purchase & expense payments', 'icon' => 'fa-money', 'url' => 'mobile/finance/cash_transactions', 'perm' => 'accounts_view', 'color' => 'teal'],
+				['title' => 'Tills / Cash-in-Hand', 'desc' => 'Tills and cash balances', 'icon' => 'fa-inbox', 'url' => 'mobile/finance/tills', 'perm' => 'tills_view', 'color' => 'yellow'],
+				['title' => 'Expense List', 'desc' => 'Track business expenses', 'icon' => 'fa-credit-card', 'url' => 'mobile/finance/expenses', 'perm' => 'expense_view', 'color' => 'red'],
+				['title' => 'Expense Categories', 'desc' => 'Organise expense heads', 'icon' => 'fa-tags', 'url' => 'mobile/finance/expense_categories', 'perm' => 'expense_category_view', 'color' => 'purple'],
+			],
+			'Reports' => [
+				['title' => 'Quotation Report', 'desc' => 'Quotation status summary', 'icon' => 'fa-quote-left', 'url' => 'mobile/quotation_report', 'perm' => 'quotation_view', 'color' => 'purple'],
+				['title' => 'Profit & Loss Report', 'desc' => 'Income, expenses & profit', 'icon' => 'fa-line-chart', 'url' => 'mobile/report/profit_loss', 'perm' => 'profit_report', 'color' => 'blue'],
+				['title' => 'Daily Business Summary', 'desc' => 'Daily sales overview', 'icon' => 'fa-calendar', 'url' => 'mobile/report/sales_summary', 'perm' => 'sales_summary_report', 'color' => 'green'],
+				['title' => 'Receivables Aging', 'desc' => 'Customer dues by age', 'icon' => 'fa-hourglass', 'url' => 'mobile/report/receivables_aging', 'perm' => 'receivables_aging_report', 'color' => 'red'],
+				['title' => 'Inventory Aging', 'desc' => 'Dead and slow stock', 'icon' => 'fa-cubes', 'url' => 'mobile/report/inventory_aging', 'perm' => 'inventory_aging_report', 'color' => 'teal'],
+				['title' => 'Cash Flow Statement', 'desc' => 'Cash in vs out', 'icon' => 'fa-money', 'url' => 'mobile/report/cash_flow', 'perm' => 'cash_flow_report', 'color' => 'green'],
+				['title' => 'Best Seller by Attribute', 'desc' => 'Best selling variants', 'icon' => 'fa-star', 'url' => 'mobile/report/variant_attribute', 'perm' => 'variant_attribute_report', 'color' => 'purple'],
+				['title' => 'Sell-Through Report', 'desc' => 'Sell-through rates', 'icon' => 'fa-line-chart', 'url' => 'mobile/report/sell_through', 'perm' => 'sell_through_report', 'color' => 'orange'],
+				['title' => 'Reorder Suggestions', 'desc' => 'Items to reorder', 'icon' => 'fa-shopping-basket', 'url' => 'mobile/report/reorder_suggestion', 'perm' => 'reorder_suggestion_report', 'color' => 'yellow'],
+				['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'url' => 'mobile/report/sales_and_payments', 'perm' => 'sales_report', 'color' => 'primary'],
+				['title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'url' => 'mobile/report/sales_tax', 'perm' => 'sales_tax_report', 'color' => 'red'],
+				['title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/report/sales', 'perm' => 'sales_report', 'color' => 'primary'],
+				['title' => 'Member & Retail Sales', 'desc' => 'Sales separated by customer group price', 'icon' => 'fa-users', 'url' => 'reports/customer_group_sales?screen=mobile', 'perm' => 'sales_report', 'color' => 'blue'],
+				['title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'url' => 'mobile/report/sales_return', 'perm' => 'sales_return_report', 'color' => 'orange'],
+				['title' => 'Purchase Report', 'desc' => 'Purchase invoices', 'icon' => 'fa-cart-arrow-down', 'url' => 'mobile/report/purchase', 'perm' => 'purchase_report', 'color' => 'green'],
+				['title' => 'Purchase Return', 'desc' => 'Purchase returns', 'icon' => 'fa-reply', 'url' => 'mobile/report/purchase_return', 'perm' => 'purchase_return_report', 'color' => 'red'],
+				['title' => 'Expense Report', 'desc' => 'Business expenses', 'icon' => 'fa-money', 'url' => 'mobile/report/expense', 'perm' => 'expense_report', 'color' => 'yellow'],
+				['title' => 'Stock Report', 'desc' => 'Item & brand wise stock', 'icon' => 'fa-cubes', 'url' => 'mobile/report/stock', 'perm' => 'stock_report', 'color' => 'teal'],
+				['title' => 'Item Sales Report', 'desc' => 'Best selling items', 'icon' => 'fa-barcode', 'url' => 'mobile/report/item_sales', 'perm' => 'item_sales_report', 'color' => 'purple'],
+				['title' => 'Return Items', 'desc' => 'Items returned by customers', 'icon' => 'fa-refresh', 'url' => 'mobile/report/return_item', 'perm' => 'return_items_report', 'color' => 'orange'],
+			],
+			'Team' => [
+				['title' => 'Staff', 'desc' => 'Team attendance', 'icon' => 'fa-id-badge', 'url' => 'mobile/staff', 'perm' => 'users_view', 'color' => 'yellow'],
+				['title' => 'Users', 'desc' => 'Create & manage staff', 'icon' => 'fa-user-cog', 'url' => 'mobile/users', 'perm' => 'users_view', 'color' => 'purple'],
+			],
+			'Operations' => [
+			['title' => 'Operations Hub', 'desc' => 'Workflows & tools', 'icon' => 'fa-cogs', 'url' => 'mobile/operations', 'perm' => null, 'color' => 'primary'],
+		],
+		'Help' => [
+			['title' => 'Help Center', 'desc' => 'Guides & resources', 'icon' => 'fa-question-circle', 'url' => 'mobile/help', 'perm' => '', 'color' => 'blue'],
+			['title' => 'Support', 'desc' => 'Contact support channels', 'icon' => 'fa-life-ring', 'url' => 'mobile/support', 'perm' => '', 'color' => 'primary'],
+			// Central-only: client installs have no local incident control —
+			// their banner is driven solely by the martpoint.com.ng status feed.
+			...(function_exists('mp_is_central') && mp_is_central() ? [
+				['title' => 'Service Status', 'desc' => 'Incident banner & status page', 'icon' => 'fa-exclamation-circle', 'url' => 'mobile/site_status', 'perm' => '', 'color' => 'orange', 'admin_only' => true],
+			] : []),
+		],
+		];
+		// Oil & Gas stores land in their own workspace; the operating screens
+		// (refills, tanks, pumps, shifts, dispatch, jobs) join this list as they
+		// ship, so the menu never points at a screen that does not exist.
+		if(function_exists('mp_is_oil_gas_workspace') && mp_is_oil_gas_workspace()){
+			$menu_groups['Oil & Gas'] = [
+				['title' => 'Oil & Gas Workspace', 'desc' => 'Locations, operations and daily figures', 'icon' => 'fa-tachometer', 'url' => 'oil_gas', 'perm' => null, 'color' => 'primary'],
+				['title' => 'Location Operations', 'desc' => 'What each station, outlet or depot runs', 'icon' => 'fa-map-marker', 'url' => 'oil_gas/locations', 'perm' => 'warehouse_view', 'color' => 'teal'],
+			];
+		}
+		$this->load->helper('industry_guide');
+		$more_industry_guide = mp_industry_guide();
+		if($more_industry_guide){
+			array_unshift($menu_groups['Help'], ['title' => $more_industry_guide['title'],
+				'desc' => 'Step-by-step industry walkthrough', 'icon' => 'fa-book',
+				'url' => 'docs/product-design/customer-guide/'.$more_industry_guide['file'],
+				'perm' => '', 'color' => 'purple', 'target' => '_blank']);
+		}
+
+		if($is_physio){
+			unset($menu_groups['Sales'], $menu_groups['Purchase'], $menu_groups['Inventory'],
+				$menu_groups['Online Store'], $menu_groups['Marketing'], $menu_groups['Customers'],
+				$menu_groups['Operations']);
+			$menu_groups['Procurement'] = $menu_groups['Suppliers'] ?? array();
+			unset($menu_groups['Suppliers']);
+			$menu_groups['Finance'] = [
+				['title' => 'Patient Accounts', 'desc' => 'Billing, funds and reservations', 'icon' => 'fa-file-text-o', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'patient_funds_view', 'color' => 'green'],
+				['title' => 'Patient Billing', 'desc' => 'Charges, invoices and balances', 'icon' => 'fa-credit-card', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'patient_billing_view', 'color' => 'blue'],
+				['title' => 'Opening Positions', 'desc' => 'Review account balances', 'icon' => 'fa-sign-in', 'url' => 'mobile/patient_accounts', 'physio_perm' => 'opening_positions_view', 'color' => 'orange'],
+				['title' => 'Expenses', 'desc' => 'Clinic expense list', 'icon' => 'fa-credit-card', 'url' => 'mobile/finance/expenses', 'perm' => 'expense_view', 'color' => 'red'],
+				['title' => 'Expense Categories', 'desc' => 'Clinic spending heads', 'icon' => 'fa-tags', 'url' => 'mobile/finance/expense_categories', 'perm' => 'expense_category_view', 'color' => 'purple'],
+			];
+			$menu_groups['Reports'] = [
+				['title' => 'Appointments & arrivals', 'desc' => 'Clinic schedule and attendance', 'icon' => 'fa-calendar', 'url' => 'mobile/appointments', 'physio_perm' => 'appointments_view', 'color' => 'blue'],
+				['title' => 'Session utilization', 'desc' => 'Treatment sessions and entitlements', 'icon' => 'fa-stethoscope', 'url' => 'mobile/sessions', 'physio_perm' => 'sessions_view', 'color' => 'green'],
+				['title' => 'Inpatient occupancy', 'desc' => 'Admissions and bed activity', 'icon' => 'fa-bed', 'url' => 'mobile/admissions', 'physio_perm' => 'admissions_view', 'color' => 'orange'],
+			];
+			$menu_groups['Administration'] = [
+				['title' => 'Facility settings', 'desc' => 'Store identity, contacts and branding', 'icon' => 'fa-building-o', 'url' => 'business_profile', 'perm' => 'business_profile', 'color' => 'blue'],
+				['title' => 'Store profile', 'desc' => 'Address, phone and receipt identity', 'icon' => 'fa-id-card-o', 'url' => 'store_profile/update/'.get_current_store_id(), 'perm' => 'store_profile', 'color' => 'blue'],
+				['title' => 'Branches', 'desc' => 'Clinic locations and access scope', 'icon' => 'fa-map-marker', 'url' => 'warehouse', 'perm' => 'warehouse_view', 'feature' => 'warehouse', 'color' => 'teal'],
+				['title' => 'Features & subscription', 'desc' => 'Business type, enabled modules and limits', 'icon' => 'fa-toggle-on', 'url' => 'business_profile', 'perm' => 'business_profile', 'color' => 'purple'],
+				['title' => 'Users & staff', 'desc' => 'Staff accounts and branch assignments', 'icon' => 'fa-users', 'url' => 'mobile/users', 'perm' => 'users_view', 'color' => 'yellow'],
+				['title' => 'Roles & permissions', 'desc' => 'Clinical grants and administrator access', 'icon' => 'fa-shield', 'url' => 'roles/view', 'perm' => 'roles_view', 'color' => 'purple'],
+				['title' => 'Site & printing settings', 'desc' => 'Invoice, receipt and clinic defaults', 'icon' => 'fa-print', 'url' => 'site', 'admin_role_only' => true, 'color' => 'blue'],
+				['title' => 'Security & approvals', 'desc' => 'Approval thresholds and independent review', 'icon' => 'fa-lock', 'url' => 'approvals/settings', 'perm' => 'approval_settings_edit', 'feature' => 'manager_approvals', 'color' => 'orange'],
+				['title' => 'Assessment templates', 'desc' => 'Versioned clinical forms', 'icon' => 'fa-clipboard', 'url' => 'assessment_templates', 'physio_perm' => 'assessment_templates_manage', 'feature' => 'clinical_assessments', 'color' => 'teal'],
+				['title' => 'Consent forms', 'desc' => 'Issue, verify and manage consent evidence', 'icon' => 'fa-file-text-o', 'url' => 'consents', 'physio_perm' => 'patient_docs_view', 'feature' => 'patient_documents', 'color' => 'green'],
+				['title' => 'Services & packages', 'desc' => 'Treatment catalog and session packages', 'icon' => 'fa-stethoscope', 'url' => 'service_packages', 'perm' => 'service_packages_view', 'feature' => 'packages', 'color' => 'orange'],
+				['title' => 'Wards & beds', 'desc' => 'Admission locations and bed setup', 'icon' => 'fa-bed', 'url' => 'inpatient/beds', 'physio_perm' => 'beds_manage', 'feature' => 'inpatient_care', 'color' => 'blue'],
+				['title' => 'Billing policies', 'desc' => 'Daily billing and financial controls', 'icon' => 'fa-calculator', 'url' => 'inpatient/billing_setup', 'physio_perm' => 'daily_billing_view', 'feature' => 'inpatient_care', 'color' => 'green'],
+				['title' => 'Email settings', 'desc' => 'Clinic sender and delivery provider', 'icon' => 'fa-envelope-o', 'url' => 'email_settings', 'perm' => 'smtp_settings', 'admin_role_only' => true, 'color' => 'purple'],
+				['title' => 'Patient portal', 'desc' => 'Invites, policy and released reports', 'icon' => 'fa-user-circle', 'url' => 'portal', 'physio_perm' => 'portal_manage', 'feature' => 'patient_portal', 'color' => 'teal'],
+				['title' => 'Website leads', 'desc' => 'Enquiry capture and conversion to patients', 'icon' => 'fa-globe', 'url' => 'leads', 'perm' => 'leads_view', 'feature' => 'leads', 'color' => 'blue'],
+				['title' => 'Legacy imports', 'desc' => 'Reconciliation, exceptions and rollback', 'icon' => 'fa-database', 'url' => 'imports', 'physio_perm' => 'imports_view', 'color' => 'orange'],
+				['title' => 'Audit trail', 'desc' => 'Configuration, clinical and finance events', 'icon' => 'fa-history', 'url' => 'audit_trail', 'perm' => 'audit_trail_view', 'color' => 'yellow'],
+				['title' => 'License & usage', 'desc' => 'License status, plan and limits', 'icon' => 'fa-id-card-o', 'url' => 'subscription_license', 'perm' => 'license_management', 'admin_role_only' => true, 'color' => 'blue'],
+				['title' => 'System updates', 'desc' => 'Review and apply application updates', 'icon' => 'fa-cloud-download', 'url' => 'system_updates', 'perm' => 'system_updates', 'admin_role_only' => true, 'color' => 'teal'],
+			];
+		}
+
+		// Add after specialist workspace pruning: messaging is not a storefront
+		// or retail-only feature, and clinics must not lose it with Marketing.
+		$menu_groups['Communications'] = array_map(function($item) {
+			return ['title'=>$item['title'], 'desc'=>$item['desc'], 'icon'=>$item['icon'],
+				'url'=>$item['url_mobile'], 'perm_any'=>$item['perm_any'], 'color'=>$item['color']];
+		}, messaging_workspace_menu_items());
+		if(!mp_feature_enabled('online_store')){
+			unset($menu_groups['Online Store']);
+		} elseif(!mp_feature_enabled('qr_ordering') && isset($menu_groups['Online Store'])){
+			$menu_groups['Online Store'] = array_values(array_filter($menu_groups['Online Store'], function($item){
+				return $item['title'] !== 'QR Codes';
+			}));
+		}
+
+		$data['menu_groups'] = [];
+		foreach($menu_groups as $group => $items){
+			$visible = [];
+			foreach($items as $item){
+				$is_workspace_admin = (int)$this->session->userdata('role_id') === 1 || is_store_admin() || is_admin();
+				if(!empty($item['admin_role_only']) && !$is_workspace_admin) continue;
+				if(!empty($item['feature'])){
+					$feature_ok = false;
+					foreach((array)$item['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
+					if(!$feature_ok) continue;
+				}
+				if(!empty($item['admin_only']) && !special_access()) continue;
+				if(!empty($item['physio_perm'])){
+					if(function_exists('physio_can') && physio_can($item['physio_perm'])){ $visible[] = $item; }
+					continue;
+				}
+			$hasMenuPermission = !empty($item['admin_role_only']) && $is_workspace_admin
+				? true
+				: (empty($item['perm']) || $this->permissions($item['perm']));
+			if(!empty($item['perm_any'])){
+				$hasMenuPermission = false;
+				foreach((array)$item['perm_any'] as $anyPermission){ if($this->permissions($anyPermission)){ $hasMenuPermission = true; break; } }
+			}
+			if($hasMenuPermission){
+					$visible[] = $item;
+				}
+			}
+			if(!empty($visible)){
+				$data['menu_groups'][$group] = $visible;
+			}
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+        if((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') {
+            $this->load->helper('garden');$profile=mp_get_store_profile();$primary=[];
+            foreach(['mobile','mobile/catalogue','mobile/online_store/dashboard','mobile/report/sales_and_payments','mobile/service_jobs','mobile/production','mobile/recipes'] as $alias)$primary[trim((string)parse_url(base_url($alias),PHP_URL_PATH),'/')]=true;
+            foreach(mp_garden_navigation_groups() as $links)foreach($links as $link){
+                if($link[1]==='garden/business_tools'||!mp_garden_navigation_visible($link,$profile))continue;
+                $primary[trim((string)parse_url(mp_garden_mobile_url(base_url($link[1])),PHP_URL_PATH),'/')]=true;
+            }
+            foreach($data['menu_groups'] as $group=>$items){
+                $items=array_values(array_filter($items,function($item)use($primary){$path=trim((string)parse_url(base_url($item['url']),PHP_URL_PATH),'/');return !isset($primary[$path]) && strpos($path,'subscription_license')===false;}));
+                if($items)$data['menu_groups'][$group]=$items;else unset($data['menu_groups'][$group]);
+            }
+            $data['page_title']='Business tools';
+        }
+		$this->load->view('mobile/more', $data);
+	}
+
+	public function support()
+	{
+		if(is_cashier()){
+			redirect(base_url('mobile/pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Support';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/support', $data);
+	}
+
+	public function site_status()
+	{
+		if(!special_access() || !function_exists('mp_is_central') || !mp_is_central()){
+			redirect(base_url('mobile/more'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Service Status';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['incident'] = function_exists('mp_get_incident') ? mp_get_incident() : null;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/site_status', $data);
+	}
+
+	public function help()
+	{
+		if(is_cashier()){
+			redirect(base_url('mobile/pos'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Help Center';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/help', $data);
+	}
+
+	public function marketing()
+	{
+		$data = $this->data;
+		$data['page_title'] = 'Marketing';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		$data['marketing_items'] = function_exists('marketing_menu_items') ? marketing_menu_items() : [];
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/marketing', $data);
+	}
+
+	public function operations()
+	{
+		$data = $this->data;
+		$data['page_title'] = 'Operations';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$operations = [
+			// Print Shop sits beside the generic Operations tiles: a print shop
+			// carries production_workflow and custom_orders, so without its own
+			// entry the phone offered it batch production and custom orders —
+			// screens written for a factory, not a press shop.
+			['title' => 'Print Shop', 'desc' => 'Jobs, quotes, artwork & collection', 'icon' => 'fa-print', 'url' => 'mobile/printing', 'perm' => 'print_view', 'feature' => 'printing_workflow', 'color' => 'teal'],
+			['title' => 'Custom Orders', 'desc' => 'Orders, quotes & deposits', 'icon' => 'fa-pencil-square-o', 'url' => 'operations/custom_orders', 'perm' => 'custom_orders_view', 'feature' => 'custom_orders', 'color' => 'primary'],
+			['title' => 'Production', 'desc' => 'Batches & production schedule', 'icon' => 'fa-industry', 'url' => 'operations/production', 'perm' => 'production_batches_view', 'feature' => 'production_workflow', 'color' => 'orange'],
+			['title' => 'Nylon Factory', 'desc' => 'Extrusion, printing & bag jobs', 'icon' => 'fa-industry', 'url' => 'mobile/nylon', 'perm' => 'nylon_view', 'feature' => ['nylon_workflow','nylon_extrusion','nylon_conversion','nylon_roll_trading'], 'color' => 'teal'],
+			['title' => 'Recipes', 'desc' => 'Kitchen & bakery recipes', 'icon' => 'fa-cutlery', 'url' => 'operations/recipes', 'perm' => 'recipes_view', 'feature' => 'recipe_tracking', 'color' => 'teal'],
+			['title' => 'Memberships', 'desc' => 'Plans & customer members', 'icon' => 'fa-id-card', 'url' => 'operations/memberships', 'perm' => 'memberships_view', 'feature' => 'memberships', 'color' => 'purple'],
+			['title' => 'Kitchen', 'desc' => 'Order status & kitchen display', 'icon' => 'fa-utensils', 'url' => 'mobile/kitchen', 'perm' => 'store_view', 'feature' => 'kitchen_workflow', 'color' => 'orange'],
+			['title' => 'Laundry', 'desc' => 'Laundry orders & pickup', 'icon' => 'fa-tint', 'url' => 'operations/laundry', 'perm' => 'store_view', 'feature' => 'laundry_workflow', 'color' => 'blue'],
+			['title' => 'Table Management', 'desc' => 'Tables & dining status', 'icon' => 'fa-table', 'url' => 'mobile/table_management', 'perm' => 'store_view', 'feature' => 'table_management', 'color' => 'green'],
+			['title' => 'Staff Assignment', 'desc' => 'Assign staff to services', 'icon' => 'fa-user-md', 'url' => 'operations/staff_assignment', 'perm' => 'store_view', 'feature' => 'staff_assignment', 'color' => 'yellow'],
+			['title' => 'Staff Commission', 'desc' => 'Track staff commissions', 'icon' => 'fa-percent', 'url' => 'operations/staff_commission', 'perm' => 'store_view', 'feature' => 'staff_commission', 'color' => 'yellow'],
+			['title' => 'Delivery', 'desc' => 'Schedule & track deliveries', 'icon' => 'fa-truck', 'url' => 'mobile/deliveries', 'perm' => 'store_view', 'feature' => 'delivery_scheduling', 'color' => 'purple'],
+			['title' => 'Warranty Lookup', 'desc' => 'Check product warranty', 'icon' => 'fa-shield', 'url' => 'operations/warranty_lookup', 'perm' => 'store_view', 'feature' => 'warranty_tracking', 'color' => 'blue'],
+			['title' => 'Treatment Notes', 'desc' => 'Service & treatment history', 'icon' => 'fa-heartbeat', 'url' => 'operations/treatment_notes', 'perm' => 'treatment_notes_view', 'feature' => 'treatment_notes', 'color' => 'red'],
+			['title' => 'Medical Notes', 'desc' => 'Patient prescriptions', 'icon' => 'fa-file-medical-o', 'url' => 'operations/medical_notes', 'perm' => 'medical_notes_view', 'feature' => 'medical_notes', 'color' => 'red'],
+			['title' => 'Public Catalogue', 'desc' => 'Storefront catalogue settings', 'icon' => 'fa-globe', 'url' => 'mobile/public_catalogue_settings', 'perm' => 'store_view', 'feature' => 'public_catalogue', 'color' => 'green'],
+		];
+
+		$data['operations'] = [];
+		foreach($operations as $op){
+			if(!empty($op['feature'])){
+				$feature_ok = false;
+				foreach((array)$op['feature'] as $f){ if(mp_feature_enabled($f)){ $feature_ok = true; break; } }
+				if(!$feature_ok) continue;
+			}
+			if(!empty($op['perm']) && !$this->permissions($op['perm'])) continue;
+			$data['operations'][] = $op;
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/operations', $data);
+	}
+
+	public function public_catalogue_settings()
+	{
+		$this->permission_check('store_view');
+		$data = $this->data;
+		$data['page_title'] = 'Public Catalogue';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->load->model('business_profile_model', 'bp_model');
+		$profile = $this->bp_model->get_profile($store_id);
+		$settings = [];
+		if (!empty($profile['industry_settings_json'])) {
+			$decoded = json_decode($profile['industry_settings_json'], true);
+			if (is_array($decoded) && isset($decoded['catalogue'])) {
+				$settings = $decoded['catalogue'];
+			}
+		}
+
+		$this->load->model('Storefront_model', 'storefront');
+		$sf = $this->storefront->getSettings($store_id);
+		$data['settings'] = $settings;
+		$data['store_slug'] = ($sf ? $sf->store_slug : '');
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/public_catalogue_settings', $data);
+	}
+
+	public function kitchen()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('kitchen_workflow')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Kitchen';
+		$store_id = get_current_store_id();
+		$branch_context = $this->_mobile_kitchen_branch_context();
+		$is_ajax = (bool)$this->input->get('ajax');
+		if(empty($branch_context['ok'])){
+			if($is_ajax){
+				set_status_header(403);
+				header('Content-Type: application/json');
+				echo json_encode(['status'=>false,'message'=>'You are not assigned to this outlet.']);
+			}else{
+				$this->show_access_denied_page();
+			}
+			return;
+		}
+
+		$this->load->model('kitchen_model', 'kitchen');
+		$this->kitchen->sync_new_orders($store_id);
+
+		// A lane only exists once the store sells something routed to it; asking
+		// for one it does not have shows the whole board instead of an empty screen.
+		$bar_lane = $this->kitchen->has_bar_station($store_id);
+		$station = $bar_lane ? Kitchen_model::clean_station($this->input->get('station')) : 'all';
+
+		if($is_ajax){
+			header('Content-Type: application/json');
+			echo json_encode(['status_counts' => $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'], $station)]);
+			return;
+		}
+
+		$active_status = $this->input->get('status') ?: 'new';
+		if(!in_array($active_status, ['new','preparing','ready'])){
+			$active_status = 'new';
+		}
+
+		$data['active_status'] = $active_status;
+		$data['station'] = $station;
+		$data['bar_lane'] = $bar_lane;
+		$data['status_counts'] = $this->kitchen->count_by_status($store_id, $branch_context['branch'], $branch_context['allowed'], $station);
+		$data['orders'] = $this->kitchen->get_orders($store_id, $active_status, 50, 'DESC', $branch_context['branch'], $branch_context['allowed'], $station);
+		$data['served'] = $this->kitchen->get_served_orders($store_id, 10, $branch_context['branch'], $branch_context['allowed'], $station);
+		$data['branch'] = $branch_context['branch'];
+		$data['branch_opts'] = $branch_context['options'];
+		$data['branch_names'] = $branch_context['names'];
+		$data['branch_can_view_all'] = $branch_context['allowed'] === null;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/kitchen', $data);
+	}
+
+	public function kitchen_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('kitchen_workflow')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$kitchen_order_id = $this->input->post('kitchen_order_id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(empty($kitchen_order_id) || empty($status)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('kitchen_model', 'kitchen');
+		$branch_context = $this->_mobile_kitchen_branch_context();
+		if(empty($branch_context['ok'])){
+			set_status_header(403);
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'You are not assigned to this outlet.']);
+			return;
+		}
+		$ticket_branch = $this->kitchen->get_order_branch_id((int)$kitchen_order_id);
+		if($ticket_branch === null
+			|| ($branch_context['branch'] !== '' && (int)$ticket_branch !== (int)$branch_context['branch'])
+			|| ($branch_context['allowed'] !== null && !in_array((int)$ticket_branch, $branch_context['allowed'], true))){
+			set_status_header(403);
+			header('Content-Type: application/json');
+			echo json_encode(['success'=>false,'message'=>'This ticket belongs to another outlet.']);
+			return;
+		}
+		$ok = $this->kitchen->update_status($kitchen_order_id, $status);
+		header('Content-Type: application/json');
+		echo json_encode([
+			'success' => $ok,
+			'status'  => $status,
+			'message' => $ok ? '' : trim((string) ($this->kitchen->last_move['error'] ?? '')),
+		]);
+	}
+
+	public function table_management()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('table_management')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Table Management';
+		$store_id = get_current_store_id();
+
+		$this->load->model('tables_model', 'tables');
+
+		// Handle delete
+		$del_id = $this->input->get('delete');
+		if(!empty($del_id)){
+			$this->tables->delete((int)$del_id, $store_id);
+			$this->session->set_flashdata('success', 'Table deleted.');
+			redirect('mobile/table_management');
+			return;
+		}
+
+		// Handle save
+		if($this->input->post('save_table')){
+			$this->form_validation->set_rules('table_name', 'Table Name', 'trim|required');
+			if($this->form_validation->run() == TRUE){
+				$save_data = [
+					'store_id'    => $store_id,
+					'table_name'  => $this->input->post('table_name', TRUE),
+					'table_code'  => $this->input->post('table_code', TRUE),
+					'zone'        => $this->input->post('zone', TRUE),
+					'capacity'    => (int)$this->input->post('capacity', TRUE) ?: 4,
+					'status'      => $this->input->post('status', TRUE) ?: 'available',
+					'sort_order'  => (int)$this->input->post('sort_order', TRUE),
+				];
+				$edit_id = $this->input->post('edit_id', TRUE);
+				$this->tables->save($save_data, $edit_id ?: null);
+				$this->session->set_flashdata('success', 'Table saved.');
+				redirect('mobile/table_management');
+				return;
+			}
+		}
+
+		$data['status_counts'] = $this->tables->count_by_status($store_id);
+		$data['tables'] = $this->tables->get_all($store_id);
+		$data['zones'] = $this->tables->get_zones($store_id);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/table_management', $data);
+	}
+
+	public function table_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('table_management')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$store_id = get_current_store_id();
+		$id = (int)$this->input->post('table_id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id || empty($status)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('tables_model', 'tables');
+		$ok = $this->tables->update_status($id, $store_id, $status);
+		header('Content-Type: application/json');
+		echo json_encode(['success' => $ok]);
+	}
+
+	/* ===================== OPERATIONS: MOBILE MODULES ===================== */
+
+	private function _mobile_render($data)
+	{
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/'.$data['_view'], $data);
+	}
+
+	/* ---------- CUSTOM ORDERS ---------- */
+
+	public function custom_orders($status = '')
+	{
+		$this->permission_check('custom_orders_view');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('custom_order').'s';
+		$data['co_label'] = mp_label('custom_order');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('custom_orders_add');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+
+		$data['counts'] = [];
+		foreach (['new','quoted','deposit_paid','in_production','ready','delivered','cancelled'] as $s) {
+			$data['counts'][$s] = $this->custom_orders->count_by_status($store_id, $s);
+		}
+		$data['statuses'] = ['new','quoted','deposit_paid','in_production','ready','delivered','cancelled'];
+		$active = in_array($status, $data['statuses']) ? $status : 'new';
+		$data['active_status'] = $active;
+
+		$this->db->select('a.*, c.customer_name, c.mobile, b.item_name as template_item_name');
+		$this->db->from('db_custom_orders a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->join('db_items b', 'b.id = a.item_id', 'left');
+		$this->db->where('a.store_id', $store_id)->where('a.status', $active);
+		$this->db->order_by('a.due_date IS NULL', 'asc', FALSE)->order_by('a.due_date', 'asc')->order_by('a.id', 'desc');
+		$data['orders'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_custom_orders';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order($id = 0)
+	{
+		$this->permission_check('custom_orders_view');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$order = $this->custom_orders->get((int)$id);
+		if(!$order){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $order->order_code;
+		$data['co_label'] = mp_label('custom_order');
+		$data['order'] = $order;
+		$data['history'] = $this->custom_orders->get_history((int)$id);
+		$data['workflow'] = Custom_orders_model::get_workflow($order->workflow_template_key ?: 'standard');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+		$data['can_delete'] = $this->permissions('custom_orders_delete');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$data['_view'] = 'op_custom_order';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order_form($id = 0)
+	{
+		$this->permission_check('custom_orders_add');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['co_label'] = mp_label('custom_order');
+		$data['edit_order'] = null;
+		if($id){
+			$data['edit_order'] = $this->custom_orders->get((int)$id);
+			if(!$data['edit_order']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit '.$data['co_label'] : 'New '.$data['co_label'];
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['items'] = $this->db->select('id, item_name, sales_price, custom_order_fields_json')
+			->where('store_id', $store_id)->where('status', 1)->where('accept_custom_order', 1)
+			->order_by('item_name', 'asc')->get('db_items')->result();
+		$data['staff'] = physio_staff_select($store_id, false, 'first_name');
+		$data['item_fields'] = [];
+		foreach($data['items'] as $it){
+			$f = json_decode($it->custom_order_fields_json ?: '[]', true);
+			$data['item_fields'][$it->id] = is_array($f) ? $f : [];
+		}
+		$data['statuses'] = Custom_orders_model::get_workflow($data['edit_order'] ? ($data['edit_order']->workflow_template_key ?: 'standard') : 'standard');
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_custom_order_form';
+		$this->_mobile_render($data);
+	}
+
+	public function custom_order_save()
+	{
+		$this->permission_check('custom_orders_add');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('item_id', 'Item', 'trim|required|numeric');
+		$this->form_validation->set_rules('order_date', 'Order Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$customer = $this->db->where('id', $this->input->post('customer_id', TRUE))->get('db_customers')->row();
+		$item = $this->db->where('id', $this->input->post('item_id', TRUE))->get('db_items')->row();
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+
+		$specs = [];
+		$spec_labels = $this->input->post('spec_label', TRUE) ?: [];
+		$spec_values = $this->input->post('spec_value', TRUE) ?: [];
+		for($i = 0; $i < count($spec_labels); $i++){
+			if(!empty($spec_labels[$i])){ $specs[$spec_labels[$i]] = $spec_values[$i] ?? ''; }
+		}
+
+		$quoted = floatval($this->input->post('quoted_price', TRUE) ?: 0);
+		$deposit = floatval($this->input->post('deposit_amount', TRUE) ?: 0);
+		$deposit_paid = floatval($this->input->post('deposit_paid', TRUE) ?: 0);
+		$total = floatval($this->input->post('total_amount', TRUE) ?: 0);
+
+		$order_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'item_id' => (int)$this->input->post('item_id', TRUE),
+			'item_name' => $item ? $item->item_name : '',
+			'specifications_json' => !empty($specs) ? json_encode($specs) : null,
+			'quoted_price' => $quoted,
+			'deposit_amount' => $deposit,
+			'deposit_paid' => $deposit_paid,
+			'total_amount' => $total,
+			'balance_due' => $total - $deposit_paid,
+			'status' => $this->input->post('status', TRUE) ?: 'new',
+			'workflow_template_key' => $item ? ($item->workflow_template_key ?: 'standard') : 'standard',
+			'notes' => $this->input->post('notes', TRUE),
+			'staff_id' => (int)($this->input->post('staff_id', TRUE) ?: 0),
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : '',
+			'order_date' => $this->input->post('order_date', TRUE),
+			'due_date' => $this->input->post('due_date', TRUE) ?: null,
+		];
+
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->custom_orders->save($order_data, $id);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Order updated.' : 'Order saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function custom_order_status()
+	{
+		$this->permission_check('custom_orders_edit');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$id = $this->input->post('id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id || !$status){
+			echo json_encode(['success' => false, 'message' => 'Missing data']);
+			return;
+		}
+		$this->custom_orders->save(['status' => $status], $id);
+		echo json_encode(['success' => true, 'message' => 'Status updated to '.Custom_orders_model::status_label($status), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function custom_order_delete()
+	{
+		$this->permission_check('custom_orders_delete');
+		if(!mp_feature_enabled('custom_orders')){ $this->show_access_denied_page(); return; }
+		$this->load->model('custom_orders_model','custom_orders');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->custom_orders->delete($id);
+		echo json_encode(['success' => true, 'message' => 'Order deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- TREATMENT NOTES ---------- */
+
+	public function treatment_notes()
+	{
+		$this->permission_check('treatment_notes_view');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Treatment Notes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('treatment_notes_add');
+		$data['can_delete'] = $this->permissions('treatment_notes_delete');
+		$data['this_month_count'] = $this->notes->count_this_month($store_id);
+		$data['total_count'] = $this->notes->count_all();
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->select('a.*, c.customer_name, c.mobile');
+		$this->db->from('db_treatment_notes a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		if($q !== ''){
+			$this->db->group_start()->like('c.customer_name', $q)->or_like('a.service_type', $q)->or_like('a.notes', $q)->group_end();
+		}
+		$this->db->order_by('a.treatment_date', 'desc')->order_by('a.id', 'desc');
+		$data['notes'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_treatment_notes';
+		$this->_mobile_render($data);
+	}
+
+	public function treatment_note($id = 0)
+	{
+		$this->permission_check('treatment_notes_add');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_note'] = null;
+		if($id){
+			$data['edit_note'] = $this->notes->get((int)$id);
+			if(!$data['edit_note']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Treatment Note' : 'New Treatment Note';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['staff'] = physio_staff_select($store_id, true, 'first_name');
+		$data['services'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('service_name', 'asc')->get('db_services')->result();
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_treatment_note_form';
+		$this->_mobile_render($data);
+	}
+
+	public function consumable_items()
+	{
+		$this->permission_check('treatment_notes_view');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$term = $this->input->get('term', TRUE);
+		$this->db->select('id, item_name, stock, consumable_unit');
+		$this->db->from('db_items');
+		$this->db->where('store_id', $store_id)->where('status', 1)->where('not_for_sale', 1);
+		if($term){ $this->db->like('item_name', $term); }
+		echo json_encode($this->db->limit(30)->get()->result());
+	}
+
+	public function treatment_note_save()
+	{
+		$this->permission_check('treatment_notes_add');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('service_type', 'Service Type', 'trim|required');
+		$this->form_validation->set_rules('treatment_date', 'Treatment Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+		$note_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'service_type' => $this->input->post('service_type', TRUE),
+			'notes' => $this->input->post('notes', TRUE),
+			'treatment_date' => $this->input->post('treatment_date', TRUE),
+			'staff_id' => (int)($this->input->post('staff_id', TRUE) ?: 0),
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : '',
+			'products_used' => $this->input->post('products_used', TRUE),
+			'recommendations' => $this->input->post('recommendations', TRUE),
+		];
+
+		$consumables = [];
+		$item_ids = $this->input->post('consumable_item_id', TRUE) ?: [];
+		$item_qtys = $this->input->post('consumable_qty', TRUE) ?: [];
+		for($i = 0; $i < count($item_ids); $i++){
+			$iid = (int)($item_ids[$i] ?? 0);
+			$qty = floatval($item_qtys[$i] ?? 0);
+			if($iid > 0 && $qty > 0){ $consumables[] = ['item_id' => $iid, 'qty' => $qty]; }
+		}
+
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->notes->save($note_data, $id, $consumables);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Note updated.' : 'Note saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function treatment_note_delete()
+	{
+		$this->permission_check('treatment_notes_delete');
+		if(!mp_feature_enabled('treatment_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('treatment_notes_model','notes');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->notes->delete($id);
+		echo json_encode(['success' => true, 'message' => 'Note deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- MEDICAL NOTES ---------- */
+
+	public function medical_notes()
+	{
+		$this->permission_check('medical_notes_view');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Medical Notes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('medical_notes_add');
+		$data['can_delete'] = $this->permissions('medical_notes_delete');
+		$data['this_month_count'] = $this->med_notes->count_this_month($store_id);
+		$data['refill_reminders'] = $this->med_notes->get_refill_reminders($store_id, 7);
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->select('a.*, c.customer_name, c.mobile');
+		$this->db->from('db_medical_notes a');
+		$this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		if($q !== ''){
+			$this->db->group_start()->like('c.customer_name', $q)->or_like('a.diagnosis', $q)->or_like('a.prescribing_doctor', $q)->group_end();
+		}
+		$this->db->order_by('a.note_date', 'desc')->order_by('a.id', 'desc');
+		$data['notes'] = $this->db->limit(100)->get()->result();
+
+		$data['_view'] = 'op_medical_notes';
+		$this->_mobile_render($data);
+	}
+
+	public function medical_note($id = 0)
+	{
+		$this->permission_check('medical_notes_add');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_note'] = null;
+		if($id){
+			$data['edit_note'] = $this->med_notes->get((int)$id);
+			if(!$data['edit_note']){ show_404(); return; }
+			foreach($data['edit_note']->items as $it){
+				$nm = $this->db->select('item_name')->where('id', $it->item_id)->get('db_items')->row();
+				$it->item_name = $nm ? $nm->item_name : '';
+			}
+		}
+		$data['page_title'] = $id ? 'Edit Medical Note' : 'New Medical Note';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['staff'] = physio_staff_select($store_id, true, 'first_name');
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+
+		$data['_view'] = 'op_medical_note_form';
+		$this->_mobile_render($data);
+	}
+
+	public function medical_items()
+	{
+		$this->permission_check('medical_notes_view');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$term = $this->input->get('term', TRUE);
+		$this->db->select('id, item_name, item_code, stock');
+		$this->db->from('db_items');
+		$this->db->where('store_id', $store_id)->where('status', 1)->where('delete_bit', 0);
+		if($term){ $this->db->group_start()->like('item_name', $term)->or_like('item_code', $term)->group_end(); }
+		$results = $this->db->limit(20)->get()->result();
+		$json = [];
+		foreach($results as $r){ $json[] = ['id' => $r->id, 'text' => $r->item_name.' ('.($r->item_code ?: 'N/A').')', 'stock' => $r->stock]; }
+		echo json_encode($json);
+	}
+
+	public function medical_note_save()
+	{
+		$this->permission_check('medical_notes_add');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Patient', 'trim|required|numeric');
+		$this->form_validation->set_rules('note_date', 'Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$id = (int)$this->input->post('id', TRUE);
+		$staff = $this->db->where('id', $this->input->post('staff_id', TRUE))->get('db_users')->row();
+		$data_row = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'note_date' => $this->input->post('note_date', TRUE),
+			'prescribing_doctor' => $this->input->post('prescribing_doctor', TRUE) ?: null,
+			'doctor_contact' => $this->input->post('doctor_contact', TRUE) ?: null,
+			'diagnosis' => $this->input->post('diagnosis', TRUE) ?: null,
+			'prescription_ref' => $this->input->post('prescription_ref', TRUE) ?: null,
+			'allergies_flagged' => $this->input->post('allergies_flagged', TRUE) ?: null,
+			'dosage_instructions' => $this->input->post('dosage_instructions', TRUE) ?: null,
+			'counselling_notes' => $this->input->post('counselling_notes', TRUE) ?: null,
+			'next_refill_date' => $this->input->post('next_refill_date', TRUE) ?: null,
+			'refills_remaining' => (int)$this->input->post('refills_remaining', TRUE) ?: 0,
+			'staff_id' => (int)$this->input->post('staff_id', TRUE) ?: null,
+			'staff_name' => $staff ? trim($staff->first_name.' '.$staff->last_name) : null,
+			'status' => 'active',
+		];
+
+		if(!empty($_FILES['prescription_file']['name'])){
+			$upload_path = FCPATH.'uploads/prescriptions/';
+			if(!is_dir($upload_path)){ mkdir($upload_path, 0775, true); }
+			$config['upload_path'] = $upload_path;
+			$config['allowed_types'] = 'jpg|jpeg|png|gif|pdf|webp';
+			$config['max_size'] = 5120;
+			$config['encrypt_name'] = TRUE;
+			$this->load->library('upload', $config);
+			if($this->upload->do_upload('prescription_file')){
+				$up = $this->upload->data();
+				$data_row['prescription_file'] = 'uploads/prescriptions/'.$up['file_name'];
+			}
+		}
+
+		if(!$id){
+			$data_row['created_date'] = date('Y-m-d');
+			$data_row['created_time'] = date('H:i:s');
+			$data_row['created_by'] = $this->session->userdata('username') ?? 'system';
+		}
+
+		$item_ids = $this->input->post('item_id', TRUE) ?: [];
+		$item_qtys = $this->input->post('item_qty', TRUE) ?: [];
+		$item_dosages = $this->input->post('item_dosage', TRUE) ?: [];
+		$item_durations = $this->input->post('item_duration', TRUE) ?: [];
+		$item_instructions = $this->input->post('item_instructions', TRUE) ?: [];
+		$items = [];
+		for($i = 0; $i < count($item_ids); $i++){
+			if(!empty($item_ids[$i])){
+				$items[] = [
+					'item_id' => $item_ids[$i],
+					'qty' => $item_qtys[$i] ?? 1,
+					'dosage' => $item_dosages[$i] ?? null,
+					'duration' => $item_durations[$i] ?? null,
+					'instructions' => $item_instructions[$i] ?? null,
+				];
+			}
+		}
+
+		try {
+			$note_id = $this->med_notes->save($data_row, $id ?: null, $items);
+			echo json_encode(['success' => true, 'id' => $note_id, 'message' => $id ? 'Medical note updated.' : 'Medical note saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		} catch (Exception $e) {
+			log_message('error', 'Mobile save_medical_note() failed: ' . $e->getMessage());
+			echo json_encode(['success' => false, 'message' => 'The medical note could not be saved. Please check the details and try again.']);
+		}
+	}
+
+	public function medical_note_delete()
+	{
+		$this->permission_check('medical_notes_delete');
+		if(!mp_feature_enabled('medical_notes')){ $this->show_access_denied_page(); return; }
+		$this->load->model('medical_notes_model','med_notes');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		if(!$this->med_notes->delete($id)){ echo json_encode(['success' => false, 'message' => 'Prescription not found in this store.', 'csrf_hash' => $this->security->get_csrf_hash()]); return; }
+		echo json_encode(['success' => true, 'message' => 'Medical note deleted.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- STAFF ASSIGNMENT & COMMISSION ---------- */
+
+	public function staff_assignment()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_assignment')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Staff Assignment';
+		$data['staff_label'] = mp_label('staff');
+		$data['service_label'] = mp_label('service');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['services'] = $this->db->where('status', 1)->where('store_id', $store_id)->order_by('service_name', 'asc')->get('db_services')->result();
+		$data['staff_list'] = physio_staff_select($store_id, true, 'first_name');
+		$assignments = [];
+		foreach($this->db->where('store_id', $store_id)->where('status', 1)->get('db_service_staff')->result() as $a){
+			$assignments[$a->service_id][$a->staff_id] = true;
+		}
+		$data['assignments'] = $assignments;
+
+		$data['_view'] = 'op_staff_assignment';
+		$this->_mobile_render($data);
+	}
+
+	public function staff_assignment_save()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_assignment')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$action = $this->input->post('action', TRUE);
+		$service_id = (int)$this->input->post('service_id', TRUE);
+		$staff_id = (int)$this->input->post('staff_id', TRUE);
+
+		if($action === 'assign' && $service_id && $staff_id){
+			$exists = $this->db->where('store_id', $store_id)->where('service_id', $service_id)->where('staff_id', $staff_id)->get('db_service_staff')->row();
+			if($exists){
+				$this->db->where('id', $exists->id)->update('db_service_staff', ['status' => 1]);
+			} else {
+				$this->db->insert('db_service_staff', ['store_id' => $store_id, 'service_id' => $service_id, 'staff_id' => $staff_id, 'status' => 1]);
+			}
+			echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		if($action === 'unassign' && $service_id && $staff_id){
+			$this->db->where('store_id', $store_id)->where('service_id', $service_id)->where('staff_id', $staff_id)->delete('db_service_staff');
+			echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+		echo json_encode(['success' => false, 'message' => 'Invalid request']);
+	}
+
+	public function staff_commission()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('staff_commission')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Staff Commission';
+		$data['staff_label'] = mp_label('staff');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$staff_id = $this->input->get('staff_id', TRUE) ?: '';
+		$from_date = $this->input->get('from_date', TRUE) ?: date('Y-m-01');
+		$to_date = $this->input->get('to_date', TRUE) ?: date('Y-m-d');
+
+		$this->db->select('si.staff_id, u.username as staff_name, si.sales_id, s.sales_code, s.sales_date, si.item_id, i.item_name, si.sales_qty, si.price_per_unit, si.commission_amount, si.total_cost');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->join('db_items i', 'i.id = si.item_id', 'left');
+		$this->db->join('db_users u', 'u.id = si.staff_id', 'left');
+		$this->db->where('si.store_id', $store_id);
+		$this->db->where('si.staff_id IS NOT NULL', null, false);
+		$this->db->where('si.commission_amount >', 0);
+		$this->db->where("(s.sales_date >= '$from_date' AND s.sales_date <= '$to_date')", null, false);
+		if(!empty($staff_id)){ $this->db->where('si.staff_id', $staff_id); }
+		$this->db->order_by('s.sales_date', 'desc');
+		$data['commissions'] = $this->db->get()->result();
+
+		$this->db->select('si.staff_id, u.username as staff_name, SUM(si.commission_amount) as total_commission, COUNT(DISTINCT si.sales_id) as invoice_count, SUM(si.sales_qty) as total_qty');
+		$this->db->from('db_salesitems si');
+		$this->db->join('db_users u', 'u.id = si.staff_id', 'left');
+		$this->db->join('db_sales s', 's.id = si.sales_id', 'left');
+		$this->db->where('si.store_id', $store_id);
+		$this->db->where('si.staff_id IS NOT NULL', null, false);
+		$this->db->where('si.commission_amount >', 0);
+		$this->db->where("(s.sales_date >= '$from_date' AND s.sales_date <= '$to_date')", null, false);
+		if(!empty($staff_id)){ $this->db->where('si.staff_id', $staff_id); }
+		$this->db->group_by('si.staff_id');
+		$data['summary'] = $this->db->get()->result();
+
+		$data['staff_list'] = physio_staff_select($store_id, false, 'first_name');
+		$data['selected_staff_id'] = $staff_id;
+		$data['from_date'] = $from_date;
+		$data['to_date'] = $to_date;
+		$data['grand_total'] = 0;
+		foreach($data['summary'] as $s){ $data['grand_total'] += (float)$s->total_commission; }
+
+		$data['_view'] = 'op_staff_commission';
+		$this->_mobile_render($data);
+	}
+
+	/* ---------- MEMBERSHIPS ---------- */
+
+	public function memberships()
+	{
+		$this->permission_check('memberships_view');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('membership').'s';
+		$data['m_label'] = mp_label('membership');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('memberships_add');
+		$data['can_delete'] = $this->permissions('memberships_delete');
+		$this->membership->update_expired_memberships();
+		$data['memberships'] = $this->membership->get_store_memberships();
+		$data['active_count'] = $this->membership->count_active_memberships($store_id);
+		$data['expiring_count'] = $this->membership->count_expiring_soon(7);
+
+		$data['_view'] = 'op_memberships';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plans()
+	{
+		$this->permission_check('memberships_view');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = mp_label('membership').' Plans';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['can_add'] = $this->permissions('memberships_add');
+		$data['can_edit'] = $this->permissions('memberships_edit');
+		$data['plans'] = $this->db->where('store_id', $store_id)->order_by('status', 'desc')->order_by('plan_name', 'asc')->get('db_membership_plans')->result();
+
+		$data['_view'] = 'op_membership_plans';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plan($id = 0)
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$data = $this->data;
+		$data['edit_plan'] = null;
+		if($id){
+			$data['edit_plan'] = $this->membership->get_plan((int)$id);
+			if(!$data['edit_plan']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Plan' : 'New Plan';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['_view'] = 'op_membership_plan_form';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_plan_save()
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('plan_name', 'Plan Name', 'trim|required');
+		$this->form_validation->set_rules('price', 'Price', 'trim|required|numeric');
+		$this->form_validation->set_rules('billing_cycle', 'Billing Cycle', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$plan_data = [
+			'store_id' => $store_id,
+			'plan_name' => $this->input->post('plan_name', TRUE),
+			'plan_code' => $this->input->post('plan_code', TRUE),
+			'description' => $this->input->post('description', TRUE),
+			'price' => (float)$this->input->post('price', TRUE),
+			'billing_cycle' => $this->input->post('billing_cycle', TRUE),
+			'discount_percent' => (float)($this->input->post('discount_percent', TRUE) ?: 0),
+			'free_services_per_period' => (int)($this->input->post('free_services_per_period', TRUE) ?: 0),
+			'priority_booking' => (int)($this->input->post('priority_booking', TRUE) ?: 0),
+			'status' => 1
+		];
+		$id = $this->input->post('id', TRUE) ?: null;
+		$saved_id = $this->membership->save_plan($plan_data, $id);
+		echo json_encode(['success' => true, 'id' => $saved_id, 'message' => $id ? 'Plan updated.' : 'Plan created.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_plan_toggle()
+	{
+		$this->permission_check('memberships_edit');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$id = $this->input->post('id', TRUE);
+		$status = $this->input->post('status', TRUE);
+		if(!$id){ echo json_encode(['success' => false]); return; }
+		$this->membership->toggle_plan_status($id, $status);
+		echo json_encode(['success' => true, 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_assign($customer_id = 0)
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Assign '.mp_label('membership');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customer_id'] = $customer_id;
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name', 'asc')->get('db_customers')->result();
+		$data['plans'] = $this->membership->get_active_plans($store_id);
+		$data['edit_membership'] = null;
+		$membership_id = $this->input->get('renew');
+		if($membership_id){ $data['edit_membership'] = $this->membership->get_customer_membership($membership_id); }
+
+		$data['_view'] = 'op_membership_assign';
+		$this->_mobile_render($data);
+	}
+
+	public function membership_save()
+	{
+		$this->permission_check('memberships_add');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$store_id = get_current_store_id();
+
+		$this->form_validation->set_rules('customer_id', 'Customer', 'trim|required|numeric');
+		$this->form_validation->set_rules('plan_id', 'Plan', 'trim|required|numeric');
+		$this->form_validation->set_rules('start_date', 'Start Date', 'trim|required');
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+		$plan = $this->membership->get_plan($this->input->post('plan_id', TRUE));
+		if(!$plan){ echo json_encode(['success' => false, 'message' => 'Invalid plan selected.']); return; }
+
+		$start_date = $this->input->post('start_date', TRUE);
+		switch($plan->billing_cycle){
+			case 'quarterly': $end_date = date('Y-m-d', strtotime($start_date.' +3 months -1 day')); break;
+			case 'annual':    $end_date = date('Y-m-d', strtotime($start_date.' +1 year -1 day')); break;
+			default:          $end_date = date('Y-m-d', strtotime($start_date.' +1 month -1 day'));
+		}
+		$membership_data = [
+			'store_id' => $store_id,
+			'customer_id' => (int)$this->input->post('customer_id', TRUE),
+			'plan_id' => (int)$this->input->post('plan_id', TRUE),
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'next_billing_date' => $end_date,
+			'auto_renew' => (int)($this->input->post('auto_renew', TRUE) ?: 0),
+			'status' => 'active',
+			'payment_status' => 'paid',
+			'amount_paid' => (float)($this->input->post('amount_paid', TRUE) ?: $plan->price),
+			'payment_method' => $this->input->post('payment_method', TRUE) ?: 'cash',
+			'notes' => $this->input->post('notes', TRUE)
+		];
+		$membership_id = $this->input->post('membership_id', TRUE) ?: null;
+		if($membership_id){
+			$this->membership->renew_membership($membership_id, $membership_data);
+		} else {
+			$membership_id = $this->membership->assign_membership($membership_data);
+		}
+		echo json_encode(['success' => true, 'membership_id' => $membership_id, 'message' => 'Membership saved.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function membership_cancel()
+	{
+		$this->permission_check('memberships_delete');
+		if(!mp_feature_enabled('memberships')){ $this->show_access_denied_page(); return; }
+		$this->load->model('membership_model','membership');
+		$id = $this->input->post('id', TRUE);
+		if(!$id){ echo json_encode(['success' => false, 'message' => 'Missing ID']); return; }
+		$this->membership->cancel_membership($id);
+		echo json_encode(['success' => true, 'message' => 'Membership cancelled.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- DELIVERY SCHEDULING ---------- */
+
+	public function deliveries($status = '')
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Deliveries';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$valid = ['planned','ready','out_for_delivery','completed','cancelled'];
+		$active = in_array($status, $valid) ? $status : '';
+		$data['active_status'] = $active;
+
+		$data['counts'] = [];
+		foreach($valid as $s){ $data['counts'][$s] = $this->db->where('store_id', $store_id)->where('status', $s)->count_all_results('db_delivery_schedules'); }
+
+		$this->db->where('store_id', $store_id);
+		if($active){ $this->db->where('status', $active); }
+		$this->db->order_by('schedule_date', 'desc')->order_by('id', 'desc');
+		$schedules = $this->db->limit(100)->get('db_delivery_schedules')->result();
+		foreach($schedules as $sc){
+			$sc->items_count = $this->db->where('schedule_id', $sc->id)->count_all_results('db_delivery_schedule_items');
+			$sc->delivered_count = $this->db->where('schedule_id', $sc->id)->where('delivery_status', 'delivered')->count_all_results('db_delivery_schedule_items');
+		}
+		$data['schedules'] = $schedules;
+
+		$data['_view'] = 'op_deliveries';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_form($id = 0)
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['schedule'] = null;
+		$data['schedule_items'] = [];
+		if($id){
+			$data['schedule'] = $this->delivery_model->get_details((int)$id);
+			if(empty($data['schedule'])){ show_404(); return; }
+			$data['schedule_items'] = $this->delivery_model->get_schedule_items((int)$id);
+		}
+		$data['page_title'] = $id ? 'Edit Delivery Schedule' : 'New Delivery Schedule';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['drivers'] = $this->delivery_model->get_drivers($store_id);
+		$data['pending_sales'] = $this->delivery_model->get_pending_sales($store_id);
+
+		$data['_view'] = 'op_delivery_form';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_save()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$store_id = get_current_store_id();
+		$q_id = (int)$this->input->post('q_id', TRUE);
+
+		if($q_id && !$this->delivery_model->get_details($q_id)){echo json_encode(['success'=>false,'message'=>'Schedule not found.']);return;}
+		foreach((array)$this->input->post('sales_id') as $saleId){if($saleId&&!$this->db->where('id',(int)$saleId)->where('store_id',$store_id)->count_all_results('db_sales')){echo json_encode(['success'=>false,'message'=>'Sale not found.']);return;}}
+		if($q_id){
+			// Update header only — save_and_update() would wipe existing stops
+			$driver_id = $this->input->post('driver_id', TRUE);
+			$driver_name = '';
+			if(!empty($driver_id)){
+				$drv = $this->db->where('id', $driver_id)->where('store_id',$store_id)->get('db_delivery_drivers')->row();
+				if(!$drv){echo json_encode(['success'=>false,'message'=>'Driver not found.']);return;}
+				$driver_name = $drv->name;
+			}
+			$this->db->where('id', $q_id)->where('store_id', $store_id)->update('db_delivery_schedules', [
+				'route_name'    => $this->input->post('route_name', TRUE),
+				'schedule_date' => system_fromatted_date($this->input->post('schedule_date', TRUE)),
+				'driver_id'     => $driver_id ?: null,
+				'driver_name'   => $driver_name,
+				'vehicle'       => $this->input->post('vehicle', TRUE),
+				'notes'         => $this->input->post('notes', TRUE),
+			]);
+
+			// Append any newly ticked sales
+			$sales_ids = $this->input->post('sales_id');
+			$sequences = $this->input->post('delivery_sequence');
+			if(!empty($sales_ids)){
+				$max_seq = (int)$this->db->select_max('delivery_sequence')->where('schedule_id', $q_id)->get('db_delivery_schedule_items')->row()->delivery_sequence;
+				foreach($sales_ids as $i => $sales_id){
+					if(empty($sales_id)) continue;
+					$exists = $this->db->where('schedule_id', $q_id)->where('sales_id', $sales_id)->count_all_results('db_delivery_schedule_items');
+					if($exists) continue;
+					$sale = $this->db->select('s.sales_code, s.customer_id, c.customer_name, c.mobile, s.shippingaddress_id')
+						->from('db_sales s')->join('db_customers c', 'c.id = s.customer_id', 'left')
+						->where('s.id', $sales_id)->where('s.store_id',$store_id)->get()->row();
+					$address = '';
+					if(!empty($sale->shippingaddress_id)){
+						$addr = $this->db->where('id', $sale->shippingaddress_id)->get('db_shippingaddress')->row();
+						if($addr){
+							$addr_parts = array_filter(array(
+								trim($addr->address ?? ''),
+								trim($addr->city ?? ''),
+								((int)($addr->state_id ?? 0) > 0) ? $addr->state_id : null,
+							));
+							$address = implode(', ', $addr_parts);
+						}
+					}
+					$max_seq++;
+					$this->db->insert('db_delivery_schedule_items', [
+						'schedule_id' => $q_id, 'sales_id' => $sales_id,
+						'sales_code' => $sale ? $sale->sales_code : '',
+						'customer_id' => $sale ? $sale->customer_id : null,
+						'customer_name' => $sale ? $sale->customer_name : '',
+						'address' => $address, 'phone' => $sale ? $sale->mobile : '',
+						'delivery_sequence' => $max_seq, 'delivery_status' => 'pending',
+					]);
+				}
+			}
+			echo json_encode(['success' => true, 'message' => 'Schedule updated.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			return;
+		}
+
+		$result = $this->delivery_model->save_and_update();
+		echo json_encode(['success' => ($result === 'success'), 'message' => $result === 'success' ? 'Schedule saved.' : 'Save failed.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_view($id)
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$data = $this->data;
+		$data['schedule'] = $this->delivery_model->get_details((int)$id);
+		if(empty($data['schedule'])){ show_404(); return; }
+		$data['schedule_items'] = $this->delivery_model->get_schedule_items((int)$id);
+		$data['page_title'] = 'Route — '.($data['schedule']['route_name'] ?: $data['schedule']['schedule_code']);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$data['_view'] = 'op_delivery_view';
+		$this->_mobile_render($data);
+	}
+
+	public function delivery_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$id = $this->input->post('id');
+		$status = $this->input->post('status');
+		$result = $this->delivery_model->update_status($id, $status);
+		echo json_encode(['success' => ($result === 'success' || $result === true), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_item_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$item_id = $this->input->post('item_id');
+		$status = $this->input->post('status');
+		$notes = $this->input->post('notes', TRUE);
+		$result = $this->delivery_model->mark_item_status($item_id, $status, $notes);
+		echo json_encode(['success' => ($result === 'success' || $result === true), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	public function delivery_delete()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('delivery_scheduling')){ $this->show_access_denied_page(); return; }
+		$this->load->model('delivery_model');
+		$id = $this->input->post('id');
+		$result = $this->delivery_model->delete_schedules($id);
+		echo json_encode(['success' => ($result === 'success'), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- WARRANTY LOOKUP ---------- */
+
+	public function warranty_lookup()
+	{
+		if(!mp_feature_enabled('serial_number_tracking') && !mp_feature_enabled('imei_tracking') && !mp_feature_enabled('warranty_tracking')){
+			$this->show_access_denied_page('Warranty lookup requires Serial Number, IMEI, or Warranty tracking to be enabled for your store.');
+			return;
+		}
+		$this->permission_check('store_view');
+		$data = $this->data;
+		$data['page_title'] = 'Warranty Lookup';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$search = $this->input->get('search', TRUE);
+		$data['search'] = $search;
+		$data['results'] = [];
+		if(!empty($search)){
+			$store_id = get_current_store_id();
+			$like_term = $this->db->escape_like_str(trim($search)).'%';
+
+			$base_sold = "SELECT si.*, s.sales_date, s.customer_id, s.sales_code, i.item_name, si.warranty_months_snapshot AS warranty_months, si.warranty_end AS effective_warranty_end, c.customer_name, c.mobile
+				FROM db_salesitems si
+				LEFT JOIN db_sales s ON s.id = si.sales_id
+				LEFT JOIN db_items i ON i.id = si.item_id
+				LEFT JOIN db_customers c ON c.id = s.customer_id
+				WHERE s.store_id = ? AND s.sales_status = 'Final' AND %s";
+			$sold_conditions = ["si.sold_serial_number LIKE ?","si.sold_imei_number LIKE ?","si.sold_imei_number_2 LIKE ?","s.sales_code LIKE ?","c.customer_name LIKE ?","c.mobile LIKE ?","i.item_name LIKE ?"];
+			$sold_parts = []; $sold_bind = [];
+			foreach($sold_conditions as $cond){
+				$sold_parts[] = sprintf($base_sold, $cond);
+				$sold_bind[] = $store_id; $sold_bind[] = $like_term;
+			}
+			$sold_results = $this->db->query(implode(" UNION ALL ", $sold_parts)." ORDER BY sales_date DESC LIMIT 100", $sold_bind)->result();
+
+			$base_unsold = "SELECT b.id as barcode_id, b.item_id, b.serial_number as sold_serial_number, b.imei_number as sold_imei_number, b.imei_number_2 as sold_imei_number_2, b.warranty_months, b.created_date as sales_date, NULL as effective_warranty_end, i.item_name, 'In Stock' as sales_code, NULL as customer_id, NULL as customer_name, NULL as mobile, 0 as sales_id
+				FROM db_item_barcodes b
+				LEFT JOIN db_items i ON i.id = b.item_id
+				WHERE i.store_id = ? AND b.status = 1 AND %s";
+			$unsold_conditions = ["b.serial_number LIKE ?","b.imei_number LIKE ?","b.imei_number_2 LIKE ?","i.item_name LIKE ?"];
+			$unsold_parts = []; $unsold_bind = [];
+			foreach($unsold_conditions as $cond){
+				$unsold_parts[] = sprintf($base_unsold, $cond);
+				$unsold_bind[] = $store_id; $unsold_bind[] = $like_term;
+			}
+			$unsold_results = $this->db->query(implode(" UNION ALL ", $unsold_parts)." ORDER BY sales_date DESC LIMIT 100", $unsold_bind)->result();
+			$data['results'] = array_merge($sold_results, $unsold_results);
+		}
+
+		$data['_view'] = 'op_warranty';
+		$this->_mobile_render($data);
+	}
+
+	public function warranty_claims()
+	{
+		if(!mp_feature_enabled('serial_number_tracking') && !mp_feature_enabled('imei_tracking') && !mp_feature_enabled('warranty_tracking')){
+			$this->show_access_denied_page('Warranty claims require warranty, serial number, or IMEI tracking to be enabled.'); return;
+		}
+		$this->permission_check('store_view');
+		$this->load->model('Warranty_claim_model','warranty_claims_model');
+		try {
+			if($this->input->method()==='post'){
+				if((int)$this->input->post('salesitems_id',TRUE)>0){
+					$this->warranty_claims_model->create($this->input->post('salesitems_id',TRUE),$this->input->post('issue',FALSE));
+					$this->session->set_flashdata('success','Warranty case opened.');
+				}else{
+					$this->warranty_claims_model->update_status($this->input->post('claim_id',TRUE),$this->input->post('status',TRUE),$this->input->post('decision_note',FALSE),$this->input->post('resolution_note',FALSE));
+					$this->session->set_flashdata('success','Warranty case updated.');
+				}
+				redirect('mobile/warranty_claims'); return;
+			}
+			$error='';
+		}catch(Throwable $e){ $error=$e->getMessage(); }
+		$search=$this->input->get('search',TRUE); $data=$this->data;
+		$data['page_title']='Warranty Cases'; $data['search']=$search; $data['error']=$error ?? '';
+		$data['claims']=$this->warranty_claims_model->list_claims($search);
+		$data['unit']=null; $unit_id=(int)$this->input->get('new',TRUE);
+		if($unit_id>0){
+			$data['unit']=$this->db->select('si.id,si.sold_serial_number,si.sold_imei_number,si.sold_imei_number_2,si.warranty_end,s.sales_code,s.sales_date,c.customer_name,i.item_name',false)
+				->from('db_salesitems si')->join('db_sales s','s.id=si.sales_id AND s.store_id=si.store_id','inner')
+				->join('db_items i','i.id=si.item_id AND i.store_id=si.store_id','left')->join('db_customers c','c.id=s.customer_id AND c.store_id=s.store_id','left')
+				->where('si.id',$unit_id)->where('si.store_id',(int)get_current_store_id())->where('s.sales_status','Final')->get()->row();
+		}
+		$data['_view']='mobile/warranty_claims'; $this->_mobile_render($data);
+	}
+
+	/* ---------- LAUNDRY ---------- */
+
+	public function laundry()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('laundry_workflow')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$this->load->model('laundry_model','laundry');
+		$this->laundry->sync_new_orders($store_id);
+
+		if($this->input->get('ajax')){
+			header('Content-Type: application/json');
+			echo json_encode(['status_counts' => $this->laundry->count_by_status($store_id)]);
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Laundry';
+		$profile = mp_get_store_profile();
+		$lw_config = [];
+		if(!empty($profile['industry_settings_json'])){
+			$json = json_decode($profile['industry_settings_json'], true);
+			if(!empty($json['laundry_workflow'])){ $lw_config = $json['laundry_workflow']; }
+		}
+		$data['lw_stages'] = [
+			'has_washing' => $lw_config['has_washing'] ?? true,
+			'has_ironing' => $lw_config['has_ironing'] ?? true,
+		];
+		$active_status = $this->input->get('status') ?: 'dropped_off';
+		if(!in_array($active_status, ['dropped_off','washing','ironing','ready'])){ $active_status = 'dropped_off'; }
+		$data['active_status'] = $active_status;
+		$data['status_counts'] = $this->laundry->count_by_status($store_id);
+		$data['orders'] = $this->laundry->get_orders($store_id, $active_status, 50);
+		$data['collected'] = $this->laundry->get_collected_orders($store_id, 10);
+
+		$data['_view'] = 'laundry';
+		$this->_mobile_render($data);
+	}
+
+	public function laundry_update_status()
+	{
+		$this->permission_check('store_view');
+		if(!mp_feature_enabled('laundry_workflow')){ $this->show_access_denied_page(); return; }
+		$store_id = get_current_store_id();
+		$id = (int)$this->input->post('laundry_order_id', TRUE);
+		$action = $this->input->post('action', TRUE);
+		if(!$id || empty($action)){
+			echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+			return;
+		}
+		$this->load->model('laundry_model','laundry');
+		$ok = $this->laundry->update_status($id, $store_id, $action);
+		header('Content-Type: application/json');
+		echo json_encode(['success' => $ok, 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- PRODUCTION ---------- */
+
+	public function oil_processing()
+	{
+		if(!function_exists('mp_get_store_profile') || (mp_get_store_profile()['industry_type'] ?? '') !== 'oil_processing_plant'){
+			redirect(base_url('mobile'));
+			return;
+		}
+		$this->permission_check('dashboard_view');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Processing Plant';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->model('Oil_processing_model', 'oil_workspace');
+		$data['plant_stats'] = $this->oil_workspace->dashboard_stats($store_id);
+		$data['can_sales_view'] = $this->permissions('sales_view');
+		$data['commercial'] = null;
+		$data['intel'] = array();
+		try {
+			$this->load->model('workspace_commercial_model', 'workspace_commercial');
+			$data['commercial'] = $data['can_sales_view'] ? $this->workspace_commercial->snapshot($store_id) : null;
+			$data['intel'] = $this->workspace_commercial->insights(
+				$data['commercial'] ?: array('overdue_invoices'=>0, 'billed_today'=>0, 'billed_yesterday'=>0, 'collected_today'=>0),
+				false, array(
+					'low_materials'=>$this->permissions('items_view') ? $data['plant_stats']['low_materials'] : 0,
+					'open_quotes'=>$this->permissions('quotation_view') ? $data['plant_stats']['open_quotes'] : 0,
+				), true);
+		} catch(Throwable $e) {
+			log_message('error', 'Mobile plant commercial dashboard failed: '.$e->getMessage());
+		}
+		$data['open_runs'] = $data['plant_stats']['open_runs'];
+		$data['recent_plant_runs'] = $this->db->table_exists('db_production_batches')
+			? $this->db->where('store_id', $store_id)->order_by('scheduled_date', 'DESC')->order_by('id', 'DESC')->limit(4)->get('db_production_batches')->result()
+			: [];
+		$data['can_purchase'] = $this->permissions('purchase_add');
+		$data['can_process'] = $this->permissions('production_batches_view') && mp_feature_enabled('production_workflow');
+		$data['can_quote'] = $this->permissions('quotation_add');
+		$data['can_quote_view'] = $this->permissions('quotation_view');
+		$data['can_sell'] = $this->permissions('sales_add');
+		$data['plant_subscription'] = null;
+		if($this->db->table_exists('db_subscription_license')){
+			try {
+				$this->load->model('subscription_license_model','sub_lic');
+				$data['plant_subscription'] = $this->sub_lic->get_status();
+			} catch(Throwable $e) {
+				log_message('error', 'Mobile plant subscription status failed: '.$e->getMessage());
+			}
+		}
+		$data['_view'] = 'oil_processing';
+		$this->_mobile_render($data);
+	}
+
+	public function production()
+	{
+		$this->permission_check('production_batches_view');
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->load->model('production_batches_model','pb');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Production';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$date_from = $this->input->get('from') ?: date('Y-m-d');
+		$date_to = $this->input->get('to') ?: date('Y-m-d', strtotime('+6 days'));
+		$data['date_from'] = $date_from;
+		$data['date_to'] = $date_to;
+		$data['prev_from'] = date('Y-m-d', strtotime($date_from.' -7 days'));
+		$data['prev_to'] = date('Y-m-d', strtotime($date_to.' -7 days'));
+		$data['next_from'] = date('Y-m-d', strtotime($date_from.' +7 days'));
+		$data['next_to'] = date('Y-m-d', strtotime($date_to.' +7 days'));
+		$data['batches'] = $this->pb->get_schedule($store_id, $date_from, $date_to);
+		$data['pending_items'] = $this->pb->get_pending_items($store_id);
+		$data['statuses'] = Production_batches_model::get_statuses(mp_get_store_profile()['industry_type'] ?? null, null);
+		$data['can_edit'] = $this->permissions('production_batches_edit');
+
+		$data['_view'] = 'op_production';
+		$this->_mobile_render($data);
+	}
+
+	public function production_status()
+	{
+		$this->permission_check('production_batches_view');
+		if(!mp_feature_enabled('production_workflow')){ $this->show_access_denied_page(); return; }
+		$this->load->model('production_batches_model','pb');
+
+		$id = $this->input->post('id', TRUE);
+		$new_status = $this->input->post('status', TRUE);
+		$current_status = $this->input->post('current_status', TRUE);
+		if(!$id || !$new_status || !$current_status){
+			echo json_encode(['success' => false, 'message' => 'Missing data']);
+			return;
+		}
+		$batch = $this->pb->get($id);
+		$status_order = array_flip(Production_batches_model::get_statuses(null, $batch ? $batch->batch_type : null));
+		if(($status_order[$new_status] ?? -1) < ($status_order[$current_status] ?? -1) && !$this->permissions('production_batches_edit')){
+			echo json_encode(['success' => false, 'message' => 'Moving status backward requires manager approval.']);
+			return;
+		}
+		if($new_status === 'completed'){
+			if($batch && $batch->status === 'completed'){
+				echo json_encode(['success' => false, 'message' => 'This batch is already completed and its stock was already posted.']);
+				return;
+			}
+			$shortages = $this->pb->validate_stock_for_batch($id);
+			if(!empty($shortages)){
+				$msg = 'Cannot complete — not enough stock: ';
+				foreach($shortages as $s){ $msg .= $s['item_name'].' (need '.$s['needed'].', have '.$s['available'].') '; }
+				echo json_encode(['success' => false, 'message' => $msg]);
+				return;
+			}
+			if(!$this->pb->complete_batch($id)){
+				echo json_encode(['success' => false, 'message' => 'Stock update failed. Please check the error log or contact support.']);
+				return;
+			}
+		}
+		$this->pb->save(['status' => $new_status], $id);
+		echo json_encode(['success' => true, 'message' => 'Status updated to '.Production_batches_model::status_label($new_status), 'csrf_hash' => $this->security->get_csrf_hash()]);
+	}
+
+	/* ---------- RECIPES ---------- */
+
+	public function recipes()
+	{
+		$this->permission_check('recipes_view');
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->load->model('recipe_model','recipe');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Recipes';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$q = trim((string)$this->input->get('q', TRUE));
+		$data['search'] = $q;
+		$this->db->from('db_recipes')->where('store_id', $store_id);
+		if($q !== ''){ $this->db->group_start()->like('name', $q)->or_like('recipe_code', $q)->or_like('category', $q)->group_end(); }
+		$this->db->order_by('name', 'asc');
+		$data['recipes'] = $this->db->limit(100)->get()->result();
+		foreach($data['recipes'] as $r){ $r->cost_per_unit = $this->recipe->calculate_cost_per_unit($r->id); }
+
+		$data['_view'] = 'op_recipes';
+		$this->_mobile_render($data);
+	}
+
+	public function recipe($id = 0)
+	{
+		$this->permission_check('recipes_view');
+		if(!mp_feature_enabled('recipe_tracking')){ $this->show_access_denied_page(); return; }
+		$this->load->model('recipe_model','recipe');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['recipe'] = $this->recipe->get((int)$id);
+		if(!$data['recipe']){ show_404(); return; }
+		$data['page_title'] = $data['recipe']->name;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['ingredients'] = $this->recipe->get_ingredients((int)$id);
+		$data['total_cost'] = $this->recipe->calculate_cost((int)$id);
+		$data['cost_per_unit'] = $this->recipe->calculate_cost_per_unit((int)$id);
+		$data['runs'] = $this->recipe->get_production_runs((int)$id, 10);
+
+		$data['_view'] = 'op_recipe';
+		$this->_mobile_render($data);
+	}
+
+	public function business_profile()
+	{
+		$this->permission_check('business_profile');
+		$data = $this->data;
+		$data['page_title'] = 'Business Profile';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->load->model('business_profile_model', 'bp_model');
+		$data['profile'] = $this->bp_model->get_profile($store_id);
+		$data['presets'] = $this->bp_model->get_available_presets();
+		$data['business_types'] = mp_get_business_types();
+		$data['business_models'] = mp_get_business_models();
+		$data['feature_flags'] = mp_get_feature_flags();
+		$data['label_defaults'] = mp_get_label_defaults();
+		$data['workflow_templates'] = mp_get_workflow_templates();
+		$data['dashboard_templates'] = mp_get_dashboard_templates();
+		// Batch rotation is configured with the pharmacy switches, on both shells.
+		$this->load->model('Inventory_rotation_model', 'rotation_model');
+		$data['rotation_method'] = $this->rotation_model->method($store_id);
+		$data['rotation_available'] = $this->db->table_exists('db_inventory_rotation_settings');
+		$data['rotation_gaps'] = mp_rotation_gap_count($store_id);
+		$this->load->model('storefront_model');
+		$data['storefront_themes'] = $this->storefront_model->getThemesByIndustryForStore($data['profile']['industry_type'] ?? null, true);
+
+		$data['current_flags'] = [];
+		if (!empty($data['profile']['feature_flags_json'])) {
+			$decoded = json_decode($data['profile']['feature_flags_json'], true);
+			if (is_array($decoded)) { $data['current_flags'] = $decoded; }
+		}
+		$data['current_labels'] = [];
+		if (!empty($data['profile']['label_overrides_json'])) {
+			$decoded = json_decode($data['profile']['label_overrides_json'], true);
+			if (is_array($decoded)) { $data['current_labels'] = $decoded; }
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/business_profile', $data);
+	}
+
+	public function online_store($page = null, $id = null)
+	{
+		if(!mp_feature_enabled('online_store') || (!$this->permissions('online_store_view') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1)){
+			$this->show_access_denied_page();
+			return;
+		}
+
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['back_url'] = base_url('mobile/online_store');
+		$data['can_edit'] = $this->permissions('online_store_edit') || is_admin() || is_store_admin() || $this->session->userdata('role_id') == 1;
+		$store_id = get_current_store_id();
+
+		$menu_items = [
+			['title' => 'Store Dashboard', 'icon' => 'fa-dashboard', 'url' => 'mobile/online_store/dashboard'],
+			['title' => 'Orders', 'icon' => 'fa-shopping-cart', 'url' => 'mobile/online_store/orders'],
+			['title' => 'Online Products', 'icon' => 'fa-cube', 'url' => 'mobile/online_store/products'],
+			['title' => 'Services', 'icon' => 'fa-wrench', 'url' => 'mobile/online_store/services'],
+			['title' => 'QR Codes', 'icon' => 'fa-qrcode', 'url' => 'mobile/online_store/qr_codes'],
+			['title' => 'Appearance', 'icon' => 'fa-paint-brush', 'url' => 'mobile/online_store/appearance'],
+			['title' => 'Banners', 'icon' => 'fa-image', 'url' => 'mobile/online_store/banners'],
+			['title' => 'Homepage Builder', 'icon' => 'fa-th-large', 'url' => 'mobile/online_store/homepage_builder'],
+			['title' => 'Domains', 'icon' => 'fa-globe', 'url' => 'mobile/online_store/domains'],
+			['title' => 'Brands', 'icon' => 'fa-copyright', 'url' => 'mobile/online_store/brands'],
+			['title' => 'Testimonials', 'icon' => 'fa-comments', 'url' => 'mobile/online_store/testimonials'],
+			['title' => 'Instagram', 'icon' => 'fa-instagram', 'url' => 'mobile/online_store/instagram'],
+			['title' => 'FAQs', 'icon' => 'fa-question-circle', 'url' => 'mobile/online_store/faqs'],
+			['title' => 'Subscribers', 'icon' => 'fa-envelope-o', 'url' => 'mobile/online_store/subscribers'],
+			['title' => 'Analytics', 'icon' => 'fa-bar-chart', 'url' => 'mobile/online_store/analytics'],
+			['title' => 'Store Settings', 'icon' => 'fa-cog', 'url' => 'mobile/online_store/settings'],
+		];
+
+		if(!mp_feature_enabled('qr_ordering')){
+			$menu_items = array_values(array_filter($menu_items, function($item){
+				return $item['title'] !== 'QR Codes';
+			}));
+		}
+
+		if($page === null){
+			$data['page_title'] = 'Online Store';
+			$data['menu_items'] = $menu_items;
+
+			header('Cache-Control: no-cache, must-revalidate, max-age=0');
+			header('Pragma: no-cache');
+			header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+			$this->load->view('mobile/online_store', $data);
+			return;
+		}
+
+		$this->load->model('storefront_model');
+
+		$page_titles = [
+			'dashboard' => 'Store Dashboard',
+			'orders' => 'Orders',
+			'products' => 'Online Products',
+			'services' => 'Services',
+			'qr_codes' => 'QR Codes',
+			'appearance' => 'Appearance',
+			'banners' => 'Banners',
+			'homepage_builder' => 'Homepage Builder',
+			'domains' => 'Domains',
+			'brands' => 'Brands',
+			'testimonials' => 'Testimonials',
+			'instagram' => 'Instagram',
+			'faqs' => 'FAQs',
+			'subscribers' => 'Subscribers',
+			'analytics' => 'Analytics',
+			'settings' => 'Store Settings',
+		];
+
+		$title = $page_titles[$page] ?? 'Online Store';
+		$data['page_title'] = $title;
+		$data['current_page'] = $page;
+
+		$view = 'mobile/online_store/coming_soon';
+
+		switch($page){
+			case 'dashboard':
+				$period = $this->input->get('period', TRUE) ?: 'today';
+				$from = $this->input->get('from', TRUE) ?: '';
+				$to = $this->input->get('to', TRUE) ?: '';
+				switch($period){
+					case 'yesterday':
+						$from = $to = date('Y-m-d', strtotime('-1 day'));
+						break;
+					case 'week':
+						$from = date('Y-m-d', strtotime('-6 days'));
+						$to = date('Y-m-d');
+						break;
+					case 'month':
+						$from = date('Y-m-d', strtotime('-29 days'));
+						$to = date('Y-m-d');
+						break;
+					case 'custom':
+						if(!$from || !$to){ $from = $to = date('Y-m-d'); $period = 'today'; }
+						break;
+					default:
+						$from = $to = date('Y-m-d');
+						$period = 'today';
+				}
+				$data['period'] = $period;
+				$data['from'] = $from;
+				$data['to'] = $to;
+
+				$stats = $this->db->query("SELECT COUNT(*) as total_orders, COALESCE(SUM(grand_total),0) as total_revenue, SUM(CASE WHEN order_status='pending' THEN 1 ELSE 0 END) as pending_orders, SUM(CASE WHEN payment_status='paid' THEN 1 ELSE 0 END) as paid_orders FROM db_online_orders WHERE store_id=? AND status=1 AND DATE(created_at) BETWEEN ? AND ?", [$store_id, $from, $to])->row();
+				$data['stats'] = [
+					'total_orders' => (int)$stats->total_orders,
+					'total_revenue' => (float)$stats->total_revenue,
+					'pending_orders' => (int)$stats->pending_orders,
+					'paid_orders' => (int)$stats->paid_orders,
+				];
+				$data['recent_orders'] = $this->db->where('store_id', $store_id)->where('status', 1)->where('DATE(created_at) >=', $from)->where('DATE(created_at) <=', $to)->order_by('id', 'desc')->limit(10)->get('db_online_orders')->result();
+				$data['top_products'] = $this->storefront_model->getTopOnlineProducts(null, 5);
+				$view = 'mobile/online_store/dashboard';
+				break;
+			case 'orders':
+				$status = $this->input->get('status', TRUE) ?: null;
+				$data['current_status'] = $status;
+				$data['orders'] = $this->storefront_model->getOrders(null, $status, 50, 0);
+				$view = 'mobile/online_store/orders';
+				break;
+			case 'products':
+			case 'products_online':
+				$search = trim($this->input->get('search', TRUE) ?: '');
+				$category_id = (int)$this->input->get('category', TRUE);
+				$data['search'] = $search;
+				$data['category_id'] = $category_id;
+				$this->db->select('a.id, a.item_name, a.item_image, a.stock, a.sales_price, a.online_price, a.publish_online, a.is_featured, a.is_new_arrival, a.status, b.category_name');
+				$this->db->from('db_items a');
+				$this->db->join('db_category b', 'b.id=a.category_id', 'left');
+				$this->db->where('a.store_id', $store_id);
+				$this->db->where('a.service_bit', 0);
+				$this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)", null, false);
+				$this->db->where("(a.item_group IS NULL OR a.item_group='Single')");
+				if($category_id){
+					mp_category_filter('a.category_id',$category_id,$store_id);
+				}
+				if($search){
+					$this->db->group_start();
+					$this->db->like('a.item_name', $search);
+					$this->db->or_like('a.item_code', $search);
+					$this->db->group_end();
+				}
+				$this->db->order_by('a.id', 'desc');
+				$data['products'] = $this->db->get()->result();
+				// Categories for filter dropdown
+				$data['categories'] = $this->db->select('id, category_name')
+				                               ->where('store_id', $store_id)
+				                               ->where('status', 1)
+				                               ->order_by('category_name', 'asc')
+				                               ->get('db_category')->result();
+				$view = 'mobile/online_store/products';
+				break;
+			case 'services':
+				$search = $this->input->get('search', TRUE) ?: '';
+				$data['search'] = $search;
+				$data['services'] = $this->storefront_model->getOnlineServices(null, null, $search, 50, 0);
+				$view = 'mobile/online_store/services';
+				break;
+			case 'banners':
+				$data['banners'] = $this->db->table_exists('db_storefront_banners') ? $this->storefront_model->getBanners() : [];
+				$view = 'mobile/online_store/banners';
+				break;
+			case 'banner_form':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$banner_id = (int)$id;
+				$data['banner'] = $banner_id ? $this->storefront_model->getBanner($banner_id, $store_id) : null;
+				$data['page_title'] = $data['banner'] ? 'Edit Banner' : 'Add Banner';
+				$data['back_url'] = base_url('mobile/online_store/banners');
+				$view = 'mobile/online_store/banner_form';
+				break;
+			case 'delete_banner':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$banner_id = (int)$id;
+				if($banner_id){
+					$this->storefront_model->deleteBanner($banner_id, $store_id);
+					$this->session->set_flashdata('success', 'Banner deleted.');
+				}
+				redirect('mobile/online_store/banners');
+				return;
+			case 'domains':
+				$data['domains'] = $this->db->table_exists('db_storefront_domains') ? $this->storefront_model->getDomains() : [];
+				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$view = 'mobile/online_store/domains';
+				break;
+			case 'brands':
+				$data['brands'] = $this->db->table_exists('db_storefront_brands') ? $this->storefront_model->getStorefrontBrands($store_id, false) : [];
+				$view = 'mobile/online_store/brands';
+				break;
+			case 'testimonials':
+				$data['testimonials'] = $this->db->table_exists('db_storefront_testimonials') ? $this->storefront_model->getStorefrontTestimonials($store_id, false) : [];
+				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$view = 'mobile/online_store/testimonials';
+				break;
+			case 'instagram':
+				$data['posts'] = $this->db->table_exists('db_storefront_instagram') ? $this->storefront_model->getStorefrontInstagram($store_id, false) : [];
+				$view = 'mobile/online_store/instagram';
+				break;
+			case 'qr_codes':
+				$data['qr_codes'] = $this->db->table_exists('db_qr_codes') ? $this->storefront_model->getQrCodes() : [];
+				$data['products'] = $this->db->table_exists('db_items') ? $this->storefront_model->getOnlineProducts() : [];
+				$data['services'] = $this->db->table_exists('db_items') ? $this->storefront_model->getOnlineServices() : [];
+				$data['categories'] = $this->db->table_exists('db_items') ? $this->storefront_model->getCategoriesWithItems() : [];
+				$view = 'mobile/online_store/qr_codes';
+				break;
+			case 'faqs':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$data['faqs'] = $this->storefront_model->getStorefrontFaqs($store_id, false);
+				$view = 'mobile/online_store/faqs';
+				break;
+			case 'subscribers':
+				$data['subscribers'] = $this->db->table_exists('db_newsletter_subscribers') ? $this->storefront_model->getNewsletterSubscribers($store_id) : [];
+				$data['total_subscribers'] = $this->db->table_exists('db_newsletter_subscribers') ? $this->storefront_model->countNewsletterSubscribers($store_id) : 0;
+				$view = 'mobile/online_store/subscribers';
+				break;
+			case 'faq_form':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$faq_id = (int)$this->input->get('id', TRUE);
+				$data['faq'] = $faq_id ? $this->db->where('id', $faq_id)->where('store_id', $store_id)->get('db_storefront_faqs')->row() : null;
+				$view = 'mobile/online_store/faq_form';
+				break;
+			case 'order':
+				$order_id = (int)$id;
+				$order = $order_id ? $this->storefront_model->getOrder($order_id) : null;
+				if(!$order || (int)$order->store_id !== (int)$store_id){ show_404(); exit; }
+				$data['order'] = $order;
+				$this->load->model('online_payments_model', 'onlinepay');
+				$data['money_box'] = $this->onlinepay->summaryFor($order);
+				$data['trail'] = $this->storefront_model->orderTrail((int)$order->store_id, $order_id, 8);
+				$data['delivery_box'] = [
+					'collection' => $this->storefront_model->orderIsCollection($order),
+					'status' => (string)($order->delivery_status ?? ''),
+					'word' => $this->storefront_model->deliveryWord($order->delivery_status ?: 'pending'),
+				];
+				$data['can_move_delivery'] = !empty($data['can_edit']);
+				$data['items'] = $this->storefront_model->getOrderItems($order_id);
+				$data['back_url'] = base_url('mobile/online_store/orders');
+				$data['page_title'] = 'Order #' . $order->order_code;
+				$view = 'mobile/online_store/order';
+				break;
+			case 'banner_form':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$banner_id = (int)$id;
+				$data['banner'] = $banner_id ? $this->storefront_model->getBanner($banner_id, $store_id) : null;
+				$data['page_title'] = $data['banner'] ? 'Edit Banner' : 'Add Banner';
+				$data['back_url'] = base_url('mobile/online_store/banners');
+				$view = 'mobile/online_store/banner_form';
+				break;
+			case 'appearance':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$profile = mp_get_store_profile($store_id);
+				$data['themes'] = $this->storefront_model->getThemesByIndustryForStore($profile['industry_type'] ?? null, true);
+				$data['current_theme'] = $this->storefront_model->getTheme($data['settings']->theme_id ?? 0);
+				$view = 'mobile/online_store/appearance';
+				break;
+			case 'settings':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$this->load->helper('inventory');
+				$data['shipping_countries']=$this->db->select('country')->from('db_country')->where('status',1)->order_by('country','ASC')->get()->result_array();
+				$data['shipping_states']=mp_shipping_zone_states($store_id);
+				$data['shipping_zone_rows']=mp_shipping_zone_editor_rows($data['settings']->city_shipping_json ?? '');
+				$data['is_saved'] = $this->db->where('store_id', $store_id)->get('db_storefront_settings')->num_rows() > 0;
+				$data['store'] = get_store_details($store_id);
+				$data['categories'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_category')->result();
+				$data['warehouses'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_warehouse')->result();
+				$this->load->model('paystack_model','paystack');
+				$data['paystack_enabled'] = $this->paystack->is_enabled();
+				$view = 'mobile/online_store/settings';
+				break;
+			case 'homepage_builder':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$sections = $this->storefront_model->getHomepageSections($store_id);
+				if(empty($sections)){
+					$this->storefront_model->resetHomepageSections($store_id);
+					$sections = $this->storefront_model->getHomepageSections($store_id);
+				}
+				$data['homepage_sections'] = $sections;
+				$data['settings'] = $this->storefront_model->getSettings($store_id);
+				$view = 'mobile/online_store/homepage_builder';
+				break;
+			case 'analytics':
+				if(!$data['can_edit']){ $this->show_access_denied_page(); return; }
+				$filter = $this->input->get('filter', TRUE) ?: 'month';
+				$customStart = $this->input->get('start', TRUE);
+				$customEnd = $this->input->get('end', TRUE);
+				$startDate = $endDate = null; $rangeLabel = '';
+				switch($filter){
+					case 'today':
+						$startDate = date('Y-m-d 00:00:00'); $endDate = date('Y-m-d 23:59:59'); $rangeLabel = 'Today'; break;
+					case 'week':
+						$startDate = date('Y-m-d 00:00:00', strtotime('monday this week'));
+						$endDate = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+						$rangeLabel = 'This Week'; break;
+					case 'month':
+						$startDate = date('Y-m-01 00:00:00'); $endDate = date('Y-m-t 23:59:59'); $rangeLabel = date('F Y'); break;
+					case 'year':
+						$startDate = date('Y-01-01 00:00:00'); $endDate = date('Y-12-31 23:59:59'); $rangeLabel = date('Y'); break;
+					case 'custom':
+						$startDate = $customStart ? date('Y-m-d 00:00:00', strtotime($customStart)) : date('Y-m-d 00:00:00', strtotime('-30 days'));
+						$endDate = $customEnd ? date('Y-m-d 23:59:59', strtotime($customEnd)) : date('Y-m-d 23:59:59');
+						$rangeLabel = date('M j, Y', strtotime($startDate)) . ' - ' . date('M j, Y', strtotime($endDate));
+						break;
+					default:
+						$startDate = date('Y-m-01 00:00:00'); $endDate = date('Y-m-t 23:59:59'); $rangeLabel = date('F Y'); $filter = 'month';
+				}
+				$chartData = []; $chartLabels = []; $chartType = 'day';
+				if($filter == 'today'){
+					$chartType = 'hour';
+					$hourly = $this->storefront_model->getVisitsByHour($store_id, date('Y-m-d'));
+					for($h=0; $h<24; $h++){
+						$found = null;
+						foreach($hourly as $row){ if((int)$row->hour === $h){ $found = $row; break; } }
+						$chartLabels[] = sprintf('%02d:00', $h); $chartData[] = (int)($found->visits ?? 0);
+					}
+				}elseif($filter == 'year'){
+					$chartType = 'month';
+					$monthly = $this->storefront_model->getVisitsByMonth($store_id, $startDate, $endDate);
+					for($m=1; $m<=12; $m++){
+						$monthKey = date('Y') . '-' . sprintf('%02d', $m); $found = null;
+						foreach($monthly as $row){ if($row->month == $monthKey){ $found = $row; break; } }
+						$chartLabels[] = date('M', mktime(0,0,0,$m,1)); $chartData[] = (int)($found->visits ?? 0);
+					}
+				}else{
+					$chartType = 'day';
+					$daily = $this->storefront_model->getDailyVisits($store_id, $startDate, $endDate);
+					$periodStart = new DateTime($startDate); $periodEnd = new DateTime($endDate);
+					$interval = new DateInterval('P1D');
+					$period = new DatePeriod($periodStart, $interval, $periodEnd->modify('+1 day'));
+					foreach($period as $dt){
+						$d = $dt->format('Y-m-d'); $found = null;
+						foreach($daily as $row){ if($row->date == $d){ $found = $row; break; } }
+						$chartLabels[] = $dt->format('j'); $chartData[] = (int)($found->visits ?? 0);
+					}
+				}
+				$data['summary'] = $this->storefront_model->getAnalyticsSummary($store_id, $startDate, $endDate);
+				$data['top_sources'] = $this->storefront_model->getTopSources($store_id, $startDate, $endDate);
+				$data['top_pages'] = $this->storefront_model->getTopPages($store_id, $startDate, $endDate);
+				$data['chart_labels'] = $chartLabels;
+				$data['chart_data'] = $chartData;
+				$data['chart_type'] = $chartType;
+				$data['heatmap'] = $this->storefront_model->getHeatmapData($store_id, $startDate, $endDate);
+				$data['devices'] = $this->storefront_model->getDeviceBreakdown($store_id, $startDate, $endDate);
+				$data['search_terms'] = $this->storefront_model->getSearchTerms($store_id, $startDate, $endDate);
+				$data['customers'] = $this->storefront_model->getCustomerVisits($store_id, $startDate, $endDate);
+				$data['recent_visits'] = $this->storefront_model->getRecentVisits($store_id, 50);
+				$data['filter'] = $filter;
+				$data['range_label'] = $rangeLabel;
+				$data['start_date'] = date('Y-m-d', strtotime($startDate));
+				$data['end_date'] = date('Y-m-d', strtotime($endDate));
+				$view = 'mobile/online_store/analytics';
+				break;
+			default:
+				$data['menu_items'] = $menu_items;
+				break;
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view($view, $data);
+	}
+
+	public function reports()
+	{
+		$this->permission_check('dashboard_view');
+		$data = $this->data;
+		$data['page_title'] = 'Reports';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$report_types = [
+			['type' => 'approval_logs', 'title' => 'Approval Logs', 'desc' => 'Manager approval trail', 'icon' => 'fa-check-circle-o', 'perm' => 'approval_logs_view', 'color' => 'green', 'url' => 'mobile/approval_logs'],
+			['type' => 'sales_return_payments', 'title' => 'Sales Return Payments', 'desc' => 'Refunds and return receipts', 'icon' => 'fa-undo', 'perm' => 'sales_payments_report', 'color' => 'orange'],
+			['type' => 'stock_transfer', 'title' => 'Stock Transfer Report', 'desc' => 'Branch-to-branch transfers', 'icon' => 'fa-exchange', 'perm' => 'stock_transfer_report', 'color' => 'teal'],
+			['type' => 'expired_items', 'title' => 'Expired Items Report', 'desc' => 'Expired and near-expiry stock', 'icon' => 'fa-files-o', 'perm' => 'expired_items_report', 'color' => 'red'],
+			['type' => 'profit_loss', 'title' => 'Profit & Loss Report', 'desc' => 'Income, expenses & profit', 'icon' => 'fa-line-chart', 'perm' => 'profit_report', 'color' => 'blue'],
+			['type' => 'sales_summary', 'title' => 'Daily Business Summary', 'desc' => 'Daily sales overview', 'icon' => 'fa-calendar', 'perm' => 'sales_summary_report', 'color' => 'green'],
+			['type' => 'receivables_aging', 'title' => 'Receivables Aging', 'desc' => 'Customer dues by age', 'icon' => 'fa-hourglass', 'perm' => 'receivables_aging_report', 'color' => 'red'],
+			['type' => 'inventory_aging', 'title' => 'Inventory Aging', 'desc' => 'Dead and slow stock', 'icon' => 'fa-cubes', 'perm' => 'inventory_aging_report', 'color' => 'teal'],
+			['type' => 'cash_flow', 'title' => 'Cash Flow Statement', 'desc' => 'Cash in vs out', 'icon' => 'fa-money', 'perm' => 'cash_flow_report', 'color' => 'green'],
+			['type' => 'variant_attribute', 'title' => 'Best Seller by Attribute', 'desc' => 'Best selling variants', 'icon' => 'fa-star', 'perm' => 'variant_attribute_report', 'color' => 'purple'],
+			['type' => 'sell_through', 'title' => 'Sell-Through Report', 'desc' => 'Sell-through rates', 'icon' => 'fa-line-chart', 'perm' => 'sell_through_report', 'color' => 'orange'],
+			['type' => 'reorder_suggestion', 'title' => 'Reorder Suggestions', 'desc' => 'Items to reorder', 'icon' => 'fa-shopping-basket', 'perm' => 'reorder_suggestion_report', 'color' => 'yellow'],
+			['type' => 'sales_and_payments', 'title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'desc' => 'Invoices and payments', 'icon' => 'fa-credit-card', 'perm' => 'sales_report', 'color' => 'primary'],
+			['type' => 'sales_tax', 'title' => 'Tax Report', 'desc' => 'Sales tax summary', 'icon' => 'fa-percent', 'perm' => 'sales_tax_report', 'color' => 'red'],
+			['type' => 'sales', 'title' => 'Sales Report', 'desc' => 'Invoices, totals & dues', 'icon' => 'fa-shopping-cart', 'perm' => 'sales_report', 'color' => 'primary'],
+			['type' => 'repeat_purchase_trends', 'title' => 'Repeat-Purchase Trends', 'desc' => 'Returning customers and repeat revenue by month', 'icon' => 'fa-repeat', 'perm' => 'sales_report', 'color' => 'green'],
+			['type' => 'customer_group_sales', 'title' => 'Member & Retail Sales', 'desc' => 'Sales separated by saved customer group prices', 'icon' => 'fa-users', 'perm' => 'sales_report', 'color' => 'blue', 'url' => 'reports/customer_group_sales?screen=mobile'],
+			['type' => 'sales_return', 'title' => 'Sales Return', 'desc' => 'Returned sales', 'icon' => 'fa-undo', 'perm' => 'sales_return_report', 'color' => 'orange'],
+			['type' => 'purchase', 'title' => 'Purchase Report', 'desc' => 'Purchase invoices', 'icon' => 'fa-cart-arrow-down', 'perm' => 'purchase_report', 'color' => 'green'],
+			['type' => 'purchase_return', 'title' => 'Purchase Return', 'desc' => 'Purchase returns', 'icon' => 'fa-reply', 'perm' => 'purchase_return_report', 'color' => 'red'],
+			['type' => 'expense', 'title' => 'Expense Report', 'desc' => 'Business expenses', 'icon' => 'fa-money', 'perm' => 'expense_report', 'color' => 'yellow'],
+			['type' => 'stock', 'title' => 'Stock Report', 'desc' => 'Item & brand wise stock', 'icon' => 'fa-cubes', 'perm' => 'stock_report', 'color' => 'teal'],
+			['type' => 'item_sales', 'title' => 'Item Sales Report', 'desc' => 'Best selling items', 'icon' => 'fa-barcode', 'perm' => 'item_sales_report', 'color' => 'purple'],
+			['type' => 'return_item', 'title' => 'Return Items', 'desc' => 'Items returned by customers', 'icon' => 'fa-refresh', 'perm' => 'return_items_report', 'color' => 'orange'],
+		];
+
+		$data['report_types'] = [];
+		foreach($report_types as $r){
+			if($this->permissions($r['perm'])){
+				$data['report_types'][] = $r;
+			}
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/reports', $data);
+	}
+
+	public function report($type = '')
+	{
+        if ($type==='sales_and_payments' && (mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping') { $this->permission_check('sales_report');redirect('garden/sales_report?screen=mobile');return; }
+		$map = [
+			'sales' => ['title' => 'Sales Report', 'perm' => 'sales_report', 'endpoint' => 'reports/show_sales_report'],
+			'repeat_purchase_trends' => ['title' => 'Repeat-Purchase Trends', 'perm' => 'sales_report', 'endpoint' => 'reports/show_repeat_purchase_trends', 'headers' => ['#', 'Month', 'Active customers', 'Returning customers', 'Repeat-customer rate', 'Repeat orders', 'Repeat-order revenue', 'Completed orders']],
+			'sales_return' => ['title' => 'Sales Return', 'perm' => 'sales_return_report', 'endpoint' => 'reports/show_sales_return_report'],
+			'purchase' => ['title' => 'Purchase Report', 'perm' => 'purchase_report', 'endpoint' => 'reports/show_purchase_report'],
+			'purchase_return' => ['title' => 'Purchase Return', 'perm' => 'purchase_return_report', 'endpoint' => 'reports/show_purchase_return_report'],
+			'expense' => ['title' => 'Expense Report', 'perm' => 'expense_report', 'endpoint' => 'reports/show_expense_report'],
+			'stock' => ['title' => 'Stock Report', 'perm' => 'stock_report', 'endpoint' => 'reports/get_stock_report'],
+			'item_sales' => ['title' => 'Item Sales Report', 'perm' => 'item_sales_report', 'endpoint' => 'reports/show_item_sales_report'],
+			'return_item' => ['title' => 'Return Items', 'perm' => 'return_items_report', 'endpoint' => 'reports/show_return_items_report'],
+			'profit_loss' => ['title' => 'Profit & Loss', 'perm' => 'profit_report', 'endpoint' => 'reports/get_profit_loss_report'],
+			'cash_flow' => ['title' => 'Cash Flow', 'perm' => 'cash_flow_report', 'endpoint' => 'reports/show_cash_flow_report'],
+			'sales_summary' => ['title' => 'Daily Business Summary', 'perm' => 'sales_summary_report', 'endpoint' => 'reports/show_sales_summary_report', 'headers' => ['#', 'Item', 'Category', 'Qty']],
+			'receivables_aging' => ['title' => 'Receivables Aging', 'perm' => 'receivables_aging_report', 'endpoint' => 'reports/show_receivables_aging_report', 'headers' => ['#', 'Customer', 'Mobile', '0-30 days', '31-60 days', '61-90 days', '90+ days', 'Total']],
+			'inventory_aging' => ['title' => 'Inventory Aging', 'perm' => 'inventory_aging_report', 'endpoint' => 'reports/show_inventory_aging_report', 'headers' => ['#', 'Item', 'Category', 'Stock', 'Value', 'Last Sold', 'Days', 'Bucket']],
+			'variant_attribute' => ['title' => 'Best Seller by Attribute', 'perm' => 'variant_attribute_report', 'endpoint' => 'reports/show_variant_attribute_report'],
+			'sell_through' => ['title' => 'Sell-Through Report', 'perm' => 'sell_through_report', 'endpoint' => 'reports/show_sell_through_report'],
+			'reorder_suggestion' => ['title' => 'Reorder Suggestions', 'perm' => 'reorder_suggestion_report', 'endpoint' => 'reports/show_reorder_suggestion_report'],
+			'sales_and_payments' => ['title' => ((mp_get_store_profile()['industry_type'] ?? '')==='garden_centre_landscaping' ? 'Sales & Collections' : 'Sales & Payment Report'), 'perm' => 'sales_report', 'endpoint' => 'reports/sales_and_payments_report'],
+			'sales_tax' => ['title' => 'Tax Report', 'perm' => 'sales_tax_report', 'endpoint' => 'reports/show_sales_tax_report'],
+			'sales_return_payments' => ['title' => 'Sales Return Payments', 'perm' => 'sales_payments_report', 'endpoint' => 'reports/show_sales_return_payments_report'],
+			'stock_transfer' => ['title' => 'Stock Transfer Report', 'perm' => 'stock_transfer_report', 'endpoint' => 'reports/show_stock_transfer_report', 'headers' => ['#', 'Date', 'From Branch', 'To Branch', 'Product', 'Category', 'Brand', 'Qty']],
+			'expired_items' => ['title' => 'Expired Items Report', 'perm' => 'expired_items_report', 'endpoint' => 'reports/show_expired_items_report', 'headers' => ['#', 'Status', 'Item Code', 'Item Name', 'Location', 'Batch / Lot', 'Expiry', 'Stock']],
+		];
+		if(!isset($map[$type])){
+			show_404(); exit;
+		}
+		$this->permission_check($map[$type]['perm']);
+		$data = $this->data;
+		$data['page_title'] = $map[$type]['title'];
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$report = $map[$type];
+		if(isset($report['headers']) && store_module() && is_admin()){
+			array_splice($report['headers'], 1, 0, ['Store']);
+		}
+		$data['report'] = array_merge($report, ['type' => $type]);
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/report_viewer', $data);
+	}
+
+	public function users()
+	{
+		$this->permission_check('users_view');
+		$data = $this->data;
+		$data['page_title'] = 'Users';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->db->select('a.*, b.role_name');
+		$this->db->from('db_users a');
+		$this->db->join('db_roles b', 'b.id = a.role_id', 'left');
+		if(!is_admin()){
+			$this->db->where('a.store_id', $store_id);
+			$system_roles = store_admin_role_ids($store_id);
+			$this->db->where_not_in('a.role_id', $system_roles);
+		}
+		$this->db->order_by('a.id', 'desc');
+		$users = $this->db->get()->result();
+
+		foreach($users as $u){
+			$wh = $this->db->select('w.warehouse_name')
+				->from('db_userswarehouses uw')
+				->join('db_warehouse w', 'w.id = uw.warehouse_id', 'left')
+				->where('uw.user_id', $u->id)
+				->get()
+				->result();
+			$u->warehouse_names = array_column($wh, 'warehouse_name');
+		}
+
+		$user_used = get_user_usage();
+		$user_limit = get_subscription_limit('user_limit');
+		$data['user_used'] = $user_used;
+		$data['user_limit'] = $user_limit;
+		$data['at_limit'] = ($user_limit > 0 && $user_used >= $user_limit);
+		$data['can_add'] = ($this->permissions('users_add') && !$data['at_limit']);
+		$data['can_edit'] = $this->permissions('users_edit');
+		$data['can_delete'] = $this->permissions('users_delete');
+		$data['current_user_id'] = $this->session->userdata('inv_userid');
+		$data['users'] = $users;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/users', $data);
+	}
+
+	public function user_form($id = 0)
+	{
+		if($id == 0){
+			$this->permission_check('users_add');
+		} else {
+			$this->permission_check('users_edit');
+			if(!is_admin()){
+				$user = $this->db->where('id', $id)->get('db_users')->row();
+				if(!$user || $user->store_id != get_current_store_id()){
+					show_error('Invalid Data', 403, 'You have entered Invalid Data!!');
+					exit;
+				}
+			}
+		}
+
+		$this->load->model('users_model');
+		$data = $this->data;
+		$data['page_title'] = ($id == 0) ? 'Add User' : 'Edit User';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['q_id'] = $id;
+		$data['store_id'] = get_current_store_id();
+
+		if($id > 0){
+			$d = $this->users_model->get_details($id);
+			$data['username'] = $d['username'];
+			$data['first_name'] = $d['first_name'];
+			$data['last_name'] = $d['last_name'];
+			$data['mobile'] = $d['mobile'];
+			$data['email'] = $d['email'];
+			$data['role_id'] = $d['role_id'];
+			$data['profile_picture'] = $d['profile_picture'];
+			$data['default_warehouse_id'] = $d['default_warehouse_id'];
+			$data['store_id'] = $d['store_id'];
+			$wh = $this->db->select('warehouse_id')->where('user_id', $id)->get('db_userswarehouses')->result();
+			$data['user_warehouse_ids'] = array_column($wh, 'warehouse_id');
+		} else {
+			$data['username'] = '';
+			$data['first_name'] = '';
+			$data['last_name'] = '';
+			$data['mobile'] = '';
+			$data['email'] = '';
+			$data['role_id'] = '';
+			$data['profile_picture'] = '';
+			$data['default_warehouse_id'] = '';
+			$data['user_warehouse_ids'] = [];
+		}
+
+		if(warehouse_module() && warehouse_count() > 0){
+			if(!is_admin() && !is_store_admin()){
+				$allowed = $this->db->select('warehouse_id')->where('user_id', get_current_user_id())->get('db_userswarehouses')->result();
+				$ids = array_column($allowed, 'warehouse_id');
+				if(!empty($ids)){
+					$this->db->where_in('id', $ids);
+				} else {
+					$this->db->where('id', 0);
+				}
+			}
+			$data['warehouses'] = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_warehouse')->result();
+		} else {
+			$data['warehouses'] = [];
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/user_form', $data);
+	}
+
+	public function finance($type = 'accounts', $action = 'list', $id = 0)
+	{
+		$valid = ['accounts','money_transfers','money_deposits','cash_transactions','tills','expenses'];
+		if(!in_array($type, $valid)){
+			show_404(); exit;
+		}
+
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['type'] = $type;
+		$data['action'] = $action;
+		$data['q_id'] = $id = (int)$id;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		// Load accounts select for forms
+		$data['accounts'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('account_name')->get('ac_accounts')->result();
+
+		// Permissions and data
+		switch($type){
+			case 'accounts':
+				$data['page_title'] = ($action == 'form') ? (($id > 0) ? 'Edit Account' : 'New Account') : 'Account List';
+				if($action == 'list'){
+					$this->permission_check('accounts_view');
+					$data['records'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('account_name')->get('ac_accounts')->result();
+				} else {
+					$this->permission_check($id > 0 ? 'accounts_edit' : 'accounts_add');
+					$this->load->model('accounts_model','accounts');
+					if($id > 0){
+						$detail = $this->accounts->get_details($id, []);
+						$data = array_merge($data, $detail);
+					} else {
+						$data['account_code'] = $data['account_name'] = $data['note'] = '';
+						$data['bank_name'] = $data['bank_account_name'] = $data['bank_account_number'] = '';
+						$data['parent_id'] = '';
+						$data['opening_balance'] = '0';
+					}
+				}
+				break;
+
+			case 'money_transfers':
+				$data['page_title'] = ($action == 'form') ? (($id > 0) ? 'Edit Transfer' : 'New Transfer') : 'Money Transfers';
+				if($action == 'list'){
+					$this->permission_check('money_transfer_view');
+					$data['records'] = $this->db->where('store_id', $store_id)->order_by('id','desc')->get('ac_moneytransfer')->result();
+				} else {
+					$this->permission_check($id > 0 ? 'money_transfer_edit' : 'money_transfer_add');
+					$this->load->model('money_transfer_model','money_transfer');
+					if($id > 0){
+						$detail = $this->money_transfer->get_details($id, []);
+						$data = array_merge($data, $detail);
+					} else {
+						$data['transfer_code'] = get_init_code('money_transfer');
+						$data['transfer_date'] = date('Y-m-d');
+						$data['reference_no'] = '';
+						$data['debit_account_id'] = '';
+						$data['credit_account_id'] = '';
+						$data['amount'] = '';
+						$data['note'] = '';
+					}
+				}
+				break;
+
+			case 'money_deposits':
+				$data['page_title'] = ($action == 'form') ? (($id > 0) ? 'Edit Deposit' : 'New Deposit') : 'Deposits';
+				if($action == 'list'){
+					$this->permission_check('money_deposit_view');
+					$data['records'] = $this->db->where('store_id', $store_id)->order_by('id','desc')->get('ac_moneydeposits')->result();
+				} else {
+					$this->permission_check($id > 0 ? 'money_deposit_edit' : 'money_deposit_add');
+					$this->load->model('money_deposit_model','money_deposit');
+					if($id > 0){
+						$detail = $this->money_deposit->get_details($id, []);
+						$data = array_merge($data, $detail);
+					} else {
+						$data['deposit_date'] = date('Y-m-d');
+						$data['reference_no'] = '';
+						$data['debit_account_id'] = '';
+						$data['credit_account_id'] = '';
+						$data['amount'] = '';
+						$data['note'] = '';
+					}
+				}
+				break;
+
+			case 'cash_transactions':
+				$this->permission_check('accounts_view');
+				$data['page_title'] = 'Cash Transactions';
+				$this->load->model('cash_transactions_model','cash');
+				$_POST['from_date'] = date('Y-m-d', strtotime('-30 days'));
+				$_POST['to_date'] = date('Y-m-d');
+				$_POST['length'] = 100;
+				$_POST['start'] = 0;
+				$data['records'] = $this->cash->get_datatables();
+				break;
+
+			case 'tills':
+				$data['page_title'] = ($action == 'form') ? (($id > 0) ? 'Edit Till' : 'New Till') : 'Tills / Cash-in-Hand';
+				if($action == 'list'){
+					$this->permission_check('tills_view');
+					$this->load->model('tills_model','tills');
+					$data['records'] = $this->tills->get_all();
+				} else {
+					$this->permission_check($id > 0 ? 'tills_edit' : 'tills_add');
+					$this->load->model('tills_model','tills');
+					$data['users'] = physio_staff_select($store_id, false);
+					if($id > 0){
+						$data['till'] = $this->tills->get($id);
+						if(empty($data['till'])){ show_404(); exit; }
+					} else {
+						$data['till'] = (object)['till_name'=>'','cashier_user_id'=>'','account_id'=>'','is_default'=>0];
+					}
+				}
+				break;
+
+			case 'expenses':
+				$data['page_title'] = ($action == 'form') ? (($id > 0) ? 'Edit Expense' : 'New Expense') : 'Expense List';
+				if($action == 'list'){
+					$this->permission_check('expense_view');
+					$data['records'] = $this->db->select('e.*, c.category_name')->from('db_expense e')->join('db_expense_category c','c.id = e.category_id','left')->where('e.store_id', $store_id)->where('e.status', 1)->order_by('e.id','desc')->get()->result();
+				} else {
+					$this->permission_check($id > 0 ? 'expense_edit' : 'expense_add');
+					$this->load->model('expense_model','expense');
+					$this->load->model('expense_category_model','category');
+					$data['categories'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_expense_category')->result();
+					if($id > 0){
+						$detail = $this->expense->get_details($id, []);
+						$data = array_merge($data, $detail);
+						$raw = $this->db->where('id', $id)->get('db_expense')->row();
+						$data['expense_amt'] = $raw ? $raw->expense_amt : $data['expense_amt'];
+						$data['payment_type'] = $data['payment_type'] ?? '';
+						$data['account_id'] = $data['account_id'] ?? '';
+					} else {
+						$data['expense_date'] = date('Y-m-d');
+						$data['category_id'] = '';
+						$data['reference_no'] = '';
+						$data['expense_for'] = '';
+						$data['expense_amt'] = '';
+						$data['payment_type'] = 'cash';
+						$data['account_id'] = '';
+						$data['note'] = '';
+						$data['expense_code'] = get_init_code('expense');
+					}
+				}
+				break;
+
+			case 'expense_categories':
+				if($action != 'list'){ show_404(); return; }
+				$this->permission_check('expense_category_view');
+				$data['page_title'] = 'Expense Categories';
+				$data['records'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('category_name', 'asc')->get('db_expense_category')->result();
+				break;
+		}
+
+		$view = ($action == 'list') ? 'mobile/finance_list' : 'mobile/finance_form';
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view($view, $data);
+	}
+
+	public function save_till()
+	{
+		$id = (int) $this->input->post('id', TRUE);
+		$this->permission_check($id > 0 ? 'tills_edit' : 'tills_add');
+		$store_id = get_current_store_id();
+		$data = array(
+			'till_name'       => $this->input->post('till_name', TRUE),
+			'cashier_user_id' => $this->input->post('cashier_user_id', TRUE),
+			'account_id'      => $this->input->post('account_id', TRUE),
+			'is_default'      => $this->input->post('is_default') ? 1 : 0,
+			'store_id'        => $store_id,
+		);
+		$this->load->model('tills_model','tills');
+		$save_id = $this->tills->save($data, $id);
+		if($save_id){
+			echo 'success';
+		} else {
+			echo 'failed';
+		}
+	}
+
+	// Payment reconciliation — mobile view of the exception queue.
+	public function reconcile()
+	{
+		if(!$this->permissions('payments_reconcile') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
+			$this->show_access_denied_page(); return;
+		}
+		$this->load->model('payment_reconcile_model','recon');
+		$store_id = get_current_store_id();
+		$status = $this->input->get('status', TRUE) ?: 'open';
+		if(!in_array($status, array('open','acknowledged','resolved','dismissed','all'), true)){ $status = 'open'; }
+		$data = $this->data;
+		$data['page_title'] = 'Reconciliation';
+		$data['back_url'] = base_url('mobile/more');
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['counts'] = $this->recon->counts($store_id);
+		$data['exceptions'] = $this->recon->get_exceptions($store_id, $status, null, 100);
+		$data['f_status'] = $status;
+		$data['can_edit'] = true;
+		$this->load->view('mobile/reconcile', $data);
+	}
+
+	public function quotations()
+	{
+		$this->permission_check('quotation_view');
+		$data = $this->data;
+		$data['page_title'] = 'Quotations';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+		$data['records'] = $this->db->select('q.*, c.customer_name, c.email as customer_email')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->order_by('q.id', 'desc')
+			->get()
+			->result();
+		$data['manual_quote_ids'] = array();
+		if($this->db->field_exists('manual_item_name', 'db_quotationitems')){
+			$manual = $this->db->select('quotation_id')->from('db_quotationitems')->where('store_id', $store_id)->where('manual_item_name !=', '')->group_by('quotation_id')->get()->result();
+			foreach($manual as $entry){ $data['manual_quote_ids'][(int)$entry->quotation_id] = true; }
+		}
+		$this->load->view('mobile/quotations', $data);
+	}
+
+	public function quotation_form($id = 0)
+	{
+		$id = (int)$id;
+		$is_update = $id > 0;
+		$this->permission_check($is_update ? 'quotation_edit' : 'quotation_add');
+		$is_plant_format = function_exists('mp_get_store_profile') && (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant'
+			&& (!$is_update || ($this->db->field_exists('manual_item_name', 'db_quotationitems')
+				&& $this->db->where('quotation_id', $id)->where('manual_item_name !=', '')->count_all_results('db_quotationitems') > 0));
+		if($is_plant_format){
+			if($is_update){ $this->belong_to('db_quotation', $id); }
+			$data = $this->data;
+			$data['page_title'] = $is_update ? 'Edit Quotation' : 'New Quotation';
+			$data['plant_mobile'] = true;
+			if($is_update){ $data['quotation_id'] = $id; }
+			$this->load->view('mobile/plant_quotation', $data);
+			return;
+		}
+		$data = $this->data;
+		$data['page_title'] = $is_update ? 'Edit Quotation' : 'New Quotation';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+		$data['customers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('customer_name')->get('db_customers')->result();
+		$data['taxes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_tax')->result();
+		$data['items'] = $this->db->select('id, item_name, item_code, sales_price, tax_id')->where('store_id', $store_id)->where('status', 1)->group_start()->where('item_group', NULL)->or_where('item_group !=', 'Variants')->group_end()->order_by('item_name')->limit(200)->get('db_items')->result();
+		$data['warehouses'] = (warehouse_module() && warehouse_count() > 0)
+			? $this->db->where('store_id', $store_id)->where('status', 1)->get('db_warehouse')->result()
+			: [];
+
+		if($is_update){
+			$this->belong_to('db_quotation', $id);
+			$q = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_quotation')->row();
+			if(!$q){ show_404(); exit; }
+			$qi = $this->db->where('quotation_id', $id)->get('db_quotationitems')->row();
+			$data['quotation_id'] = $id;
+			$data['command'] = 'update';
+			$data['quotation_date'] = $q->quotation_date;
+			$data['expire_date'] = $q->expire_date;
+			$data['customer_id'] = $q->customer_id;
+			$data['reference_no'] = $q->reference_no;
+			$data['warehouse_id'] = $q->warehouse_id;
+			$data['quotation_note'] = $q->quotation_note;
+			$data['other_charges_input'] = $q->other_charges_input ?: 0;
+			$data['other_charges_tax_id'] = $q->other_charges_tax_id;
+			$data['other_charges_amt'] = $q->other_charges_amt ?: 0;
+			$data['rowcount'] = 1;
+			if($qi){
+				$data['item_id'] = $qi->item_id;
+				$data['qty'] = $qi->quotation_qty;
+				$data['price'] = $qi->price_per_unit;
+				$data['tax_value'] = $qi->tax_per_unit;
+				$data['tax_type'] = $qi->tax_type;
+				$data['tax_id'] = $qi->tax_id;
+				$data['discount'] = $qi->discount_input;
+				$data['description'] = $qi->description;
+				$data['section_name'] = isset($qi->section_name) ? $qi->section_name : '';
+			}
+		} else {
+			$data['quotation_id'] = '';
+			$data['command'] = 'save';
+			$data['quotation_date'] = date('Y-m-d');
+			$data['expire_date'] = date('Y-m-d', strtotime('+7 days'));
+			$data['customer_id'] = '';
+			$data['reference_no'] = '';
+			$data['warehouse_id'] = '';
+			$data['quotation_note'] = '';
+			$data['other_charges_input'] = 0;
+			$data['other_charges_tax_id'] = '';
+			$data['other_charges_amt'] = 0;
+			$data['rowcount'] = 1;
+		}
+		$this->load->view('mobile/quotation_form', $data);
+	}
+
+	public function quotation_report()
+	{
+		$this->permission_check('quotation_view');
+		$data = $this->data;
+		$data['page_title'] = 'Quotation Report';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+		$q = $this->db->where('store_id', $store_id)->get('db_quotation')->result();
+		$data['total'] = count($q);
+		$data['converted'] = count(array_filter($q, function($r){ return !empty($r->sales_status); }));
+		$now = date('Y-m-d');
+		$data['expired'] = count(array_filter($q, function($r) use ($now){ return empty($r->sales_status) && !empty($r->expire_date) && $r->expire_date < $now; }));
+		$data['active'] = $data['total'] - $data['converted'] - $data['expired'];
+		$data['records'] = $this->db->select('q.*, c.customer_name')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->order_by('q.id', 'desc')
+			->get()
+			->result();
+		$this->load->view('mobile/quotation_report', $data);
+	}
+
+	public function purchase_form($id = 0)
+	{
+		$id = (int) $id;
+		$is_update = $id > 0;
+		$this->permission_check($is_update ? 'purchase_edit' : 'purchase_add');
+		$data = $this->data;
+		$data['page_title'] = $is_update ? 'Edit Purchase' : 'New Purchase';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$data['suppliers'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('supplier_name')->get('db_suppliers')->result();
+		$data['taxes'] = $this->db->where('store_id', $store_id)->where('status', 1)->get('db_tax')->result();
+		$data['items'] = $this->db->select('id, item_name, purchase_price, tax_id')->where('store_id', $store_id)->where('status', 1)->group_start()->where('item_group', NULL)->or_where('item_group !=', 'Variants')->group_end()->order_by('item_name')->limit(200)->get('db_items')->result();
+		$data['payment_modes'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_payment_modes')->result();
+		$data['accounts'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('account_name')->get('ac_accounts')->result();
+
+		if(warehouse_module() && warehouse_count() > 1){
+			if(!is_admin() && !is_store_admin()){
+				$privileged = get_privileged_warehouses_ids();
+				if(!empty($privileged)){
+					$this->db->where("id in ($privileged)");
+				} else {
+					$this->db->where('id', 0);
+				}
+			}
+			$data['warehouses'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('warehouse_name')->get('db_warehouse')->result();
+			$data['warehouse_id'] = '';
+		} else {
+			$data['warehouses'] = [];
+			$data['warehouse_id'] = get_store_warehouse_id();
+		}
+
+		$data['purchase_id'] = 0;
+		$data['command'] = 'save';
+		$data['pur_date'] = date('Y-m-d');
+		$data['purchase_status'] = 'Draft';
+		$data['reference_no'] = '';
+		$data['purchase_note'] = '';
+		$data['supplier_id'] = '';
+		$data['other_charges_input'] = '0';
+		$data['other_charges_tax_id'] = '';
+		$data['discount_to_all_input'] = '0';
+		$data['discount_to_all_type'] = 'in_percentage';
+		$data['payment_type'] = '';
+		$data['cart_items'] = [];
+
+		if($is_update){
+			$this->belong_to('db_purchase', $id);
+			$purchase = $this->db->where('id', $id)->where('store_id', $store_id)->get('db_purchase')->row();
+			if(empty($purchase)){ show_404(); exit; }
+
+			$data['purchase_id'] = $id;
+			$data['command'] = 'update';
+			$data['pur_date'] = $purchase->purchase_date;
+			$data['purchase_status'] = $purchase->purchase_status;
+			$data['reference_no'] = $purchase->reference_no;
+			$data['purchase_note'] = $purchase->purchase_note;
+			$data['supplier_id'] = $purchase->supplier_id;
+			$data['warehouse_id'] = (warehouse_module() && warehouse_count() > 1) ? $purchase->warehouse_id : get_store_warehouse_id();
+			$data['other_charges_input'] = store_number_format($purchase->other_charges_input, 0) ?: '0';
+			$data['other_charges_tax_id'] = $purchase->other_charges_tax_id;
+			$data['discount_to_all_input'] = $purchase->discount_to_all_input;
+			$data['discount_to_all_type'] = $purchase->discount_to_all_type;
+
+			$tax_map = [];
+			foreach($data['taxes'] as $t){ $tax_map[$t->id] = $t->tax ?? 0; }
+
+			$rows = $this->db->select('pi.*, i.item_name')
+				->from('db_purchaseitems pi')
+				->join('db_items i', 'i.id = pi.item_id', 'left')
+				->where('pi.purchase_id', $id)
+				->get()
+				->result();
+
+			foreach($rows as $r){
+				$data['cart_items'][] = [
+					'item_id' => $r->item_id,
+					'name' => $r->item_name,
+					'qty' => (float) $r->purchase_qty,
+					'price' => (float) $r->price_per_unit,
+					'tax_value' => (float) ($tax_map[$r->tax_id] ?? 0),
+					'tax_id' => $r->tax_id,
+					'tax_type' => $r->tax_type,
+					'discount' => (float) $r->discount_input,
+				];
+			}
+		}
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/purchase_form', $data);
+	}
+
+	public function purchase()
+	{
+		$this->permission_check('purchase_view');
+		$data = $this->data;
+		$data['page_title'] = 'Purchase History';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$data['records'] = $this->db->select('p.*, s.supplier_name')
+			->from('db_purchase p')
+			->join('db_suppliers s', 's.id = p.supplier_id', 'left')
+			->where('p.store_id', $store_id)
+			->order_by('p.id', 'desc')
+			->limit(200)
+			->get()
+			->result();
+
+		$data['suppliers'] = get_suppliers_select_list('', $store_id, false);
+		$statuses = [];
+		foreach($data['records'] as $r){
+			if(!empty($r->purchase_status) && !in_array($r->purchase_status, $statuses)){
+				$statuses[] = $r->purchase_status;
+			}
+		}
+		$data['statuses'] = $statuses;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/purchase', $data);
+	}
+
+	public function purchase_view($id)
+	{
+		$this->belong_to('db_purchase', $id);
+		$this->permission_check('purchase_view');
+		$data = $this->data;
+		$data['page_title'] = 'Purchase';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['p'] = $this->db->select('p.*, s.supplier_name')
+			->from('db_purchase p')
+			->join('db_suppliers s', 's.id = p.supplier_id', 'left')
+			->where('p.id', $id)
+			->get()
+			->row();
+		if(empty($data['p'])){ show_404(); exit; }
+
+		$data['items'] = $this->db->select('pi.*, i.item_name, i.item_code')
+			->from('db_purchaseitems pi')
+			->join('db_items i', 'i.id = pi.item_id', 'left')
+			->where('pi.purchase_id', $id)
+			->get()
+			->result();
+
+		$data['payments'] = $this->db->where('purchase_id', $id)->order_by('id', 'desc')->get('db_purchasepayments')->result();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/purchase_view', $data);
+	}
+
+	public function purchase_payment($purchase_id)
+	{
+		$this->belong_to('db_purchase', $purchase_id);
+		$this->permission_check('purchase_payment_add');
+		$data = $this->data;
+		$data['page_title'] = 'Pay Purchase';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$purchase = $this->db->where('id', $purchase_id)->where('store_id', $store_id)->get('db_purchase')->row();
+		if(!$purchase){ show_404(); exit; }
+		$data['purchase'] = $purchase;
+		$data['due'] = $purchase->grand_total - $purchase->paid_amount;
+
+		$data['payment_modes'] = $this->db->where('store_id', $store_id)->where('status', 1)->order_by('name')->get('db_payment_modes')->result();
+		$data['accounts'] = $this->db->where('store_id', $store_id)->where('delete_bit', 0)->order_by('account_name')->get('ac_accounts')->result();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/purchase_payment', $data);
+	}
+
+	public function purchase_status($purchase_id)
+	{
+		$this->belong_to('db_purchase', $purchase_id);
+		$this->permission_check('purchase_edit');
+		$store_id = get_current_store_id();
+		$status = $this->input->post('purchase_status', TRUE);
+		if(empty($status)){ show_404(); exit; }
+
+		$purchase = $this->db->where('id', $purchase_id)->where('store_id', $store_id)->get('db_purchase')->row();
+		if(empty($purchase)){ show_404(); exit; }
+
+		$items = $this->db->where('purchase_id', $purchase_id)->get('db_purchaseitems')->result();
+
+		// Rebuild the full purchase POST so verify_save_and_update handles totals, stock, etc.
+		$_POST = array_merge($_POST, [
+			'command' => 'update',
+			'purchase_id' => $purchase_id,
+			'store_id' => $purchase->store_id,
+			'pur_date' => $purchase->purchase_date,
+			'reference_no' => $purchase->reference_no,
+			'purchase_status' => $status,
+			'supplier_id' => $purchase->supplier_id,
+			'warehouse_id' => $purchase->warehouse_id,
+			'purchase_note' => $purchase->purchase_note,
+			'other_charges_input' => store_number_format($purchase->other_charges_input, 0) ?: '0',
+			'other_charges_tax_id' => $purchase->other_charges_tax_id,
+			'other_charges_amt' => $purchase->other_charges_amt,
+			'discount_to_all_input' => $purchase->discount_to_all_input,
+			'discount_to_all_type' => $purchase->discount_to_all_type,
+			'tot_discount_to_all_amt' => $purchase->tot_discount_to_all_amt,
+			'tot_subtotal_amt' => $purchase->subtotal,
+			'tot_round_off_amt' => $purchase->round_off,
+			'tot_total_amt' => $purchase->grand_total,
+			'rowcount' => count($items),
+			'amount' => '0',
+		]);
+
+		foreach($items as $i => $it){
+			$idx = $i + 1;
+			$is_received = ($status === 'Received');
+			$is_partial = ($status === 'Partially Received');
+			$received_qty = null;
+			if($is_received){
+				$received_qty = $it->purchase_qty;
+			} elseif($is_partial){
+				$received_qty = $it->received_qty;
+			}
+
+			$_POST['tr_item_id_' . $idx] = $it->item_id;
+			$_POST['td_data_' . $idx . '_3'] = $it->purchase_qty;
+			$_POST['td_data_' . $idx . '_4'] = $it->price_per_unit;
+			$_POST['tr_tax_id_' . $idx] = $it->tax_id;
+			$_POST['td_data_' . $idx . '_5'] = $it->tax_amt;
+			$_POST['tr_tax_type_' . $idx] = $it->tax_type;
+			$_POST['td_data_' . $idx . '_10'] = $it->unit_total_cost;
+			$_POST['td_data_' . $idx . '_9'] = $it->total_cost;
+			$_POST['item_discount_type_' . $idx] = $it->discount_type;
+			$_POST['item_discount_input_' . $idx] = $it->discount_input;
+			$_POST['td_data_' . $idx . '_8'] = $it->discount_amt;
+			$_POST['description_' . $idx] = $it->description;
+			$_POST['received_qty_' . $idx] = $received_qty === null ? '' : $received_qty;
+		}
+
+		$_REQUEST = array_merge($_REQUEST, $_POST);
+
+		$this->load->model('purchase_model', 'purchase_m');
+		$result = $this->purchase_m->verify_save_and_update();
+		if(strpos($result, 'success') === 0){
+			$this->session->set_flashdata('success', 'Purchase status updated to ' . $status);
+		} else {
+			$this->session->set_flashdata('failed', $result ?: 'Update failed');
+		}
+		redirect('mobile/purchase_view/' . $purchase_id);
+	}
+
+	public function quotation_view($id)
+	{
+		$this->belong_to('db_quotation', $id);
+		$this->permission_check('quotation_view');
+		$data = $this->data;
+		$data['page_title'] = 'Quotation';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['q'] = $this->db->select('q.*, c.customer_name, c.mobile, c.email')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.id', $id)
+			->get()
+			->row();
+		if(empty($data['q'])){ show_404(); exit; }
+		$data['items'] = $this->db->select("qi.*, COALESCE(NULLIF(qi.manual_item_name,''), i.item_name) AS item_name, COALESCE(NULLIF(qi.part_code,''), i.item_code) AS item_code, COALESCE(NULLIF(qi.unit_label,''), u.unit_name) AS unit_name", false)
+			->from('db_quotationitems qi')
+			->join('db_items i', 'i.id = qi.item_id', 'left')
+			->join('db_units u', 'u.id = i.unit_id', 'left')
+			->where('qi.quotation_id', $id)
+			->get()
+			->result();
+		$this->load->view('mobile/quotation_view', $data);
+	}
+
+	public function delete_quotation()
+	{
+		$this->permission_check_with_msg('quotation_delete');
+		$id = (int)$this->input->post('q_id', TRUE);
+		if($id <= 0){
+			echo json_encode(['status' => 'error', 'message' => 'Invalid quotation.']);
+			return;
+		}
+		$this->belong_to('db_quotation', $id);
+
+		$converted = $this->db->where('quotation_id', $id)->get('db_sales')->row();
+		if($converted){
+			echo json_encode(['status' => 'error', 'message' => 'Cannot delete. This quotation has been converted to a sale.']);
+			return;
+		}
+
+		$this->load->model('quotation_model', 'quotation');
+		$result = $this->quotation->delete_quotation($id);
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Quotation deleted.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function approval_logs()
+	{
+		$this->permission_check('approval_logs_view');
+		$data = $this->data;
+		$data['page_title'] = 'Approval Logs';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$store_id = get_current_store_id();
+
+		$this->load->model('approval_logs_model', 'approval_logs');
+		$filters = [
+			'store_id' => $store_id,
+			'approval_type' => $this->input->get('type') ?: null,
+			'status' => $this->input->get('status') ?: null,
+			'date_from' => $this->input->get('date_from') ?: null,
+			'date_to' => $this->input->get('date_to') ?: null,
+		];
+		$report = $this->approval_logs->getLogs($filters, 100, 0);
+		$data['logs'] = $report['rows'];
+		$data['total'] = $report['total'];
+		$this->load->view('mobile/approval_logs', $data);
+	}
+
+	public function customer_coupon($page='index', $customer_id='')
+	{
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customer_id'] = $customer_id;
+		$store_id = get_current_store_id();
+
+		if($page === 'generate'){
+			$this->permission_check('customerCouponAdd');
+			$data['page_title'] = 'Create Customer Coupon';
+			$this->db->select('id, name, type, value, expire_date');
+			$this->db->from('db_coupons');
+			$this->db->where('status', 1);
+			$this->db->where('store_id', $store_id);
+			$data['coupons'] = $this->db->get()->result();
+			header('Cache-Control: no-cache, must-revalidate, max-age=0');
+			header('Pragma: no-cache');
+			header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+			$this->load->view('mobile/customer_coupon/generate', $data);
+			return;
+		}
+
+		$this->permission_check('customerCouponView');
+		$data['page_title'] = 'Customer Coupons';
+		$this->db->select('a.id, c.customer_name, b.name as coupon_name, a.code, a.expire_date, a.value, a.type, a.description, a.status');
+		$this->db->from('db_customer_coupons a');
+		$this->db->join('db_coupons b', 'b.id=a.coupon_id', 'left');
+		$this->db->join('db_customers c', 'c.id=a.customer_id', 'left');
+		$this->db->where('a.store_id', $store_id);
+		$this->db->order_by('a.id', 'desc');
+		$data['coupons'] = $this->db->get()->result();
+		$data['back_url'] = base_url('mobile/more');
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/customer_coupon/index', $data);
+	}
+
+	public function discount_coupon($page = 'view', $id = '')
+	{
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['back_url'] = base_url('mobile/more');
+
+		if($page === 'add' || $page === 'update'){
+			if($page === 'add'){
+				$this->permission_check('discountCouponAdd');
+				$data['coupon'] = (object)['name'=>'','expire_date'=>'','value'=>'','type'=>'','description'=>'','id'=>''];
+				$data['page_title'] = 'Create General Coupon';
+			} else {
+				$this->permission_check('discountCouponEdit');
+				$q_id = (int)$id;
+				$data['coupon'] = $this->db->where('id', $q_id)->where('store_id', $store_id)->get('db_coupons')->row() ?: (object)['name'=>'','expire_date'=>'','value'=>'','type'=>'','description'=>'','id'=>''];
+				$data['page_title'] = 'Edit Coupon';
+			}
+			$this->load->view('mobile/discount_coupon/form', $data);
+			return;
+		}
+
+		$this->permission_check('discountCouponView');
+		$data['page_title'] = 'Coupons Master';
+		$this->db->select('id, name, expire_date, value, type, status, description');
+		$this->db->from('db_coupons');
+		$this->db->where('store_id', $store_id);
+		$this->db->order_by('id', 'desc');
+		$data['coupons'] = $this->db->get()->result();
+		$this->load->view('mobile/discount_coupon/view', $data);
+	}
+
+	public function loyalty($page = 'index')
+	{
+		$allowed = ['index','settings','tiers','bonus_rules','product_points','points_history','referral_program'];
+		if(!in_array($page, $allowed, TRUE)){
+			show_404();
+			return;
+		}
+
+		$perm = in_array($page, ['settings','referral_program'], TRUE) ? 'loyalty_edit' : 'loyalty_view';
+		$this->permission_check($perm);
+
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['back_url'] = base_url('mobile/more');
+		$this->load->model('loyalty_model','loyalty');
+		$this->load->model('customers_model','customers');
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+
+		if($page === 'index'){
+			$data['page_title'] = 'Loyalty & Rewards';
+			$data['settings'] = $this->loyalty->get_settings();
+			$data['tiers'] = $this->loyalty->get_tiers();
+			$data['stats'] = $this->loyalty->get_dashboard_stats();
+			$this->load->view('mobile/loyalty/index', $data);
+		}
+		elseif($page === 'settings'){
+			$data['page_title'] = 'Loyalty Settings';
+			$data['settings'] = $this->loyalty->get_settings();
+			$data['tiers'] = $this->loyalty->get_tiers();
+			$this->load->view('mobile/loyalty/settings', $data);
+		}
+		elseif($page === 'tiers'){
+			$data['page_title'] = 'Customer Tiers';
+			$data['tiers'] = $this->loyalty->get_tiers();
+			$this->load->view('mobile/loyalty/tiers', $data);
+		}
+		elseif($page === 'bonus_rules'){
+			$data['page_title'] = 'Bonus Rules';
+			$data['rules'] = $this->loyalty->get_bonus_rules();
+			$this->load->view('mobile/loyalty/bonus_rules', $data);
+		}
+		elseif($page === 'product_points'){
+			$data['page_title'] = 'Product Points';
+			if($this->db->table_exists('db_loyalty_product_points')){
+				$this->db->select('a.*, b.item_name');
+				$this->db->from('db_loyalty_product_points a');
+				$this->db->join('db_items b', 'b.id = a.item_id', 'left');
+				$this->db->where('a.store_id', $store_id);
+				$this->db->where('a.status', 1);
+				$this->db->order_by('a.id', 'desc');
+				$data['product_points'] = $this->db->get()->result();
+			} else {
+				$data['product_points'] = [];
+			}
+			$this->db->select('id, item_name');
+			$this->db->where('store_id', $store_id);
+			if($this->db->field_exists('status','db_items')){
+				$this->db->where('status', 1);
+			}
+			$this->db->order_by('item_name','asc');
+			$data['items'] = $this->db->get('db_items')->result();
+			$this->load->view('mobile/loyalty/product_points', $data);
+		}
+		elseif($page === 'points_history'){
+			$data['page_title'] = 'Points History';
+			if($this->db->table_exists('db_loyalty_points')){
+				$this->db->select('a.*, b.customer_name');
+				$this->db->from('db_loyalty_points a');
+				$this->db->join('db_customers b', 'b.id = a.customer_id', 'left');
+				$this->db->where('a.store_id', $store_id);
+				$this->db->order_by('a.id', 'desc');
+				$this->db->limit(200);
+				$data['history'] = $this->db->get()->result();
+			} else {
+				$data['history'] = [];
+			}
+			$this->load->view('mobile/loyalty/points_history', $data);
+		}
+		elseif($page === 'referral_program'){
+			$data['page_title'] = 'Referral Program';
+			$data['settings'] = $this->loyalty->get_referral_settings();
+			$this->load->view('mobile/loyalty/referral_program', $data);
+		}
+	}
+
+	public function sales_invoice($id)
+	{
+		$this->belong_to('db_sales', $id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit') && !$this->permissions('sales_view')){
+			$this->show_access_denied_page();
+			return;
+		}
+		$sale = $this->db->where('id', $id)->get('db_sales')->row();
+		// Cashiers without cross-user visibility permission may only open their own invoices.
+		if($sale && is_cashier() && !$this->permissions('show_all_users_sales_invoices')){
+			if(strtoupper($sale->created_by) !== strtoupper($this->session->userdata('inv_username'))){
+				$this->show_access_denied_page();
+				return;
+			}
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Invoice';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['sales_id'] = $id;
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/sales_invoice', $data);
+	}
+
+	public function account_book($account_id)
+	{
+		$this->belong_to('ac_accounts', $account_id);
+		$this->permission_check('accounts_view');
+
+		$store_id = get_current_store_id();
+		$account = $this->db->where('id', $account_id)->where('store_id', $store_id)->get('ac_accounts')->row();
+		if(!$account){
+			$this->session->set_flashdata('failed', 'Account not found.');
+			redirect('mobile/more');
+		}
+
+		$from = $this->input->get('from') ?: date('Y-m-01');
+		$to = $this->input->get('to') ?: date('Y-m-d');
+		$from_sql = date('Y-m-d', strtotime($from));
+		$to_sql = date('Y-m-d', strtotime($to));
+		if($from_sql == '1970-01-01') $from_sql = date('Y-m-01');
+		if($to_sql == '1970-01-01') $to_sql = date('Y-m-d');
+
+		$prev_balance = 0;
+		if($from_sql != '1970-01-01'){
+			$credit = (float) ($this->db->select('COALESCE(SUM(credit_amt),0) as amt')
+				->where('credit_account_id', $account_id)
+				->where('transaction_date <', $from_sql)
+				->where('store_id', $store_id)
+				->get('ac_transactions')->row()->amt ?? 0);
+			$debit = (float) ($this->db->select('COALESCE(SUM(debit_amt),0) as amt')
+				->where('debit_account_id', $account_id)
+				->where('transaction_date <', $from_sql)
+				->where('store_id', $store_id)
+				->get('ac_transactions')->row()->amt ?? 0);
+			$prev_balance = $credit - $debit;
+		}
+
+		$records = $this->db->where('store_id', $store_id)
+			->group_start()
+				->where('credit_account_id', $account_id)
+				->or_where('debit_account_id', $account_id)
+			->group_end()
+			->where('transaction_date >=', $from_sql)
+			->where('transaction_date <=', $to_sql)
+			->order_by('id', 'asc')
+			->limit(200)
+			->get('ac_transactions')->result();
+
+		$running = $prev_balance;
+		$total_debit = 0;
+		$total_credit = 0;
+		$transactions = [];
+		foreach($records as $t){
+			$is_debit = ((int)$t->debit_account_id === (int)$account_id);
+			$debit_amt = (float) $t->debit_amt;
+			$credit_amt = (float) $t->credit_amt;
+			if($is_debit){
+				$running -= $debit_amt;
+				$total_debit += $debit_amt;
+				$amount = $debit_amt;
+			} else {
+				$running += $credit_amt;
+				$total_credit += $credit_amt;
+				$amount = $credit_amt;
+			}
+			$desc = ucwords(strtolower($t->transaction_type ?: ''));
+			$transactions[] = (object) [
+				'transaction_date' => $t->transaction_date,
+				'transaction_type' => $t->transaction_type,
+				'description' => $desc,
+				'is_debit' => $is_debit,
+				'amount' => $amount,
+				'balance' => $running,
+				'note' => $t->note,
+				'created_by' => $t->created_by
+			];
+		}
+
+		$data = $this->data;
+		$data['page_title'] = 'Account Book';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['account'] = $account;
+		$data['from'] = $from_sql;
+		$data['to'] = $to_sql;
+		$data['total_debit'] = $total_debit;
+		$data['total_credit'] = $total_credit;
+		$data['transactions'] = $transactions;
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/account_book', $data);
+	}
+
+	private function is_cashier_clocked_in()
+	{
+		if(is_store_admin()) return true;
+		$roleName = trim($this->session->userdata('role_name') ?: '');
+		if(stripos($roleName, 'cashier') === false) return true;
+		$this->load->model('attendance_model');
+		$user_id = $this->session->userdata('inv_userid');
+		try {
+			return (bool) $this->attendance_model->needsClockOut($user_id);
+		} catch (Throwable $e) {
+			log_message('error', 'Cashier clock-in check failed: ' . $e->getMessage());
+			return true;
+		}
+	}
+
+	public function store_credit()
+	{
+		if(!mp_feature_enabled('store_credit')){
+			$this->show_feature_not_activated('store_credit');
+			return;
+		}
+		$this->permission_check('store_credit_view');
+		$this->load->model('store_credit_model','store_credit');
+		$data = $this->data;
+		$data['page_title'] = 'Store Credit';
+		$store_id = get_current_store_id();
+
+		if($this->db->table_exists('db_store_credit')){
+			$data['credits'] = $this->db->select('a.*, b.customer_name')
+				->from('db_store_credit a')
+				->join('db_customers b', 'b.id = a.customer_id', 'left')
+				->where('a.store_id', $store_id)
+				->order_by('a.id', 'desc')
+				->get()
+				->result();
+		} else {
+			$data['credits'] = [];
+		}
+
+		if($this->db->table_exists('db_customers')){
+			$this->db->select('id, customer_name');
+			$this->db->where('store_id', $store_id);
+			$this->db->where('status', 1);
+			$this->db->where('delete_bit !=', 1);
+			$this->db->order_by('customer_name', 'asc');
+			$data['customers'] = $this->db->get('db_customers')->result();
+		} else {
+			$data['customers'] = [];
+		}
+
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['currency_code'] = $this->session->userdata('currency_code') ?: '₦';
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/store_credit', $data);
+	}
+
+	public function brand_form()
+	{
+		$this->permission_check('brand_add');
+		$data = $this->data;
+		$data['page_title'] = 'Add Brand';
+		$data['q_id'] = 0;
+		$data['brand_name'] = '';
+		$data['description'] = '';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/brand_form', $data);
+	}
+
+	public function save_brand()
+	{
+		$this->permission_check('brand_add');
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('brand', 'Brand Name', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$this->load->model('brand_model');
+		$result = $this->brand_model->verify_and_save();
+
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Brand saved successfully.', 'redirect' => base_url('mobile/more')]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function category_form($id=0)
+	{
+		$this->permission_check((int)$id?'items_category_edit':'items_category_add');
+		$data = $this->data;
+		$data['page_title'] = (int)$id?'Edit Category':'Add Category';
+		$data['q_id'] = 0;
+		$data['category_name'] = '';
+		$data['description'] = '';
+		if((int)$id){$this->load->model('category_model');$data=$this->category_model->get_details((int)$id,$data);}
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['branch_name'] = get_store_name();
+
+		header('Cache-Control: no-cache, must-revalidate, max-age=0');
+		header('Pragma: no-cache');
+		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+		$this->load->view('mobile/category_form', $data);
+	}
+
+	public function save_category()
+	{
+		$id=(int)$this->input->post('q_id');
+		$this->permission_check($id?'items_category_edit':'items_category_add');
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('category', 'Category Name', 'trim|required');
+
+		if($this->form_validation->run() == FALSE){
+			echo json_encode(['status' => 'error', 'message' => strip_tags(validation_errors())]);
+			return;
+		}
+
+		$this->load->model('category_model');
+		$result = $id?$this->category_model->update_category():$this->category_model->verify_and_save();
+
+		if($result == 'success'){
+			echo json_encode(['status' => 'success', 'message' => 'Category saved successfully.', 'redirect' => base_url('mobile/more')]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => strip_tags($result)]);
+		}
+	}
+
+	public function automobile()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$data = $this->data;
+		$data['page_title'] = (mp_vehicle_register_mode()) ? 'Customer Vehicles' : 'Vehicles';
+		$store_id = get_current_store_id();
+
+		$counts = ['available' => 0, 'reserved' => 0, 'sold' => 0];
+		foreach ($this->automobile_m->count_by_status($store_id) as $row) {
+			$counts[$row->status] = (int) $row->total;
+		}
+		$data['counts'] = $counts;
+
+		$status = $this->input->get('status', TRUE);
+		$data['status'] = $status;
+		$data['vehicles'] = $this->automobile_m->get_all($store_id, $status);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$this->load->view('mobile/automobile', $data);
+	}
+
+	public function automobile_form($id = '')
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$data = $this->data;
+		$data['page_title'] = 'Add Vehicle';
+		$data['vehicle'] = null;
+		if(!empty($id)){
+			$data['vehicle'] = $this->automobile_m->get_by_id($id);
+			$data['page_title'] = 'Edit Vehicle';
+		}
+		if(mp_vehicle_register_mode()){
+			$data['page_title'] = empty($id) ? 'Add Customer Vehicle' : 'Edit Customer Vehicle';
+		}
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_form', $data);
+	}
+
+	public function save_vehicle()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$id = $this->input->post('id', TRUE);
+		$data = [
+			'store_id'          => get_current_store_id(),
+			'vehicle_code'      => $this->input->post('vehicle_code', TRUE),
+			'make'              => $this->input->post('make', TRUE),
+			'model'             => $this->input->post('model', TRUE),
+			'year'              => (int) $this->input->post('year', TRUE),
+			'color'             => $this->input->post('color', TRUE),
+			'mileage'           => (int) $this->input->post('mileage', TRUE),
+			'fuel_type'         => $this->input->post('fuel_type', TRUE),
+			'transmission'      => $this->input->post('transmission', TRUE),
+			'vehicle_condition' => $this->input->post('vehicle_condition', TRUE),
+			'body_type'         => $this->input->post('body_type', TRUE),
+			'engine_capacity'   => $this->input->post('engine_capacity', TRUE),
+			'drivetrain'        => $this->input->post('drivetrain', TRUE),
+			'trim_level'        => $this->input->post('trim_level', TRUE),
+			'number_of_owners'  => (int) $this->input->post('number_of_owners', TRUE),
+			'registration_date' => $this->input->post('registration_date', TRUE),
+			'vin'               => $this->input->post('vin', TRUE),
+			'license_plate'     => $this->input->post('license_plate', TRUE),
+			'description'       => $this->input->post('description', TRUE),
+			'price'             => (float) $this->input->post('price', TRUE),
+			'cost'              => (float) $this->input->post('cost', TRUE),
+			'status'            => $this->input->post('status', TRUE),
+			'customer_name'     => $this->input->post('customer_name', TRUE),
+			'created_by'        => get_current_user_id(),
+		];
+
+		$existing = !empty($id) ? $this->automobile_m->get_by_id($id) : null;
+
+		if(!empty($_FILES['vehicle_image']['name'])){
+			$upload_path = FCPATH . 'uploads/vehicles/';
+			if(!is_dir($upload_path)){
+				@mkdir($upload_path, 0755, true);
+			}
+			$config = [
+				'upload_path'   => $upload_path,
+				'allowed_types' => 'jpg|jpeg|png|webp',
+				'max_size'      => 2048,
+				'file_name'     => time() . '_' . uniqid() . '_' . get_current_store_id(),
+				'overwrite'     => false,
+			];
+			$this->load->library('upload', $config);
+			if($this->upload->do_upload('vehicle_image')){
+				$upload = $this->upload->data();
+				$data['image_path'] = 'uploads/vehicles/' . $upload['file_name'];
+			} else {
+				$this->session->set_flashdata('error', $this->upload->display_errors('', ''));
+				redirect(base_url('mobile/automobile'));
+			}
+		} elseif(!empty($existing) && !empty($existing->image_path)){
+			$data['image_path'] = $existing->image_path;
+		}
+
+		if($this->automobile_m->save($data, $id)){
+			$this->session->set_flashdata('success', 'Vehicle saved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save vehicle.');
+		}
+		redirect(base_url('mobile/automobile'));
+	}
+
+	public function butchery()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Butchery';
+		$store_id = get_current_store_id();
+
+		$data['received_count']  = count($this->butchery_m->get_received_carcasses($store_id));
+		$data['completed_count'] = count($this->butchery_m->get_received_carcasses($store_id, 'completed'));
+		$data['shares_count']    = count($this->butchery_m->get_shares($store_id));
+		$data['carcasses']       = $this->butchery_m->get_received_carcasses($store_id);
+		$data['shares']          = $this->butchery_m->get_shares($store_id);
+		$data['display_name']    = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+
+		$this->load->view('mobile/butchery', $data);
+	}
+
+	public function butchery_form($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Receive Carcass';
+		$data['carcass'] = null;
+		if(!empty($id)){
+			$data['carcass'] = $this->butchery_m->get_received_carcass((int)$id);
+		}
+		$data['templates'] = $this->butchery_m->get_templates();
+		$data['freezers']  = $this->butchery_m->get_freezer_locations();
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_form', $data);
+	}
+
+	public function save_butchery_carcass()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$id = $this->input->post('id', TRUE);
+		$data = [
+			'supplier_name'       => $this->input->post('supplier_name', TRUE),
+			'carcass_name'        => $this->input->post('carcass_name', TRUE),
+			'lot_number'          => $this->input->post('lot_number', TRUE),
+			'receiving_weight'    => (float) $this->input->post('receiving_weight', TRUE),
+			'slaughter_date'      => $this->input->post('slaughter_date', TRUE),
+			'expected_yield_pct'  => (float) $this->input->post('expected_yield_pct', TRUE),
+			'freezer_location_id' => (int) $this->input->post('freezer_location_id', TRUE),
+			'carcass_template_id' => (int) $this->input->post('carcass_template_id', TRUE),
+			'notes'               => $this->input->post('notes', TRUE),
+			'created_by'          => get_current_user_id(),
+		];
+		if($this->butchery_m->save_received_carcass($data, !empty($id) ? (int)$id : null)){
+			$this->session->set_flashdata('success', 'Carcass saved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save carcass.');
+		}
+		redirect(base_url('mobile/butchery'));
+	}
+
+	public function butchery_cut($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Cutting Worksheet';
+		$data['carcass'] = $this->butchery_m->get_received_carcass((int)$id);
+		if(!$data['carcass']){
+			show_404();
+			return;
+		}
+		$data['template_cuts'] = $data['carcass']->carcass_template_id ? $this->butchery_m->get_template_cuts($data['carcass']->carcass_template_id) : [];
+		$data['records']       = $this->butchery_m->get_cut_records((int)$id);
+		$data['display_name']  = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_cut', $data);
+	}
+
+	public function save_butchery_cut($id = '')
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$cuts = $this->input->post('cuts', TRUE) ?: [];
+		$created = $this->butchery_m->complete_cut_to_stock((int)$id, $cuts);
+		if ($created !== false) {
+			$this->session->set_flashdata('success', 'Cutting saved and cuts added to stock.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not save cutting worksheet.');
+		}
+		redirect(base_url('mobile/butchery'));
+	}
+
+	public function butchery_shares()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Carcass Shares';
+		$store_id = get_current_store_id();
+		$data['shares']      = $this->butchery_m->get_shares($store_id);
+		$data['carcasses']   = $this->butchery_m->get_received_carcasses($store_id);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_shares', $data);
+	}
+
+	public function save_butchery_share()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = [
+			'carcass_item_id'  => (int) $this->input->post('carcass_item_id', TRUE),
+			'customer_name'    => $this->input->post('customer_name', TRUE),
+			'share_fraction'   => $this->input->post('share_fraction', TRUE) ?: '1/4',
+			'reserved_weight'  => (float) $this->input->post('reserved_weight', TRUE),
+			'reserved_amount'  => (float) $this->input->post('reserved_amount', TRUE),
+			'deposit_amount'   => (float) $this->input->post('deposit_amount', TRUE),
+			'status'           => $this->input->post('status', TRUE) ?: 'reserved',
+			'created_by'       => get_current_user_id(),
+		];
+		if($this->butchery_m->save_share($data)){
+			$this->session->set_flashdata('success', 'Share reserved successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Could not reserve share.');
+		}
+		redirect(base_url('mobile/butchery_shares'));
+	}
+
+	public function butchery_coldchain()
+	{
+		if(!mp_feature_enabled('meat_butchery_workflow') && !mp_feature_enabled('frozen_food_cold_chain')){
+			show_404();
+		}
+		$this->load->model('Butchery_model', 'butchery_m');
+		$data = $this->data;
+		$data['page_title'] = 'Cold Chain';
+		$store_id = get_current_store_id();
+
+		if ($this->input->post('location_name')) {
+			$save = [
+				'location_name'   => $this->input->post('location_name', TRUE),
+				'location_code'   => $this->input->post('location_code', TRUE),
+				'temp_min'        => $this->input->post('temp_min', TRUE) !== '' ? (float)$this->input->post('temp_min', TRUE) : null,
+				'temp_max'        => $this->input->post('temp_max', TRUE) !== '' ? (float)$this->input->post('temp_max', TRUE) : null,
+				'capacity_volume' => (float)$this->input->post('capacity_volume', TRUE),
+				'status'          => 1,
+			];
+			$this->butchery_m->save_freezer_location($save);
+			$this->session->set_flashdata('success', 'Freezer saved.');
+			redirect(base_url('mobile/butchery_coldchain'));
+		}
+
+		if ($this->input->post('freezer_location_id')) {
+			$freezer = $this->butchery_m->get_freezer_location((int)$this->input->post('freezer_location_id', TRUE));
+			$temp = (float)$this->input->post('temperature_c', TRUE);
+			$status = 'normal';
+			if ($freezer) {
+				if ($freezer->temp_min !== null && $temp < (float)$freezer->temp_min) $status = 'warning';
+				if ($freezer->temp_max !== null && $temp > (float)$freezer->temp_max) $status = 'warning';
+			}
+			$this->butchery_m->save_temperature_log([
+				'freezer_location_id' => (int)$this->input->post('freezer_location_id', TRUE),
+				'temperature_c'       => $temp,
+				'notes'               => $this->input->post('notes', TRUE),
+				'status'              => $status,
+				'recorded_by'         => get_current_user_id(),
+			]);
+			$this->session->set_flashdata('success', 'Temperature recorded.');
+			redirect(base_url('mobile/butchery_coldchain'));
+		}
+
+		$data['freezers'] = $this->butchery_m->get_freezer_locations($store_id);
+		$data['logs']     = $this->butchery_m->get_recent_temperature_logs(50, $store_id);
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/butchery_coldchain', $data);
+	}
+
+	public function perfume()
+	{
+		if(!mp_feature_enabled('perfumery_workflow')){
+			show_404();
+		}
+		$this->load->model('Perfume_model', 'perfume_m');
+		$data = $this->data;
+		$data['page_title'] = 'Perfume Lab';
+		$store_id = get_current_store_id();
+		$data['stats']         = $this->perfume_m->get_lab_stats($store_id);
+		$data['macerating']    = $this->perfume_m->get_macerating($store_id);
+		$data['wastage']       = $this->perfume_m->get_wastage($store_id, 10);
+		$data['items']         = $this->perfume_m->get_losable_items($store_id);
+		$data['batches']       = $this->perfume_m->get_open_batches($store_id);
+		$data['stages']        = Perfume_model::wastage_stages();
+		$data['display_name']  = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/perfume_lab', $data);
+	}
+
+	public function save_perfume_wastage()
+	{
+		if(!mp_feature_enabled('perfumery_workflow')){
+			show_404();
+		}
+		$this->load->model('Perfume_model', 'perfume_m');
+		$saved = $this->perfume_m->log_wastage([
+			'item_id'    => (int)$this->input->post('item_id', TRUE),
+			'batch_id'   => (int)$this->input->post('batch_id', TRUE) ?: null,
+			'stage'      => $this->input->post('stage', TRUE) ?: 'other',
+			'qty'        => (float)$this->input->post('qty', TRUE),
+			'unit_name'  => $this->input->post('unit_name', TRUE),
+			'unit_cost'  => $this->input->post('unit_cost', TRUE),
+			'reason'     => $this->input->post('reason', TRUE),
+			'created_by' => $this->session->userdata('username') ?: 'System',
+		]);
+		if($saved !== false){
+			$this->session->set_flashdata('success', 'Loss recorded and stock adjusted.');
+		} else {
+			$this->session->set_flashdata('failed', 'Could not record the loss.');
+		}
+		redirect(base_url('mobile/perfume'));
+	}
+
+	public function sell_vehicle($id)
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle) || $vehicle->status === 'sold'){
+			$this->session->set_flashdata('error', 'Vehicle not found or already sold.');
+			redirect(base_url('mobile/automobile'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Sell Vehicle';
+		$data['vehicle'] = $vehicle;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_sell', $data);
+	}
+
+	public function save_sell_vehicle()
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$id = (int) $this->input->post('vehicle_id', TRUE);
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle) || $vehicle->status === 'sold'){
+			$this->session->set_flashdata('error', 'Vehicle not found or already sold.');
+			redirect(base_url('mobile/automobile'));
+		}
+
+		$save = [
+			'status'         => 'sold',
+			'customer_name'  => $this->input->post('customer_name', TRUE),
+			'customer_id'    => (int) $this->input->post('customer_id', TRUE),
+			'sold_date'      => date('Y-m-d H:i:s'),
+			'amount_paid'    => (float) $this->input->post('amount_paid', TRUE),
+			'payment_method' => $this->input->post('payment_method', TRUE),
+			'sold_by'        => get_current_user_id(),
+		];
+
+		$this->automobile_m->save($save, $id);
+		$this->session->set_flashdata('success', 'Vehicle sold. Receipt ready.');
+		redirect(base_url('mobile/vehicle_receipt/' . $id));
+	}
+
+	public function vehicle_receipt($id)
+	{
+		if(!mp_feature_enabled('automobile_workflow')){
+			show_404();
+		}
+		$this->load->model('Automobile_model', 'automobile_m');
+		$vehicle = $this->automobile_m->get_by_id($id);
+		if(empty($vehicle)){
+			$this->session->set_flashdata('error', 'Vehicle not found.');
+			redirect(base_url('mobile/automobile'));
+		}
+		$data = $this->data;
+		$data['page_title'] = 'Vehicle Receipt';
+		$data['vehicle'] = $vehicle;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$this->load->view('mobile/automobile_receipt', $data);
+	}
+
+	/* ===================== NYLON / POLYTHENE PRODUCTION =====================
+	 * Mobile screens for the nylon_polythene business profile. All mutations
+	 * POST to the existing nylon/* JSON endpoints in the Nylon controller —
+	 * these routes only render views so the factory floor works on phones
+	 * and tablet-portrait devices.
+	 */
+
+	private function _nylon_gate($perm = 'nylon_view')
+	{
+		if(!mp_feature_enabled('nylon_workflow') && !mp_feature_enabled('nylon_extrusion')
+			&& !mp_feature_enabled('nylon_conversion') && !mp_feature_enabled('nylon_roll_trading')){
+			$this->show_access_denied_page();
+			return false;
+		}
+		$this->permission_check($perm);
+		$this->load->model('nylon_model', 'nylon');
+		return true;
+	}
+
+	/* ==================================================================
+	 * MOBILE — PRINTING
+	 * ==================================================================
+	 * The printing views (mobile/printing.php, printing_jobs.php,
+	 * printing_job.php, printing_quotations.php) were written and shipped but
+	 * NEVER ROUTED — no controller method rendered them and no menu linked
+	 * them, so a print shop on a phone fell through to the retail mobile home
+	 * while its own screens sat unreachable. Same class of gap as the printing
+	 * module itself once was: built, then unreachable.
+	 *
+	 * These four methods are the missing routes. They RENDER only — every
+	 * mutation POSTs to the existing printing/* JSON endpoints, so the
+	 * approval, artwork and deposit gates stay server-enforced in
+	 * Printing_model rather than being reimplemented for mobile.
+	 */
+
+	private function _printing_gate($perm = 'print_view')
+	{
+		// Same flag the desktop module gates on. `production_workflow` is shared
+		// with bakery/restaurant/manufacturer/butchery/oil, so it is not a
+		// printing signal.
+		if(!mp_feature_enabled('printing_workflow')){
+			$this->show_access_denied_page();
+			return false;
+		}
+		$this->permission_check($perm);
+		$this->load->model('printing_model', 'print');
+		return true;
+	}
+
+	public function printing()
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+
+		$data = $this->data;
+		$data['page_title']  = 'Print Shop';
+		$data['display_name'] = $this->session->userdata('display_name')
+			?: $this->session->userdata('username') ?: 'User';
+
+		// Counts come from get_jobs() so the phone and the desktop dashboard
+		// cannot disagree about how many jobs are open — one source, two views.
+		$jobs = $this->print->get_jobs($store_id);
+		$kpi = [
+			'open' => 0, 'in_production' => 0, 'awaiting_artwork' => 0,
+			'awaiting_fulfilment' => 0, 'due_soon' => 0, 'overdue' => 0,
+			'collections_due' => 0, 'outstanding_balance' => 0,
+		];
+		$today = date('Y-m-d');
+		$soon  = date('Y-m-d', strtotime('+7 days'));
+		$attention = [];
+
+		foreach ($jobs as $j) {
+			$st = strtolower((string) ($j->production_status ?? ''));
+			if (in_array($st, ['completed', 'cancelled'], true)) {
+				// Still counts as awaiting collection until it is handed over.
+				if ($st === 'completed' && empty($j->fulfilled_at)) $kpi['awaiting_fulfilment']++;
+			} else {
+				$kpi['open']++;
+				if ($st === 'in_progress') $kpi['in_production']++;
+			}
+			if (($j->artwork_status ?? '') !== 'approved' && $st !== 'completed') $kpi['awaiting_artwork']++;
+
+			$due = $j->due_date ?? null;
+			if ($due && !in_array($st, ['completed', 'cancelled'], true)) {
+				if ($due < $today) $kpi['overdue']++;
+				elseif ($due <= $soon) $kpi['due_soon']++;
+			}
+			if (!empty($j->balance_due)) $kpi['outstanding_balance'] += (float) $j->balance_due;
+
+			// The "needs attention" list: overdue, or unpaid and past due.
+			if ($due && $due <= $soon && !in_array($st, ['completed', 'cancelled'], true)) {
+				$attention[] = $j;
+			}
+		}
+		$kpi['collections_due'] = $kpi['awaiting_fulfilment'];
+
+		$data['kpi']       = $kpi;
+		$data['attention'] = array_slice($attention, 0, 8);
+		$data['can_quote'] = $this->permissions('print_quote');
+		$data['can_jobs']  = $this->permissions('print_view');
+		$this->_mobile_render($data + ['_view' => 'printing']);
+	}
+
+	public function printing_jobs($status = '')
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+		$jobs = $this->print->get_jobs($store_id);
+
+		// Accept either the production status or the collection bucket the hub
+		// links with, so a tile that says "To Collect" lands on a filtered list
+		// rather than an unfiltered one.
+		$want = trim((string) $status);
+		if ($want !== '') {
+			$jobs = array_values(array_filter($jobs, function ($j) use ($want) {
+				$st = strtolower((string) ($j->production_status ?? ''));
+				if ($want === 'completed') return $st === 'completed' && empty($j->fulfilled_at);
+				return $st === strtolower($want);
+			}));
+		}
+
+		$data = $this->data;
+		$data['page_title']    = 'Print Jobs';
+		$data['display_name']  = $this->session->userdata('display_name') ?: 'User';
+		$data['jobs']          = $jobs;
+		$data['status']        = $want;
+		// The view builds its chips from these three together: $statuses drives
+		// the loop, $status_labels the wording, $counts the badge. Omit any one
+		// and the filter row breaks silently — the chips vanish or every count
+		// reads 0, which looks like "no jobs" rather than a wiring mistake.
+		$data['statuses'] = ['planned', 'in_progress', 'on_hold', 'completed', 'cancelled'];
+		$data['status_labels'] = [
+			'' => 'All', 'planned' => 'Planned', 'in_progress' => 'In Production',
+			'on_hold' => 'On Hold', 'completed' => 'To Collect', 'cancelled' => 'Cancelled',
+		];
+		// Counts are taken over the UNFILTERED set so the badges keep showing how
+		// much sits in each bucket while you are looking at one of them.
+		$all = $this->print->get_jobs($store_id);
+		$data['counts'] = [];
+		foreach ($data['statuses'] as $s) { $data['counts'][$s] = 0; }
+		foreach ($all as $a) {
+			$ast = strtolower((string) ($a->production_status ?? ''));
+			if ($ast !== '' && isset($data['counts'][$ast])) { $data['counts'][$ast]++; }
+		}
+		$data['counts']['completed'] = 0;
+		foreach ($all as $a) {
+			if (strtolower((string) ($a->production_status ?? '')) === 'completed'
+				&& empty($a->fulfilled_at)) { $data['counts']['completed']++; }
+		}
+		$data['total_all']     = count($all);
+		$data['active_status'] = $want === '' ? 'all' : $want;
+		$this->_mobile_render($data + ['_view' => 'printing_jobs']);
+	}
+
+	public function printing_job($id = 0)
+	{
+		if(!$this->_printing_gate()){ return; }
+		$store_id = get_current_store_id();
+		$job = $this->print->get_job((int) $id);
+		// Ownership is checked server-side, not by the view — a crafted id must
+		// not expose another store's job, artwork or costing.
+		if (!$job || (int) $job->store_id !== (int) $store_id) {
+			show_error('That print job is not on this store.', 404, 'Job not found');
+			return;
+		}
+
+		$data = $this->data;
+		$data['page_title']    = $job->job_code;
+		$data['display_name']  = $this->session->userdata('display_name') ?: 'User';
+		$data['job']           = $job;
+		$data['lines']         = $this->print->get_lines((int) $job->id);
+		// stage_progress(), NOT get_stages(). The view renders a gate stepper and
+		// reads $s['label'] / $s['hint'] / $s['done'] / $s['state'] / $s['blocked'];
+		// get_stages() returns raw db_print_stages rows (stage_label, status,
+		// completed_at), so passing it threw "Cannot use object of type stdClass
+		// as array" and blanked the whole screen.
+		$data['stages']        = $this->print->stage_progress((int) $job->id);
+		$data['artworks']      = $this->print->get_artworks((int) $job->id);
+		$data['status_labels'] = method_exists('Printing_model', 'job_statuses')
+			? Printing_model::job_statuses() : [];
+		// The view computes balance as quote_amount - net_paid, and prints
+		// "Verified paid". Use the model's own definition so the phone cannot
+		// disagree with the deposit/artwork gates: it counts only status
+		// 'verified' and subtracts refunds, both of which a naive SUM(amount)
+		// gets wrong.
+		$data['net_paid'] = $this->print->net_verified_payments((int) $job->id);
+		// Internal costing is NOT exposed on a phone screen anyone might be
+		// holding in front of a client.
+		$data['can_view_cost'] = $this->permissions('print_costing');
+		$this->_mobile_render($data + ['_view' => 'printing_job']);
+	}
+
+	public function printing_quotations()
+	{
+		if(!$this->_printing_gate('print_quote')){ return; }
+		$store_id = get_current_store_id();
+
+		$rows = $this->db->select('q.*, c.customer_name')
+			->from('db_quotation q')
+			->join('db_customers c', 'c.id = q.customer_id', 'left')
+			->where('q.store_id', $store_id)
+			->order_by('q.id', 'desc')->limit(100)->get()->result();
+
+		$data = $this->data;
+		$data['page_title']   = 'Quotations';
+		$data['display_name'] = $this->session->userdata('display_name') ?: 'User';
+		$data['quotations']   = $rows;
+		$this->_mobile_render($data + ['_view' => 'printing_quotations']);
+	}
+
+	public function nylon()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Nylon Factory';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['mode_label'] = $this->nylon->mode_label();
+		$data['stats'] = $this->nylon->dashboard_stats($store_id);
+		$data['open_jobs'] = $this->nylon->open_jobs($store_id);
+		$data['materials'] = $this->nylon->material_stock($store_id);
+		$data['balances'] = $this->nylon->outstanding_balances($store_id);
+		$data['can_report'] = $this->permissions('nylon_report');
+		$data['can_orders'] = $this->permissions('custom_orders_view');
+		$data['can_jobs'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon']);
+	}
+
+	public function nylon_jobs($status = '')
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$statuses = Nylon_model::job_statuses();
+		$active = in_array($status, $statuses) ? $status : 'in_progress';
+		$data = $this->data;
+		$data['page_title'] = 'Production Jobs';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['statuses'] = $statuses;
+		$data['active_status'] = $active;
+		$data['jobs'] = $this->nylon->get_jobs($store_id, $active);
+		foreach($data['jobs'] as $j){
+			$j->produced_qty = (float)$this->db->select('COALESCE(SUM(l.good_qty),0) q', false)
+				->from('db_nylon_job_logs l')
+				->join('db_nylon_job_stages s','s.id = l.stage_id')
+				->where('l.job_id', $j->id)->where('s.stage_key', 'qc')->where('l.status !=', 'reversed')
+				->get()->row()->q;
+		}
+		$data['counts'] = [];
+		foreach($statuses as $s){ $data['counts'][$s] = count($this->nylon->get_jobs($store_id, $s)); }
+		$data['can_add'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_jobs']);
+	}
+
+	public function nylon_job($id = 0)
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$job = $this->nylon->get_job((int)$id);
+		if(!$job || $job->store_id != get_current_store_id()){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $job->job_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['job'] = $job;
+		$data['stages'] = $this->nylon->get_stages($job->id);
+		$data['logs'] = $this->nylon->get_logs($job->id);
+		$data['stage_defs'] = Nylon_model::stage_defs();
+		$data['order'] = $job->custom_order_id ? $this->nylon->get_order($job->custom_order_id) : null;
+		$data['can_report'] = $this->permissions('nylon_report');
+		$data['can_approve'] = $this->permissions('nylon_approve');
+		$data['can_costing'] = $this->permissions('nylon_costing');
+		$data['report'] = $this->permissions('nylon_costing') ? $this->nylon->job_report($job->id) : null;
+		$this->_mobile_render($data + ['_view' => 'nylon_job']);
+	}
+
+	public function nylon_report($job_id = 0, $stage_id = 0)
+	{
+		if(!$this->_nylon_gate('nylon_report')){ return; }
+		$job = $this->nylon->get_job((int)$job_id);
+		if(!$job || $job->store_id != get_current_store_id()){ show_404(); return; }
+		$stage = null;
+		foreach($this->nylon->get_stages($job->id) as $s){ if($s->id == $stage_id) $stage = $s; }
+		if(!$stage){ show_404(); return; }
+
+		$defs = Nylon_model::stage_defs();
+		$machine_type = isset($defs[$stage->stage_key]) ? $defs[$stage->stage_key]['machine_type'] : null;
+		$machines = $this->nylon->get_machines();
+		if($machine_type){
+			$machines = array_values(array_filter($machines, function($m) use ($machine_type){ return $m->machine_type === $machine_type; }));
+		}
+
+		$data = $this->data;
+		$data['page_title'] = Nylon_model::stage_label($stage->stage_key);
+		$data['job'] = $job;
+		$data['stage'] = $stage;
+		$data['stage_label'] = Nylon_model::stage_label($stage->stage_key);
+		$data['machines'] = $machines;
+		$data['scrap_items'] = $this->nylon->get_spec_items(null, get_current_store_id());
+		$data['input_name'] = '';
+		$data['output_name'] = '';
+		if(!empty($stage->input_item_id)){
+			$in = $this->db->select('item_name')->where('id',$stage->input_item_id)->get('db_items')->row();
+			$data['input_name'] = $in ? $in->item_name : '';
+		}
+		if(!empty($stage->output_item_id)){
+			$out = $this->db->select('item_name')->where('id',$stage->output_item_id)->get('db_items')->row();
+			$data['output_name'] = $out ? $out->item_name : '';
+		}
+		$data['shifts'] = ['Morning','Afternoon','Night'];
+		$this->_mobile_render($data + ['_view' => 'nylon_report']);
+	}
+
+	public function nylon_orders($status = '')
+	{
+		if(!$this->_nylon_gate('custom_orders_view')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$store_id = get_current_store_id();
+		$statuses = Custom_orders_model::get_workflow('nylon');
+		$active = in_array($status, $statuses) ? $status : 'in_production';
+		$data = $this->data;
+		$data['page_title'] = 'Job Orders';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['statuses'] = $statuses;
+		$data['active_status'] = $active;
+		$data['orders'] = $this->nylon->get_orders($store_id, $active);
+		foreach($data['orders'] as $o){ $o->artwork_approved = $this->nylon->artwork_ready($o->id); }
+		$data['counts'] = [];
+		foreach($statuses as $s){ $data['counts'][$s] = count($this->nylon->get_orders($store_id, $s)); }
+		$data['can_add'] = $this->permissions('custom_orders_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_orders']);
+	}
+
+	public function nylon_order($id = 0)
+	{
+		if(!$this->_nylon_gate('custom_orders_view')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$order = $this->nylon->get_order((int)$id);
+		if(!$order || $order->store_id != get_current_store_id()){ show_404(); return; }
+		$data = $this->data;
+		$data['page_title'] = $order->order_code;
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['order'] = $order;
+		$data['spec'] = $this->nylon->get_spec($order->item_id, $order->store_id);
+		$data['jobs'] = $this->db->where('custom_order_id',$order->id)->order_by('id','desc')->get('db_nylon_jobs')->result();
+		$data['history'] = $this->custom_orders->get_history($order->id);
+		$data['workflow'] = Custom_orders_model::get_workflow('nylon');
+		$data['can_edit'] = $this->permissions('custom_orders_edit');
+		$data['can_artwork'] = $this->permissions('nylon_artwork');
+		$data['can_approve'] = $this->permissions('nylon_approve');
+		$data['can_jobs'] = $this->permissions('nylon_jobs_add');
+		$this->_mobile_render($data + ['_view' => 'nylon_order']);
+	}
+
+	public function nylon_order_form($id = 0)
+	{
+		if(!$this->_nylon_gate('custom_orders_add')){ return; }
+		$this->load->model('custom_orders_model', 'custom_orders');
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['edit_order'] = null;
+		if($id){
+			$this->permission_check('custom_orders_edit');
+			$data['edit_order'] = $this->nylon->get_order((int)$id);
+			if(!$data['edit_order']){ show_404(); return; }
+		}
+		$data['page_title'] = $id ? 'Edit Job Order' : 'New Job Order';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['customers'] = $this->db->where('store_id',$store_id)->where('status',1)->order_by('customer_name','asc')->get('db_customers')->result();
+		$data['products'] = array_merge(
+			$this->nylon->get_spec_items('finished_good', $store_id),
+			$this->nylon->get_spec_items('film_roll', $store_id)
+		);
+		$data['item_specs'] = [];
+		foreach($data['products'] as $p){
+			$spec = $this->nylon->get_spec($p->id, $store_id);
+			$spec_rows = [];
+			if($spec){
+				foreach(['material'=>'Material','bag_type'=>'Bag Type','width'=>'Width','length'=>'Length','thickness'=>'Thickness','colour'=>'Colour','design_ref'=>'Design Ref'] as $k => $lbl){
+					if(!empty($spec->{$k})) $spec_rows[$lbl] = $spec->{$k};
+				}
+				if(!empty($spec->print_type) && $spec->print_type !== 'none') $spec_rows['Print'] = $spec->print_type;
+			}
+			$data['item_specs'][$p->id] = $spec_rows;
+		}
+		$data['units'] = $this->nylon->get_units($store_id);
+		$data['workflow'] = Custom_orders_model::get_workflow('nylon');
+		$data['preselect_customer_id'] = $this->input->get('customer_id', TRUE) ?: null;
+		$this->_mobile_render($data + ['_view' => 'nylon_order_form']);
+	}
+
+	public function nylon_job_form($order_id = 0)
+	{
+		if(!$this->_nylon_gate('nylon_jobs_add')){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'New Production Job';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['order_id'] = (int)$order_id;
+		$data['open_orders'] = $this->db->select('o.id, o.order_code, o.item_id, o.order_qty, o.due_date, c.customer_name, i.item_name')
+			->from('db_custom_orders o')
+			->join('db_customers c','c.id=o.customer_id','left')
+			->join('db_items i','i.id=o.item_id','left')
+			->where('o.store_id',$store_id)->where('o.workflow_template_key','nylon')
+			->where_in('o.status',['new','quoted','awaiting_artwork','approved','deposit_paid','in_production'])
+			->order_by('o.due_date','asc')->get()->result();
+		$data['products'] = array_merge(
+			$this->nylon->get_spec_items('finished_good', $store_id),
+			$this->nylon->get_spec_items('film_roll', $store_id)
+		);
+		$data['materials'] = $this->nylon->get_spec_items('raw_material', $store_id);
+		$data['rolls'] = $this->nylon->get_spec_items('film_roll', $store_id);
+		$data['units'] = $this->nylon->get_units($store_id);
+		$data['warehouses'] = $this->db->where('store_id',$store_id)->where('status',1)->get('db_warehouse')->result();
+		$data['mode'] = $this->nylon->mode_flags();
+		$this->_mobile_render($data + ['_view' => 'nylon_job_form']);
+	}
+
+	public function nylon_machines()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$data = $this->data;
+		$data['page_title'] = 'Machines';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['machines'] = $this->nylon->get_machines();
+		$data['types'] = Nylon_model::machine_types();
+		$data['can_edit'] = $this->permissions('nylon_settings');
+		$this->_mobile_render($data + ['_view' => 'nylon_machines']);
+	}
+
+	public function nylon_products()
+	{
+		if(!$this->_nylon_gate()){ return; }
+		$store_id = get_current_store_id();
+		$data = $this->data;
+		$data['page_title'] = 'Materials & Products';
+		$data['display_name'] = $this->session->userdata('display_name') ?: $this->session->userdata('username') ?: 'User';
+		$data['spec_items'] = $this->nylon->get_spec_items(null, $store_id);
+		$data['classes'] = Nylon_model::item_classes();
+		$this->_mobile_render($data + ['_view' => 'nylon_products']);
+	}
+
+}

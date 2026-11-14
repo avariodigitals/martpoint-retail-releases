@@ -1,0 +1,565 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+use Dompdf\Dompdf;
+use Dompdf\Options;
+
+
+class Sales extends MY_Controller {
+	public function __construct(){
+		parent::__construct();
+		$this->load_global();
+		$this->load->model('sales_model','sales');
+		$this->load->helper('sms_template_helper');
+		$this->load->library('invoice_workflow');
+	}
+
+	public function is_sms_enabled(){
+		return is_sms_enabled();
+	}
+
+	public function index()
+	{
+		$this->permission_check('sales_view');
+		$data=$this->data;
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Invoice Register' : $this->lang->line('sales_list');
+		$data['content']=$this->load->view('sales-list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	//Convert to Quotation to Sales Invoice
+	public function quotation($quotation_id){
+		$this->belong_to('db_quotation',$quotation_id);
+		$this->permission_check('sales_add');
+		$hasCustomLines = false;
+		foreach(['manual_item_name','part_code','unit_label'] as $customCol){
+			if($this->db->field_exists($customCol, 'db_quotationitems')
+				&& $this->db->where('quotation_id', (int)$quotation_id)->where($customCol.' !=', '')->count_all_results('db_quotationitems') > 0){
+				$hasCustomLines = true;
+				break;
+			}
+		}
+		if($hasCustomLines){
+			$this->session->set_flashdata('error', 'This quotation has custom line details. Create a sales invoice from the sales screen and enter the agreed items there.');
+			redirect('quotation');
+			return;
+		}
+		//Load model
+		$this->load->model('customers_model');
+
+		$quote = $this->db->select('id,store_id,lifecycle_status,sales_status,revision_no')
+			->where('id',(int)$quotation_id)
+			->where('store_id',get_current_store_id())
+			->get('db_quotation')->row();
+		if(!$quote){
+			$this->session->set_flashdata('error','Quotation not found for this store.');
+			redirect('quotation'); return;
+		}
+		if((string)($quote->sales_status ?? '') === 'Converted'){
+			$this->session->set_flashdata('error','This quotation has already been converted to an invoice.');
+			redirect('quotation'); return;
+		}
+		$acceptanceRequired = mp_quote_acceptance_required((int)$quote->store_id);
+		$accepted = trim((string)($quote->lifecycle_status ?? '')) === 'accepted';
+		$canOverride = is_admin() || is_store_admin();
+		if($acceptanceRequired && !$accepted && !$canOverride){
+			$this->session->set_flashdata('error','Customer acceptance is required before this quotation can be converted. Ask a store manager to authorise an override if needed.');
+			redirect('quotation'); return;
+		}
+
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('quotation_to_sales_invoice');
+		$data['quotation_id']=$quotation_id;
+		$data['quotation_revision']=(int)($quote->revision_no ?? 0);
+		$data['quotation_acceptance_required']=$acceptanceRequired;
+		$data['quotation_acceptance_override']=$acceptanceRequired && !$accepted && $canOverride;
+
+		$data=array_merge($data);
+		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales',$data,TRUE);
+			$this->load->view('mp_layout', $data);
+		}
+	}
+
+	public function add()
+	{	
+		$this->permission_check('sales_add');
+		$data=$this->data;
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'New Invoice' : $this->lang->line('sales');
+		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales',$data,TRUE);
+			$this->load->view('mp_layout', $data);
+		}
+	}
+
+
+	public function sales_save_and_update(){
+        $documentCommand=$this->input->post_get('command',TRUE);
+        if (!in_array($documentCommand,['save','update'],true)) { echo 'Invalid document action.';return; }
+        $this->permission_check_with_msg($documentCommand==='update' ? 'sales_edit' : 'sales_add');
+        if(parse_amount($this->input->post('amount',TRUE))>0)$this->permission_check_with_msg('sales_payment_add');
+		$this->form_validation->set_rules('sales_date', 'Sales Date', 'trim|required');
+		$this->form_validation->set_rules('customer_id', 'Customer Name', 'trim|required');
+		
+		if ($this->form_validation->run() == TRUE) {
+			$result = $this->sales->verify_save_and_update(true);
+	    	echo $result;
+		} else {
+			echo "Please Fill Compulsory(* marked) Fields.";
+		}
+	}
+	
+	
+	public function update($id){
+		//Load model
+		$this->load->model('customers_model');
+
+		//Verification of invoice
+		$this->belong_to('db_sales',$id);
+
+		//Permission check
+		$this->permission_check('sales_edit');
+
+		$data=$this->data;
+
+		$data=array_merge($data,array('sales_id'=>$id));
+
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Edit Invoice' : $this->lang->line('sales');
+		$data['walkin_customer_id'] = get_walk_in_customer_id();
+		if(is_mobile() || $this->input->get('mobile')=='1'){
+			$this->load->view('sales_mobile', $data);
+		} else {
+			$data['extra_js_files'] = ['js/modals.js','js/modals/modal_item.js','plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js','js/ajaxselect/customer_select_ajax.js'];
+			$data['content'] = $this->load->view('sales', $data, TRUE);
+			$this->load->view('mp_layout', $data);
+		}
+	}
+
+	public function ajax_list()
+	{
+		$list = $this->sales->get_datatables();
+		
+		$data = array();
+		$no = $_POST['start'];
+		foreach ($list as $sales) {
+			
+			$no++;
+			$row = array();
+			$row[] = '<input type="checkbox" name="checkbox[]" value='.$sales->id.' class="checkbox column_checkbox" >';
+			
+			$row[] = show_date($sales->sales_date);
+
+			#-----------------------------------------------------
+			$date_difference = date_difference($sales->due_date,date("Y-m-d"));
+					$str='';
+					//$info='';
+					if($date_difference>0){
+			          $str= "<br><span class='label label-danger' style='cursor:pointer'> $date_difference days Overdue</span>";
+					}
+					else{
+						$str= "<br><span class='label label-info' style='cursor:pointer'> ".abs($date_difference)." days Left</span>";
+					}
+			$row[] = (!empty($sales->due_date) && $sales->payment_status!='Paid' && $sales->sales_status!=='Draft') ? show_date($sales->due_date).$str : '';
+			#-----------------------------------------------------
+
+			$info = (!empty($sales->quotation_id)) ? "<br><span class='label label-success' style='cursor:pointer'><i class='fa fa-fw  fa-check-circle'></i>Against Quotation</span>" : '';
+
+			$info .= (!empty($sales->return_bit)) ? "<br><span class='label label-danger' style='cursor:pointer'><i class='fa fa-fw fa-undo'></i>Return Raised</span>" : '';
+			$documentState=$this->invoice_workflow->status($sales);
+			$info .= '<br><span class="label label-default">'.ucfirst($documentState).'</span>';
+
+			$row[] = $sales->sales_code.$info;
+			
+			$row[] = $sales->reference_no;
+			$row[] = $sales->customer_name;
+			
+			$row[] = store_number_format($sales->grand_total);
+			$row[] = store_number_format($sales->paid_amount);
+					$str='';
+					if($sales->payment_status=='Unpaid')
+			          $str= "<span class='label label-danger' style='cursor:pointer'>Unpaid </span>";
+			        if($sales->payment_status=='Partial')
+			          $str="<span class='label label-warning' style='cursor:pointer'> Partial </span>";
+			        if($sales->payment_status=='Paid')
+			          $str="<span class='label label-success' style='cursor:pointer'> Paid </span>";
+
+			$row[] = $str;
+			$paymentLabel = trim((string)($sales->payment_type ?? ''));
+			$row[] = $paymentLabel !== '' ? htmlspecialchars($paymentLabel, ENT_QUOTES, 'UTF-8') : '-';
+			$row[] = ($sales->created_by);
+
+					 if($sales->pos ==1):
+					 	$str1='pos/edit/';
+					 else:
+					 	$str1='sales/update/';
+					 endif;
+												$wa_share_sales = get_whatsapp_share_url('sales',$sales->id);
+
+					$str2 = '<div class="btn-group" title="View Account">
+										<a class="btn btn-primary btn-o dropdown-toggle" data-toggle="dropdown" href="#">
+											Action <span class="caret"></span>
+										</a>
+										<ul role="menu" class="dropdown-menu dropdown-light pull-right">';
+											if($this->permissions('sales_view'))
+											$str2.='<li>
+												<a title="View Invoice" href="'.base_url().'sales/invoice/'.$sales->id.'" >
+													<i class="fa fa-fw fa-eye text-blue"></i>View sales
+												</a>
+											</li>';
+
+											if($this->permissions('sales_edit'))
+											$str2.='<li>
+												<a title="Update Record ?" href="'.base_url().''.$str1.$sales->id.'">
+													<i class="fa fa-fw fa-edit text-blue"></i>Edit
+												</a>
+											</li>';
+
+											if($this->permissions('sales_payment_view'))
+											$str2.='<li>
+					<a href="#" role="button" title="View Payments" class="pointer sales-payment-action" onclick="view_payments('.$sales->id.',this); return false;">
+													<i class="fa fa-fw fa-money text-blue"></i>View Payments
+												</a>
+											</li>';
+
+											if($this->permissions('sales_payment_add') && $sales->sales_status!=='Draft')
+											$str2.='<li>
+					<a href="#" role="button" title="Receive Payments" class="pointer sales-payment-action" onclick="pay_now('.$sales->id.',this); return false;">
+													<i class="fa fa-fw fa-hourglass-half text-blue"></i>Receive Payments
+												</a>
+											</li>';
+
+											if($this->permissions('sales_add') || $this->permissions('sales_edit'))
+											$str2.='
+											<li>
+												<a title="Download PDF" target="_blank" href="'.base_url().'pdf/sales/'.$sales->id.'">
+													<i class="fa fa-fw fa-file-pdf-o text-blue"></i>PDF
+												</a>
+											</li>
+												<li>
+													<a style="cursor:pointer" title="Print POS Invoice ?" onclick="print_invoice('.$sales->id.')">
+														<i class="fa fa-fw fa-file-text text-blue"></i>POS Invoice
+													</a>
+												</li>
+												<li>
+													<a title="Share on WhatsApp" target="_blank" href="'.$wa_share_sales['url'].'">
+														<i class="fa fa-fw fa-whatsapp text-green"></i>WhatsApp
+													</a>
+												</li>';
+											if($this->permissions('sales_return_add') && $sales->sales_status!=='Draft')
+											$str2.='<li>
+												<a title="Sales Return" href="'.base_url().'sales_return/add/'.$sales->id.'">
+													<i class="fa fa-fw fa-undo text-blue"></i>Sales Return
+												</a>
+											</li>';
+
+											if($this->permissions('sales_delete'))
+											$str2.='<li>
+												<a style="cursor:pointer" title="Delete Record ?" onclick="delete_sales(\''.$sales->id.'\')">
+													<i class="fa fa-fw fa-trash text-red"></i>Delete
+												</a>
+											</li>
+											
+										</ul>
+									</div>';			
+
+			$row[] = $str2;
+
+			$data[] = $row;
+		}
+
+		$output = array(
+						"draw" => $_POST['draw'],
+						"recordsTotal" => $this->sales->count_all(),
+						"recordsFiltered" => $this->sales->count_filtered(),
+						"data" => $data,
+				);
+		//output to json format
+		echo json_encode($output);
+	}
+	public function update_status(){
+		$this->permission_check('sales_edit');
+		$id=$this->input->post('id');
+		$status=$this->input->post('status');
+
+		
+		$result=$this->sales->update_status($id,$status);
+		return $result;
+	}
+	public function delete_sales(){
+		$this->permission_check_with_msg('sales_delete');
+		$id=$this->input->post('q_id');
+		echo $this->sales->delete_sales($id);
+	}
+	public function multi_delete(){
+		$this->permission_check_with_msg('sales_delete');
+		$ids=implode (",",$_POST['checkbox']);
+		echo $this->sales->delete_sales($ids);
+	}
+
+
+	//Table ajax code
+	public function search_item(){
+		$q=$this->input->get('q');
+		$result=$this->sales->search_item($q);
+		echo $result;
+	}
+	public function find_item_details(){
+		$id=$this->input->post('id');
+		
+		$result=$this->sales->find_item_details($id);
+		echo $result;
+	}
+
+	public function get_customer_trends(){
+		$customer_id = $this->input->post('customer_id', true);
+		$store_id = $this->input->post('store_id', true);
+		if(empty($customer_id)){
+			echo json_encode(array('error' => 'Customer required'));
+			return;
+		}
+		$data = $this->sales->get_customer_trends($customer_id, $store_id);
+		$data['currency'] = $this->currency();
+		echo json_encode($data);
+	}
+
+	//sales invoice form
+	public function invoice($id)
+	{	
+		$this->belong_to('db_sales',$id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit') && !$this->permissions('sales_view')){
+			$this->show_access_denied_page();
+		}
+		
+		$data=$this->data;
+		if(is_mobile()){redirect('mobile/sales_invoice/'.(int)$id);return;}
+		$data=array_merge($data,array('sales_id'=>$id));
+		$data['page_title']=(mp_get_store_profile()['industry_type'] ?? '')==='building_materials' ? 'Invoice' : $this->lang->line('sales_invoice');
+		$data['content']=$this->load->view('sal-invoice',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+	
+	//Print sales invoice 
+	public function print_invoice($sales_id)
+	{
+		$this->belong_to('db_sales',$sales_id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			$this->show_access_denied_page();
+		}
+		
+		$data=$this->data;
+		$data=array_merge($data,array('sales_id'=>$sales_id));
+		$data['page_title']=$this->lang->line('sales_invoice');
+		$data['auto_print']=true;
+
+		$this->get_html_invoice($data);
+	}
+
+
+	
+
+	//Print sales POS invoice 
+	public function print_invoice_pos($sales_id)
+	{
+
+		$this->belong_to('db_sales',$sales_id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			$this->show_access_denied_page();
+		}
+		$data=$this->data;
+		$data=array_merge($data,array('sales_id'=>$sales_id));
+		$data['page_title']=$this->lang->line('sales_invoice');
+		
+		$this->load->view('sal-invoice-pos',$data);
+		
+		
+	}
+
+	public function get_receipt_html($sales_id)
+	{
+		header('Content-Type: text/html; charset=utf-8');
+		$this->belong_to('db_sales',$sales_id);
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			echo '<div style="text-align: center; padding: 40px; color: red;">Access denied</div>';
+			exit;
+		}
+		$data = $this->data;
+		$data['sales_id'] = $sales_id;
+		
+		// Load the receipt view and capture output
+		ob_start();
+		try {
+			$this->load->view('sal-invoice-pos', $data);
+			$html = ob_get_clean();
+			
+			// Extract styles from head and scope them to receipt container
+			$styleStart = stripos($html, '<style');
+			$styleEnd = stripos($html, '</style>') + 8;
+			$styles = '';
+			if ($styleStart !== false && $styleEnd > $styleStart) {
+				$styles = substr($html, $styleStart, $styleEnd - $styleStart);
+				// Scope all styles to .receipt-container
+				$styles = str_replace('<style', '<style scoped', $styles);
+				$styles = str_replace('body{', '.receipt-container {', $styles);
+				$styles = str_replace('body ', '.receipt-container ', $styles);
+				$styles = str_replace('onload="window.print();"', '', $styles);
+			}
+			
+			// Extract just the body content
+			$bodyStart = stripos($html, '<body');
+			if ($bodyStart !== false) {
+				$bodyStart = stripos($html, '>', $bodyStart) + 1;
+				$bodyEnd = stripos($html, '</body>');
+				if ($bodyEnd !== false) {
+					$bodyContent = substr($html, $bodyStart, $bodyEnd - $bodyStart);
+					// Remove onload attribute if present
+					$bodyContent = str_replace('onload="window.print();"', '', $bodyContent);
+					
+					// Return wrapped content with scoped styles
+					echo $styles;
+					echo '<div class="receipt-container">';
+					echo $bodyContent;
+					echo '</div>';
+				}
+			}
+		} catch (Exception $e) {
+			ob_end_clean();
+			echo '<div style="text-align: center; padding: 40px; color: red;">Error loading receipt: ' . htmlspecialchars($e->getMessage()) . '</div>';
+		}
+		exit;
+	}
+
+	public function get_html_invoice($data){
+		$this->load->view('print-sales-invoice-whatsapp',$data);
+        // Get output html
+        return $this->output->get_output();
+	}
+	public function pdf($sales_id){
+
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			$this->show_access_denied_page();
+		}
+		$this->belong_to('db_sales',$sales_id);
+
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('sales_invoice');
+        $data=array_merge($data,array('sales_id'=>$sales_id));
+
+
+        $html = $this->get_html_invoice($data);
+        
+        require_once(APPPATH . 'libraries/dompdf/autoload.inc.php');
+        mb_internal_encoding('UTF-8');
+
+        $options = new Options();
+		$options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+
+        // Load HTML content
+        $dompdf->loadHtml($html,'UTF-8');
+        
+        // (Optional) Setup the paper size and orientation
+        $dompdf->setPaper('A4', 'portrait');/*landscape or portrait*/
+        
+        // Render the HTML as PDF
+        $dompdf->render();
+        
+        // Output the generated PDF (1 = download and 0 = preview)
+        $dompdf->stream("Sales-invoice-$sales_id-".date('M')."_".date('d')."_".date('Y'), array("Attachment"=>0));
+		exit;
+	}
+	
+	
+
+	
+	/*v1.1*/
+	public function return_row_with_data($rowcount,$item_id){
+		echo $this->sales->get_items_info($rowcount,$item_id);
+	}
+	public function return_sales_list($sales_id){
+		echo $this->sales->return_sales_list($sales_id);
+	}
+	public function delete_payment(){
+		$this->permission_check_with_msg('sales_payment_delete');
+		$payment_id = $this->input->post('payment_id');
+		echo $this->sales->delete_payment($payment_id);
+	}
+	public function show_pay_now_modal(){
+		$this->permission_check_with_msg('sales_payment_add');
+		$sales_id=$this->input->post('sales_id');
+		$this->belong_to('db_sales',$sales_id);
+		echo $this->sales->show_pay_now_modal($sales_id);
+	}
+	public function save_payment(){
+		$this->permission_check_with_msg('sales_payment_add');
+		echo $this->sales->save_payment();
+	}
+	public function mark_sent(){
+		$this->permission_check_with_msg('sales_edit');
+		if(strtolower($this->input->method())!=='post'){show_error('POST is required.',405);return;}
+		$id=(int)$this->input->post('sales_id');
+		try {
+			$this->invoice_workflow->markSent($id,get_current_store_id());
+			if(function_exists('mp_audit_log'))mp_audit_log('sales','mark_sent',$id,'Invoice marked as shared/sent by staff; no payment recorded.');
+			$this->session->set_flashdata('success','Invoice marked as sent. Payment status is unchanged.');
+		} catch(Throwable $e){$this->session->set_flashdata('error',$e->getMessage());}
+		redirect($this->input->post('mobile') ? 'mobile/sales_invoice/'.$id : 'sales/invoice/'.$id);
+	}
+	public function view_payments_modal(){
+		$this->permission_check_with_msg('sales_view');
+		$sales_id=$this->input->post('sales_id');
+		echo $this->sales->view_payments_modal($sales_id);
+	}
+	public function get_customers_select_list(){
+		echo get_customers_select_list(null,$_POST['store_id']);
+	}
+	public function get_items_select_list(){
+		$item_type = isset($_POST['item_type']) ? $_POST['item_type'] : '';
+		echo get_items_select_list(null,$_POST['store_id'],$item_type);
+	}
+	public function get_tax_select_list(){
+		echo get_tax_select_list(null,$_POST['store_id']);
+	}
+	/*Get warehouse select list*/
+	public function get_warehouse_select_list(){
+		echo get_warehouse_select_list(null,$_POST['store_id']);
+	}
+
+	public function get_brands_select_list(){
+		echo get_brands_select_list(null,$_POST['store_id']);
+	}
+	public function get_categories_select_list(){
+		echo get_categories_select_list(null,$_POST['store_id']);
+	}
+
+	public function get_payment_types_select_list(){
+		echo get_payment_types_select_list(null,$_POST['store_id']);
+	}
+
+	//Print sales Payment Receipt
+	public function print_show_receipt($payment_id){
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			$this->show_access_denied_page();
+		}
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('payment_receipt');
+		$data=array_merge($data,array('payment_id'=>$payment_id));
+		$this->load->view('print-cust-payment-receipt',$data);
+	}
+	
+	public function get_users_select_list(){
+		echo get_users_select_list($this->session->userdata("role_id"),$_POST['store_id']);
+	}
+
+	public function return_quotation_list($quotation_id){
+		echo $this->sales->return_quotation_list($quotation_id);
+	}
+	
+}

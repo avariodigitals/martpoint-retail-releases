@@ -1,0 +1,21 @@
+<?php
+$beRoot=base_url('store/'.$settings->store_slug);
+$beWishlist=!empty($wishlist_return);
+$beStoryTitle=$beWishlist?'Keep your garden favourites close.':$beCopy('login_heading');
+$beStoryIntro=$beWishlist?'Sign in to save products from '.(($settings->store_name ?? '') ?: ($store->store_name ?? 'this store')).' and return to your wishlist whenever you are ready.':$beCopy('login_intro');
+$bePanelTitle=$beWishlist?'Sign in to save your wishlist':$beCopy('login_panel_heading');
+$bePanelIntro=$beWishlist?'Enter your phone or email to keep this product in your store account wishlist.':$beCopy('login_panel_intro');
+?>
+<main class="be-commerce be-auth-page be-shell">
+<nav class="be-crumbs" aria-label="Breadcrumb"><a href="<?= $beRoot; ?>">Home</a><span>/</span><span>Your account</span></nav>
+<div class="be-auth-layout"><section class="be-auth-story"><span class="be-eyebrow"><?= $beWishlist?'Your wishlist':$beCopy('login_eyebrow'); ?></span><h1><?= $beWishlist?htmlspecialchars($beStoryTitle):$beStoryTitle; ?></h1><p><?= $beWishlist?htmlspecialchars($beStoryIntro):$beStoryIntro; ?></p><div class="be-auth-image"><img src="<?= htmlspecialchars(preg_match('#^https?://#i',$beValue('login_image'))?$beValue('login_image'):base_url($beValue('login_image'))); ?>" alt="<?= $beCopy('login_image_alt'); ?>"><span><?= $beCopy('login_image_caption'); ?></span></div><p class="be-auth-caption"><?= $beCopy('login_caption'); ?></p></section>
+<section class="be-auth-panel" aria-labelledby="be-auth-title" data-be-auth data-intro="<?= $beWishlist?htmlspecialchars($bePanelIntro, ENT_QUOTES):$bePanelIntro; ?>" data-send="<?= $beRoot.'/send_otp'; ?>" data-verify="<?= $beRoot.'/verify_otp'; ?>" data-account="<?= $beRoot.'/account'; ?>" data-wishlist-return="<?= $beWishlist ? '1' : '0'; ?>" data-wishlist-item="<?= (int)($wishlist_return_item ?? 0); ?>" data-csrf-name="<?= htmlspecialchars($csrf_name); ?>" data-csrf-hash="<?= htmlspecialchars($csrf_hash); ?>">
+<span class="be-eyebrow"><?= $beWishlist?'Wishlist sign in':$beCopy('login_panel_eyebrow'); ?></span><h2 id="be-auth-title"><?= $beWishlist?htmlspecialchars($bePanelTitle):$bePanelTitle; ?></h2><p id="be-auth-description"><?= $beWishlist?htmlspecialchars($bePanelIntro):$bePanelIntro; ?></p>
+<form id="be-auth-contact"><div class="be-auth-tabs" role="group" aria-label="Receive a code by"><button type="button" data-be-method="phone" aria-pressed="true">Phone number</button><button type="button" data-be-method="email" aria-pressed="false">Email address</button></div>
+<div data-be-phone><label for="be-auth-phone">Phone number</label><input id="be-auth-phone" type="tel" autocomplete="tel" placeholder="e.g. 08012345678" value="<?= htmlspecialchars($prefill_phone ?? ''); ?>" required></div>
+<div data-be-email hidden><label for="be-auth-name">Your name</label><input id="be-auth-name" autocomplete="name" placeholder="Full name" disabled><label for="be-auth-email">Email address</label><input id="be-auth-email" type="email" autocomplete="email" placeholder="you@example.com" disabled></div>
+<p class="be-form-error" id="be-auth-contact-error" role="alert"></p><button class="be-pill" type="submit" id="be-auth-send">Send my code <span aria-hidden="true">↗</span></button><p class="be-auth-hint">We’ll send your sign-in code to the contact you provide.</p></form>
+<form id="be-auth-code" hidden><label for="be-auth-otp">Your six-digit code</label><input id="be-auth-otp" class="be-code-input" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" placeholder="000000" required><p class="be-form-error" id="be-auth-code-error" role="alert"></p><button class="be-pill" type="submit" id="be-auth-continue">Sign in <span aria-hidden="true">↗</span></button><div class="be-auth-code-actions"><button type="button" class="be-textlink" id="be-auth-resend">Send a new code</button><button type="button" class="be-textlink" id="be-auth-change">Change contact</button></div></form>
+<div class="be-auth-bottom"><a href="<?= $beRoot.'/products'; ?>"><?= $beCopy('login_guest'); ?> ↗</a><span>Your information stays with <?= htmlspecialchars(($settings->store_name ?? '') ?: $store->store_name); ?>.</span></div>
+</section></div>
+</main>

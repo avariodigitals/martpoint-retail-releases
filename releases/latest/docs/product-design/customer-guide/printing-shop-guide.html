@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Printing Shop Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .screen-flow { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .flow-step { display:flex; align-items:center; gap:8px; background:#F5F5F4; padding:8px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; color:var(--mp-ink); }
+    .screen-card { border:1px solid var(--mp-border); border-radius:var(--radius); padding:18px; margin-bottom:18px; page-break-inside:avoid; }
+    .term { background:#FAFAF9; border-left:3px solid var(--mp-primary); padding:10px 14px; border-radius:0 8px 8px 0; margin-bottom:12px; }
+    .term b { display:block; font-size:0.9rem; margin-bottom:2px; }
+    .term span { font-size:0.84rem; color:var(--mp-muted); }
+    .stage-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--mp-border); }
+    .stage-row:last-child { border-bottom:none; }
+    .stage-num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--mp-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; }
+    .stage-body { flex:1; font-size:0.86rem; }
+    .stage-body b { display:block; }
+    .stage-body span { color:var(--mp-muted); font-size:0.8rem; }
+  </style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Printing Industry</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>Zeon Creatives</h1>
+        <p>One print shop, run end to end &mdash; from a client walking in with an idea,
+           through quoting, artwork approval and the production floor, to the invoice and
+           the presses that did the work. Every screen, every role, field by field.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <span class="label">Before anything</span>
+    <h2 class="mb-2">Why print is different from retail</h2>
+    <p class="lead mb-3">
+      A shop sells things from a shelf. Price is on the item; you scan it and take money.
+      A print shop cannot work that way. Every job is a set of decisions — size, paper,
+      quantity, finishing — and the price comes from those decisions. Nothing sits on a
+      shelf waiting to be scanned.
+    </p>
+    <p class="mb-3">
+      That is why MartPoint's print workspace is built around a <b>quote</b>, not a till.
+      Once you accept that one idea, everything else makes sense.
+    </p>
+
+    <div class="term">
+      <b>Job</b>
+      <span>One piece of work for one client. "500 business cards for Zainab." A job holds everything about that work: the specs, the price, the artwork, the payment.</span>
+    </div>
+    <div class="term">
+      <b>Line</b>
+      <span>One item inside a job. A job for "shop branding" might have three lines: a banner, 24 polo shirts, and a sign board. Each line has its own size, material and price.</span>
+    </div>
+    <div class="term">
+      <b>Quotation (Quote)</b>
+      <span>A price you give the client before doing the work. It is a promise: "this is what it costs." Nothing is charged yet, and no stock moves. There is no wholesale or retail tier — the quote simply sets the price.</span>
+    </div>
+    <div class="term">
+      <b>Invoice</b>
+      <span>The bill. This is what the client owes, and what they pay against. Every invoice comes from an accepted quote — never from nothing.</span>
+    </div>
+    <div class="term">
+      <b>Material</b>
+      <span>What you print ON — paper, card, vinyl, ink. You buy these, you stock them, and you can never sell them to a customer. They exist to be used up in production.</span>
+    </div>
+    <div class="term">
+      <b>Customer Material</b>
+      <span>What the CLIENT brings you. "Here is my own fabric, print on it." It is their property, sitting in your shop. You must be able to say exactly how much came in and how much is left.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 2</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">The workspace</span>
+    <h2 class="mb-2">Your menu, and what each part is for</h2>
+    <p class="mb-3">The left menu is grouped by what you are doing, not by how the system is built.</p>
+
+    <div class="screen-card">
+      <h3><i class="fa fa-cubes" style="color:#0E7490;margin-right:8px;"></i>Print Shop</h3>
+      <p class="small mb-2">The life of a job. A job moves through these in order.</p>
+      <div class="stage-row"><div class="stage-num">1</div><div class="stage-body"><b>Print Orders</b><span>Every job you have. Open, in production, finished, collected.</span></div></div>
+      <div class="stage-row"><div class="stage-num">2</div><div class="stage-body"><b>Artwork</b><span>The client's design files. Uploaded, checked, approved before anything is printed.</span></div></div>
+      <div class="stage-row"><div class="stage-num">3</div><div class="stage-body"><b>Authorisations</b><span>The client's written "yes, print it." Protects you when a client claims they never approved the design.</span></div></div>
+      <div class="stage-row"><div class="stage-num">4</div><div class="stage-body"><b>Production Floor</b><span>Where the job physically moves — printing, cutting, binding, finishing.</span></div></div>
+      <div class="stage-row"><div class="stage-num">5</div><div class="stage-body"><b>Payments</b><span>Money received against the job, and what is still owed.</span></div></div>
+    </div>
+
+    <div class="screen-card">
+      <h3><i class="fa fa-cog" style="color:#0891B2;margin-right:8px;"></i>Machines &amp; Maintenance</h3>
+      <p class="small">Your presses. Only a print shop has these.</p>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-print"></i></div><div class="stage-body"><b>Machines</b><span>Register each press. Track its service schedule so you know before it breaks.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-tachometer"></i></div><div class="stage-body"><b>Counter Readings</b><span>The meter number on the machine. This is how you know how much a press actually produced.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-wrench"></i></div><div class="stage-body"><b>Maintenance</b><span>Service visits, who came, what was fixed, what it cost.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-tint"></i></div><div class="stage-body"><b>Consumables</b><span>Ink, toner, plates requested per machine.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-cubes"></i></div><div class="stage-body"><b>Customer Materials</b><span>Client-owned stock in your shop — what came in, where it is, what remains.</span></div></div>
+    </div>
+
+    <div class="screen-card">
+      <h3><i class="fa fa-print" style="color:#7C3AED;margin-right:8px;"></i>Online Print Requests</h3>
+      <p class="small mb-2">What customers send you from your shop's website — the online side of the same job pipeline, not a separate business.</p>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-inbox"></i></div><div class="stage-body"><b>Enquiries &amp; Requests</b><span>Quote requests that arrive from the storefront, waiting to become a quote.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-picture-o"></i></div><div class="stage-body"><b>Services &amp; Materials</b><span>What you sell online. A print shop sells services first; materials are optional.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-paint-brush"></i></div><div class="stage-body"><b>Content &amp; Appearance</b><span>The storefront's look — including which of the four print themes you use.</span></div></div>
+    </div>
+
+    <div class="screen-card">
+      <h3><i class="fa fa-paint-brush" style="color:#B94830;margin-right:8px;"></i>Your storefront themes</h3>
+      <p class="small mb-2">Four designs built for print. Pick one; choosing a theme applies that theme's own colours immediately.</p>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-print"></i></div><div class="stage-body"><b>Press &amp; Co.</b><span>Bold commercial printing. Deep green with a gold accent. The default.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-book"></i></div><div class="stage-body"><b>Paper Atelier</b><span>Premium design and print studio. Terracotta with a serif face, for considered work.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-th"></i></div><div class="stage-body"><b>PrintDesk</b><span>Product-focused catalogue with category filters, for shops that also sell materials.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-star-o"></i></div><div class="stage-body"><b>PrintWorks</b><span>A restrained alternative with a single accent colour that adapts to your branding.</span></div></div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 3</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">The case study</span>
+    <h2 class="mb-2">Zainab walks into Zeon Creatives on a Monday</h2>
+    <p class="lead mb-3">
+      She needs 500 business cards and 20 branded polo shirts for a shop opening on Friday.
+      Here is exactly what Zeon does, screen by screen.
+    </p>
+
+    <div class="stage-row"><div class="stage-num">1</div><div class="stage-body">
+      <b>He writes down what she wants</b>
+      <span>Catalog → Material List, to check what card stock and which shirts are in stock. He does not need to guess — the system knows his stock.</span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">2</div><div class="stage-body">
+      <b>He creates the job</b>
+      <span>Print Shop → Print Orders → New. One job, "Zainab — shop opening". Into it he adds <b>two lines</b>: 500 business cards, and 20 polo shirts. Each line gets its own size, material and price.</span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">3</div><div class="stage-body">
+      <b>He sends her a quote</b>
+      <span>Quotations → New Quote. The system builds the quote from the job's two lines automatically. Total: ₦45,000 for the cards, ₦76,800 for the shirts — <b>₦121,800</b>. She gets it by email.</span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">4</div><div class="stage-body">
+      <b>Zainab says the shirts are too expensive</b>
+      <span>Zeon revises the quote — 24 shirts at a better rate, total <b>₦113,800</b>. Because the quote changed, the system marks that she must accept it again. This matters: he cannot be accused of printing at a price she never agreed to.</span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">5</div><div class="stage-body">
+      <b>She accepts</b>
+      <span>Quotations → All Quotes → Accept. The system records her acceptance against that exact revision.</span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">6</div><div class="stage-body">
+      <b>Artwork comes in and is approved</b>
+      <span>Artwork → upload her logo files. Authorisations → she signs off on the final design. <b>Nothing prints before this.</b></span>
+    </div></div>
+
+    <div class="stage-row"><div class="stage-num">7</div><div class="stage-body">
+      <b>The job moves to the floor</b>
+      <span>Production Floor. The banner goes on the large-format press, the shirts go to DTF. Each stage is marked done as it completes.</span>
+    </div></div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 4</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">The case study</span>
+    <h2 class="mb-2">Turning the quote into an invoice</h2>
+    <p class="lead mb-3">
+      The job is printed. Now Zainab owes money, so Zeon creates the invoice.
+    </p>
+
+    <div class="screen-card">
+      <h3>Step 8 — Create the invoice</h3>
+      <p class="small mb-3">
+        On the job, he clicks <b>Create Print Invoice</b>. The system already knows
+        the client, the lines and the agreed price — because it reads the accepted
+        quote. <b>He types nothing twice.</b>
+      </p>
+      <p class="small mb-3">
+        There is no <i>Wholesale / Retail</i> switch on a print invoice. That switch
+        belongs to a shop, where the owner chooses a trade price for a bulk buyer.
+        In print the price was settled by the quotation — so the invoice repeats it
+        rather than offering a second opinion. Offering a tier here would have let
+        the shop bill at a price the client never agreed to.
+      </p>
+    </div>
+
+    <div class="screen-card">
+      <h3>Step 9 — Choose how much detail Zainab sees</h3>
+      <p class="small mb-2">Two ways to show the same ₦113,800. Zeon picks per job, and can change his mind any time.</p>
+
+      <div style="background:#F5F5F4;border-radius:8px;padding:14px;margin-bottom:12px">
+        <b style="font-size:0.86rem;">One line per job (default)</b>
+        <table style="width:100%;font-size:0.82rem;margin-top:8px;border-collapse:collapse;">
+          <tr style="color:var(--mp-muted);text-align:left;"><th style="padding:3px 0;">Job</th><th>Qty</th><th style="text-align:right;">Amount</th></tr>
+          <tr><td style="padding:3px 0;">Zainab — shop opening</td><td>2 items</td><td style="text-align:right;"><b>₦113,800</b></td></tr>
+        </table>
+        <span style="font-size:0.78rem;color:var(--mp-muted);">Simple. Good when the client just wants the total.</span>
+      </div>
+
+      <div style="background:#F5F5F4;border-radius:8px;padding:14px">
+        <b style="font-size:0.86rem;">Itemise each line</b>
+        <table style="width:100%;font-size:0.82rem;margin-top:8px;border-collapse:collapse;">
+          <tr style="color:var(--mp-muted);text-align:left;"><th style="padding:3px 0;">Item</th><th>Qty</th><th style="text-align:right;">Amount</th></tr>
+          <tr><td style="padding:3px 0;">PVC Flex banner, hem &amp; eyelets</td><td>2</td><td style="text-align:right;">₦37,000</td></tr>
+          <tr><td style="padding:3px 0;">Polo shirts, navy (S/M/L/XL)</td><td>24</td><td style="text-align:right;">₦76,800</td></tr>
+          <tr><td colspan="2" style="padding-top:6px;border-top:1px solid var(--mp-border);"><b>Total</b></td><td style="text-align:right;padding-top:6px;border-top:1px solid var(--mp-border);"><b>₦113,800</b></td></tr>
+        </table>
+        <span style="font-size:0.78rem;color:var(--mp-muted);">Detailed. Good for a corporate client who must account for each item.</span>
+      </div>
+
+      <div class="next" style="margin-top:14px;">
+        <i class="fa fa-info-circle"></i>
+        <span><b>The total never changes.</b> Switching between the two only regroups the same lines. You cannot accidentally bill a different amount by changing the layout.</span>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 5</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">The case study</span>
+    <h2 class="mb-2">Where the paper comes from — and whose it is</h2>
+    <p class="lead mb-3">
+      Printing uses up materials. MartPoint keeps two separate piles, and never mixes them.
+    </p>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-cubes" style="color:var(--mp-primary);margin-right:8px;"></i>Your paper</h3>
+        <p class="small">
+          You buy card stock via <b>Purchases</b>. It is marked <b>not for sale</b>,
+          so it can never appear on a till or a storefront — it exists to be printed on.
+        </p>
+        <p class="small">
+          When the job runs, <b>Production Floor</b> issues the stock to the job and
+          records what was used. Waste is tracked separately from what was used well.
+          Unused stock goes back.
+        </p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-user" style="color:var(--mp-primary);margin-right:8px;"></i>The client's paper</h3>
+        <p class="small">
+          Suppose Zainab brings her own 300gsm card. That is <b>her</b> property, not
+          your stock, so it is never added to your inventory.
+        </p>
+        <p class="small">
+          It goes into <b>Machines &amp; Maintenance → Customer Materials</b>. The system records
+          what came in and then where it is at every moment: in your custody, in
+          production, finished, or returned to her.
+        </p>
+      </div>
+    </div>
+
+    <h3 class="mb-2" style="margin-top:24px;">The question every client asks</h3>
+    <p class="mb-3">"I gave you 500 sheets. Where are they?"</p>
+    <p class="mb-3">
+      Open <b>Customer Materials</b>. The screen answers it directly, per material:
+    </p>
+    <table style="width:100%;font-size:0.84rem;border-collapse:collapse;margin-bottom:12px;">
+      <tr style="color:var(--mp-muted);text-align:left;border-bottom:1px solid var(--mp-border);">
+        <th style="padding:6px 0;">Material</th><th>Brought in</th><th>Where it is now</th><th style="text-align:right;">Remaining</th>
+      </tr>
+      <tr><td style="padding:8px 0;">300gsm art card</td><td>500 sheets</td><td>120 in custody · 340 in production</td><td style="text-align:right;"><b>460</b></td></tr>
+      <tr><td style="padding:8px 0;">Client's navy fabric</td><td>18 m</td><td>18 in custody</td><td style="text-align:right;"><b>18</b></td></tr>
+    </table>
+    <p class="small">
+      <b>Brought in</b> is what she handed over. <b>Where it is now</b> shows each pile.
+      <b>Remaining</b> is how much is still physically with you. Click <b>Statement</b>
+      to print the whole history for one client — useful when money is disputed.
+    </p>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 6</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Machines</span>
+    <h2 class="mb-2">Knowing what your presses actually did</h2>
+    <p class="lead mb-3">
+      A press is expensive. You need to know which one earns its keep and which one wastes
+      your paper — and you need to know before it breaks, not after.
+    </p>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-tachometer" style="color:var(--mp-primary);margin-right:8px;"></i>Counter Readings</h3>
+        <p class="small">Read the meter on the machine and type the number. Do it regularly. This is the ground truth of how much a press ran — it cannot be argued with.</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-wrench" style="color:var(--mp-primary);margin-right:8px;"></i>Maintenance</h3>
+        <p class="small">Log every service: date, engineer, work done, cost. Set a service interval on each machine and the system warns you when one is due.</p>
+      </div>
+    </div>
+
+    <h3 class="mb-2" style="margin-top:20px;">Reports → Equipment Report</h3>
+    <p class="mb-3">
+      This is where the numbers pay off. For each machine you see what it took in,
+      what came out good, and what was lost.
+    </p>
+
+    <table style="width:100%;font-size:0.82rem;border-collapse:collapse;margin-bottom:12px;">
+      <tr style="color:var(--mp-muted);text-align:left;border-bottom:1px solid var(--mp-border);">
+        <th style="padding:6px 0;">Machine</th><th style="text-align:right;">Input</th><th style="text-align:right;">Accepted</th><th style="text-align:right;">Rejects</th><th style="text-align:right;">Waste</th><th style="text-align:right;">Yield</th>
+      </tr>
+      <tr><td style="padding:8px 0;">Large format press</td><td style="text-align:right;">1,200</td><td style="text-align:right;">1,160</td><td style="text-align:right;">8</td><td style="text-align:right;">32</td><td style="text-align:right;"><b>96.7%</b></td></tr>
+      <tr><td style="padding:8px 0;">DTF printer</td><td style="text-align:right;">480</td><td style="text-align:right;">410</td><td style="text-align:right;">40</td><td style="text-align:right;">30</td><td style="text-align:right;"><b style="color:#DC2626;">85.4%</b></td></tr>
+    </table>
+
+    <div class="term">
+      <b>Input</b>
+      <span>What the machine took in — 1,200 sheets loaded.</span>
+    </div>
+    <div class="term">
+      <b>Accepted</b>
+      <span>What came out good and could be delivered.</span>
+    </div>
+    <div class="term">
+      <b>Rejects</b>
+      <span>Spoiled pieces. These cost you a full reprint.</span>
+    </div>
+    <div class="term">
+      <b>Waste</b>
+      <span>Material used for setup and calibration — normal, but worth watching.</span>
+    </div>
+    <div class="term">
+      <b>Yield</b>
+      <span>Accepted as a share of input. High is healthy.</span>
+    </div>
+
+    <div class="next">
+      <i class="fa fa-lightbulb-o"></i>
+      <span>In the table above, the <b>DTF printer is at 85% yield</b> — it is losing 1 in 7 pieces. If it is also overdue for service, that press is your problem this week.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 7</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Working with a client</span>
+    <h2 class="mb-2">Everything about one client, in one place</h2>
+    <p class="mb-3">
+      Open a client and you get every job, quote, artwork and collection they have with you.
+      You do not have to remember a job code to answer them.
+    </p>
+
+    <div class="screen-card">
+      <h3><i class="fa fa-user" style="color:#0E7490;margin-right:8px;"></i>What each tab answers</h3>
+      <p class="small mb-2">Print clients get these tabs. Other business types get their own.</p>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-print"></i></div><div class="stage-body"><b>Print Jobs &amp; Services</b><span>Every purchase and job for this client.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-file-text-o"></i></div><div class="stage-body"><b>Quotations</b><span>Every quote you have sent them, whether they accepted it, and which job it became. This is where you look when a client says "what did you quote me?"</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-picture-o"></i></div><div class="stage-body"><b>Artwork &amp; Approvals</b><span>Files they sent, your review of each one, and whether they have signed the proof off. Shows both answers separately, because they are different gate: a file can be approved by your shop but still awaiting the client.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-truck"></i></div><div class="stage-body"><b>Collection &amp; Delivery</b><span>What is finished and waiting, what is still with you, and what is still owed on it before release.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-cubes"></i></div><div class="stage-body"><b>Customer Materials</b><span>Their own stock that you are holding — what came in, where it is now, what remains.</span></div></div>
+      <div class="stage-row"><div class="stage-num"><i class="fa fa-money"></i></div><div class="stage-body"><b>Statements</b><span>Their running account — what they have paid and what is outstanding.</span></div></div>
+    </div>
+
+    <div class="term">
+      <b>Why the tabs exist when the job screen shows the same things</b>
+      <span>The job screen answers "what is happening with this job?". These tabs answer "what is happening with this client?". A client asking about themselves should not require you to open four different jobs to answer.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 8</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Intelligence Report</span>
+    <h2 class="mb-2">Your shop, read back to you</h2>
+    <p class="mb-3">
+      The Intelligence Report sits at the top of your dashboard, above License &amp; Usage.
+      It is not a list of today's numbers — you already have those. It reads your own records
+      and tells you what they mean and what is about to need you.
+    </p>
+
+    <div class="grid cols-2">
+      <div class="card no-break">
+        <h3><i class="fa fa-hand-holding-usd" style="color:#B45309;margin-right:8px;"></i>What it watches</h3>
+        <p class="small mb-2">In a print shop, these appear when the records support them:</p>
+        <p class="small" style="margin:0 0 4px">&bull; Jobs waiting on a deposit, so work cannot start</p>
+        <p class="small" style="margin:0 0 4px">&bull; Jobs waiting on the client's artwork approval</p>
+        <p class="small" style="margin:0 0 4px">&bull; Which client holds the largest outstanding balance</p>
+        <p class="small" style="margin:0 0 4px">&bull; Client-owned material you are holding</p>
+        <p class="small" style="margin:0 0 4px">&bull; A machine due for service, or past its date</p>
+        <p class="small" style="margin:0 0 4px">&bull; A machine needing repeat repairs</p>
+        <p class="small" style="margin:0 0 4px">&bull; Whether job intake is rising or falling</p>
+        <p class="small" style="margin:0">&bull; Which client settles fastest</p>
+      </div>
+      <div class="card no-break">
+        <h3><i class="fa fa-lightbulb-o" style="color:#0E7490;margin-right:8px;"></i>What it will not do</h3>
+        <p class="small mb-2"><b>It will not invent anything.</b> Every line is built from rows that exist in your own records.</p>
+        <p class="small">
+          If you have no service history for a machine, it stays quiet about that machine.
+          If a client has only paid once or twice, it will not claim to know their habits —
+          two payments is not a pattern. It would rather say nothing than send you chasing
+          something that is not there.
+        </p>
+      </div>
+    </div>
+
+    <h3 class="mb-2" style="margin-top:22px;">Two honest examples</h3>
+    <div class="term">
+      <b>"3 accepted jobs are waiting on a deposit — work cannot start until it clears."</b>
+      <span>It counts what is genuinely blocked, not what is merely unpaid. An accepted job with no deposit is work you cannot put on the floor, and this tells you how much of it is sitting there.</span>
+    </div>
+    <div class="term">
+      <b>"HP Indigo 7900 is due for service in 24 days."</b>
+      <span>It reads the service interval on each machine and counts down to the date. You get told while there is still time to book the engineer, rather than after a press has stopped.</span>
+    </div>
+
+    <div class="term" style="margin-top:18px;">
+      <b>Where to find it</b>
+      <span>Top of your dashboard on desktop, and on the MartPoint mobile app home screen. It is the same report in all places — the phone will never tell you a different story from the desktop.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 9</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Terminology</span>
+    <h2 class="mb-2">Every term, in plain words</h2>
+
+    <div class="term"><b>Job</b><span>One piece of work for one client. Everything hangs off it.</span></div>
+    <div class="term"><b>Job code</b><span>The system's name for a job, e.g. PRJ-20261008-001. Use it on the phone with a client.</span></div>
+    <div class="term"><b>Line</b><span>One item inside a job. A job can have many lines.</span></div>
+    <div class="term"><b>Artwork</b><span>The client's design file. Nothing prints until it is approved.</span></div>
+    <div class="term"><b>Authorisation</b><span>The client's written approval to print. Your protection.</span></div>
+    <div class="term"><b>Quotation / Quote</b><span>A price given before the work. Not a bill. No stock moves.</span></div>
+    <div class="term"><b>Revision</b><span>A new version of a quote after a change. Each revision needs fresh client acceptance.</span></div>
+    <div class="term"><b>Acceptance</b><span>The client agreeing to a specific quote revision.</span></div>
+    <div class="term"><b>Invoice</b><span>The bill. Always comes from an accepted quote. No price tier to choose — the quote decided it.</span></div>
+    <div class="term"><b>Combined / Detailed invoice</b><span>Two ways to show the same total — one line for the job, or one line per item. The amount never differs.</span></div>
+    <div class="term"><b>Stage</b><span>A step on the production floor — printing, cutting, binding, finishing.</span></div>
+    <div class="term"><b>Production status</b><span>Planned, in progress, on hold, completed, cancelled.</span></div>
+    <div class="term"><b>Material</b><span>Paper, card, vinyl, ink. Bought, stocked, never sold.</span></div>
+    <div class="term"><b>Not for sale</b><span>The flag that marks an item as production-only. It can never appear on a till or storefront.</span></div>
+    <div class="term"><b>Customer Material</b><span>Client-owned stock in your shop. Tracked separately from yours, always.</span></div>
+    <div class="term"><b>Custody</b><span>Material physically sitting with you, not yet used.</span></div>
+    <div class="term"><b>Issue / Return</b><span>Moving material out to a job, and sending unused material back.</span></div>
+    <div class="term"><b>Wastage</b><span>Material consumed by setup or error. Recorded, never hidden inside "used".</span></div>
+    <div class="term"><b>Yield</b><span>Accepted output as a share of input. Your press efficiency.</span></div>
+    <div class="term"><b>Consumable</b><span>Ink, toner, plates — used up by the machine itself.</span></div>
+    <div class="term"><b>Intelligence Report</b><span>The panel at the top of your dashboard that reads your own records and tells you what needs attention — what will run out, who is slow to pay, which machine is due. It only speaks when your records support what it says.</span></div>
+    <div class="term"><b>Ready to collect</b><span>Finished work that has passed production and is waiting for the client. Shown on the client's Collection &amp; Delivery tab, with any balance still owed on it.</span></div>
+    <div class="term"><b>Shop review vs client approval</b><span>Two separate answers about the same artwork file. Your shop checks it; the client signs it off. A file can be approved by you and still waiting on them — production waits for both.</span></div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 10</span></div>
+  </section>
+
+  <section class="page">
+    <span class="label">Quick reference</span>
+    <h2 class="mb-2">Where do I go to…</h2>
+
+    <table style="width:100%;font-size:0.85rem;border-collapse:collapse;">
+      <tr style="color:var(--mp-muted);text-align:left;border-bottom:1px solid var(--mp-border);">
+        <th style="padding:8px 0;">I want to…</th><th>Go to</th>
+      </tr>
+      <tr><td style="padding:9px 0;">Start a new piece of work</td><td><b>Quick Job</b> (top right) or Print Shop → Print Orders</td></tr>
+      <tr><td style="padding:9px 0;">Give a client a price</td><td>Quotations → New Quote</td></tr>
+      <tr><td style="padding:9px 0;">Change a price after quoting</td><td>Open the job → Revise (client must re-accept)</td></tr>
+      <tr><td style="padding:9px 0;">Bill a client</td><td>Open the job → Create Print Invoice</td></tr>
+      <tr><td style="padding:9px 0;">Change how much detail is on the bill</td><td>The invoice screen → One line per job / Itemise each line</td></tr>
+      <tr><td style="padding:9px 0;">Buy paper or ink</td><td>Purchases → New Purchase</td></tr>
+      <tr><td style="padding:9px 0;">See what paper is left</td><td>Reports → Stock Report</td></tr>
+      <tr><td style="padding:9px 0;">Record a client bringing their own material</td><td>Machines &amp; Maintenance → Customer Materials → Receive Material</td></tr>
+      <tr><td style="padding:9px 0;">Answer "where is my stock?"</td><td>Machines &amp; Maintenance → Customer Materials (or that client's Statement)</td></tr>
+      <tr><td style="padding:9px 0;">Record what a press produced</td><td>Machines &amp; Maintenance → Counter Readings</td></tr>
+      <tr><td style="padding:9px 0;">Log a service visit</td><td>Machines &amp; Maintenance → Maintenance</td></tr>
+      <tr><td style="padding:9px 0;">See which press is wasting paper</td><td>Reports → Equipment Report</td></tr>
+      <tr><td style="padding:9px 0;">See money owed to me</td><td>Reports → Receivables Aging</td></tr>
+      <tr><td style="padding:9px 0;">See profit</td><td>Reports → Profit &amp; Loss</td></tr>
+      <tr><td style="padding:9px 0;">Group my clients by type</td><td>Marketing → Client Segments</td></tr>
+      <tr><td style="padding:9px 0;">See who enquired but never ordered</td><td>Leads Hub → Subscribers / Orders</td></tr>
+    </table>
+
+    <div class="next" style="margin-top:22px;">
+      <i class="fa fa-check-circle"></i>
+      <span><b>The one rule to remember:</b> in print, nothing is priced until it is quoted, and nothing is billed until the quote is accepted. Everything else follows from that.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footer-strip"><span>MartPoint Printing Guide</span><span>Page 11</span></div>
+  </section>
+
+</div>
+</body>
+</html>

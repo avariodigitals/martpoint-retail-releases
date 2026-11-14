@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+<title><?= $page_title;?>- AFR Format</title>
+<head>
+<link rel='shortcut icon' href='<?php echo base_url('uploads/site/icon.webp'); ?>' />
+
+<style>
+
+table, th, td {
+    border: 0.02pt solid #0070C0;
+    border-collapse: collapse;   
+    
+
+}
+th, td {
+    /*padding: 5px;*/
+    text-align: left;   
+    vertical-align:top 
+}
+body{
+  word-wrap: break-word;
+  font-family:  'sans-serif','Arial';
+  font-size: 11px;
+  /*height: 210mm;*/
+}
+.style_hidden{
+  border-style: hidden;
+}
+.fixed_table{
+  table-layout:fixed;
+}
+.text-center{
+  text-align: center;
+}
+.text-left{
+  text-align: left;
+}
+.text-right{
+  text-align: right;
+}
+.text-bold{
+  font-weight: bold;
+}
+.bg-sky{
+  background-color: #E8F3FD;
+}
+@page { size: A4 margin: 5px; }
+body { margin: 5px; }
+
+ #clockwise {
+       rotate: 90;
+    }
+
+    #counterclockwise {
+       rotate: -90;
+    }
+
+</style>
+</head>
+<body onload="window.print();"><!--  -->
+<?php $this->load->view('sales/document_state_banner', array('sales_id'=>$sales_id)); ?>
+<?php
+   
+    //Current Store Records
+    $store_rec = mp_document_store(get_store_details(), 'db_sales', $sales_id);
+    $store_logo=(!empty($store_rec->store_logo)) ? $store_rec->store_logo : store_demo_logo();
+
+    //Sales Records
+    $sales_rec = get_sales_details($sales_id);
+    $customer_rec = get_customer_details($sales_rec->customer_id);
+
+    //Customer Records
+    $state_rec = (!empty($customer_rec->state_id)) ? get_state_details($customer_rec->state_id) : '';
+    $customer_state_name = (!empty($state_rec)) ? $state_rec->state : $store_rec->state;
+    
+    //Customer Find Previous Due & Total Due
+    $previous_due=($customer_rec->sales_due)-($sales_rec->grand_total-$sales_rec->paid_amount);
+    $previous_due = ($previous_due>0) ? $previous_due : 0;
+    $total_due=$customer_rec->sales_due;
+
+    //Customer Shipping Address Records
+    $shipping_country='';
+    $shipping_state='';
+    $shipping_city='';
+    $shipping_address='';
+    $shipping_postcode='';
+    if(!empty($customer_rec->shippingaddress_id)){
+        $Q2 = $this->db->select("c.country,s.state,a.city,a.postcode,a.address")
+                        ->where("a.id",$customer_rec->shippingaddress_id)
+                        ->from("db_shippingaddress a")
+                        ->join("db_country c","c.id = a.country_id",'left')
+                        ->join("db_states s","s.id = a.state_id",'left')
+                        ->get();                    
+        if($Q2->num_rows()>0){
+          $shipping_country=$Q2->row()->country;
+          $shipping_state=$Q2->row()->state;
+          $shipping_city=$Q2->row()->city;
+          $shipping_address=$Q2->row()->address;
+          $shipping_postcode=$Q2->row()->postcode;
+        }
+      }
+
+    //Customer if Coupon Code applied, then get Records
+    $coupon_code = '';
+    $coupon_type = '';
+    $coupon_value=0;
+    if(!empty($sales_rec->coupon_id)){
+      $coupon_details =get_customer_coupon_details($sales_rec->coupon_id);
+      $coupon_code =$coupon_details->code;
+      $coupon_value =$coupon_details->value;
+      $coupon_type =$coupon_details->type;
+    }
+
+    ?>
+
+<caption>
+      <center>
+        <span style="font-size: 18px;text-transform: uppercase;">
+          Tax Invoice
+        </span>
+      </center>
+</caption>
+
+<table autosize="1" style="overflow: wrap" id='mytable' align="center" width="100%" height='100%'  cellpadding="0" cellspacing="0"  >
+<!-- <table align="center" width="100%" height='100%'   > -->
+    <thead>
+
+      <tr>
+        <th colspan="16">
+          <table width="100%" height='100%' class="style_hidden fixed_table">
+              <tr>
+                <!-- First Half -->
+                <td colspan="2">
+                  <img src="<?= base_url($store_logo);?>" width='100%'>
+                </td>
+
+                <td colspan=5>
+                <span style="font-size: 12px;">
+                  <b><?php echo $store_rec->store_name; ?></b><br/>
+                    <?php echo $this->lang->line('address')." : ".$store_rec->address; ?><br/>
+                    <?php echo $this->lang->line('mobile')." : ".$store_rec->mobile; ?><br/>
+                   <!--  <?php echo $store_rec->country; ?><br/> -->
+                    
+                    <?php echo (!empty(trim($store_rec->email))) ? $this->lang->line('email')." : ".$store_rec->email."<br>" : '';?>
+                    <?php echo (!empty(trim($store_rec->gst_no))) ? $this->lang->line('gst_number')." : ".$store_rec->gst_no."<br>" : '';?>
+                    <!-- <?php echo (!empty(trim($store_rec->vat_no))) ? $this->lang->line('tax_number')." : ".$store_rec->vat_no."<br>" : '';?> -->
+                  </span>
+                </td>
+
+                <!-- Second Half -->
+                <td colspan="6" rowspan="1">
+                  <span>
+                    <table style="width: 100%;" class="style_hidden fixed_table">
+                    
+                        <tr>
+                          <td colspan="4">
+                            Invoice No.<br>
+                            <span style="font-size: 100%;">
+                              <b><?php echo "$sales_rec->sales_code"; ?></b>
+                            </span>
+                          </td>
+                          <td colspan="4">
+                            Dated<br>
+                            <span style="font-size: 12px;">
+                              <b><?php echo show_date($sales_rec->sales_date); ?></b>
+                            </span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan="8">
+                            Reference No.<br>
+                            <span style="font-size: 12px;">
+                              <b><?php echo "$sales_rec->reference_no"; ?></b>
+                            </span>
+                          </td>
+                          
+                        </tr>
+                        
+                        <tr>
+                          <td colspan="8">
+                            <span>
+                                <b><?= $this->lang->line('bank_details'); ?></b><br/>
+                              </span>
+                              <span style="font-size: 12px;">
+                                  <?= nl2br($store_rec->bank_details);  ?><br><br/>
+                                 
+                                </span>
+                                 
+                          </td>
+                        </tr>
+                        
+
+                    
+                    </table>
+                  </span>
+                </td>
+              </tr>
+
+              <tr>
+                <!-- Bottom Half -->
+                <td colspan="7">
+                  <b><?= $this->lang->line('customer_details'); ?></b><br/>
+                  <span style="font-size: 12px;">
+                      <?php echo $this->lang->line('name')." : ".$customer_rec->customer_name; ?><br/>
+                        <?php echo (!empty(trim($customer_rec->address))) ? $this->lang->line('address')." : ".$customer_rec->address."<br>" : '';?>
+                        <?php echo (!empty(trim($customer_rec->gstin))) ? $this->lang->line('gstin')." : ".$customer_rec->gstin."<br>" : '';?>
+                        <?php 
+                               /* if(!empty($customer_rec->customer_mobile)){
+                                  echo $customer_rec->customer_mobile;
+                                }*/
+                                
+                                /*
+                                if(!empty($customer_rec->state_id)){
+                                  echo ",".$customer_rec->state_id;
+                                }
+                                if(!empty($customer_rec->city)){
+                                  echo ",".$customer_rec->city;
+                                }
+                                if(!empty($customer_rec->postcode)){
+                                  echo "-".$customer_rec->postcode;
+                                }*/
+                              ?>
+                              
+                        
+                        <?php echo (!empty(trim($customer_rec->email))) ? $this->lang->line('email')." : ".$customer_rec->email."<br>" : '';?>
+                        <?php echo (!empty(trim($customer_rec->mobile))) ? $this->lang->line('mobile')." : ".$customer_rec->mobile."<br>" : '';?>
+                        <!--<?php echo (!empty(trim($customer_rec->tax_number))) ? $this->lang->line('tax_number').": ".$customer_rec->tax_number."<br>" : '';?> -->
+                  </span>
+                </td>
+
+                <td colspan="6">
+                  <b><?= $this->lang->line('shipping_address'); ?></b><br/>
+                  <span style="font-size: 12px;">
+                      <?php echo $this->lang->line('name')." : ".$customer_rec->customer_name; ?><br/>
+                        
+                       <?php 
+                                    echo $this->lang->line('address') .":".$shipping_address;
+                                    echo "<br>".$this->lang->line('country') .":".$shipping_country;
+                                    echo ", ".$this->lang->line('state') .":".$shipping_state;
+                                    echo "<br>".$this->lang->line('city') .":".$shipping_city;
+                                    echo ", ".$this->lang->line('postcode') .":".$shipping_postcode;
+
+                                  ?>
+                  </span>
+                </td>
+
+                
+              </tr>
+
+
+
+
+            
+          </table>
+      </th>
+      </tr>
+
+      <tr>
+        <td colspan="16">&nbsp; </td>
+      </tr>
+      <tr class="bg-sky"><!-- Colspan 10 -->
+        <th colspan='1' class="text-center"><?= $this->lang->line('sl_no'); ?></th>
+        <th colspan='7' class="text-center" ><?= $this->lang->line('description_of_goods'); ?></th>
+        <th colspan='1' class="text-center"><?= $this->lang->line('gst_rate'); ?></th>
+        <th colspan='1' class="text-center"><?= $this->lang->line('qty'); ?></th>
+        <th colspan='2' class="text-center"><?= $this->lang->line('rate'); ?></th>
+        <th colspan='2' class="text-center"><?= $this->lang->line('discount'); ?></th>
+        <th colspan='2' class="text-center"><?= $this->lang->line('amount'); ?></th>
+      </tr>
+  </thead>
+<tbody>
+  <!-- <tr>
+    <td colspan='16'> -->
+ <?php
+              $i=0;
+              $tot_qty=0;
+              $tot_sales_price=0;
+              $tot_tax_amt=0;
+              $tot_discount_amt=0;
+              $tot_unit_total_cost=0;
+              $tot_total_cost=0;
+              $tot_before_tax=0;
+
+              $this->db->select(" COALESCE(NULLIF(TRIM(a.description),''),NULLIF(TRIM(c.description),''),'') AS description, c.item_name, a.sales_qty,a.tax_type,
+                                  a.price_per_unit, b.tax,b.tax_name,a.tax_amt,
+                                  a.discount_input,a.discount_amt, a.unit_total_cost,
+                                  a.total_cost , d.unit_name,c.sku,c.hsn
+                              ");
+              $this->db->where("a.sales_id",$sales_id);
+              $this->db->from("db_salesitems a");
+              $this->db->join("db_tax b","b.id=a.tax_id","left");
+              $this->db->join("db_items c","c.id=a.item_id","left");
+              $this->db->join("db_units d","d.id = c.unit_id","left");
+              $q2=$this->db->get();
+
+              foreach ($q2->result() as $res2) {
+                $res2->total_cost=mp_document_line_amount($res2,'sales_qty',$hasLegacyLineAmount);
+                  $discount = (empty($res2->discount_input)||$res2->discount_input==0)? store_number_format(0):store_number_format($res2->discount_input)."%";
+                  $discount_amt = (empty($res2->discount_amt)||$res2->discount_input==0)? '0':$res2->discount_amt."";
+                  $before_tax=$res2->price_per_unit;// * $res2->sales_qty;
+                  $tot_cost_before_tax=$res2->total_cost;//$before_tax * $res2->sales_qty;
+                  echo "<tr>";  
+                  echo "<td colspan='1' class='text-center'>".++$i."</td>";
+                  echo "<td colspan='7'>";
+                  echo $res2->item_name;
+                  echo (!empty($res2->description)) ? "<br><i>[".nl2br(htmlspecialchars(mp_catalogue_name($res2->description), ENT_QUOTES, 'UTF-8'))."]</i>" : '';
+                  echo "</td>";
+
+                  
+                  echo "<td colspan='1' class='text-right'>".store_number_format($res2->tax)."%</td>";
+                  echo "<td colspan='1' class='text-center'>".format_qty($res2->sales_qty)."</td>";
+                  //echo "<td style='text-align: right;'>".store_number_format($res2->tax_amt)."</td>";
+                  //echo "<td style='text-align: right;'>".store_number_format($discount)."</td>";
+                  //echo "<td style='text-align: right;'>".store_number_format($discount_amt)."</td>";
+ 
+                  echo "<td colspan='2' class='text-right'>".store_number_format($before_tax)."</td>";
+                 echo "<td colspan='2' class='text-right'>".($discount)."</td>";
+                  //echo "<td class='text-right'>".store_number_format($res2->price_per_unit)."</td>";
+                  
+                  echo "<td colspan='2' class='text-right'>".store_number_format($tot_cost_before_tax)."</td>";
+                  echo "</tr>";  
+                  $tot_qty +=$res2->sales_qty;
+                  $tot_sales_price +=$res2->price_per_unit;
+                  $tot_tax_amt +=$res2->tax_amt;
+                  $tot_discount_amt +=$res2->discount_amt;
+                  $tot_unit_total_cost +=$res2->unit_total_cost;
+                  $tot_before_tax +=$before_tax;
+                  $tot_total_cost +=$tot_cost_before_tax;
+              }
+              ?>
+      <!-- </td>
+  </tr> -->
+  </tbody>
+<tfoot>
+  <tr class="bg-sky">
+    <td colspan="8" class='text-center text-bold'><?= $this->lang->line('total'); ?></td>
+    <td colspan="" class='text-bold text-center'></td>
+    <td colspan="" class='text-bold text-center'><?=format_qty($tot_qty); ?></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_before_tax); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($discount_amt); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_total_cost); ?></b></td>
+  </tr>
+  <!--tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('subtotal'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_total_cost); ?></b></td>
+  </tr-->
+  <?php if($tot_tax_amt!=0 && !empty($tot_tax_amt)){ ?>
+  <tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('tax'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($tot_tax_amt); ?></b></td>
+  </tr>
+  <?php } ?>
+<?php if($sales_rec->other_charges_amt!=0 && !empty($sales_rec->other_charges_amt)){ ?>
+  <tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('other_charges'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($sales_rec->other_charges_amt); ?></b></td>
+  </tr>
+  <?php } ?>
+
+  <?php if(!empty($coupon_code)){ ?>
+  <tr>
+    <td colspan="6" class='text-left'><b>
+      <?= $this->lang->line('couponCode'); ?> : <?=getTruncatedCCNumber($coupon_code);?>
+    </b>
+    </td>
+    <td colspan="8" class='text-right'><b>
+      <?= $this->lang->line('couponDiscount'); ?> <?= ($coupon_type=='Percentage') ? $coupon_value .'%' : '[Fixed]' ;?>
+    </b>
+    </td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($sales_rec->coupon_amt); ?></b></td>
+  </tr>
+  <?php } ?>
+
+  <?php if($sales_rec->tot_discount_to_all_amt!=0 && !empty($sales_rec->tot_discount_to_all_amt)){ ?>
+  <tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('discount_on_all'); ?>(<?php echo $sales_rec->discount_to_all_input." "; echo ($sales_rec->discount_to_all_type=='in_percentage') ? '%' : 'Fixed'; ?>)</b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($sales_rec->tot_discount_to_all_amt); ?></b></td>
+  </tr>
+  <?php } ?>
+    <tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('round_off'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($sales_rec->round_off); ?></b></td>
+  </tr>
+   <?php  ?>
+  <tr>
+    <td colspan="14" class='text-right'><b><?= $this->lang->line('grand_total'); ?></b></td>
+    <td colspan="2" class='text-right' ><b><?= store_number_format($sales_rec->grand_total); ?></b></td>
+  </tr>
+
+  <?php if($store_rec->previous_balance_bit==1){ ?>
+  <tr>
+    <td colspan="14" class='text-right'><?= $this->lang->line('previous_balance'); ?></td>
+    <td colspan="2" class='text-right' ><?php echo store_number_format($previous_due); ?></td>
+  </tr>
+  <tr>
+    <td colspan="14" class='text-right text-italic'><?= $this->lang->line('total_due'); ?></td>
+    <td colspan="2" class='text-right' ><?php echo store_number_format($total_due); ?></td>
+  </tr>  
+  <?php } ?>
+
+  <tr>
+    <td colspan="16">
+      <span class='amt-in-word'>Amount in words: 
+        <i style='font-weight:bold;'><?=$this->session->userdata('currency_code')." ".no_to_words($sales_rec->grand_total)?>
+        </i>
+    </span>  
+    </td>
+  </tr>
+  <tr>
+    <td colspan="16">
+      <span class='amt-in-word'>
+        <?= htmlspecialchars(mp_invoice_note_label(), ENT_QUOTES, 'UTF-8') .":<b>". nl2br(htmlspecialchars($sales_rec->sales_note, ENT_QUOTES, 'UTF-8'))."</b>";?>
+    </span>  
+    </td>
+  </tr>
+  <?php if(!empty($sales_rec->invoice_terms) && $store_rec->t_and_c_status) {?>
+  <tr>
+    <td colspan="16">
+      <span>
+        <b><?= $this->lang->line('invoiceTerms') .":</b>". nl2br(htmlspecialchars(html_entity_decode((string)$sales_rec->invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'))."";?>
+    </span>  
+    </td>
+  </tr>
+<?php } ?>
+
+  <!-- Tax table removed - single tax total shown above -->
+
+      <!-- T&C & Bank Details & signatories-->
+      <tr>
+        <td colspan="16">
+          <table width="100%" class="style_hidden fixed_table">
+           
+              <tr>
+                <td colspan="16">
+                  <span>
+                    <table style="width: 100%;" class="style_hidden fixed_table">
+                    
+                        
+
+                         <tr>
+                          <td colspan='8' style="height:80px;">
+                            <span><b> <?= $this->lang->line('customer_signature'); ?></b></span>
+                          </td>
+                          <td colspan='8'>
+                            <span><b> <?= $this->lang->line('authorised_signatory'); ?></b></span><br>
+                            <?php $this->load->helper('document_signature'); echo mp_document_signature_tag(); ?>
+                          </td>
+                        </tr>
+                     
+                    </table>
+                  </span>
+                </td>
+              </tr>
+           
+ </table>
+      </td>
+      </tr>
+      <!-- T&C & Bank Details & signatories End -->
+
+      <?php if(!empty($store_rec->sales_invoice_footer_text)) {?>
+      <tr>
+        <td colspan="16" style="text-align: center;font-size: 11px;">
+          <?= $store_rec->sales_invoice_footer_text; ?>
+        </td>
+      </tr>
+      <?php } ?>
+      <tr>
+        <td colspan="16" style="text-align: center;font-size: 11px;">
+          <center>
+        <span style="font-size: 11px;text-transform;">
+        <!--span style="font-size: 11px;text-transform: uppercase;">
+          This is Computer Generated Invoice-->
+        <span style="font-size: 11px;text-transform: uppercase;">
+          Thank You For Choosing Our Services
+        </span>
+      </center>
+        </td>
+      </tr>
+</tfoot>
+</table>
+</body>
+</html>

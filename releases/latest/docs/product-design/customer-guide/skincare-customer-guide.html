@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skincare &amp; Organic Cosmetics - MartPoint Customer Guide</title>
+<link rel="stylesheet" href="../martpoint-brand.css">
+<style>
+  .section-head { margin-bottom: calc(var(--space)*2); }
+  .screen-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); margin-bottom: calc(var(--space)*2); }
+  .screen-card .card-title { font-weight: 700; margin-bottom: 6px; }
+  .field-list { display: grid; gap: 8px; margin-top: 8px; }
+  .field { border-left: 3px solid var(--brand); padding-left: 10px; }
+  .field .lbl { font-weight: 700; font-size: 13px; }
+  .field .val { font-size: 12.5px; color: var(--muted); }
+  .blend-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .blend-table th, .blend-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; text-align: left; }
+  .blend-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .chat { display: grid; gap: 10px; margin-top: 8px; }
+  .chat-bubble { border-radius: 12px; padding: 10px 12px; font-size: 12.5px; }
+  .chat-left { background: var(--wash); border: 1px solid var(--stroke); }
+  .chat-right { background: #111; color: #fff; justify-self: end; max-width: 80%; }
+  .chat-avatar { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .tip { border-left: 3px solid var(--brand); padding-left: 10px; margin: calc(var(--space)*2) 0; }
+  .next { border-top: 1px solid var(--stroke); padding-top: calc(var(--space)*1.5); margin-top: calc(var(--space)*2); font-size: 12.5px; color: var(--muted); }
+  .do-dont { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: calc(var(--space)*2); }
+  .do-dont h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
+  .do, .dont { border: 1px solid var(--stroke); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; }
+  .do { background: #f6fbf7; }
+  .dont { background: #fff7f7; }
+  .screen-flow { display: grid; gap: 8px; }
+  .flow-step { border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+  .flow-step .gate { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; background: #fef4e6; color: #b4650b; margin-left: 6px; }
+  .path-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); }
+  .path-card .path-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 3px 10px; margin-bottom: 6px; }
+  .path-1 .path-badge { background: #eafaf1; color: #148f55; }
+  .path-2 .path-badge { background: #fef4e6; color: #b4650b; }
+  .path-3 .path-badge { background: #efe8fd; color: #6b3ecb; }
+  .role-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .role-table th, .role-table td { border-bottom: 1px solid var(--stroke); padding: 8px; text-align: left; vertical-align: top; }
+  .role-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .glossary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .glossary-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; vertical-align: top; }
+  .glossary-table td:first-child { font-weight: 700; width: 32%; }
+  @media print { .document { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Skincare &amp; Organic Cosmetics</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>Amara Botanicals</h1>
+        <p>One brand, four ways it earns &mdash; formulate your own jars in batch runs, resell shelf-ready brands, book treatments and custom formulations, and ship orders from the online store. Every screen, every role, field by field.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Start here</span>
+      <h2>The four ways Amara Botanicals earns</h2>
+      <p class="lead">A skincare business rarely sells just one way. Amara Botanicals mixes its own jars, keeps a shelf of trusted resold brands, runs a treatment room, and ships nationwide from its online store &mdash; MartPoint&rsquo;s Skincare &amp; Organic Cosmetics profile supports all four at once.</p>
+    </div>
+    <div class="screen-card path-1">
+      <span class="path-badge">Line A &mdash; Your own formulas</span>
+      <div class="card-title">Formulate and jar your own products</div>
+      <p class="small">You buy shea butter, oils, actives and packaging; the formula says what one batch consumes; a <strong>Batch Run</strong> deducts the ingredients and credits the finished jars. Full chain: <strong>purchase &rarr; formula &rarr; batch run &rarr; best-before &rarr; sell.</strong></p>
+    </div>
+    <div class="screen-card path-2">
+      <span class="path-badge">Line B &mdash; Resale shelf</span>
+      <div class="card-title">Resell ready-made brands</div>
+      <p class="small">CeraVe, Nivea, The Ordinary &mdash; bought from distributors, sold as goods. Each purchase captures the <strong>batch lot and expiry date</strong>, so near-expiry stock is flagged before it embarrasses you on a shelf.</p>
+    </div>
+    <div class="screen-card path-3">
+      <span class="path-badge">Line C &mdash; Treatments &amp; customs</span>
+      <div class="card-title">Consultations, facials and bespoke formulas</div>
+      <p class="small">Bookable treatments with a therapist assigned and commission tracked, treatment notes on every client, and a full <strong>Custom Formulation</strong> workflow &mdash; quote, deposit, sample, approve, formulate, cure, deliver.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The whole picture</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Set up</strong> ranges, sellable products, raw ingredients, packaging &amp; services <em>(once)</em></div>
+        <div class="flow-step"><strong>Buy</strong> ingredients, jars and resold stock through Purchases &mdash; batch &amp; expiry captured on receipt</div>
+        <div class="flow-step"><strong>Produce</strong> &mdash; formula &rarr; Batch Run: planned &rarr; sourcing &rarr; mixing &rarr; cooling &rarr; filling &rarr; ready &rarr; completed<span class="gate">stock checked</span></div>
+        <div class="flow-step"><strong>Sell</strong> &mdash; POS, invoices, wholesale sets, treatment bookings, custom formulations</div>
+        <div class="flow-step"><strong>Ship</strong> &mdash; online store orders, WhatsApp orders, city-based delivery fees</div>
+        <div class="flow-step"><strong>Watch</strong> &mdash; expiry alerts, production queue, deposit balances, recipe costing</div>
+      </div>
+    </div>
+    <div class="tip"><strong>Enable the profile:</strong> <em>Settings &rarr; Business Profile &rarr; Skincare &amp; Organic Cosmetics</em>. The moment it saves, the vocabulary changes across the app &mdash; <em>Customers</em> become <strong>Clients</strong>, categories become <strong>Ranges</strong>, recipes become <strong>Formulas</strong>, batches become <strong>Batch Runs</strong>, expiry becomes <strong>Best Before</strong>, staff on services become <strong>Therapists</strong>, and the storefront dresses itself in the <strong>Verdant</strong> theme. This guide uses those words throughout.</div>
+    <div class="screen-card">
+      <div class="card-title">What you get on day one</div>
+      <table class="blend-table">
+        <thead><tr><th>Seeded for you</th><th>Contents</th></tr></thead>
+        <tbody>
+          <tr><td>Units</td><td>Piece, Jar, Bottle, Tube, Set, Kilogram/Gram, Litre/Millilitre</td></tr>
+          <tr><td>Ranges (categories)</td><td>Face Care &middot; Body Care &middot; Cleansers &amp; Toners &middot; Serums &amp; Actives &middot; Soaps &amp; Scrubs &middot; Raw Ingredients &middot; Packaging</td></tr>
+          <tr><td>Formula categories</td><td>Face Creams &middot; Body Butters &middot; Lotions &amp; Emulsions &middot; Serums &amp; Oils &middot; Soaps &amp; Cleansers &middot; Scrubs &amp; Masks</td></tr>
+          <tr><td>Bookable treatments</td><td>Skin Consultation (30 min) &middot; Facial Treatment (1 hr, &#8358;20,000) &middot; Custom Formulation (1 hr)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> your sellable products &mdash; jars, serums and the resale shelf.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 1</span>
+      <h2>Products: your jars &amp; the resale shelf</h2>
+      <p class="lead"><em>Catalog &rarr; Product List &rarr; Add Product.</em> Every sellable thing gets one product record &mdash; whether you make it or resell it. The fields are identical; only the answers differ.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Add a made product &middot; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Item Type</div><div class="val"><code>Item</code> &mdash; it is stock, not a service</div></div>
+        <div class="field"><div class="lbl">Product Name</div><div class="val"><code>Golden Shea Body Butter 200g</code> &mdash; put the size in the name so the till and the online store are never ambiguous</div></div>
+        <div class="field"><div class="lbl">Product Code / SKU / Barcode</div><div class="val"><code>GSB-200</code> &middot; your own code, or scan the printed label barcode later</div></div>
+        <div class="field"><div class="lbl">Brand</div><div class="val"><code>Amara Botanicals</code> &mdash; your house brand on your own line; the maker&rsquo;s brand on resold goods</div></div>
+        <div class="field"><div class="lbl">Category (your Range)</div><div class="val"><code>Body Care</code> &mdash; this is also the shop-by-category tile on the online store</div></div>
+        <div class="field"><div class="lbl">Base / Stock Unit</div><div class="val"><code>Piece</code> &mdash; one unit = one sealed jar. Jars count individually, never in grams</div></div>
+        <div class="field"><div class="lbl">Not for Sale</div><div class="val"><strong>Unticked</strong> &mdash; this is what you sell</div></div>
+        <div class="field"><div class="lbl">Recipe / BOM + Production Mode</div><div class="val"><strong>No Recipe + Batch</strong> for now &mdash; the formula links to this product from the Recipe Book instead (next page). Leave <em>Sale-deplete</em> for made-at-the-counter scoops only</div></div>
+        <div class="field"><div class="lbl">Sale Price / MRP</div><div class="val"><code>6,500</code> retail &middot; MRP <code>7,000</code> &mdash; cost arrives from the batch, so Purchase Price can start at <code>0</code></div></div>
+        <div class="field"><div class="lbl">Opening Stock / Alert Qty</div><div class="val"><code>0</code> opening &mdash; produced stock comes from batch runs, never typed in &middot; alert <code>10</code></div></div>
+        <div class="field"><div class="lbl">Unit/Variant row &mdash; Batch, Expiry, MFG</div><div class="val">Batch/Lot, <strong>Best Before</strong> and <strong>Made On</strong> columns &mdash; filled per batch on the shelf (see the batch page)</div></div>
+        <div class="field"><div class="lbl">Selling Units</div><div class="val"><code>Case of 12</code> &times;12 at <code>62,400</code> (&mdash;spa wholesale) &middot; <code>Duo Set</code> &times;2 at <code>12,000</code>. Stock always counts in pieces; customers buy in cases or singles</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Add a resold product &mdash; same screen, different answers</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Product Name / Brand / Range</div><div class="val"><code>CeraVe Moisturising Cream 236ml</code> &middot; <code>CeraVe</code> &middot; <code>Face Care</code></div></div>
+        <div class="field"><div class="lbl">Base Unit</div><div class="val"><code>Piece</code></div></div>
+        <div class="field"><div class="lbl">Purchase Price / Sale Price</div><div class="val"><code>14,500</code> &middot; <code>19,500</code> &mdash; cost is real here because you buy it finished</div></div>
+        <div class="field"><div class="lbl">Batch / Expiry / MFG</div><div class="val">Left for the purchase row &mdash; every restock gets its own lot number and expiry from the carton</div></div>
+        <div class="field"><div class="lbl">Recipe / Selling Units</div><div class="val"><strong>None</strong> &mdash; you never make it, you sell it as bought</div></div>
+      </div>
+    </div>
+    <div class="tip"><strong>Opening stock vs purchasing:</strong> type Opening Stock once for what you already own on day one. Every restock after that goes through <em>Purchases &rarr; New Purchase</em> so supplier history, batch lots and cost basis stay accurate.</div>
+    <div class="next"><strong>Next &rarr;</strong> the items customers never buy directly &mdash; ingredients and packaging.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 2</span>
+      <h2>Raw ingredients &amp; packaging</h2>
+      <p class="lead">Formulas can only consume items marked <strong>Not for Sale</strong>. That one flag keeps shea butter out of the till and tells the Recipe Book exactly what may be used as an ingredient.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">One ingredient item per material &middot; Range: Raw Ingredients</div>
+      <table class="blend-table">
+        <thead><tr><th>Item</th><th>Base Unit</th><th>Purchase price</th><th>Not for Sale</th></tr></thead>
+        <tbody>
+          <tr><td>Raw Shea Butter (unrefined)</td><td>Gram</td><td>&#8358;1.80 /g (&#8358;1,800/kg)</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Coconut Oil</td><td>Gram</td><td>&#8358;2.40 /g</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Sweet Almond Oil</td><td>Gram</td><td>&#8358;3.50 /g</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Vitamin E Oil</td><td>Gram</td><td>&#8358;40 /g</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Preservative (Optiphen)</td><td>Gram</td><td>&#8358;25 /g</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Lavender Essential Oil</td><td>Gram</td><td>&#8358;45 /g</td><td><strong>Ticked</strong></td></tr>
+          <tr><td>Kaolin Clay, Oat Flour, Fragrance oils&hellip;</td><td>Gram</td><td>per supplier</td><td><strong>Ticked</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Measure everything in the unit your supplier and your scale agree on &mdash; grams for butters, oils and actives keep small-batch maths clean. The seeded unit tree already knows <code>1,000 g = 1 KG</code> and <code>1,000 ml = 1 L</code>, so a purchase in kilograms still feeds a formula that measures in grams.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Packaging &mdash; Range: Packaging &middot; also Not for Sale</div>
+      <table class="blend-table">
+        <thead><tr><th>Item</th><th>Base Unit</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Glass Jar 200ml (amber)</td><td>Piece</td><td>&#8358;350</td></tr>
+          <tr><td>Printed Product Label</td><td>Piece</td><td>&#8358;50</td></tr>
+          <tr><td>Shrink Safety Band</td><td>Piece</td><td>&#8358;20</td></tr>
+          <tr><td>Pump Bottle 30ml &middot; Tube 100ml &middot; Gift Box</td><td>Piece</td><td>per supplier</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Jars and labels live in the formula as ingredients too &mdash; a batch that fills 40 jars deducts 40 of each. Packaging stock now means something on the dashboard: if jars run out before the butter does, you see it in the shortage list <em>before</em> the batch completes, not on filling day.</p>
+    </div>
+    <div class="do-dont">
+      <div>
+        <h4>Do</h4>
+        <div class="do">Give every ingredient a <strong>purchase price per base unit</strong>. That price is what the formula uses to cost each jar automatically.</div>
+      </div>
+      <div>
+        <h4>Don&rsquo;t</h4>
+        <div class="dont">Never leave ingredients sellable &ldquo;just in case&rdquo; &mdash; a litre of coconut oil at the till looks like a product, sells like a mistake, and breaks the formula&rsquo;s ingredient list.</div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> services, therapists and who may touch what.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 3</span>
+      <h2>Treatments, therapists &amp; roles</h2>
+      <p class="lead">The three seeded treatments are already bookable. What remains is telling MartPoint who performs them &mdash; and who may approve, cost and configure.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Catalog &rarr; New Service &mdash; a bookable treatment</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Item Type</div><div class="val"><code>Service</code> &mdash; hours, not jars</div></div>
+        <div class="field"><div class="lbl">Name / Price / Duration</div><div class="val"><code>Glow Facial (Signature)</code> &middot; <code>25,000</code> &middot; 60 min</div></div>
+        <div class="field"><div class="lbl">Commission</div><div class="val">Percentage <code>15%</code> &mdash; what the therapist earns per completed facial</div></div>
+        <div class="field"><div class="lbl">Deposit Required / Deposit %</div><div class="val"><code>Yes</code> &middot; <code>30%</code> &mdash; weekend slots especially; the booking holds a balance until paid</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Roles &amp; permissions &mdash; who touches what</div>
+      <table class="role-table">
+        <thead><tr><th>Permission</th><th>Allows</th><th>Typical role at Amara</th></tr></thead>
+        <tbody>
+          <tr><td><code>recipes_view / recipes_add</code></td><td>See and write formulas</td><td>Temi &mdash; formulator</td></tr>
+          <tr><td><code>production_batches_view / _add / _edit</code></td><td>Schedule and move batch runs through their stages</td><td>Temi &mdash; production</td></tr>
+          <tr><td><code>custom_orders_view / _add / _edit</code></td><td>Custom formulation orders, quotes, deposits, status moves</td><td>Temi + Femi</td></tr>
+          <tr><td><code>treatment_notes_view / _add</code></td><td>Treatment history on client records</td><td>Ada &mdash; therapist</td></tr>
+          <tr><td><code>sales_add / items_view</code></td><td>POS and invoices</td><td>Femi &mdash; front desk</td></tr>
+          <tr><td><code>purchase_add / purchase_view</code></td><td>Supplier orders and receipts</td><td>Amara / Temi</td></tr>
+          <tr><td><code>online_store_view / _edit / _orders</code></td><td>Storefront content, settings, order fulfilment</td><td>Amara / Femi</td></tr>
+          <tr><td><code>manager_approvals</code></td><td>Approves discounts above the limit</td><td>Amara only</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Staff who work the treatment room get <em>Operations &rarr; Staff Assignment</em> slots, and their cut lands in <em>Staff Commission</em> &mdash; payroll reads the report, nobody re-counts appointments by hand.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Femi &middot; Front desk</div><div class="chat-bubble">Ada does the facials, Temi makes the jars &mdash; but I sell everything at the till.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Right. Permissions split by job: Temi never sees pricing approvals, Femi never edits a formula.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> buying stock &mdash; ingredients, jars and the resale shelf.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Procurement</span>
+      <h2>Purchases &mdash; with batch &amp; expiry</h2>
+      <p class="lead">Everything physical enters through <em>Purchases &rarr; New Purchase</em>. For a skincare store the critical detail sits in the second row of each line item: the receipt batch, expiry and manufacture date.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Purchases &rarr; New Purchase &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Supplier</div><div class="val"><code>Ilaje Shea Co-operative</code> &mdash; or <code>Dermatics Distributors</code> for the resale shelf</div></div>
+        <div class="field"><div class="lbl">Purchase Status</div><div class="val"><code>Received</code> adds stock now &mdash; <em>Draft / Ordered</em> hold the record without touching stock, <em>Partially Received</em> posts only the received quantities</div></div>
+        <div class="field"><div class="lbl">Branch (Warehouse)</div><div class="val"><code>Lekki Store &amp; Lab</code> &mdash; where the goods physically land</div></div>
+        <div class="field"><div class="lbl">Items &mdash; quantity is in the item&rsquo;s base unit</div><div class="val">Raw Shea Butter &times;5,000 g @ &#8358;1.80 &middot; Glass Jar 200ml &times;500 pcs @ &#8358;350 &middot; CeraVe Cream 236ml &times;24 pcs @ &#8358;14,500</div></div>
+        <div class="field"><div class="lbl">Receipt / Batch Details &mdash; the row under each item</div><div class="val"><strong>Batch/Lot</strong> <code>CVC-08B</code> &middot; <strong>Barcode</strong> scanned from the carton &middot; <strong>Rcv Qty</strong> &middot; <strong>Expiry</strong> the printed date &middot; <strong>MFG Date</strong> if shown. Fill these on every resold cosmetic and every ingredient with a shelf life</div></div>
+        <div class="field"><div class="lbl">Payment</div><div class="val">Paid now, or credit &mdash; the supplier&rsquo;s balance tracks normally through supplier payments</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Why every receipt needs its batch row</div>
+      <table class="blend-table">
+        <thead><tr><th>You capture at receipt</th><th>MartPoint uses it for</th></tr></thead>
+        <tbody>
+          <tr><td>Expiry date</td><td>Near Expiry &amp; Expired Items alerts on the dashboard; the <em>Reports &rarr; Expired Items</em> list shows days left or days past</td></tr>
+          <tr><td>Batch/Lot</td><td>Recall answers &mdash; which purchase, which supplier, which lot is in that customer&rsquo;s jar</td></tr>
+          <tr><td>MFG date</td><td>Shelf-life maths &mdash; a 24-month cream bought 8 months old sells differently to a fresh one</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Operations &rarr; Stock Rotation &mdash; sell the old lot first</div>
+      <p class="small">Open it after every receipt. It lists each newly received batch <em>beside the older lots still in stock</em> for the same product &mdash; the physical instruction to move the old lot to the front of the shelf. This is FEFO in one glance: earliest expiry sells first.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Temi &middot; Production</div><div class="chat-bubble">We received 24 CeraVe creams &mdash; but 8 from the last receipt are still on the shelf.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Stock Rotation shows the older lot&rsquo;s expiry beside the new one. Old goes to the front today, not at the stocktake.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> writing the formula &mdash; what one batch consumes.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Production</span>
+      <h2>Write the formula</h2>
+      <p class="lead"><em>Operations &rarr; Recipe Book &rarr; New Formula.</em> Written once, reused every batch. Amara&rsquo;s first formula produces <strong>40 jars</strong> of Golden Shea Body Butter &mdash; and it counts the packaging as ingredients, because that is the truth of the cost.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Formula header &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Recipe Name</div><div class="val"><code>Golden Shea Body Butter</code></div></div>
+        <div class="field"><div class="lbl">Category</div><div class="val"><code>Body Butters</code> &mdash; the seeded formula categories match your ranges</div></div>
+        <div class="field"><div class="lbl">Final Product</div><div class="val"><code>Golden Shea Body Butter 200g</code> &mdash; only sellable products appear here; this is where completed batch output lands</div></div>
+        <div class="field"><div class="lbl">Yield Qty / Yield Unit</div><div class="val"><code>40</code> &middot; <code>piece</code> (auto-filled from the product&rsquo;s base unit) &mdash; one run of this formula makes forty jars</div></div>
+        <div class="field"><div class="lbl">Prep / Cook Time</div><div class="val"><code>20</code> min melting &amp; mixing &middot; <code>40</code> min whip &amp; fill &mdash; scheduling, not costing</div></div>
+        <div class="field"><div class="lbl">Aging / Maceration (days)</div><div class="val"><code>0</code> for whipped butter &mdash; use <code>4&ndash;6</code> on formulas that need cure time (CP soaps need weeks)</div></div>
+        <div class="field"><div class="lbl">Sales Margin %</div><div class="val"><strong>Set to <code>0</code></strong> if you price products yourself &mdash; anything above zero <em>rewrites the product&rsquo;s sale price</em> at batch completion (cost &times; (1 + margin)). If you want the system to price it, set your real markup and let it</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Ingredients &mdash; only Not-for-Sale items are offered</div>
+      <table class="blend-table">
+        <thead><tr><th>Ingredient</th><th>Qty per batch</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Raw Shea Butter</td><td>6,000 g</td><td>&#8358;10,800</td></tr>
+          <tr><td>Coconut Oil</td><td>1,200 g</td><td>&#8358;2,880</td></tr>
+          <tr><td>Sweet Almond Oil</td><td>800 g</td><td>&#8358;2,800</td></tr>
+          <tr><td>Vitamin E Oil</td><td>80 g</td><td>&#8358;3,200</td></tr>
+          <tr><td>Preservative (Optiphen)</td><td>120 g</td><td>&#8358;3,000</td></tr>
+          <tr><td>Lavender Essential Oil</td><td>60 g</td><td>&#8358;2,700</td></tr>
+          <tr><td>Glass Jar 200ml</td><td>40 pcs</td><td>&#8358;14,000</td></tr>
+          <tr><td>Printed Label</td><td>40 pcs</td><td>&#8358;2,000</td></tr>
+          <tr><td>Shrink Band</td><td>40 pcs</td><td>&#8358;800</td></tr>
+          <tr><td><strong>Batch cost &rarr; per jar</strong></td><td><strong>40 pcs</strong></td><td><strong>&#8358;42,180 &rarr; &#8358;1,055/jar</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Each row also carries a <strong>wastage %</strong> &mdash; set <code>2&ndash;3%</code> on oils so sticking and spillage stay honest in the cost. The formula&rsquo;s cost card shows total batch cost and cost-per-unit live while you edit.</p>
+    </div>
+    <div class="tip"><strong>One formula per size:</strong> the yield counts <em>finished pieces</em> and the jar is an ingredient, so a 100g jar version is its own formula and its own product. Don&rsquo;t try to make one formula stretch across sizes &mdash; a duplicated formula takes a minute and keeps every batch&rsquo;s costing exact.</div>
+    <div class="next"><strong>Next &rarr;</strong> running the batch &mdash; the statuses that carry a batch to the shelf.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Production</span>
+      <h2>Run the batch</h2>
+      <p class="lead"><em>Operations &rarr; Production Schedule &rarr; New Production Batch.</em> A batch groups what you intend to make and when. Temi runs one every Tuesday &mdash; the schedule shows the whole week at a glance.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">New Production Batch &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Batch Name</div><div class="val"><code>Body Butter &mdash; spa order week</code> &mdash; the code (PB-0042) is assigned on save</div></div>
+        <div class="field"><div class="lbl">Batch Type</div><div class="val"><code>Formulation</code> &mdash; the full skincare pipeline &middot; <code>Filling Run</code> for repack-only jobs (decanting a bulk pail into jars without formulating)</div></div>
+        <div class="field"><div class="lbl">Status</div><div class="val"><code>Planned</code> &mdash; moves as the work moves</div></div>
+        <div class="field"><div class="lbl">Scheduled Date / Time / Equipment / Assigned Staff</div><div class="val">Tuesday 8:00 &middot; <code>Double Boiler &amp; Mixer B</code> &middot; <code>Temi</code></div></div>
+        <div class="field"><div class="lbl">Items &mdash; Produce from Recipe</div><div class="val">Add <code>Golden Shea Body Butter</code> &times;<code>60</code> piece to produce &mdash; the spa needs 60 jars, so the batch scales the 40-jar formula &times;1.5</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The skincare pipeline &mdash; Quick Status buttons on the batch</div>
+      <table class="blend-table">
+        <thead><tr><th>Status</th><th>Means</th></tr></thead>
+        <tbody>
+          <tr><td>Planned</td><td>On the schedule, nothing consumed yet</td></tr>
+          <tr><td>Sourcing Materials</td><td>Temi is pulling stock off the shelf and weighing</td></tr>
+          <tr><td>Mixing</td><td>Melted, emulsified, whipping</td></tr>
+          <tr><td>Cooling</td><td>Resting before fill &mdash; the batch stays visible so nobody forgets it on the bench</td></tr>
+          <tr><td>Filling</td><td>Jars being filled, labelled, banded</td></tr>
+          <tr><td>Ready</td><td>QC done, waiting for sign-off</td></tr>
+          <tr><td><strong>Completed</strong></td><td><strong>This is the moment stock moves</strong> &mdash; see below</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">What Completed actually does</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Checks stock first</strong> &mdash; if any ingredient is short it refuses: <em>&ldquo;Cannot complete &mdash; not enough stock: Raw Shea Butter: need 9,000, have 5,400&rdquo;</em>. Buy or reduce, never fudge</div>
+        <div class="flow-step"><strong>Deducts scaled ingredients</strong> &mdash; 60 jars &times;1.5 pulls 9,000 g shea, 1,800 g coconut, 60 jars, 60 labels&hellip; exact quantities per formula</div>
+        <div class="flow-step"><strong>Credits the finished product</strong> &mdash; Golden Shea Body Butter 200g +60 pcs, at true recipe cost</div>
+        <div class="flow-step"><strong>Posts one stock adjustment</strong> &mdash; reference <code>PB-0042 [PROD]</code>, every line traceable in the ledger</div>
+        <div class="flow-step"><strong>Records a production run</strong> &mdash; planned vs actual cost lands on the formula&rsquo;s run history</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Then stamp the batch&rsquo;s shelf life</div>
+      <p class="small">On <em>Product List &rarr; Golden Shea Body Butter 200g &rarr; Unit/Variant row</em>, enter <strong>Batch/Lot</strong> <code>GB-042</code>, <strong>Made On</strong> = production date, <strong>Best Before</strong> = +12 months. That row is what the expiry widgets watch &mdash; update it whenever a new batch becomes the shelf stock.</p>
+    </div>
+    <div class="tip"><strong>Filling Run:</strong> bulk bought or leftover product being repacked (a 5 L pail into 30ml travel bottles) uses the <em>Filling Run</em> batch type &mdash; a short pipeline (Planned &rarr; Filling &rarr; Ready &rarr; Completed) because no formulation happens. <strong>Sale-deplete:</strong> the item&rsquo;s Production Mode alternative deducts raw grams at the till instead of batching &mdash; suited to scoop-at-counter products, not jarred lines you want batch-coded.</div>
+    <div class="next"><strong>Next &rarr;</strong> selling &mdash; POS, sets, wholesale and the till day.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Sales</span>
+      <h2>POS, sets &amp; wholesale</h2>
+      <p class="lead">Femi&rsquo;s till day is ordinary retail with two skincare extras: products sell in declared packaging units, and wholesale clients buy at wholesale price, not a negotiated discount.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">At the till</div>
+      <table class="blend-table">
+        <thead><tr><th>Sale</th><th>Tap</th><th>Stock effect</th></tr></thead>
+        <tbody>
+          <tr><td>One jar</td><td>Golden Shea Body Butter 200g &rarr; Piece</td><td>&minus;1 pc @ &#8358;6,500</td></tr>
+          <tr><td>Gift pair</td><td>Same product &rarr; Duo Set &times;2</td><td>&minus;2 pcs @ &#8358;12,000</td></tr>
+          <tr><td>Spa case</td><td>Same product &rarr; Case of 12</td><td>&minus;12 pcs @ &#8358;62,400</td></tr>
+          <tr><td>Wholesale invoice</td><td>Sales &rarr; New Sale &rarr; client <code>Oasis Day Spa</code>, wholesale price column</td><td>60 pcs @ &#8358;5,200 = &#8358;312,000</td></tr>
+          <tr><td>Resale shelf</td><td>CeraVe Cream 236ml &rarr; scan the carton barcode</td><td>&minus;1 pc; expiry lot recorded at purchase stays on the stock trail</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Client money features &mdash; all on for this profile</div>
+      <table class="blend-table">
+        <thead><tr><th>Feature</th><th>How Amara uses it</th></tr></thead>
+        <tbody>
+          <tr><td>Loyalty points</td><td>Points per sale redeemable at checkout &mdash; repeat facials and refill buyers earn steadily</td></tr>
+          <tr><td>Gift Cards</td><td>&ldquo;Glow Card&rdquo; sold at the till, redeemed online or in store</td></tr>
+          <tr><td>Store Credit</td><td>Returns land as credit instead of cash-out for skincare (unopened only &mdash; see returns note)</td></tr>
+          <tr><td>Wholesale price</td><td>POS wholesale button flips the cart to wholesale pricing for account clients &mdash; no hand-edited discounts</td></tr>
+          <tr><td>Sales Returns</td><td>Sealed, unopened returns only &mdash; opened jars are refused at the counter by policy, not by software</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Quotations &rarr; Sales for account clients</div>
+      <p class="small">The spa negotiates quarterly. <em>Sales &rarr; New Quotation</em> prices the standing order; on acceptance it converts to the invoice. The purchase the spa places against it can link back via <em>Fulfils Customer Order</em> on the purchase form &mdash; traceability both directions.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Client &middot; Oasis Day Spa</div><div class="chat-bubble">Sixty jars this month &mdash; same as last, plus two serums. Invoice us.</div></div>
+      <div class="chat-right"><div class="chat-bubble">New Sale &rarr; Oasis Day Spa &rarr; Case of 12 &times;5 &rarr; wholesale rate &rarr; account balance until they pay.</div></div>
+    </div>
+    <div class="tip"><strong>Expiry at the till:</strong> if a near-expiry alert is showing, sell the flagged lot first &mdash; Stock Rotation tells you exactly which batch is front-of-shelf. Never let the newest lot block the oldest one.</div>
+    <div class="next"><strong>Next &rarr;</strong> treatments, treatment notes and the bespoke side of the shop.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Services &amp; bespoke work</span>
+      <h2>Treatments, notes &amp; custom formulations</h2>
+      <p class="lead">Products are half the brand. The treatment room and the made-for-one-customer formulations are where the profile earns its &ldquo;&amp; Services&rdquo; side.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">A consultation and facial day</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Book</strong> &mdash; treatment is a sellable service; it can sell at POS, on an invoice, or on the online store&rsquo;s services grid (<em>Book</em> button)</div>
+        <div class="flow-step"><strong>Assign</strong> &mdash; <em>Operations &rarr; Staff Assignment</em> puts Ada the therapist on the booking; her calendar lives there</div>
+        <div class="flow-step"><strong>Treat &amp; note</strong> &mdash; <em>Operations &rarr; Treatment Notes</em> on the client: skin type, reaction, products used, photos/notes for next visit &mdash; the Treatment History dashboard card surfaces it</div>
+        <div class="flow-step"><strong>Commission</strong> &mdash; <em>Staff Commission</em> accrues Ada&rsquo;s 15% per completed treatment automatically</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Operations &rarr; Custom Orders &mdash; the bespoke formulation</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Client</div><div class="val"><code>Mrs. Adaeze Okonkwo</code> &mdash; a client record, so the order, deposit and history attach to her</div></div>
+        <div class="field"><div class="lbl">Product Template</div><div class="val"><code>Custom Face Cream (Bespoke)</code> &mdash; a sellable item flagged as a custom-order template, with the <strong>Skincare workflow</strong> selected in its Custom Order Settings</div></div>
+        <div class="field"><div class="lbl">Custom fields the template asks</div><div class="val">Skin type (dropdown) &middot; Allergies/sensitivities (required) &middot; Fragrance preference &middot; Target concern (acne / hyperpigmentation / eczema) &middot; Texture preference &mdash; captured once, printed on the order</div></div>
+        <div class="field"><div class="lbl">Quoted Price / Deposit Required / Deposit Paid</div><div class="val"><code>25,000</code> &middot; <code>12,500</code> &middot; <code>12,500</code> &mdash; the order does not move to production on a promise</div></div>
+        <div class="field"><div class="lbl">Due Date / Assigned Staff</div><div class="val">Two weeks &middot; Temi</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The skincare order pipeline</div>
+      <div class="screen-flow">
+        <div class="flow-step">Quote sent &middot; <code>quoted</code></div>
+        <div class="flow-step">Deposit received &middot; <code>deposit_paid</code> &mdash; the Deposit Balance dashboard card tracks it</div>
+        <div class="flow-step"><strong>Sampling</strong> &mdash; Temi makes a 15ml trial vial for the client to patch-test &middot; <code>sampling</code></div>
+        <div class="flow-step"><strong>Approved</strong> &mdash; client signs off on the sample &middot; <code>approved</code></div>
+        <div class="flow-step"><strong>Formulating &rarr; Curing</strong> &mdash; full batch made; emulsions rest before delivery &middot; <code>formulating</code> &rarr; <code>curing</code></div>
+        <div class="flow-step"><strong>Ready &rarr; Delivered</strong> &mdash; collected or dispatched; balance invoiced through normal sales &middot; <code>ready</code> &rarr; <code>delivered</code></div>
+      </div>
+      <p class="small" style="margin-top:8px;">A custom order can ride a production batch too &mdash; add it to a batch&rsquo;s items and the linked formula consumes ingredients on completion, like any recipe line.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Skincare Sets &mdash; the package feature</div>
+      <p class="small"><em>Catalog &rarr; Service Packages</em> sells prepaid treatment plans (&ldquo;6-Session Glow Plan&rdquo;) the client redeems over months. Product bundles at the till (&ldquo;The Evening Ritual Set&rdquo; = cleanser + serum + butter at one price) use the bundles feature &mdash; stock of each component still moves correctly.</p>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> the online store &mdash; where the brand sells while the shop sleeps.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Online store</span>
+      <h2>Store settings &amp; shipping</h2>
+      <p class="lead"><em>Online Store &rarr; Store Settings.</em> The skincare profile ships with the <strong>Verdant</strong> theme (Botanica, Derma Pure and Terra Glow are the alternates under <em>Appearance</em>) &mdash; an editorial layout built for made-from-scratch brands, with concern-led shopping, routine sets and an Instagram journal.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Store Settings &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Store Slug</div><div class="val"><code>amarabotanicals</code> &mdash; becomes your public link, shared on Instagram bio and WhatsApp</div></div>
+        <div class="field"><div class="lbl">Store Status</div><div class="val"><code>Live</code> only when the pages below are filled &mdash; keep it hidden while building</div></div>
+        <div class="field"><div class="lbl">Description</div><div class="val">&ldquo;Handcrafted shea butters, soaps and serums &mdash; batched weekly in Lekki.&rdquo;</div></div>
+        <div class="field"><div class="lbl">WhatsApp Number</div><div class="val">Business line with country code &mdash; powers the <em>WhatsApp Us</em> hero button and WhatsApp checkout</div></div>
+        <div class="field"><div class="lbl">Store Email / Phone / Address / Default Branch</div><div class="val">Shown to customers; the branch is where online orders draw stock from</div></div>
+        <div class="field"><div class="lbl">Featured Products Limit</div><div class="val"><code>8</code> &mdash; how many flagged products the homepage rail shows</div></div>
+        <div class="field"><div class="lbl">Checkout toggles</div><div class="val"><strong>Allow Paystack Checkout</strong> (card/bank transfer online) &middot; <strong>Allow WhatsApp Orders</strong> &middot; <strong>Allow Pay on Delivery</strong></div></div>
+        <div class="field"><div class="lbl">Display toggles</div><div class="val"><strong>Allow Service Orders</strong> (books treatments online) &middot; <strong>Show Search Bar</strong> &middot; <strong>Show Category Chips</strong> (your ranges) &middot; <strong>Show WhatsApp CTA</strong> &middot; <em>Allow Backorder</em> off &mdash; out of stock means out of stock on skincare</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Shipping &mdash; two honest ways</div>
+      <table class="blend-table">
+        <thead><tr><th>Approach</th><th>Setup</th><th>Amara&rsquo;s choice</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Shipping Methods list</strong></td><td>Named options + fee + description (Pickup &mdash; free &middot; Dispatch Rider &mdash; &#8358;2,500 &middot; GIG Logistics &mdash; &#8358;4,000)</td><td>For simple, flat choices</td></tr>
+          <tr><td><strong>City-based shipping</strong></td><td>Toggle on, then list State &rarr; City &rarr; Fee rows: Lagos &rarr; Lekki &#8358;2,000 &middot; Lagos &rarr; Yaba &#8358;2,500 &middot; Abuja &rarr; Wuse &#8358;4,500 &middot; Rivers &rarr; Port Harcourt &#8358;5,000</td><td><strong>Amara uses this</strong> &mdash; the customer picks their city at checkout and the right fee prices itself</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">The <strong>Shipping Notice</strong> text sits above the options at checkout: <em>&ldquo;Same-day dispatch in Lekki before 2pm. Orders after 4pm ship next working day.&rdquo;</em></p>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> what the customer sees &mdash; homepage, catalogue and order flow.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Online store</span>
+      <h2>Content, catalogue &amp; orders</h2>
+      <p class="lead">The Online Store menu splits into three: the shop floor (<em>Orders, Online Products, Services</em>), the storefront content (<em>Homepage Builder, Banners, Testimonials, Instagram, FAQs</em>), and configuration (<em>Appearance, Domains, Store Settings</em>).</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Getting products online &mdash; Online Store &rarr; Online Products</div>
+      <p class="small">Toggle each sellable product into the store. A product earns its place when it has: a clean photo (<em>Product Image</em> on the item card), a price, stock &gt; 0, and a real description &mdash; the product page renders name, Range &mdash; Brand, price with discount strike-through, <em>In stock</em>, the description, size tag, sold-count, variant sizes and related products. Flag your hero products <strong>Featured</strong> and mark fresh batches <strong>New Arrival</strong> to feed the homepage rails.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Homepage Builder &mdash; the sections that matter</div>
+      <table class="blend-table">
+        <thead><tr><th>Section</th><th>Amara&rsquo;s content</th></tr></thead>
+        <tbody>
+          <tr><td>Hero banner</td><td>&ldquo;Skincare made in small batches&rdquo; over a studio shot &mdash; Shop the Collection button</td></tr>
+          <tr><td>Shop by concern</td><td>Ranges render as concern cards &mdash; &ldquo;Start with your skin concern&rdquo;: dryness, acne, glow, sensitivity</td></tr>
+          <tr><td>Featured products / best sellers / new arrivals</td><td>The 8 flagged products plus the rails the store computes itself &mdash; mark fresh batches <em>New Arrival</em> to feed the last rail</td></tr>
+          <tr><td>Featured services</td><td>Treatments render with a <em>Book</em> button &mdash; consultations and facials sell online</td></tr>
+          <tr><td>Routine banner (promo)</td><td>&ldquo;The routine, together&rdquo; &mdash; the full regimen sold as one story, one click through to the set</td></tr>
+          <tr><td>Trust badges</td><td>&ldquo;Handmade weekly&rdquo; &middot; &ldquo;No parabens&rdquo; &middot; &ldquo;Pay on delivery&rdquo;</td></tr>
+          <tr><td>Testimonials</td><td>Three client reviews with names</td></tr>
+          <tr><td>Journal (Instagram)</td><td>Latest posts pulled via the access token &mdash; &ldquo;From the journal&rdquo;</td></tr>
+          <tr><td>FAQs</td><td>&ldquo;How do I patch-test?&rdquo; &middot; &ldquo;What&rsquo;s in the butter?&rdquo; &middot; &ldquo;Do you ship outside Lagos?&rdquo;</td></tr>
+          <tr><td>WhatsApp consult + Store hours &amp; contact</td><td>&ldquo;Tell us about your skin on WhatsApp &mdash; a real person will help you build a routine&rdquo;</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">An order arrives &mdash; Online Store &rarr; Orders</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Customer checks out</strong> &mdash; 2 &times; Golden Shea + 1 &times; Glow Serum = &#8358;22,000 + Lekki delivery &#8358;2,000 via Paystack (or WhatsApp order, or pay-on-delivery)</div>
+        <div class="flow-step"><strong>Order lands</strong> &mdash; Online Store &rarr; Orders, plus the Online Orders dashboard card pings</div>
+        <div class="flow-step"><strong>Fulfil</strong> &mdash; confirm, pack from the default branch (stock drops), print invoice</div>
+        <div class="flow-step"><strong>Deliver</strong> &mdash; <em>Operations &rarr; Delivery Scheduling</em> assigns the rider and tracks it to the client&rsquo;s door</div>
+        <div class="flow-step"><strong>Follow up</strong> &mdash; Subscribers list + a WhatsApp message turns a first order into a refill cycle</div>
+      </div>
+    </div>
+    <div class="tip"><strong>Analytics &amp; QR:</strong> <em>Online Store &rarr; Analytics</em> shows what the store sells versus the till; <em>QR Codes</em> prints a scan-to-shop code for the counter display &mdash; walk-ins become online subscribers.</div>
+    <div class="next"><strong>Next &rarr;</strong> dashboards and reports &mdash; what the numbers say.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Management</span>
+      <h2>Dashboard &amp; reports</h2>
+      <p class="lead">The skincare dashboard template surfaces exactly what this business watches daily &mdash; nothing decorative.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Dashboard cards &mdash; what each answers</div>
+      <table class="blend-table">
+        <thead><tr><th>Card</th><th>Answers</th></tr></thead>
+        <tbody>
+          <tr><td>Sales / Purchase / Expense summaries</td><td>Today&rsquo;s money in, stock bought, costs out</td></tr>
+          <tr><td>Today&rsquo;s Bookings &amp; Pending Appointments</td><td>Ada&rsquo;s treatment diary and unconfirmed bookings</td></tr>
+          <tr><td>Production Queue</td><td>Batch runs on the schedule and where each sits in the pipeline</td></tr>
+          <tr><td>Upcoming Events</td><td>Custom formulations approaching their due dates</td></tr>
+          <tr><td>Deposit Balance</td><td>Orders holding deposits &mdash; and who still owes the balance</td></tr>
+          <tr><td>Near Expiry / Expired Items</td><td>Which lots need selling first, which must come off the shelf</td></tr>
+          <tr><td>Low Stock Alert</td><td>Products and ingredients at or below alert qty &mdash; jars included, since they live in stock too</td></tr>
+          <tr><td>Recipe Costing</td><td>What a jar actually costs, from live ingredient prices</td></tr>
+          <tr><td>Online Orders</td><td>Store orders awaiting fulfilment</td></tr>
+          <tr><td>Treatment History / Commission Due</td><td>Recent client treatments; therapist payouts owed</td></tr>
+          <tr><td>Pending Approvals</td><td>Discounts or edits waiting on the owner&rsquo;s sign-off</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Reports that run the month</div>
+      <table class="blend-table">
+        <thead><tr><th>Report</th><th>What Amara reads from it</th></tr></thead>
+        <tbody>
+          <tr><td>Sales Report</td><td>Revenue by product, range, client and channel &mdash; is the resale shelf or the house line carrying?</td></tr>
+          <tr><td>Expired Items</td><td>Lots past or approaching Best Before, with days left/past and remaining stock &mdash; act before the write-off</td></tr>
+          <tr><td>Formula run history</td><td>Each batch&rsquo;s planned vs actual cost &mdash; did the last shea shipment erode the margin?</td></tr>
+          <tr><td>Stock Adjustments</td><td>Every production post (<code>PB-0042 [PROD]</code>), every write-off, every correction &mdash; full audit trail</td></tr>
+          <tr><td>Staff Commission</td><td>Therapist earnings per period &mdash; payroll input</td></tr>
+          <tr><td>Customer/Client balances</td><td>Who owes on invoices, deposits and store credit</td></tr>
+          <tr><td>Online Analytics</td><td>Store conversion, top products online, order sources</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> who does what &mdash; a day in each role.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Roles</span>
+      <h2>A day at Amara Botanicals</h2>
+      <p class="lead">The same brand, seen by the four people who run it.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Amara &mdash; Owner</div>
+      <div class="screen-flow">
+        <div class="flow-step">Morning: dashboard &mdash; sales summary, production queue, near-expiry, deposit balances, today&rsquo;s bookings</div>
+        <div class="flow-step">Approve a wholesale discount request (<code>manager_approvals</code>); check staff commission before Friday payroll</div>
+        <div class="flow-step">Weekly: Sales Report by range + online analytics; recipe costing when a supplier price changes</div>
+        <div class="flow-step">Rarely: Business Profile, roles, store settings &mdash; owner-only territory</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Temi &mdash; Formulator / Production</div>
+      <div class="screen-flow">
+        <div class="flow-step">Sunday: write or refine a formula in Recipe Book; check ingredient costs against last week</div>
+        <div class="flow-step">Tuesday: open the batch &rarr; Sourcing &rarr; Mixing &rarr; Cooling &rarr; Filling; complete on sign-off</div>
+        <div class="flow-step">Stamp the finished product&rsquo;s batch code, Made On and Best Before; produce a sample vial for Mrs. Okonkwo&rsquo;s custom order</div>
+        <div class="flow-step">Low-shea flag on the dashboard &rarr; raise the ingredient purchase</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Ada &mdash; Therapist</div>
+      <div class="screen-flow">
+        <div class="flow-step">Today&rsquo;s Bookings card &rarr; her diary; deliver the facial, update status</div>
+        <div class="flow-step">Treatment Notes on the client after every session &mdash; reactions, products used, next-step advice</div>
+        <div class="flow-step">Never touches formulas, costing or stock &mdash; her world is clients and appointments</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Femi &mdash; Front desk</div>
+      <div class="screen-flow">
+        <div class="flow-step">POS all day: jars, sets, resold brands, treatment bookings, gift cards</div>
+        <div class="flow-step">Online orders &rarr; confirm, pack, schedule delivery; WhatsApp orders logged the same way</div>
+        <div class="flow-step">Stock Rotation check when a receipt lands &mdash; old lots move to the front</div>
+        <div class="flow-step">End of day: Sales History vs. till count; sales returns for sealed jars only</div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> one week end-to-end &mdash; ingredients in, money out.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Walkthrough</span>
+      <h2>One week, start to finish</h2>
+      <p class="lead">Oasis Day Spa orders 60 jars at wholesale; Mrs. Okonkwo&rsquo;s custom cream approves; two online orders ship. Every number below is what the screens actually show.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The complete week</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Mon &mdash; Order:</strong> Oasis Day Spa, 60 jars @ &#8358;5,200 wholesale = &#8358;312,000 on account. Femi raises the invoice</div>
+        <div class="flow-step"><strong>Mon &mdash; Plan:</strong> Temi creates Batch <code>PB-0042</code> (Formulation), adds Golden Shea formula &times;60 pcs</div>
+        <div class="flow-step"><strong>Tue &mdash; Gate:</strong> completing needs 9,000 g shea; only 5,400 g in stock &rarr; batch refuses: <em>&ldquo;not enough stock&rdquo;</em> &rarr; purchase 5,000 g from Ilaje Co-op (Received, with supplier lot)</div>
+        <div class="flow-step"><strong>Tue &mdash; Produce:</strong> Sourcing &rarr; Mixing &rarr; Cooling &rarr; Filling &rarr; Ready &rarr; <strong>Completed</strong>: 9,000 g shea + 60 jars + 60 labels&hellip; deducted once; product +60 pcs; adjustment <code>PB-0042 [PROD]</code> posted; run cost &#8358;63,270 &asymp; &#8358;1,055/jar</div>
+        <div class="flow-step"><strong>Tue &mdash; Stamp:</strong> product&rsquo;s Unit/Variant row &rarr; Batch <code>GB-042</code>, Made On today, Best Before +12 months</div>
+        <div class="flow-step"><strong>Wed &mdash; Dispatch:</strong> 5 &times; Case of 12 loaded for the spa; invoice + delivery note printed; balance &#8358;312,000 sits on their account</div>
+        <div class="flow-step"><strong>Thu &mdash; Bespoke:</strong> Mrs. Okonkwo&rsquo;s 15ml sample approved &rarr; order moves Formulating &rarr; Curing (7 days) &mdash; remaining &#8358;12,500 invoiced on delivery next week</div>
+        <div class="flow-step"><strong>Fri &mdash; Online:</strong> Paystack order: 2 jars + Glow Serum, &#8358;22,000 + Lekki fee &#8358;2,000 &rarr; confirm, pack, rider scheduled &mdash; same-day dispatch before 2pm promise kept</div>
+        <div class="flow-step"><strong>Fri &mdash; Close:</strong> Stock Rotation check; Near Expiry card clean; production queue empty; week&rsquo;s margin visible on the sales report</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The same screens, other weeks</div>
+      <table class="blend-table">
+        <thead><tr><th>Scenario</th><th>Difference</th></tr></thead>
+        <tbody>
+          <tr><td>Restock resale shelf</td><td>Purchase only &mdash; no formula, no batch; the lot/expiry row does the work</td></tr>
+          <tr><td>New 100g jar size</td><td>New product + new formula (yield in pieces, its own jar ingredient) &mdash; don&rsquo;t stretch the 200g one</td></tr>
+          <tr><td>Repack a bulk pail</td><td>Filling Run batch type &mdash; skips sourcing/mixing/cooling stages</td></tr>
+          <tr><td>Ingredient price change</td><td>Formula cost card + Recipe Costing widget update &mdash; margin checked before the next batch, not after</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> every term, explained once &mdash; the glossary.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Reference</span>
+      <h2>Terminology</h2>
+      <p class="lead">Every word this workflow uses, in plain language.</p>
+    </div>
+    <table class="glossary-table">
+      <tr><td>Range</td><td>What other MartPoint stores call a Category &mdash; Face Care, Body Care, Raw Ingredients, Packaging. Drives catalogue organisation and the online store&rsquo;s shop-by-category tiles.</td></tr>
+      <tr><td>Client</td><td>The skincare profile&rsquo;s word for Customer &mdash; holds purchases, bookings, treatment notes, deposits and store credit.</td></tr>
+      <tr><td>Not for Sale</td><td>The flag that makes an item an ingredient or packaging: visible in stock and formulas, invisible at the till. Required on every ingredient; never set on a sellable product.</td></tr>
+      <tr><td>Base / Stock Unit</td><td>The unit an item counts in &mdash; grams for shea butter, pieces for jars and finished products. The unit tree converts 1,000 g = 1 kg automatically.</td></tr>
+      <tr><td>Formula</td><td>The recipe in Operations &rarr; Recipe Book: ingredient quantities (Not-for-Sale items only), wastage %, yield, and the Final Product it produces. Written once, costed live.</td></tr>
+      <tr><td>Yield</td><td>What one formula run makes &mdash; <code>40 piece</code> means forty jars of the Final Product, with the jars themselves counted as ingredients.</td></tr>
+      <tr><td>Batch Run</td><td>One production run on the Production Schedule, carrying a formula (or custom order) and a quantity to produce. Batch types: <strong>Formulation</strong> (full pipeline) and <strong>Filling Run</strong> (repack only).</td></tr>
+      <tr><td>Skincare Pipeline</td><td>Planned &rarr; Sourcing Materials &rarr; Mixing &rarr; Cooling &rarr; Filling &rarr; Ready &rarr; Completed. <em>Completed</em> is the only status that moves stock &mdash; and it first verifies every ingredient is available.</td></tr>
+      <tr><td>Production Shortage</td><td>The &ldquo;Cannot complete &mdash; not enough stock&rdquo; refusal, listing exact needed-vs-available per ingredient &mdash; including jars and labels. Buy or reduce the quantity; never work around it.</td></tr>
+      <tr><td>[PROD] Adjustment</td><td>The stock-adjustment reference (<code>PB-0042 [PROD]</code>) every completed batch posts &mdash; the audit trail that turns a stock change into a traceable batch record.</td></tr>
+      <tr><td>Batch/Lot &middot; Made On &middot; Best Before</td><td>The product&rsquo;s shelf-life stamp. Purchased goods capture it on the purchase row; produced jars get it on the Unit/Variant row after each batch &mdash; the values the expiry widgets and Stock Rotation read.</td></tr>
+      <tr><td>Stock Rotation</td><td>Operations screen pairing each fresh receipt with older lots still in stock &mdash; the daily instruction for FEFO: earliest expiry to the front.</td></tr>
+      <tr><td>Selling Unit</td><td>A declared pack size on a product &mdash; <code>Case of 12</code>, <code>Duo Set</code> &mdash; with its own price. Stock always counts in the base unit; customers buy in packs.</td></tr>
+      <tr><td>Sales Margin % (formula)</td><td>If above zero, batch completion rewrites the product&rsquo;s sale price at cost &times; (1 + margin). Set <code>0</code> to keep manual pricing &mdash; the guide&rsquo;s recommendation for established price points.</td></tr>
+      <tr><td>Sale-deplete</td><td>Item Production Mode that deducts raw ingredients at the POS sale instead of batching &mdash; for scoop-at-counter products, not jarred batch-coded lines.</td></tr>
+      <tr><td>Treatment</td><td>A bookable service (facial, consultation): sells like an item, assigns a therapist, earns commission, and accumulates Treatment Notes on the client.</td></tr>
+      <tr><td>Custom Formulation</td><td>A Custom Order on the skincare pipeline: quoted &rarr; deposit paid &rarr; sampling &rarr; approved &rarr; formulating &rarr; curing &rarr; ready &rarr; delivered. Template fields (skin type, allergies&hellip;) are declared on the item&rsquo;s Custom Order Settings.</td></tr>
+      <tr><td>Skincare Set / Bundle</td><td>Service Packages = prepaid treatment plans; bundles = multi-product sets sold as one price at the till &mdash; component stock still moves correctly.</td></tr>
+      <tr><td>City-based Shipping</td><td>Store Settings option listing State &rarr; City &rarr; Fee rows; the checkout prices delivery by the customer&rsquo;s selected city, replacing flat shipping methods.</td></tr>
+      <tr><td>Public Catalogue</td><td>A read-only storefront of your products without checkout &mdash; for brands that want presence before they want online payments.</td></tr>
+    </table>
+    <div class="screen-card" style="margin-top:calc(var(--space)*2);">
+      <div class="card-title">Quick pick &mdash; the setup order</div>
+      <table class="blend-table">
+        <thead><tr><th>You want</th><th>Set up</th></tr></thead>
+        <tbody>
+          <tr><td>Resell brands only</td><td>Products + Suppliers + Purchases (with batch/expiry rows) &mdash; skip formulas and batches</td></tr>
+          <tr><td>Make your own line</td><td>+ Raw ingredient &amp; packaging items (Not for Sale) + Formula + Production Schedule</td></tr>
+          <tr><td>Add a treatment room</td><td>+ Services with appointment &amp; commission + Staff Assignment + Treatment Notes</td></tr>
+          <tr><td>Sell bespoke formulas</td><td>+ Custom-order product template (Skincare workflow, spec fields, deposit)</td></tr>
+          <tr><td>Ship nationwide</td><td>+ Store Settings (slug, WhatsApp, Paystack) + city fees + Online Products + homepage content</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guides</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

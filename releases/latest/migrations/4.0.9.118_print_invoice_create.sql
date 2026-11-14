@@ -1,0 +1,60 @@
+-- ============================================================================
+-- MartPoint 4.0.9.118 — print invoice creation (the last piece of Pass B)
+--
+-- No schema change. Completes the quote → invoice path for a print job.
+--
+-- WHAT WAS MISSING
+--
+-- The print invoice screen (.116) displayed the right figures, honoured the
+-- per-job combined/detailed style, and grouped correctly — but invoice_save()
+-- was a deliberate stub returning "not enabled yet". An operator could open the
+-- invoice and then had no way to record it, while the job screen's button led
+-- there. The screen was real; the write was not.
+--
+-- WHAT IT NOW DOES
+--
+-- Printing_model::create_invoice_from_quotation($job_id), called by
+-- Printing::invoice_save(). One transaction writes:
+--
+--   db_sales       sales_code, reference_no = the job code, quotation_id set,
+--                  subtotal / round_off / grand_total copied from the quotation,
+--                  payment_status Unpaid, status 1
+--   db_salesitems  one row per quotation item, mapped 1:1
+--   db_quotation   sales_status = 'Converted'
+--
+-- This is the same end state the shared retail path produces, so reports, Due
+-- Payments and Receivables Aging all see a print invoice as an ordinary sale.
+--
+-- WHY IT READS THE QUOTATION INSTEAD OF POSTED FIGURES
+--
+-- The request carries no amount. A print invoice must equal what the client
+-- accepted; if the browser could send a total, the invoice could disagree with
+-- the accepted quotation — the exact failure the quote/acceptance flow exists
+-- to prevent. Only two non-figure fields are accepted from the form: an
+-- optional amount already received, and a free-text note.
+--
+-- GUARDS (all verified live against job 3 / quotation QT0013)
+--
+--   * Already invoiced  → returns the EXISTING invoice, never a second one.
+--     Verified: clicking Save twice produced one invoice (INV157) both times.
+--   * Quote changed after acceptance → refused, reacceptance required first.
+--   * Quote already Converted without an invoice → refused rather than guessed.
+--   * No lines → refused.
+--   * Any write fails → whole transaction rolls back. A half-written
+--     conversion (an invoice with no lines, or a quote marked Converted with
+--     nothing behind it) would be very hard to unpick by hand.
+--
+-- VERIFIED END TO END through the real UI, not by inspection:
+--   invoice INV157, reference PRJ-20261005-002, quotation_id 35
+--   subtotal 113,800 · grand_total 125,800
+--   3 line items summing to 125,800 — reconciling exactly
+--   quotation QT0013 -> sales_status = 'Converted'
+--   second save attempt -> redirected to the same invoice, no duplicate
+--
+-- The line PRESENTATION (combined / detailed) is still NOT part of the write,
+-- which is what keeps the switch freely reversible after invoicing: both styles
+-- group the same rows, so the stored invoice is identical either way.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

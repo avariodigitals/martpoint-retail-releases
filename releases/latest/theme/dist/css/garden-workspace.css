@@ -1,0 +1,852 @@
+/* Garden application visual system. Intentionally separate from Online Store CSS. */
+body:has(.garden-rail-section),body.garden-mobile-body{
+  --mp-primary:#256452;--mp-primary-dark:#194b3d;--mp-bg:#f5f6f8;--mp-surface:#fff;
+  --mp-border:#e4e7ec;--mp-text:#242a34;--mp-ink:#242a34;--mp-muted:#667080;
+  --mp-success:#23704e;--garden-green:#256452;--garden-border:#e4e7ec;
+  --garden-ink:#242a34;--garden-muted:#667080;--garden-canvas:#f5f6f8;
+  --garden-shadow:0 3px 16px -9px rgba(24,34,53,.14);
+}
+/* White rail and quiet app chrome. The active destination is unmistakable. */
+body:has(.garden-rail-section) .mp-nav{background:#fff!important;width:260px!important;min-width:260px!important;border-right:1px solid #e8ebf0!important}
+body:has(.garden-rail-section) .mp-shell .mp-main{background:var(--garden-canvas)!important;padding:30px 32px 48px!important}
+body:has(.garden-rail-section) .mp-header{background:#fff!important;box-shadow:none!important;border-bottom:1px solid #e8ebf0!important;gap:16px!important}
+body:has(.garden-rail-section) .mp-header .mp-hbtn{font-size:13px!important;border-radius:12px!important}
+body:has(.garden-rail-section) .mp-header .mp-brand h1{font-size:18px!important;color:#242a34!important}
+body:has(.garden-rail-section) .garden-header-brand .sub{font-size:12px!important;color:#667080!important}
+.garden-rail-section{padding:12px}
+.garden-rail-label,.garden-more-tools .mp-nav-label{font-family:inherit!important;font-size:10px!important;letter-spacing:.1em!important;font-weight:650!important;color:#70798a;padding:4px 12px 10px}
+body:has(.garden-rail-section) .garden-rail-link,
+body:has(.garden-rail-section) .garden-more-tools>summary,
+body:has(.garden-rail-section) .garden-more-tools .mp-nav-item,
+body:has(.garden-rail-section) .garden-more-tools .mp-nav-group-toggle,
+body:has(.garden-rail-section) .garden-rail-reports>summary{
+  font-family:Inter,system-ui,sans-serif!important;font-size:14px!important;font-weight:500!important;
+  line-height:1.5;letter-spacing:0;min-height:44px;padding:10px 12px;color:#495363;border-radius:11px;
+}
+body:has(.garden-rail-section) .garden-rail-link .fa{font-size:17px;width:19px;color:#727d8c}
+body:has(.garden-rail-section) .garden-rail-link:hover{background:#f3f5f8;color:#202630}
+body:has(.garden-rail-section) .garden-rail-link.is-current,
+body:has(.garden-rail-section) .mp-shell .mp-nav-item.active{background:#242a34!important;color:#fff!important;font-weight:600!important}
+body:has(.garden-rail-section) .garden-rail-link.is-current .fa,
+body:has(.garden-rail-section) .garden-rail-link.is-current b{color:#fff}
+body:has(.garden-rail-section) .garden-rail-reports[open]>summary{background:#f1f3f6;color:#242a34}
+body:has(.garden-rail-section) .garden-rail-reports .garden-rail-link{padding-left:18px}
+.garden-more-tools{border-color:#e8ebf0;margin-top:14px}
+/* One type scale across the workspace, including operational screens. */
+.garden-workspace{font:14px/1.65 Inter,system-ui,-apple-system,sans-serif;color:var(--garden-ink);max-width:1480px;padding:0}
+.garden-workspace .garden-page-head{align-items:center;gap:16px;margin-bottom:26px}
+.garden-workspace .garden-page-head h1,.garden-mobile>header h1{font-size:30px;line-height:1.2;letter-spacing:-.8px;font-weight:650;color:#202630;margin:6px 0 0}
+.garden-workspace h2,.garden-workspace .garden-section-heading h2,.garden-workspace .garden-panel-heading h2{font-size:18px!important;line-height:1.4;font-weight:650;letter-spacing:-.25px;color:#242a34}
+.garden-workspace h3{color:#242a34;font-weight:600}
+.garden-workspace .garden-kicker,.garden-workspace .garden-eyebrow{font-size:10px;font-weight:650;color:#6a7485;letter-spacing:.09em}
+.garden-workspace .garden-date,.garden-workspace .garden-muted{color:var(--garden-muted);font-size:13px}
+.garden-workspace p{font-size:14px;line-height:1.65}
+.garden-workspace .garden-panel-intro,.garden-workspace .garden-kpi-note{font-size:12px;color:#667080;line-height:1.6}
+.garden-workspace .garden-panel,.garden-workspace .garden-card,.garden-workspace .garden-stat,
+.garden-workspace .garden-intelligence .mp-card{background:#fff;border:1px solid #e5e8ee;border-radius:18px;box-shadow:var(--garden-shadow)}
+.garden-workspace .garden-panel,.garden-workspace .garden-card{padding:24px}
+.garden-workspace .garden-panel-heading,.garden-workspace .garden-section-heading{gap:16px;margin-bottom:16px}
+.garden-workspace .garden-panel-heading h2,.garden-workspace .garden-section-heading h2{margin:3px 0 0!important}
+/* A compact greeting, without a tinted block dominating the dashboard. */
+.garden-workspace .garden-welcome-glass{background:linear-gradient(115deg,#fff 62%,#f2f5fb);border:1px solid #e5e8ee;border-radius:20px;min-height:160px;padding:28px 30px;margin-bottom:28px;box-shadow:var(--garden-shadow);backdrop-filter:none}
+.garden-workspace .garden-welcome-glass h2{font-size:clamp(20px,1.8vw,28px)!important;line-height:1.35;letter-spacing:-.6px;color:#242a34;white-space:normal;margin:0 0 8px!important}
+.garden-workspace .garden-welcome-glass p{font-size:14px;color:#667080;margin:0 0 20px}
+.garden-workspace .garden-still-life{width:140px;opacity:.7;filter:grayscale(.6);margin-left:24px}
+/* KPI values are prominent; labels and explanatory text remain readable. */
+.garden-workspace .garden-stats{gap:16px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:24px}
+.garden-workspace .garden-stat,.garden-workspace .garden-financial-stats .garden-stat{padding:22px;gap:6px;align-content:start;color:#242a34!important}
+.garden-workspace .garden-stat-label{font-size:13px;color:#586374;font-weight:500;line-height:1.5}
+.garden-workspace .garden-stat strong,.garden-workspace .garden-financial-stats .garden-stat strong{font-size:30px;line-height:1.2;letter-spacing:-1px;font-weight:650;color:#202630;margin:9px 0;font-variant-numeric:tabular-nums}
+.garden-workspace .garden-stat small,.garden-workspace .garden-financial-stats .garden-stat small{font-size:12px;line-height:1.55;color:#697486}
+.garden-workspace .garden-stat-icon{width:34px;height:34px;border-radius:10px;background:#edf3ff;color:#4d70b1;font-size:15px}
+.garden-workspace .garden-stat:nth-child(4n+2) .garden-stat-icon{background:#f1edfc;color:#8268ad}
+.garden-workspace .garden-stat:nth-child(4n+3) .garden-stat-icon{background:#eaf5ef;color:#3e7b60}
+.garden-workspace .garden-stat:nth-child(4n+4) .garden-stat-icon{background:#fff2e8;color:#a87544}
+.garden-workspace .garden-stat:hover{border-color:#bfcbd8;box-shadow:0 6px 20px -10px #24374c30;transform:translateY(-1px)}
+.garden-workspace .garden-performance-filter{margin:16px 0 20px;gap:16px}
+.garden-workspace .garden-performance-filter nav{background:#eaedf2;border:0;border-radius:12px;padding:4px;gap:3px}
+.garden-workspace .garden-performance-filter nav a{font-size:13px;font-weight:500;padding:9px 14px;color:#5e697a;border-radius:9px}
+.garden-workspace .garden-performance-filter nav a.is-selected{background:#fff;color:#242a34;box-shadow:0 1px 4px #25324d14;font-weight:600}
+.garden-workspace .garden-performance-filter>span{font-size:12px;color:#667080}
+.garden-workspace .garden-dashboard-columns{gap:24px;margin-bottom:24px}
+/* Actions and fields share comfortable dimensions, contrast and focus states. */
+.garden-workspace .garden-button{font:600 14px/1.4 Inter,system-ui,sans-serif;min-height:44px;padding:11px 16px;border-radius:10px;border-color:#d6dce5;gap:8px;box-sizing:border-box}
+.garden-workspace a.garden-button{background:#fff;color:#374352}
+.garden-workspace button.garden-button:not(.garden-button-secondary):not(.garden-button-danger){background:#256452;color:#fff;border-color:#256452}
+.garden-workspace .garden-welcome .garden-button.garden-primary,.garden-workspace .garden-panel-heading>.garden-catalogue-add{background:#256452!important;color:#fff!important;border-color:#256452;box-shadow:0 2px 3px #193f2d0f}
+.garden-workspace .garden-welcome .garden-light,.garden-workspace .garden-button-secondary{background:#fff;color:#374352;border-color:#d6dce5}
+.garden-workspace .garden-button:hover{filter:brightness(.97)}
+.garden-workspace label{font-size:14px!important;font-weight:500;color:#374352}
+.garden-workspace input:not([type=checkbox]):not([type=radio]):not([type=hidden]),.garden-workspace textarea,
+.garden-workspace .garden-select>button{background:#fff;color:#242a34;border:1px solid #ccd4df;border-radius:10px;font-size:14px;min-height:46px;line-height:1.5}
+.garden-workspace input:focus,.garden-workspace textarea:focus,.garden-workspace .garden-select>button:focus-visible{border-color:#256452;outline:2px solid #25645230;outline-offset:2px}
+.garden-workspace input::placeholder,.garden-workspace textarea::placeholder{color:#7b8594;opacity:1;font-weight:400}
+.garden-workspace .garden-select-options{background:#fff;border-color:#d5dce6;border-radius:10px;margin-top:5px}
+.garden-workspace .garden-select-options button{font-size:14px;min-height:44px;color:#374352;padding:11px 14px}
+.garden-workspace .garden-select-options button:hover,.garden-workspace .garden-select-options button:focus{background:#f0f4f8}
+.garden-workspace .garden-type-filter{background:#f3f5f8;color:#596475;border-radius:9px;font-size:13px;min-height:42px;padding:10px 14px}
+.garden-workspace .garden-type-filter.is-selected{background:#e9f1ed;color:#245b47;border-color:#c1d5cb}
+.garden-workspace .garden-catalogue-search input{background:#fff;font-size:14px!important;padding:11px 14px!important}
+.garden-workspace .garden-catalogue-toolbar{gap:16px;margin:24px 0 18px}
+/* Calm tables and boards, with enough type contrast for daily work. */
+.garden-workspace .garden-table-wrap td,.garden-workspace td{font-size:14px;padding:16px 14px;border-color:#edf0f4;color:#374352}
+.garden-workspace .garden-table-wrap th,.garden-workspace th{font-size:11px;padding:14px;letter-spacing:.04em;color:#657080;background:#f7f8fa;border-color:#e8ecf1;font-weight:600}
+.garden-workspace tbody tr:hover{background:#f8fafc}
+.garden-workspace .garden-item-name{font-weight:600;color:#242a34}
+.garden-workspace .garden-row-actions a{font-size:13px;font-weight:500;color:#256452}
+.garden-workspace .garden-work-info strong{font-size:14px;font-weight:600;color:#374352}
+.garden-workspace .garden-work-info small,.garden-workspace .garden-stock-qty small{font-size:12px;color:#697486}
+.garden-workspace .garden-work-row{padding:18px 0;border-color:#edf0f4}
+.garden-workspace .garden-pill{font-size:11px;padding:5px 9px;border-radius:7px;background:#eaf4ee;color:#2f6c4b;font-weight:500}
+.garden-workspace .garden-pill-amber{background:#fff3df;color:#91651d}
+.garden-workspace .garden-empty{color:#667080;padding:30px 20px}
+.garden-workspace .garden-empty h3{font-size:16px;color:#374352}.garden-workspace .garden-empty p{font-size:13px}
+.garden-workspace .garden-kanban-lane{background:#f0f2f6;border-color:#e4e7ed;border-radius:16px;padding:16px}
+.garden-workspace .garden-project-tile,.garden-workspace .garden-task-tile,.garden-workspace .garden-document-card{background:#fff;border-color:#e0e5ec;border-radius:12px;box-shadow:0 2px 5px #29344b05}
+.garden-workspace .garden-project-tile strong,.garden-workspace .garden-task-tile strong{font-size:15px;color:#303b49}
+.garden-workspace .garden-project-tile p,.garden-workspace .garden-task-tile p,.garden-workspace .garden-timeline p{font-size:13px;color:#667080}
+.garden-workspace .garden-document-card strong{font-size:18px;color:#374352}
+.garden-workspace .garden-document-card small,.garden-workspace .garden-document-card>span,.garden-workspace .garden-timeline small{font-size:12px;color:#667080}
+.garden-workspace .garden-project-money strong{font-size:24px;color:#242a34}
+.garden-workspace .garden-project-money small,.garden-workspace .garden-pipeline a>span{font-size:12px;color:#667080}
+.garden-workspace .garden-pipeline-track{height:6px;background:#edf0f5;border-radius:6px}.garden-workspace .garden-pipeline-track i{background:#7d9ec5}
+.garden-workspace .garden-mode-card{background:#fff;border-color:#dfe4eb;border-radius:14px}
+.garden-workspace .garden-mode-card:has(input:checked){background:#f1f7f4;border-color:#80ac98;box-shadow:none}
+.garden-workspace .garden-mode-copy>span{font-size:14px;color:#667080;line-height:1.6}
+.garden-workspace .garden-mode-copy small{font-size:12px;color:#556d60}
+.garden-workspace .garden-license-card{background:#f7f8fb;border-color:#e5e8f0;border-radius:12px}
+.garden-workspace .garden-license-card>span,.garden-workspace .garden-license-card small{font-size:12px;color:#667080}
+.garden-workspace .garden-intelligence .mp-card{border:1px solid #e5e8ee!important;border-radius:18px!important;box-shadow:var(--garden-shadow)!important}
+.garden-workspace .garden-intelligence .mp-card-head h3{font-size:18px!important}
+.garden-workspace .garden-intelligence .mp-card-head{padding:20px 24px!important}
+.garden-workspace .garden-intelligence .mp-card-body>div{font-size:13px!important;line-height:1.6!important}
+.garden-workspace .garden-intelligence .mp-card-link{font-size:12px!important;color:#667080!important}
+/* Dedicated mobile documents keep the same visual language at touch sizes. */
+body.garden-mobile-body{background:#f5f6f8;color:#242a34}
+.garden-workspace.garden-mobile{padding:20px 16px 160px;max-width:none}
+.garden-mobile>header{padding:8px 0 16px}.garden-mobile>header h1{font-size:26px}
+.garden-mobile .garden-mobile-nav-group{background:#fff;border:1px solid #e4e7ec;border-radius:12px;margin-bottom:10px;padding:0 14px}
+.garden-mobile .garden-mobile-nav-group>summary{font-size:14px;color:#374352;min-height:48px}
+.garden-mobile .garden-mobile-nav-group .garden-nav a{background:#f5f7fa;color:#495363;font-size:13px;padding:11px;border-radius:9px}
+.garden-mobile .garden-mobile-nav-group .garden-nav a[aria-current=page]{background:#242a34;color:#fff}
+.garden-mobile .garden-welcome-glass{padding:24px;min-height:0;border-radius:16px;margin-top:20px}
+.garden-mobile .garden-welcome-glass h2{font-size:22px!important}.garden-mobile .garden-still-life{display:none}
+.garden-mobile .garden-panel,.garden-mobile .garden-card{padding:20px;border-radius:16px}
+.garden-mobile .garden-stats,.garden-mobile .garden-financial-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.garden-mobile .garden-stat,.garden-mobile .garden-financial-stats .garden-stat{padding:16px}
+.garden-mobile .garden-stat strong,.garden-mobile .garden-financial-stats .garden-stat strong{font-size:26px}
+.garden-mobile .garden-stat-label{font-size:12px}.garden-mobile .garden-stat-icon{width:28px;height:28px;font-size:13px}
+.garden-mobile .garden-stat small,.garden-mobile .garden-financial-stats .garden-stat small{font-size:11px}
+.garden-mobile input:not([type=checkbox]):not([type=radio]):not([type=hidden]),.garden-mobile textarea,.garden-mobile .garden-select>button{font-size:16px}
+.garden-mobile .garden-performance-filter nav a{font-size:12px;padding:9px 11px}
+.garden-mobile .garden-dashboard-columns{grid-template-columns:minmax(0,1fr)}
+@media(max-width:1350px){.garden-workspace .garden-still-life{display:none}.garden-workspace .garden-dashboard-columns{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:380px){.garden-mobile .garden-stats,.garden-mobile .garden-financial-stats{grid-template-columns:minmax(0,1fr)}.garden-mobile .garden-welcome-actions{flex-direction:column;align-items:stretch}}
+@media(prefers-reduced-motion:reduce){.garden-workspace .garden-stat{transition:none;transform:none}}
+/* Keep the phone overview compact enough to reach its metrics quickly. */
+body.garden-mobile-body{background:#f5f6f8!important}
+.garden-workspace.garden-mobile{background:#f5f6f8}
+.garden-mobile .garden-welcome-glass{padding:20px}
+.garden-mobile .garden-welcome-glass h2{font-size:20px!important;margin-bottom:16px!important}
+.garden-mobile .garden-welcome-glass p{display:none}
+.garden-mobile .garden-welcome-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.garden-mobile .garden-welcome-actions .garden-button{font-size:12px;padding:11px 10px;justify-content:center;min-width:0;line-height:1.5}
+.garden-mobile .garden-mobile-menu{border-color:#dce1e9;border-radius:12px;background:#fff}
+.garden-mobile .garden-mobile-menu>summary{font-size:14px;color:#495363;min-height:48px;align-items:center}
+body.garden-mobile-body .mp-mobile-bottom-nav .nav-item.active{color:#256452}
+body.garden-mobile-body .mp-mobile-copyright{color:#667080;font-size:11px;line-height:1.5}
+.garden-workspace .garden-kanban-lane{padding:0}
+.garden-workspace .garden-lane-heading{padding:16px;font-size:13px;font-weight:600;color:#495363}
+.garden-workspace .garden-lane-heading b{font-size:12px;color:#667080;border-radius:7px;padding:3px 8px}
+.garden-workspace .garden-lane-body{padding:0 12px 12px}
+.garden-workspace .garden-lane-empty{font-size:13px;color:#737e8e;line-height:1.6}
+.garden-workspace .garden-project-tile h3{font-size:15px;line-height:1.5;color:#303b49}
+.garden-workspace .garden-project-tile small,.garden-workspace .garden-project-tile footer{font-size:12px;color:#667080}
+.garden-workspace .garden-create-summary{background:#f7f9fc;color:#374352;border-color:#dce1e9;font-size:14px}
+.garden-workspace .garden-create-summary small{font-size:13px;color:#667080}
+.garden-mobile .garden-performance-filter nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:4px}
+.garden-mobile .garden-performance-filter nav a{text-align:center;padding:9px 3px;font-size:12px;white-space:nowrap}
+.garden-workspace .garden-financial-stats .garden-stat strong{font-size:clamp(22px,1.7vw,30px)}
+.garden-mobile .garden-financial-stats .garden-stat strong{font-size:clamp(18px,5.3vw,24px);letter-spacing:-.6px}
+@media(max-width:380px){.garden-mobile .garden-financial-stats .garden-stat strong{font-size:26px}}
+/* Six primary destinations; supplementary modules live in More. */
+body:has(.garden-primary-navigation) .mp-nav{display:flex!important;flex-direction:column!important}
+.garden-primary-navigation{padding-top:20px}
+.garden-rail-bottom{border-top:1px solid #e8ebf0;margin-top:18px;padding-top:14px}
+.garden-rail-group{margin:3px 0}
+.garden-rail-group>summary{display:flex;align-items:center;gap:11px;min-height:46px;padding:10px 12px;list-style:none;cursor:pointer;font:500 14px/1.5 Inter,system-ui,sans-serif;color:#495363;border-radius:11px}
+.garden-rail-group>summary::-webkit-details-marker{display:none}
+.garden-rail-group>summary>.fa:first-child{width:19px;font-size:17px;color:#727d8c;text-align:center}
+.garden-rail-group>summary>span{flex:1;min-width:0}
+.garden-rail-group>summary .garden-group-chevron{font-size:14px;color:#7c8593;transition:transform .15s}
+.garden-rail-group[open]>summary{background:#f1f3f6;color:#242a34}
+.garden-rail-group[open]>summary .garden-group-chevron{transform:rotate(180deg)}
+.garden-rail-group>summary:hover{background:#f3f5f8}
+.garden-rail-group>summary:focus-visible{outline:2px solid #256452;outline-offset:2px}
+.garden-rail-children{padding:5px 0 7px 8px;margin-left:0;border:0}
+body:has(.garden-rail-section) .garden-rail-children .garden-rail-link{font-size:13px!important;min-height:40px;padding:9px 10px}
+body:has(.garden-rail-section) .garden-rail-children .garden-rail-link{gap:10px;padding:8px 10px;min-height:44px}
+body:has(.garden-rail-section) .garden-rail-children .garden-rail-link .fa{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:8px;background:#f0f3f6;color:#687589;font-size:13px}
+body:has(.garden-rail-section) .garden-rail-children .garden-rail-link:hover .fa{background:#e4eee9;color:#256452}
+body:has(.garden-rail-section) .garden-rail-children .garden-rail-link.is-current .fa{background:rgba(255,255,255,.14);color:#fff}
+.garden-mobile .garden-nav a{display:flex;align-items:center;gap:10px}
+.garden-mobile .garden-nav a>.fa{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:8px;background:#e9edf2;color:#687589;font-size:13px}
+.garden-mobile .garden-nav a[aria-current=page]>.fa{background:rgba(255,255,255,.14);color:#fff}
+.garden-business-tools{display:grid;gap:20px}
+.garden-business-tools .garden-panel{margin:0}
+.garden-business-tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:18px}
+.garden-business-tool-grid>a{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:14px 16px;border:1px solid #e1e6ed;border-radius:11px;background:#fbfcfe;color:#374352;font-size:14px;text-decoration:none}
+.garden-business-tool-grid>a:hover{background:#eef4f0;border-color:#b4cbbd;color:#245b47}
+.garden-business-tool-grid>a .fa{font-size:12px;color:#718096}
+.garden-business-tool-grid>a[hidden],.garden-business-tools [data-tool-group][hidden]{display:none}
+/* Refined application surfaces, including shared business-tool screens. */
+body:has(.garden-rail-section),body.garden-mobile-body{
+  --garden-canvas:#f5f6fa;--mp-bg:#f5f6fa;--mp-border:#e5e8ef;
+  --mp-shadow-sm:0 4px 20px -12px #26344d24;
+  --garden-shadow:0 6px 24px -16px #26344d30;
+}
+body:has(.garden-rail-section) .mp-main{font-family:Inter,system-ui,-apple-system,sans-serif;color:#283141;font-size:14px;line-height:1.6}
+body:has(.garden-rail-section) .mp-main .mp-page-head{margin-bottom:24px!important;gap:16px!important}
+body:has(.garden-rail-section) .mp-main .mp-page-head h1,
+body:has(.garden-rail-section) .mp-main .mp-page-head h2{font-size:28px!important;font-weight:650!important;line-height:1.25!important;letter-spacing:-.7px!important;color:#242a34!important}
+body:has(.garden-rail-section) .mp-main .mp-page-sub{color:#657084!important;font-size:14px!important;line-height:1.6!important}
+body:has(.garden-rail-section) .mp-main .mp-card,
+body:has(.garden-rail-section) .mp-main .mp-table-wrap{background:#fff!important;border:1px solid #e5e8ef!important;border-radius:18px!important;box-shadow:var(--garden-shadow)!important}
+body:has(.garden-rail-section) .mp-main .mp-card-head{background:#fff!important;border-color:#edf0f5!important;padding:20px 24px!important;border-radius:18px 18px 0 0}
+body:has(.garden-rail-section) .mp-main .mp-card-head h3{font-size:17px!important;font-weight:600!important;color:#283141!important;line-height:1.4!important}
+body:has(.garden-rail-section) .mp-main .mp-card-body{padding:24px!important}
+body:has(.garden-rail-section) .mp-main .mp-dt-table th{background:#f8f9fc!important;color:#626e80!important;font-size:12px!important;letter-spacing:.02em!important;padding:15px 14px!important;border-bottom:1px solid #e5e8ef!important}
+body:has(.garden-rail-section) .mp-main .mp-dt-table td{font-size:14px!important;line-height:1.6!important;padding:16px 14px!important;border-color:#edf0f5!important;color:#374352!important}
+body:has(.garden-rail-section) .mp-main .mp-dt-table tbody tr:hover{background:#f8fafc!important}
+body:has(.garden-rail-section) .mp-main .form-control,
+body:has(.garden-rail-section) .mp-main .select2-container--default .select2-selection--single{border:1px solid #cfd6e2!important;border-radius:10px!important;background:#fff!important;color:#283141!important;min-height:44px!important;font-size:14px!important;box-shadow:none!important}
+body:has(.garden-rail-section) .mp-main .form-control:focus{border-color:#256452!important;outline:3px solid #25645218!important;outline-offset:1px}
+body:has(.garden-rail-section) .mp-main .form-control:disabled,
+body:has(.garden-rail-section) .mp-main .form-control[readonly]{background:#f3f5f8!important;color:#667080!important}
+body:has(.garden-rail-section) .mp-main .mp-form-field>label{font-size:13px!important;font-weight:600!important;color:#465266!important;margin-bottom:7px!important}
+body:has(.garden-rail-section) .mp-main .mp-qa-btn.green{background:#256452!important;border-color:#256452!important;color:#fff!important;border-radius:11px!important;min-height:44px;font-size:14px!important;font-weight:600!important;box-shadow:0 3px 7px #25645216!important}
+body:has(.garden-rail-section) .mp-main .mp-dt-table .label{display:inline-block!important;border-radius:7px!important;padding:5px 9px!important;font-size:12px!important;line-height:1.4!important;font-weight:500!important}
+body:has(.garden-rail-section) .mp-main .dataTables_filter input{min-height:40px;border:1px solid #cfd6e2;border-radius:9px;padding:8px 12px;font-size:14px;color:#283141}
+body:has(.garden-rail-section) .mp-main .pagination>.active>a{background:#256452!important;border-color:#256452!important;color:#fff!important}
+.garden-workspace .garden-welcome-glass{background:linear-gradient(115deg,rgba(255,255,255,.97) 35%,rgba(238,238,251,.72));border-color:#fff;box-shadow:inset 0 1px 0 #fff,0 12px 30px -22px #4a4a7f66,0 2px 5px #26344d06}
+.garden-workspace .garden-stat{position:relative;overflow:hidden}
+.garden-workspace .garden-stat-icon{border:1px solid #ffffffb3;box-shadow:inset 0 1px 0 #ffffff80}
+.garden-workspace .garden-panel-heading>a,.garden-workspace .garden-section-heading>a{font-size:13px;font-weight:600;color:#256452;text-decoration:none}
+.garden-workspace .garden-panel-heading>a:hover,.garden-workspace .garden-section-heading>a:hover{text-decoration:underline;text-underline-offset:4px}
+.garden-workspace .garden-project-tile,.garden-workspace .garden-task-tile{box-shadow:0 3px 12px -8px #26344d2b}
+.garden-workspace .garden-license-card{background:#fafaff;border-color:#e7e7f3}
+.garden-workspace a:focus-visible,body:has(.garden-rail-section) .mp-main a:focus-visible,body:has(.garden-rail-section) .mp-main button:focus-visible{outline:3px solid #25645260;outline-offset:3px}
+body.garden-mobile-body,.garden-workspace.garden-mobile{background:var(--garden-canvas)!important}
+@media(prefers-reduced-motion:no-preference){.garden-workspace .garden-button,.garden-workspace .garden-stat,.garden-business-tool-grid>a{transition:background-color .15s,border-color .15s,box-shadow .15s}}
+
+/* ---- Modern "green botanical glass" refresh ---- */
+:root{
+  --garden-glass-canvas: linear-gradient(180deg,#fcfffb 0%,#f6faf5 52%,#f2f7f0 100%);
+  --garden-glass-surface: rgba(255,255,255,.86);
+  --garden-glass-surface-strong: rgba(255,255,255,.96);
+  --garden-glass-border: rgba(255,255,255,.82);
+  --garden-glass-line: rgba(79,113,86,.18);
+  --garden-glass-green: #23563d;
+  --garden-glass-sage: #7a9a6f;
+  --garden-glass-ink: #1f3f31;
+  --garden-glass-muted: #587261;
+  --garden-glass-shadow: 0 16px 40px -22px rgba(24,52,37,.26);
+  --garden-glass-shadow-hover: 0 20px 48px -24px rgba(24,52,37,.34);
+  --garden-glass-blur: 18px;
+}
+.garden-workspace{
+  background: transparent;
+  color: var(--garden-glass-ink);
+  border-radius: 0;
+  position: relative;
+}
+.garden-workspace > *{ position: relative; z-index: 1; }
+.garden-workspace .garden-kicker,
+.garden-workspace .garden-eyebrow{ color: var(--garden-glass-sage); }
+.garden-workspace .garden-muted{ color: var(--garden-glass-muted); }
+.garden-workspace h1,.garden-workspace h2,.garden-workspace h3{ color: var(--garden-glass-ink); }
+.garden-workspace .garden-welcome-glass{
+  background: linear-gradient(132deg, rgba(255,255,255,.92), rgba(230,245,225,.52));
+  border: 1px solid rgba(255,255,255,.92);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.92), var(--garden-glass-shadow);
+  backdrop-filter: blur(var(--garden-glass-blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--garden-glass-blur)) saturate(135%);
+}
+.garden-workspace .garden-welcome-glass h2{ color: #1f4b36; }
+.garden-workspace .garden-welcome-glass p{ color: #4f6f5e; }
+.garden-workspace .garden-welcome-neutral{ background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.98); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.garden-workspace .garden-card,
+.garden-workspace .garden-panel,
+.garden-workspace .garden-stat,
+.garden-workspace .garden-empty,
+.garden-workspace .garden-pipeline a,
+.garden-workspace .garden-summary-list a,
+.garden-workspace .garden-project-tile,
+.garden-workspace .garden-task-tile,
+.garden-workspace .garden-license-card,
+.garden-workspace .garden-work-row,
+.garden-workspace .garden-board-head{
+  background: var(--garden-glass-surface);
+  border: 1px solid var(--garden-glass-border);
+  box-shadow: var(--garden-glass-shadow);
+  backdrop-filter: blur(var(--garden-glass-blur)) saturate(130%);
+  -webkit-backdrop-filter: blur(var(--garden-glass-blur)) saturate(130%);
+}
+.garden-workspace .garden-stat:hover,
+.garden-workspace .garden-project-tile:hover,
+.garden-workspace .garden-summary-list a:hover{
+  background: var(--garden-glass-surface-strong);
+  transform: translateY(-3px);
+  box-shadow: var(--garden-glass-shadow-hover);
+}
+.garden-workspace .garden-pipeline-track{
+  background: rgba(100,130,95,.16);
+}
+.garden-workspace .garden-pipeline-track i{
+  background: linear-gradient(90deg, #7fa577, #3f6d4d);
+}
+.garden-workspace .garden-job-mark,
+.garden-workspace .garden-stat-icon{
+  background: rgba(220,236,210,.75);
+  border: 1px solid rgba(255,255,255,.7);
+  color: var(--garden-glass-green);
+}
+.garden-workspace .garden-pill{
+  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(110,145,105,.22);
+  color: var(--garden-glass-green);
+}
+.garden-workspace .garden-button{
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(255,255,255,.92);
+  color: var(--garden-glass-green);
+  box-shadow: 0 4px 16px -10px rgba(24,52,37,.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.garden-workspace .garden-button.garden-primary{
+  background: linear-gradient(180deg, #5f8d6f, #2f5f43);
+  color: #f4faf3;
+  border-color: rgba(35,75,52,.65);
+  box-shadow: 0 10px 22px -12px rgba(24,56,38,.55);
+}
+.garden-workspace .garden-button.garden-primary:hover{ filter: brightness(1.03); }
+.garden-workspace .garden-button.garden-light{
+  background: rgba(255,255,255,.34);
+  color: #f4f8f0;
+  border-color: rgba(240,250,230,.45);
+}
+.garden-workspace .garden-button.garden-button-secondary{
+  background: rgba(255,255,255,.72);
+  color: var(--garden-glass-green);
+  border-color: rgba(100,140,95,.25);
+}
+.garden-workspace .garden-button.garden-button-danger{
+  background: rgba(255,245,242,.72);
+  color: #a03228;
+  border-color: rgba(190,120,105,.35);
+}
+.garden-workspace input:not([type=checkbox]):not([type=radio]),
+.garden-workspace textarea,
+.garden-workspace select{
+  background: rgba(255,255,255,.70);
+  border: 1px solid var(--garden-glass-line);
+  color: var(--garden-glass-ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.garden-workspace input:not([type=checkbox]):not([type=radio]):focus,
+.garden-workspace textarea:focus,
+.garden-workspace select:focus{
+  border-color: #4f7f62;
+  outline: 3px solid rgba(79,127,98,.16);
+  outline-offset: 1px;
+  background: rgba(255,255,255,.86);
+}
+.garden-workspace .garden-select>button{
+  background: rgba(255,255,255,.72);
+  border-color: rgba(85,120,92,.24);
+  color: var(--garden-glass-green);
+}
+.garden-workspace .garden-select-options,
+.garden-workspace .garden-select-options button{
+  background: rgba(255,255,255,.96);
+}
+.garden-workspace table th{
+  background: rgba(255,255,255,.88);
+  color: #4f6b5a;
+  border-bottom-color: var(--garden-glass-line);
+}
+.garden-workspace table td{ border-bottom-color: rgba(95,130,100,.14); }
+.garden-workspace .garden-nav a{
+  color: var(--garden-glass-muted);
+}
+.garden-workspace .garden-nav a:hover{
+  background: rgba(226,239,218,.78);
+  color: var(--garden-glass-green);
+}
+.garden-workspace .garden-catalogue-tabs{
+  padding: 4px;
+  background: rgba(255,255,255,.45);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+.garden-workspace .garden-type-filter{
+  background: rgba(255,255,255,.58);
+  border-color: transparent;
+}
+.garden-workspace .garden-type-filter.is-selected{
+  background: rgba(205,232,188,.92);
+  border-color: rgba(110,150,100,.35);
+  color: var(--garden-glass-green);
+  font-weight: 700;
+}
+.garden-workspace .garden-board-head{
+  padding: 18px 22px;
+}
+.garden-workspace .garden-kanban-lane{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(255,255,255,.88);
+}
+.garden-workspace .garden-lane-heading{ color: var(--garden-glass-green); }
+@media (max-width: 1024px){
+  .garden-workspace.garden-mobile .garden-stats{
+    gap: 10px;
+  }
+}
+body.garden-mobile-body,
+.garden-workspace.garden-mobile{
+  background: #f7f9f6 !important;
+}
+@media (prefers-reduced-motion: reduce){
+  .garden-workspace .garden-stat,
+  .garden-workspace .garden-project-tile,
+  .garden-workspace .garden-summary-list a{ transition: none; }
+}
+
+/* ---- Approved Garden overview layout (hub) ---- */
+.gw-visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.garden-workspace-overview{max-width:none!important;width:100%!important;margin:0!important}
+.gw-hub{display:flex;flex-direction:column;gap:20px;color:#1f3f31;width:100%}
+.gw-hub-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.gw-hub-title .garden-kicker{margin:0 0 10px}
+.gw-hub-title h1{font-size:30px;font-weight:800;letter-spacing:-.8px;margin:0 0 2px;color:#153a2a}
+.gw-hub-sub{font-size:16px;color:#5c7364;margin:0}
+.gw-hub-aside{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
+.gw-hub-date{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:#6b8272}
+.gw-hub-date strong{font-size:13px;font-weight:600;color:#3f5b4b}
+.gw-hub-date span{color:#4d7d5f;font-weight:600}
+.gw-hub-actions{display:flex;gap:10px}
+.gw-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:10px;border:1px solid transparent;font-size:14px;font-weight:700;text-decoration:none!important;cursor:pointer}
+.gw-btn-primary{background:#17452f;color:#fff!important;box-shadow:0 8px 18px -12px rgba(20,58,40,.7)}
+.gw-btn-primary:hover{background:#0f3624}
+.gw-btn-light{background:#fff;color:#1f3f31!important;border-color:#dbe6dd;box-shadow:0 4px 12px -10px rgba(24,52,37,.4)}
+.gw-btn-light:hover{background:#f4f9f4}
+
+.gw-attention{display:grid;grid-template-columns:minmax(220px,1.05fr) repeat(3,minmax(180px,1fr));gap:0;background:#fff;border:1px solid #e6ece3;border-radius:16px;padding:18px 6px;box-shadow:0 12px 30px -26px rgba(24,52,37,.45)}
+.gw-attention-lead,.gw-attention-item{display:flex;align-items:center;gap:14px;padding:6px 20px}
+.gw-attention-item{border-left:1px solid #eef2ec;color:#26483a!important;text-decoration:none!important}
+.gw-attention-item:hover{background:#f8fbf7;border-radius:10px}
+.gw-attention-icon{flex-shrink:0;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:16px}
+.gw-attention-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gw-attention-copy strong{font-size:14px;color:#1c3d2d}
+.gw-attention-copy small{font-size:12px;color:#74887a}
+.gw-attention-copy em{font-style:normal;font-size:12px;font-weight:700;color:#2d6b48;margin-top:4px}
+.gw-attention-lead strong{font-size:15px;line-height:1.35;color:#1c3d2d}
+
+.gw-tone-green{background:#e3f2e6;color:#2e7d4f}
+.gw-tone-blue{background:#e5eefc;color:#3568c9}
+.gw-tone-violet{background:#efe8fb;color:#7a51c9}
+.gw-tone-amber{background:#fdf0e3;color:#c7762a}
+
+.gw-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0}
+.gw-kpi{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid #e6ece3;border-radius:16px;padding:18px 20px;text-decoration:none!important;box-shadow:0 14px 30px -28px rgba(24,52,37,.5);transition:transform .15s,box-shadow .15s}
+.gw-kpi:hover{transform:translateY(-2px);box-shadow:0 18px 34px -26px rgba(24,52,37,.55)}
+.gw-kpi-top{display:flex;align-items:center;justify-content:space-between}
+.gw-kpi-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:15px}
+.gw-trend{font-size:12px;font-weight:700;background:#e7f4ea;color:#2b7a4b;border-radius:20px;padding:4px 9px}
+.gw-trend.is-down{background:#fdeaea;color:#c0392b}
+.gw-kpi-label{font-size:13px;color:#526856;font-weight:600}
+.gw-kpi strong{font-size:26px;font-weight:800;letter-spacing:-.6px;color:#153a2a}
+.gw-kpi small{font-size:12px;color:#7b8f80}
+
+.gw-main-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:18px}
+.gw-panel{background:#fff;border:1px solid #e6ece3;border-radius:16px;padding:20px;box-shadow:0 14px 32px -28px rgba(24,52,37,.45);min-width:0}
+.gw-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.gw-panel-head h2{font-size:16px;font-weight:750;color:#173a2a;margin:0;display:flex;align-items:center;gap:9px}
+.gw-panel-head h2 .fa{color:#2f7a4d}
+.gw-panel-head>a{font-size:12px;font-weight:650;color:#2d6b48!important;text-decoration:none!important;white-space:nowrap}
+.gw-panel-controls{display:flex;gap:8px}
+.gw-faux-select{display:inline-flex;align-items:center;gap:8px;border:1px solid #e2e8e0;border-radius:9px;padding:8px 12px;font-size:12px;color:#3d5647;background:#fff}
+.gw-select{position:relative;display:inline-flex;align-items:center}
+.gw-select select{appearance:none;-webkit-appearance:none;-moz-appearance:none;border:1px solid #e2e8e0;border-radius:9px;padding:8px 30px 8px 12px;font-size:12px;font-weight:600;color:#3d5647;background:#fff;cursor:pointer;font-family:inherit}
+.gw-select select:hover{border-color:#2f7a4d}
+.gw-select select:focus{outline:none;border-color:#2f7a4d;box-shadow:0 0 0 3px rgba(47,122,77,.15)}
+.gw-select::after{content:"\f107";font-family:FontAwesome;position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:11px;color:#6b7f70;pointer-events:none}
+
+.gw-chart{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;min-height:230px}
+.gw-chart-axis{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:#8a9a8d;padding:2px 0 26px;text-align:right}
+.gw-chart-plot{position:relative}
+.gw-chart-grid{position:absolute;inset:0 0 26px;display:flex;flex-direction:column;justify-content:space-between}
+.gw-chart-grid i{display:block;border-top:1px dashed #edf1ea}
+.gw-bars{position:relative;height:230px;display:grid;grid-template-columns:repeat(7,1fr);gap:14px;align-items:end}
+.gw-bar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:8px}
+.gw-bar i{display:block;width:min(46px,80%);background:linear-gradient(180deg,#78a877,#3f7a52);border-radius:4px 4px 0 0;transition:filter .15s}
+.gw-bar:hover i{filter:brightness(1.08)}
+.gw-bar span{font-size:11px;color:#7d8f80;text-align:center;line-height:1.3}
+.gw-bar span small{display:block;color:#9aa89c;font-size:10px}
+
+.gw-schedule{display:flex;flex-direction:column;gap:2px}
+.gw-schedule-row{display:grid;grid-template-columns:74px 16px minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #f0f3ee;text-decoration:none!important;color:#24463a!important}
+.gw-schedule-row:last-child{border-bottom:0}
+.gw-schedule-row:hover{background:#f8fbf7;border-radius:9px}
+.gw-schedule-time{font-size:11px;color:#6b7f6f;font-weight:650}
+.gw-schedule-line{display:flex;justify-content:center}
+.gw-dot{width:9px;height:9px;border-radius:50%;background:#94a796}
+.gw-dot-green{background:#4b9d68}.gw-dot-blue{background:#4d86d8}.gw-dot-amber{background:#d4943c}.gw-dot-violet{background:#8b62cf}.gw-dot-teal{background:#3fa39a}
+.gw-schedule-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gw-schedule-copy strong{font-size:13px;color:#1f3f31;font-weight:650}
+.gw-schedule-copy small{font-size:11px;color:#7d8f80}
+.gw-badge{font-size:11px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap}
+.gw-badge-green{background:#e4f4e9;color:#2b7a4b}
+.gw-badge-blue{background:#e6eefc;color:#3568c9}
+.gw-badge-purple{background:#efe8fb;color:#7a51c9}
+
+.gw-empty-line{display:flex;align-items:center;gap:8px;padding:18px 4px;font-size:13px;color:#7d8f80}
+.gw-empty-line a{color:#2d6b48!important;font-weight:650}
+
+.gw-bottom-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.gw-inventory,.gw-projects{display:flex;flex-direction:column}
+.gw-inventory-row{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid #f0f3ee;text-decoration:none!important;color:#24463a!important}
+.gw-inventory-row:last-child{border-bottom:0}
+.gw-thumb{width:44px;height:44px;border-radius:10px;background:#eef5ec;color:#3d7a52;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.gw-inventory-copy{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.gw-inventory-copy strong{font-size:13px;font-weight:650;color:#1f3f31}
+.gw-inventory-copy small{font-size:11px;color:#7d8f80}
+.gw-inventory-qty{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.gw-inventory-qty b{font-size:12px;color:#c0392b}
+.gw-inventory-qty small{font-size:10px;color:#8a9a8d}
+
+.gw-project-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(60px,1fr) 40px auto;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid #f0f3ee;text-decoration:none!important;color:#24463a!important}
+.gw-project-row:last-child{border-bottom:0}
+.gw-project-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gw-project-copy strong{font-size:13px;font-weight:650;color:#1f3f31;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gw-project-copy small{font-size:11px;color:#7d8f80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gw-progress{height:6px;border-radius:6px;background:#ecf1e9;overflow:hidden}
+.gw-progress i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#7fae82,#3f7a52)}
+.gw-project-percent{font-size:11px;color:#5c7364;font-weight:650}
+
+.gw-quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gw-quick-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:86px;padding:14px 8px;border:1px solid #e6ece3;border-radius:12px;background:#fbfdfa;text-decoration:none!important;color:#1f3f31!important;font-size:12px;font-weight:650;text-align:center;transition:transform .15s,box-shadow .15s,background .15s}
+.gw-quick-action:hover{transform:translateY(-2px);background:#fff;box-shadow:0 12px 24px -20px rgba(24,52,37,.6)}
+.gw-quick-action .fa{font-size:19px;color:#2f7a4d}
+
+@media(max-width:1250px){
+  .gw-attention{grid-template-columns:minmax(200px,1fr) repeat(3,minmax(150px,1fr))}
+  .gw-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gw-main-grid{grid-template-columns:minmax(0,1fr)}
+  .gw-bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:820px){
+  .gw-hub-head{flex-direction:column}
+  .gw-hub-aside{align-items:flex-start;width:100%}
+  .gw-hub-date{align-items:flex-start}
+  .gw-attention{grid-template-columns:minmax(0,1fr)}
+  .gw-attention-item{border-left:0;border-top:1px solid #eef2ec;padding-top:12px;margin-top:6px}
+  .gw-bottom-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+  .gw-kpi,.gw-quick-action{transition:none}
+}
+
+/* ==========================================================================
+   Garden mobile workspace — phone and tablet-portrait presentation.
+   The workspace renders the same markup at every size; these rules give the
+   mobile document a readable type scale, full-width controls and no sideways
+   overflow, so nothing "pulls out" of the screen or renders like a generic
+   retail till.
+   ========================================================================== */
+
+/* --- Readable baseline -------------------------------------------------- */
+.garden-mobile{font-size:15px;line-height:1.55}
+.garden-mobile p,.garden-mobile li,.garden-mobile dd{font-size:14px}
+.garden-mobile>header h1{font-size:24px}
+.garden-mobile .garden-workspace,.garden-mobile section,.garden-mobile nav,
+.garden-mobile .garden-panel,.garden-mobile .garden-card,.garden-mobile .gw-panel{max-width:100%;min-width:0}
+.garden-mobile img,.garden-mobile svg{max-width:100%;height:auto}
+.garden-mobile .garden-muted,.garden-mobile small{font-size:12px}
+
+/* --- Workspace menu ----------------------------------------------------- */
+/* The app bar's menu button owns the menu (see mobile/garden.php). It opens as
+   a sheet pinned right under the bar, over a dimmed page, so it is always in
+   the same place however far the page has been scrolled — opened in the page
+   flow it simply appeared above the fold and looked broken. Sections are single
+   rows that fold out in place, so the collapsed menu fits a phone screen; the
+   sheet itself only scrolls once a section is expanded past the fold. */
+.gw-drawer-backdrop{position:fixed;left:0;right:0;top:var(--gw-bar-h,62px);bottom:0;background:rgba(19,42,31,.44);z-index:405;touch-action:none;overscroll-behavior:contain}
+.gw-drawer-backdrop[hidden]{display:none}
+.gw-drawer{position:fixed;left:50%;right:auto;top:calc(var(--gw-bar-h,62px) + 10px);bottom:auto;width:min(88vw,360px);max-height:calc(100dvh - var(--gw-bar-h,62px) - 110px);z-index:410;background:#fff;border:1px solid #dce7df;border-radius:20px;box-shadow:0 18px 40px -22px rgba(16,42,29,.55);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;transform:translateX(-50%);animation:gw-drawer-in .18s ease-out;touch-action:pan-y}
+.gw-drawer[hidden]{display:none}
+@keyframes gw-menu-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes gw-drawer-in{from{opacity:0}to{opacity:1}}
+/* The page is deliberately not scroll-locked: locking it with overflow:hidden
+   drops the sticky bar out of view (the html box stops being the scroll
+   container, which is exactly how the old in-flow menu "disappeared"). The
+   backdrop swallows the gesture instead, and the bar stays where the user
+   tapped it. */
+.garden-mobile-menu-body{padding:2px 0 10px}
+.garden-mobile-menu .garden-nav{display:flex;flex-direction:column;padding:0 16px;margin:0}
+.garden-mobile-menu .garden-nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;border:0;border-radius:10px;background:transparent;color:#2c4a38;font:500 14px/1.35 Inter,system-ui,sans-serif}
+.garden-mobile-menu .garden-nav a+a{border-top:1px solid #eff3ef}
+.garden-mobile-menu .garden-nav a>.fa{flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:#eef4ee;color:#3d6b53;font-size:14px}
+.garden-mobile-menu .garden-nav a[aria-current=page]{color:#173f2d;font-weight:700}
+.garden-mobile-menu .garden-nav a[aria-current=page]>.fa{background:#235b46;color:#fff}
+.garden-mobile-menu .garden-mobile-nav-group{background:transparent;border:0;border-radius:0;margin:0;padding:0}
+.garden-mobile-menu .garden-mobile-nav-group>summary{display:flex;align-items:center;gap:10px;list-style:none;min-height:44px;padding:10px 16px;border-top:1px solid #e8eee8;cursor:pointer;color:#5d7568;font:700 11px/1.3 Inter,system-ui,sans-serif;letter-spacing:.02em;text-transform:none}
+.garden-mobile-menu .garden-mobile-nav-group>summary::-webkit-details-marker{display:none}
+.garden-mobile-menu .garden-mobile-nav-group>summary .gw-menu-group-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.garden-mobile-menu .gw-menu-count{flex:0 0 auto;min-width:22px;padding:2px 7px;border-radius:999px;background:#eef4ee;color:#4a6d59;font:700 11px/1.4 Inter,system-ui,sans-serif;letter-spacing:0;text-align:center}
+.garden-mobile-menu .garden-mobile-nav-group>summary>.fa{flex:0 0 auto;color:#8ba394;font-size:11px;transition:transform .18s ease}
+.garden-mobile-menu .garden-mobile-nav-group[open]>summary{background:#f7faf5;color:#1d4632}
+.garden-mobile-menu .garden-mobile-nav-group[open]>summary .gw-menu-count{background:#dcebdd;color:#245640}
+.garden-mobile-menu .garden-mobile-nav-group[open]>summary>.fa{transform:rotate(180deg)}
+/* Compact mobile sidebar: keep the page visible beside it and use the Garden
+   accent for the active item instead of the legacy charcoal selection. */
+.garden-mobile .garden-mobile-menu .garden-mobile-nav-group .garden-nav a[aria-current=page]{background:#e4eee2;color:#173f2d;border-radius:11px;font-weight:700}
+.garden-mobile .garden-mobile-menu .garden-mobile-nav-group .garden-nav a[aria-current=page]>.fa{background:#c8dfc1;color:#235b46}
+.garden-mobile .garden-mobile-menu .garden-nav a[aria-current=page]{background:#e4eee2;color:#173f2d;border-radius:11px;font-weight:700}
+.garden-mobile .garden-mobile-menu .garden-nav a[aria-current=page]>.fa{background:#c8dfc1;color:#235b46}
+@media(max-width:360px){.gw-drawer{width:90vw;border-radius:16px;top:calc(var(--gw-bar-h,62px) + 8px)}}
+
+/* --- Overview hub ------------------------------------------------------- */
+/* The phone hero keeps one thought and one action row. The store name and the
+   industry kicker now live in the app bar, so repeating them here only made the
+   first screen noisy. */
+.garden-mobile .gw-hub{gap:16px}
+.garden-mobile .gw-hub-head{display:block}
+.garden-mobile .gw-hub-title .garden-kicker,
+.garden-mobile .gw-hub-sub,
+.garden-mobile .gw-hub-welcome,
+.garden-mobile .gw-hub-date span{display:none}
+.garden-mobile .gw-hub-title h1{font-size:26px;letter-spacing:-.5px}
+.garden-mobile .gw-hub-aside{align-items:stretch;gap:12px;margin-top:8px}
+.garden-mobile .gw-hub-date{align-items:flex-start;gap:0;font-size:13px}
+.garden-mobile .gw-hub-date strong{font-size:14px}
+.garden-mobile .gw-hub-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+.garden-mobile .gw-hub-actions .gw-btn{flex:none;width:100%;justify-content:center;text-align:center;border-radius:14px;padding:12px 10px}
+.garden-mobile .gw-btn{min-height:50px;font-size:14px}
+@media(max-width:360px){.garden-mobile .gw-hub-actions{grid-template-columns:minmax(0,1fr)}}
+
+.garden-mobile .gw-attention{padding:14px 4px;border-radius:14px}
+.garden-mobile .gw-attention-lead,.garden-mobile .gw-attention-item{padding:10px 16px;gap:12px}
+.garden-mobile .gw-attention-lead strong{font-size:15px}
+.garden-mobile .gw-attention-copy strong{font-size:14px}
+.garden-mobile .gw-attention-copy small,.garden-mobile .gw-attention-copy em{font-size:12px}
+.garden-mobile .gw-attention-icon{width:38px;height:38px;font-size:15px}
+
+.garden-mobile .gw-kpis{gap:10px}
+.garden-mobile .gw-kpi{padding:15px 14px;border-radius:14px}
+/* Long money values (18,525,470.76) were breaking mid-digit inside a half-width
+   card at 390px. Step the mobile value down so a full amount fits on one line;
+   overflow-wrap stays as a safety net rather than a nowrap (which could push
+   the page sideways for an unusually long value). */
+.garden-mobile .gw-kpi strong{font-size:18px;overflow-wrap:anywhere}
+.garden-mobile .gw-kpi-label{font-size:13px}
+.garden-mobile .gw-kpi small{font-size:12px}
+.garden-mobile .gw-kpi-icon{width:34px;height:34px;font-size:14px}
+
+.garden-mobile .gw-panel{padding:16px;border-radius:14px}
+.garden-mobile .gw-panel-head{flex-wrap:wrap;align-items:flex-start;gap:10px;margin-bottom:14px}
+.garden-mobile .gw-panel-head>a{white-space:normal}
+.garden-mobile .gw-panel-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+.garden-mobile .gw-select{width:100%}
+.garden-mobile .gw-select select{width:100%;min-height:46px;font-size:15px;padding:10px 34px 10px 12px}
+@media(max-width:400px){.garden-mobile .gw-panel-controls{grid-template-columns:minmax(0,1fr)}}
+
+.garden-mobile .gw-chart{grid-template-columns:36px minmax(0,1fr);gap:8px;min-height:200px}
+.garden-mobile .gw-chart-axis{font-size:11px}
+.garden-mobile .gw-bars{height:200px;gap:8px}
+.garden-mobile .gw-bar i{width:min(40px,86%)}
+.garden-mobile .gw-bar span{font-size:11px}
+.garden-mobile .gw-bar span small{font-size:10px}
+
+.garden-mobile .gw-schedule-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px 2px}
+.garden-mobile .gw-schedule-time{grid-column:1;grid-row:1;font-size:12px}
+.garden-mobile .gw-schedule-line{display:none}
+.garden-mobile .gw-schedule-copy{grid-column:1;grid-row:2}
+.garden-mobile .gw-schedule-copy strong{font-size:14px;overflow-wrap:anywhere}
+.garden-mobile .gw-schedule-copy small{font-size:12px;overflow-wrap:anywhere}
+.garden-mobile .gw-schedule-row .gw-badge{grid-column:2;grid-row:1 / span 2;align-self:center}
+
+.garden-mobile .gw-project-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px 2px}
+.garden-mobile .gw-project-copy{grid-column:1;grid-row:1}
+.garden-mobile .gw-project-copy strong,.garden-mobile .gw-project-copy small{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.garden-mobile .gw-project-row .gw-badge{grid-column:2;grid-row:1;align-self:start}
+.garden-mobile .gw-progress{grid-column:1;grid-row:2}
+.garden-mobile .gw-project-percent{grid-column:2;grid-row:2;text-align:right;font-size:12px}
+.garden-mobile .gw-inventory-copy strong,.garden-mobile .gw-inventory-copy small,
+.garden-mobile .gw-empty-line{overflow-wrap:anywhere}
+
+.garden-mobile .gw-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.garden-mobile .gw-quick-action{min-height:94px;font-size:13px;padding:14px 10px}
+.garden-mobile .gw-quick-action .fa{font-size:20px}
+
+/* --- Workspace panels --------------------------------------------------- */
+.garden-mobile .garden-panel,.garden-mobile .garden-card{padding:18px 16px;border-radius:14px}
+.garden-mobile .garden-section-heading h2,.garden-mobile .garden-panel-heading h2{font-size:17px}
+
+/* --- Record tables: stacked rows and paging ----------------------------- */
+/* No sideways scrolling: each record becomes its own card and the list is
+   paged by garden/scripts.php, so no column is ever clipped at the edge. */
+.garden-mobile .garden-table-wrap{border:0;border-radius:0}
+.garden-mobile .garden-table-wrap>table{min-width:0;display:block}
+.garden-mobile .garden-table-wrap thead{display:none}
+.garden-mobile .garden-table-wrap tbody{display:block}
+.garden-mobile .garden-table-wrap tr{display:flex;flex-direction:column;background:#fff;border:1px solid #e6ece7;border-radius:12px;padding:12px 14px;margin:0 0 10px}
+.garden-mobile .garden-table-wrap tr[hidden]{display:none}
+.garden-mobile .garden-table-wrap td{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:7px 0;border:0;border-bottom:1px solid #f1f4f1;font-size:14px;text-align:right;min-width:0;white-space:normal}
+.garden-mobile .garden-table-wrap td:last-child{border-bottom:0}
+.garden-mobile .garden-table-wrap td[data-label]::before{content:attr(data-label);flex:0 1 auto;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7b8a80}
+.garden-mobile .garden-table-wrap td.garden-cell-title{order:-1;display:block;text-align:left;font-size:15px;font-weight:700;color:#1f3f31;padding:0 0 9px;border-bottom:1px solid #eef2ee;margin-bottom:4px;overflow-wrap:anywhere}
+.garden-mobile .garden-table-wrap td.garden-cell-title small{font-weight:500;color:#74887a}
+.garden-mobile .garden-table-wrap td[colspan]{display:block;text-align:left;padding:0;border-bottom:0}
+.garden-mobile .garden-table-wrap td.garden-row-actions{display:block;text-align:left;padding-top:10px}
+.garden-mobile .garden-row-actions a{display:inline-flex;align-items:center;min-height:40px;padding:9px 14px;margin:4px 6px 0 0;border:1px solid #dbe6dd;border-radius:10px;background:#fbfdfa;font-weight:600;text-decoration:none}
+.garden-mobile .garden-sales-report .garden-table-wrap td{white-space:normal}
+
+/* --- Pager --------------------------------------------------------------- */
+.garden-pager{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:2px 0 18px}
+.garden-pager[hidden]{display:none}
+.garden-pager-step{min-height:44px;padding:10px 18px;border:1px solid #dbe6dd;border-radius:12px;background:#fff;color:#235b46;font:650 14px/1.3 Inter,system-ui,sans-serif;cursor:pointer}
+.garden-pager-step:disabled{opacity:.45;cursor:default}
+.garden-pager-status{font:600 13px/1.4 Inter,system-ui,sans-serif;color:#667080;text-align:center}
+
+/* --- Stage accordion ----------------------------------------------------- */
+/* The project board used to be six columns of sideways swipe. Each stage is now
+   a foldable card: open only the stage you need, and the projects inside it. */
+.garden-project-board,
+.garden-mobile .garden-project-board{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;overflow:visible;padding-bottom:0}
+.garden-stage-fold{background:#fff;border:1px solid #e0e6d9;border-radius:16px;overflow:hidden}
+.garden-stage-fold[open]{border-color:#cfdcc6}
+.garden-stage-fold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;list-style:none;cursor:pointer}
+.garden-stage-fold>summary::-webkit-details-marker{display:none}
+.garden-stage-fold>summary:hover{background:#f7faf5}
+.garden-stage-fold>summary:focus-visible{outline:3px solid #9bb86d;outline-offset:-3px}
+.garden-stage-name{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:650;color:#374352;min-width:0}
+.garden-stage-meta{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto}
+.garden-stage-meta b{background:#f1f5ee;padding:3px 9px;border-radius:7px;font-size:12px;color:#667080}
+.garden-stage-meta .fa{color:#7d9184;font-size:13px;transition:transform .15s ease}
+.garden-stage-fold[open] .garden-stage-meta .fa{transform:rotate(180deg)}
+.garden-lane-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:0 16px 16px}
+.garden-lane-body .garden-lane-empty{grid-column:1/-1}
+@media(max-width:900px){.garden-lane-body{grid-template-columns:minmax(0,1fr)}}
+
+/* --- Boards that used to scroll sideways --------------------------------- */
+.garden-mobile .garden-workflow-board{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow:visible;padding:14px 0}
+.garden-mobile .garden-workflow-step{padding:12px 10px;min-width:0}
+.garden-mobile .garden-workflow-step strong{white-space:normal;overflow-wrap:anywhere}
+.garden-mobile .garden-kanban{overflow:visible}
+.garden-mobile .garden-task-board{grid-template-columns:minmax(0,1fr)}
+.garden-mobile .garden-production-board{grid-template-columns:minmax(0,1fr)}
+.garden-mobile .garden-project-tile,.garden-mobile .garden-task-tile{padding:15px}
+.garden-mobile .garden-kanban-lane{min-height:0}
+.garden-mobile .garden-material-line{padding:14px 0}
+.garden-mobile .garden-document-card,.garden-mobile .garden-license-card{padding:16px}
+
+/* --- Footer: centred, and never stretched edge to edge ------------------- */
+body.garden-mobile-body .mp-mobile-bottom-nav{max-width:560px;margin:0 auto}
+body.garden-mobile-body .mp-mobile-footer .mp-mobile-copyright{max-width:640px;margin:0 auto}
+
+/* --- Mobile type scale for workspace components -------------------------
+   The workspace was drawn for a desktop rail where 9-11px labels read fine.
+   On a phone those same labels are unreadable, so the mobile document lifts
+   the small print to a legible floor without changing the desktop layout. */
+.garden-mobile .garden-panel-intro,.garden-mobile .garden-kpi-note{font-size:13px;line-height:1.6}
+.garden-mobile .garden-pill{font-size:11px;padding:5px 9px}
+.garden-mobile .garden-lane-heading{font-size:13px}
+.garden-mobile .garden-lane-heading b{font-size:12px}
+.garden-mobile .garden-lane-empty{font-size:13px}
+.garden-mobile .garden-project-tile>small,.garden-mobile .garden-task-tile>small{font-size:12px}
+.garden-mobile .garden-project-tile h3,.garden-mobile .garden-task-tile h3{font-size:14px}
+.garden-mobile .garden-project-tile p,.garden-mobile .garden-task-tile p{font-size:13px;line-height:1.6}
+.garden-mobile .garden-project-tile footer{font-size:12px}
+.garden-mobile .garden-task-actions button{font-size:12px}
+.garden-mobile .garden-work-info strong{font-size:14px;white-space:normal;overflow-wrap:anywhere}
+.garden-mobile .garden-work-info small{font-size:12px}
+.garden-mobile .garden-stock-qty{font-size:15px}
+.garden-mobile .garden-stock-qty small{font-size:11px}
+.garden-mobile .garden-empty h3{font-size:15px}
+.garden-mobile .garden-empty p,.garden-mobile .garden-empty a{font-size:13px}
+.garden-mobile .garden-pipeline a>span{font-size:12px}
+.garden-mobile .garden-section-heading>span{font-size:12px}
+.garden-mobile .garden-table-wrap td,.garden-mobile .garden-table-wrap th{font-size:13px}
+.garden-mobile .garden-table-wrap th{font-size:11px}
+.garden-mobile .garden-row-actions a{font-size:13px;margin-right:0}
+.garden-mobile .garden-document-card small,.garden-mobile .garden-license-card small,
+.garden-mobile .garden-license-card>span,.garden-mobile .garden-project-money small,
+.garden-mobile .garden-field-values dt,.garden-mobile .garden-document-card>span,
+.garden-mobile .garden-document-card a{font-size:12px}
+.garden-mobile .garden-document-card p{font-size:13px;line-height:1.6}
+.garden-mobile .garden-project-money strong{font-size:20px}
+.garden-mobile .garden-field-values dd{font-size:13px}
+.garden-mobile .garden-timeline small{font-size:11px}
+.garden-mobile .garden-timeline strong{font-size:13px}
+.garden-mobile .garden-timeline p{font-size:13px}
+.garden-mobile .garden-next-step p,.garden-mobile .garden-next-step>details{font-size:13px}
+.garden-mobile .garden-project-heading p{font-size:13px}
+.garden-mobile .garden-project-heading>div>a{font-size:12px}
+.garden-mobile .garden-project-tabs a{font-size:13px}
+.garden-mobile .garden-inspection-checks legend,.garden-mobile .garden-inspection-checks label{font-size:14px!important}
+.garden-mobile .garden-field-record small,.garden-mobile .garden-field-record summary,
+.garden-mobile .garden-field-record p,.garden-mobile .garden-save-row>span,
+.garden-mobile .garden-voice-status,.garden-mobile .garden-voice-explainer{font-size:13px}
+.garden-mobile .garden-voice-button{font-size:13px}
+.garden-mobile .garden-board-head p{font-size:13px}
+.garden-mobile .garden-document-heading{font-size:15px}
+.garden-mobile .garden-document-heading span{font-size:12px}
+.garden-mobile .garden-summary-list a{font-size:14px}
+
+/* ==========================================================================
+   App bar — the phone shell header.
+   The bar anchors navigation (its menu button owns the workspace menu) and
+   carries the two things a mobile user looks for first: the brand with the
+   store name, and their own avatar at the trailing edge. Because the bar holds
+   the store name, the Overview hero no longer repeats it.
+   ========================================================================== */
+.garden-mobile .gw-appbar{position:sticky;top:0;z-index:420;display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;gap:10px;margin:-20px -16px 14px;padding:9px 14px;background:#fff;border-bottom:1px solid #e6ece7;box-shadow:0 10px 22px -20px rgba(24,52,37,.8)}
+.garden-mobile .gw-appbar h1{margin:0;font-size:15px;line-height:1.3;font-weight:700;color:#1d3b2b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gw-appbar-menu{flex:0 0 auto;width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #d6e0d7;border-radius:12px;background:#f6faf6;color:#235b46;font-size:16px;cursor:pointer}
+.gw-appbar-menu:focus-visible{outline:3px solid #9bb86d;outline-offset:2px}
+.gw-appbar-menu[aria-expanded=true]{background:#235b46;border-color:#235b46;color:#fff}
+.gw-appbar-icon-close{display:none}
+.gw-appbar-menu[aria-expanded=true] .gw-appbar-icon-open{display:none}
+.gw-appbar-menu[aria-expanded=true] .gw-appbar-icon-close{display:inline-block}
+.gw-appbar-identity{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;text-align:center}
+.gw-appbar-account{position:relative;flex:0 0 auto;display:inline-flex}
+.gw-appbar-account:focus-visible{outline:3px solid #9bb86d;outline-offset:2px}
+.gw-account-trigger{padding:0;border:0;cursor:pointer}
+.gw-account-trigger:focus-visible{outline:3px solid #9bb86d;outline-offset:2px}
+.gw-account-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:430;min-width:170px;padding:6px;background:#fff;border:1px solid #dce5dd;border-radius:12px;box-shadow:0 12px 28px rgba(22,52,36,.18)}
+.gw-account-menu[hidden]{display:none}
+.gw-account-menu a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:8px;color:#294b37;text-decoration:none;font:600 13px/1.3 Inter,system-ui,sans-serif;white-space:nowrap}
+.gw-account-menu a:hover,.gw-account-menu a:focus-visible{background:#eef4ee;outline:0}
+.gw-account-menu a i{width:18px;text-align:center;color:#4b765c}
+.gw-account-menu a.logout{color:#a03d34}
+.gw-account-menu a.logout i{color:#a03d34}
+.gw-appbar-avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:#e4eee2;border:1px solid #cfe0cf;color:#235b46;font:700 13px/1 Inter,system-ui,sans-serif}
+.gw-appbar-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.gw-appbar-titles{display:flex;flex-direction:column;align-items:center;min-width:0;max-width:100%}
+.gw-appbar-brand{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;max-width:100%}
+.garden-mobile .gw-appbar-logo{flex:0 0 auto;height:15px;width:auto;max-width:46px;object-fit:contain}
+.gw-appbar-store{flex:1 1 auto;font:600 11px/1.3 Inter,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#6d8074;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* --- Choosers ----------------------------------------------------------- */
+/* A garden option list opens inline and is allowed to grow with its content, so
+   ordinary lists (chart period, stage, branch) never scroll. Only a genuinely
+   long list — a 500-row product picker — keeps a viewport-tall cap. */
+.garden-mobile .garden-select-options{max-height:70vh}
+
+@media(max-width:360px){
+  .garden-mobile .gw-appbar{gap:8px;padding:9px 12px}
+  .gw-appbar-avatar{width:34px;height:34px}
+}

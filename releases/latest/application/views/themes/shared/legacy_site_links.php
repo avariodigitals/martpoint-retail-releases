@@ -1,0 +1,1 @@
+<?php if(!empty($settings->store_slug)&&!empty($settings->store_id)){$slCI=&get_instance();$slCI->load->model('storefront_content_model');$this->load->view('themes/shared/site_links',['settings'=>$settings,'site_content'=>$slCI->storefront_content_model->settings((int)$settings->store_id)]);} ?>

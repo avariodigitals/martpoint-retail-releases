@@ -1,0 +1,887 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Customers extends MY_Controller {
+	public function __construct(){
+		parent::__construct();
+		$this->load_global();
+		$this->load->model('customers_model','customers');
+	}
+
+	private function _linked_patient_for_customer($customer_id, $store_id = null){
+		if(!function_exists('physio_enabled')){ $this->load->helper('physio'); }
+		$store_id = $store_id ?: get_current_store_id();
+		if(!physio_enabled($store_id) || !mp_feature_enabled('patient_registry')){
+			return null;
+		}
+		if(!$this->db->table_exists('db_patients')){
+			return null;
+		}
+		return $this->db->select('id, patient_code')
+			->where('customer_id', (int)$customer_id)
+			->where('store_id', (int)$store_id)
+			->order_by('id', 'desc')
+			->get('db_patients')
+			->row();
+	}
+
+	public function index()
+	{
+		$this->permission_check('customers_view');
+		$data=$this->data;
+		$data['page_title']=mp_label('customer').'s List';
+		$data['content']=$this->load->view('customers/desktop/list',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+	public function add()
+	{
+		$this->permission_check('customers_add');
+		$data=$this->data;
+		$data['page_title']=mp_label('customer');
+		$data['content']=$this->load->view('customers/desktop/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	public function newcustomers(){
+		$this->permission_check_with_msg('customers_add');
+		$this->form_validation->set_rules('customer_name', 'Customer Name', 'trim|required');
+		$this->form_validation->set_rules('mobile', 'Mobile', 'trim|required');
+		
+		if ($this->form_validation->run() == TRUE) {
+			$result=$this->customers->verify_and_save();
+			if($result === 'success'){
+				$customer_id = $this->db->insert_id();
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $customer_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
+			echo $result;
+		} else {
+			echo "Please Fill Compulsory(* marked) Fields.";
+		}
+	}
+
+	public function add_customer_ajax(){
+		if(!$this->permissions('customers_add')){
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode(['status' => 'error', 'message' => 'You don\'t have permission to add customers.']);
+			exit;
+		}
+		header('Content-Type: application/json; charset=utf-8');
+		header('Cache-Control: no-cache, no-store, must-revalidate');
+		
+		$customer_name = $this->input->post('customer_name', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		
+		if (empty($customer_name)) {
+			echo json_encode(['status' => 'error', 'message' => 'Customer name is required']);
+			exit;
+		}
+		
+		$store_id = get_current_store_id();
+		
+		// Insert customer
+		$customer_data = [
+			'customer_name' => $customer_name,
+			'mobile' => $mobile,
+			'store_id' => $store_id,
+			'status' => 1
+		];
+		
+		$this->db->insert('db_customers', $customer_data);
+		$customer_id = $this->db->insert_id();
+		
+		if ($customer_id) {
+			echo json_encode([
+				'status' => 'success',
+				'message' => 'Customer added successfully',
+				'customer_id' => (int)$customer_id,
+				'customer_name' => $customer_name
+			]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Failed to add customer']);
+		}
+		exit;
+	}
+	public function update($id){
+		$this->belong_to('db_customers',$id);
+		$this->permission_check('customers_edit');
+		$data=$this->data;
+		$result=$this->customers->get_details($id,$data);
+		$data=array_merge($data,$result);
+		$data['page_title']=mp_label('customer');
+		$data['content']=$this->load->view('customers/desktop/form',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+	public function update_customers(){
+		$this->form_validation->set_rules('customer_name', 'Customer Name', 'trim|required');
+		$this->form_validation->set_rules('mobile', 'Mobile', 'trim|required');
+		
+		if ($this->form_validation->run() == TRUE) {			
+			$result=$this->customers->update_customers();
+			if($result === 'success'){
+				$q_id = $this->input->post('q_id', TRUE);
+				$nin_bvn = $this->input->post('nin_bvn', TRUE);
+				$nin_verified = $this->input->post('nin_verified', TRUE);
+				$this->db->where('id', $q_id)->update('db_customers', array(
+					'nin_bvn' => $nin_bvn,
+					'nin_verified' => (!empty($nin_verified)) ? 1 : 0
+				));
+			}
+			echo $result;
+		} else {
+			echo "Please Fill Compulsory(* marked) Fields.";
+		}
+	}
+
+
+	public function ajax_list()
+	{
+		$list = $this->customers->get_datatables();
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+		$showMembershipStatus = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('memberships')
+			&& $this->db->table_exists('db_customer_memberships');
+		$activeMembershipIds = [];
+		if($showMembershipStatus && !empty($list)){
+			$customerIds = array_map(function($customer){ return (int)$customer->id; }, $list);
+			$memberships = $this->db->select('customer_id')->from('db_customer_memberships')
+				->where('store_id', (int)get_current_store_id())->where_in('customer_id', $customerIds)
+				->where('status', 'active')->where('start_date <=', date('Y-m-d'))->where('end_date >=', date('Y-m-d'))
+				->group_by('customer_id')->get()->result();
+			foreach($memberships as $membership) $activeMembershipIds[(int)$membership->customer_id] = true;
+		}
+		
+		$data = array();
+		$no = $_POST['start'];
+		foreach ($list as $customers) {
+
+			$opening_balance =(!empty($customers->opening_balance)) ? $customers->opening_balance : 0;
+			$opening_balance -=get_paid_cob($customers->id);
+			$sales_due =(!empty($customers->sales_due)) ? $customers->sales_due : 0;
+			$sales_return_due =(!empty($customers->sales_return_due)) ? $customers->sales_return_due : 0;
+			$total = ($opening_balance)+$sales_due-$sales_return_due;
+			
+			$no++;
+			$row = array();
+			$disable = ($customers->delete_bit==1) ? 'disabled' : '';
+			
+			$row[] = ($customers->delete_bit==1) ? '<span data-toggle="tooltip" title="Resticted" class="text-danger fa fa-fw fa-ban"></span>' : '<input type="checkbox" name="checkbox[]" '.$disable.' value='.$customers->id.' class="checkbox column_checkbox" >';
+			
+			
+			$row[] = $customers->customer_code;
+			$row[] = $customers->customer_name;
+			$row[] = $customers->mobile;
+			$row[] = $customers->email;
+			if($showMembershipStatus){
+				$row[] = isset($activeMembershipIds[(int)$customers->id])
+					? '<span class="label label-success">Active member</span>'
+					: '<span class="label label-default">Customer</span>';
+			}
+			$store_name = get_store_name($customers->store_id);
+			$location_display = (!empty($store_name)) ? '<span class="label label-default"><i class="fa fa-building"></i> '.$store_name.'</span>' : '-';
+			if(!empty($customers->location_link)){
+				$location_display .= ' <a target="_blank" title="View on Map" href="'.$customers->location_link.'"><i class="fa fa-fw fa-map-marker text-red"></i></a>';
+			}
+			$row[] = $location_display;
+			$row[] = ($customers->credit_limit==-1) ? "<span class='badge'>No Limit</span>" :store_number_format($customers->credit_limit);
+			$row[] = store_number_format($opening_balance+$sales_due);
+			
+			$row[] = store_number_format($sales_return_due);
+			$row[] = store_number_format($customers->tot_advance);
+			$row[] = number_format($customers->loyalty_points ?? 0, 0);
+			$row[] = '<span class="label label-info">' . (($customers->loyalty_tier ?? '') ?: 'Bronze') . '</span>';
+			$row[] = store_number_format($customers->store_credit_balance ?? 0);
+			$row[] = store_number_format($customers->gift_card_balance ?? 0);
+
+
+			 		if($customers->status==1){ 
+			 			$str= "<span onclick='update_status(".$customers->id.",0)' id='span_".$customers->id."'  class='label label-success' style='cursor:pointer'>Active </span>";}
+					else{ 
+						$str = "<span onclick='update_status(".$customers->id.",1)' id='span_".$customers->id."'  class='label label-danger' style='cursor:pointer'> Inactive </span>";
+					}
+			$row[] = $str;			
+					$str2 = '<div class="mp-actions">';
+
+					if(is_store_admin())
+					$str2.='<a title="Discount Coupon" href="'.base_url().'customer_coupon/generate/'.$customers->id.'"><i class="fa fa-tags"></i></a>';
+
+					if($this->permissions('customers_view')&& $customers->delete_bit!=1)
+					$str2.='<a title="View Profile" href="'.base_url().'customers/profile/'.$customers->id.'"><i class="fa fa-user-circle"></i></a>';
+
+					if($this->permissions('customers_edit')&& $customers->delete_bit!=1)
+					$str2.='<a title="Edit Record ?" class="mp-edit" href="'.base_url().'customers/update/'.$customers->id.'"><i class="fa fa-edit"></i></a>';
+
+					if($this->permissions('cust_adv_payments_view'))
+					$str2.='<a title="Advance Payments View" href="'.base_url().'customers_advance"><i class="fa fa-credit-card"></i></a>';
+
+					if($this->permissions('sales_payment_view'))
+					$str2.='<a title="Pay" class="pointer" onclick="view_payments('.$customers->id.')"><i class="fa fa-list"></i></a>';
+
+					if($this->permissions('sales_payment_add'))
+					$str2.='<a title="Receive Previous Balance & Sales Due Payments" class="pointer" onclick="pay_now('.$customers->id.')"><i class="fa fa-money"></i></a>';
+
+					if($this->permissions('sales_return_payment_add'))
+					$str2.='<a title="Pay Return Due" class="pointer" onclick="pay_return_due('.$customers->id.')"><i class="fa fa-undo"></i></a>';
+
+					if($this->permissions('customers_delete') && $customers->delete_bit!=1)
+					$str2.='<a title="Delete Record ?" class="mp-delete" style="cursor:pointer" onclick="delete_customers('.$customers->id.')"><i class="fa fa-trash"></i></a>';
+
+					$str2.='</div>';
+			$row[] =  $str2;
+			
+
+			$data[] = $row;
+		}
+
+		$output = array(
+						"draw" => $_POST['draw'] ?? 1,
+						"recordsTotal" => $this->customers->count_all(),
+						"recordsFiltered" => $this->customers->count_filtered(),
+						"data" => $data,
+				);
+		//output to json format
+		echo json_encode($output);
+	}
+	public function export_csv(){
+		$this->permission_check('export_customers');
+		$store_id = get_current_store_id();
+
+		$headers = array(
+			'customer_code','customer_name','customer_type','mobile','phone','email',
+			'gstin','tax_number','opening_balance','credit_limit','payment_terms_days',
+			'country','state','city','postcode','address',
+			'ship_city','ship_postcode','ship_address',
+			'sales_due','sales_return_due','tot_advance',
+			'loyalty_points','loyalty_tier','store_credit_balance','gift_card_balance',
+			'referral_code','birthday','last_purchase_date','created_date','created_by'
+		);
+
+		$this->db->select('c.customer_code,c.customer_name,c.customer_type,c.mobile,c.phone,c.email,c.gstin,c.tax_number,c.opening_balance,c.credit_limit,c.payment_terms_days,ct.country as country_name,st.state as state_name,c.city,c.postcode,c.address,c.ship_city,c.ship_postcode,c.ship_address,c.sales_due,c.sales_return_due,c.tot_advance,c.loyalty_points,c.loyalty_tier,c.store_credit_balance,c.gift_card_balance,c.referral_code,c.birthday,c.last_purchase_date,c.created_date,c.created_by', FALSE);
+		$this->db->from('db_customers c');
+		$this->db->join('db_country ct','ct.id=c.country_id','left');
+		$this->db->join('db_states st','st.id=c.state_id','left');
+		$this->db->where('c.store_id', $store_id);
+		$this->db->where('c.status', 1);
+		$this->db->where('c.delete_bit', 0);
+		$this->db->order_by('c.customer_name','asc');
+		$query = $this->db->get();
+
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename="customers_export_'.date('Ymd_His').'.csv"');
+		$out = fopen('php://output','w');
+		fputcsv($out, $headers);
+		foreach($query->result_array() as $row){
+			$line = array();
+			foreach($headers as $h){
+				$key = $h==='country' ? 'country_name' : ($h==='state' ? 'state_name' : $h);
+				$line[] = isset($row[$key]) ? $row[$key] : '';
+			}
+			fputcsv($out, $line);
+		}
+		fclose($out);
+		exit;
+	}
+
+	public function update_status(){
+		$this->permission_check_with_msg('customers_edit');
+		$id=$this->input->post('id');
+		$status=$this->input->post('status');
+
+		$result=$this->customers->update_status($id,$status);
+		return $result;
+	}
+	
+	public function statement($id){
+		$this->belong_to('db_customers', $id);
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$data['page_title'] = 'Customer Statement';
+		$data['customer'] = $this->db->where('id', $id)->get('db_customers')->row();
+		$linked_patient = $this->_linked_patient_for_customer($id);
+		$data['linked_patient'] = $linked_patient;
+		$data['profile_url'] = $linked_patient
+			? base_url('patients/profile/' . (int)$linked_patient->id)
+			: base_url('customers/profile/' . (int)$id);
+		$from = $this->input->get('from');
+		$to = $this->input->get('to');
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		$statement = $this->customers->get_statement($id, null, $from, $to);
+		$data = array_merge($data, $statement);
+		$data['from'] = $from;
+		$data['to'] = $to;
+		$data['content']=$this->load->view('customers/desktop/statement',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	public function save_note($customer_id){
+		$this->belong_to('db_customers', $customer_id);
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		$note = trim((string)$this->input->post('note', TRUE));
+		if($note === ''){
+			$this->session->set_flashdata('failed', 'Please write a note before saving.');
+			redirect('customers/profile/' . $customer_id . '#notes');
+			return;
+		}
+		if($this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model','cust_notes');
+			$this->cust_notes->add($customer_id, $note);
+		} else {
+			$customer = $this->db->where('id', $customer_id)->get('db_customers')->row();
+			$existing = trim((string)($customer->notes ?? ''));
+			$entry = '[' . date('d-m-Y H:i') . ' ' . $this->session->userdata('inv_username') . '] ' . $note;
+			$this->db->where('id', $customer_id)->update('db_customers', array('notes' => ($existing !== '' ? $existing . "\n\n" . $entry : $entry)));
+		}
+		$this->session->set_flashdata('success', 'Note added.');
+		redirect('customers/profile/' . $customer_id . '#notes');
+	}
+
+	public function edit_note($note_id){
+		$this->permission_check('customers_edit');
+		if (!mp_feature_enabled('customer_notes')) { $this->show_access_denied_page('This feature is disabled for this store.'); return; }
+		if(!$this->db->table_exists('db_customer_notes')){
+			$this->session->set_flashdata('failed', 'Notes history is not available yet.');
+			redirect('customers');
+			return;
+		}
+		$this->load->model('customer_notes_model','cust_notes');
+		$note = $this->cust_notes->get($note_id);
+		if(!$note || (int)$note->store_id !== (int)get_current_store_id()){
+			$this->session->set_flashdata('failed', 'Note not found.');
+			redirect('customers');
+			return;
+		}
+		if(!$this->cust_notes->is_owner($note)){
+			$this->session->set_flashdata('failed', 'Only the creator can edit this note.');
+			redirect('customers/profile/' . $note->customer_id . '#notes');
+			return;
+		}
+		$text = trim((string)$this->input->post('note', TRUE));
+		if($text === ''){
+			$this->session->set_flashdata('failed', 'Note cannot be empty.');
+			redirect('customers/profile/' . $note->customer_id . '#notes');
+			return;
+		}
+		$this->cust_notes->update($note_id, $text);
+		$this->session->set_flashdata('success', 'Note updated.');
+		redirect('customers/profile/' . $note->customer_id . '#notes');
+	}
+	
+	public function delete_customers(){
+		$this->permission_check_with_msg('customers_delete');
+		$id=$this->input->post('q_id');
+		return $this->customers->delete_customers_from_table($id);
+	}
+	public function multi_delete(){
+		$this->permission_check_with_msg('customers_delete');
+		$ids=implode (",",$_POST['checkbox']);
+		return $this->customers->delete_customers_from_table($ids);
+	}
+	public function show_pay_now_modal(){
+		$this->permission_check_with_msg('sales_payment_add');
+		$customer_id=$this->input->post('customer_id');
+		echo $this->customers->show_pay_now_modal($customer_id);
+	}
+	public function save_payment(){
+		$this->permission_check_with_msg('sales_payment_add');
+		echo $this->customers->save_payment();
+	}
+	public function show_pay_return_due_modal(){
+		$this->permission_check_with_msg('sales_return_payment_add');
+		$customer_id=$this->input->post('customer_id');
+		echo $this->customers->show_pay_return_due_modal($customer_id);
+	}
+	public function save_return_due_payment(){
+		$this->permission_check_with_msg('sales_payment_add');
+		echo $this->customers->save_return_due_payment();
+	}
+	public function delete_opening_balance_entry(){
+		$this->permission_check_with_msg('sales_payment_delete');
+		$entry_id = $this->input->post('entry_id');
+		echo $this->customers->delete_opening_balance_entry($entry_id);
+	}
+	/*27-06-2020*/
+	public function view_payment_list_modal(){
+		$this->permission_check_with_msg('sales_payment_add');
+		$customer_id=$this->input->post('customer_id');
+		echo $this->customers->view_payment_list_modal($customer_id);
+	}
+	/*28-06-2020*/
+	//Print Customer Bulk Payment Receipt
+	public function print_show_receipt($payment_id){
+		if(!$this->permissions('sales_add') && !$this->permissions('sales_edit')){
+			$this->show_access_denied_page();
+		}
+		$data=$this->data;
+		$data['page_title']=$this->lang->line('payment_receipt');
+		$data=array_merge($data,array('payment_id'=>$payment_id));
+		$this->load->view('print-cust-payment-receipt',$data);
+	}
+
+	public function restore_customer_list(){
+		echo get_customers_select_list($this->input->post('customer_id'),get_current_store_id());
+	}
+
+	public function profile($id){
+		$this->belong_to('db_customers', $id);
+		$this->permission_check('customers_view');
+		$data = $this->data;
+		$store_id = get_current_store_id();
+		$linked_patient = $this->_linked_patient_for_customer($id, $store_id);
+		if($linked_patient && $this->input->get('retail') !== '1'){
+			redirect('patients/profile/' . (int)$linked_patient->id);
+			return;
+		}
+
+		// Customer details
+		$customer = $this->db->where('id', $id)->get('db_customers')->row();
+		if(!$customer) redirect('customers');
+		$data['customer'] = $customer;
+		if (mp_feature_enabled('fashion_measurements') && $this->db->table_exists('db_fashion_measurements')) {
+			$data['fashion_measurements'] = $this->db->where('store_id',(int)$store_id)->where('customer_id',(int)$id)->order_by('created_at','desc')->limit(30)->get('db_fashion_measurements')->result();
+			$data['fashion_dress_types'] = $this->db->where('is_active',1)->where_in('store_id',[0,(int)$store_id])->order_by('sort_order')->order_by('name')->get('db_fashion_dress_types')->result();
+		} else { $data['fashion_measurements']=[]; $data['fashion_dress_types']=[]; }
+		$data['pricing_group'] = null;
+		$this->load->model('customer_pricing_model', 'customer_pricing');
+		if($this->customer_pricing->installed() && !empty($customer->pricing_group_id)){
+			$data['pricing_group'] = $this->db->where('id', (int)$customer->pricing_group_id)
+				->where('store_id', (int)$store_id)->get('db_customer_pricing_groups')->row();
+		}
+
+		// Calculate total due
+		$opening_balance = $customer->opening_balance ?? 0;
+		$opening_balance -= get_paid_cob($id);
+		$sales_due = $customer->sales_due ?? 0;
+		$sales_return_due = $customer->sales_return_due ?? 0;
+		$data['total_due'] = $opening_balance + $sales_due - $sales_return_due;
+
+		// Purchase history
+		$data['purchases'] = $this->db->where('customer_id', $id)
+								  ->where('store_id', $store_id)
+								  ->order_by('id', 'desc')
+								  ->get('db_sales')
+								  ->result();
+
+		// Payments / statements
+		$data['payments'] = $this->db->where('customer_id', $id)
+								 ->order_by('id', 'desc')
+								 ->get('db_customer_payments')
+								 ->result();
+
+		$statement = $this->customers->get_statement($id, $store_id);
+		$data['opening'] = $statement['opening'];
+		$data['statement'] = $statement['rows'];
+		$data['statement_summary'] = $statement['summary'];
+
+		// Gift cards
+		if(mp_feature_enabled('gift_cards') && $this->db->table_exists('db_gift_cards')){
+			$data['gift_cards'] = $this->db->where('customer_id', $id)
+									  ->where('store_id', $store_id)
+									  ->order_by('id', 'desc')
+									  ->get('db_gift_cards')
+									  ->result();
+		} else { $data['gift_cards'] = array(); }
+
+		// Store credit
+		if(mp_feature_enabled('store_credit') && $this->db->table_exists('db_store_credit')){
+			$data['store_credits'] = $this->db->where('customer_id', $id)
+									   ->where('store_id', $store_id)
+									   ->order_by('id', 'desc')
+									   ->get('db_store_credit')
+									   ->result();
+		} else { $data['store_credits'] = array(); }
+
+		// Coupons
+		if($this->db->table_exists('db_customer_coupons')){
+			$data['coupons'] = $this->db->where('customer_id', $id)
+									->where('store_id', $store_id)
+									->order_by('id', 'desc')
+									->get('db_customer_coupons')
+									->result();
+		} else { $data['coupons'] = array(); }
+
+		// Memberships
+		if(mp_feature_enabled('memberships') && $this->db->table_exists('db_customer_memberships')){
+			$this->load->model('membership_model', 'membership');
+			$data['memberships'] = $this->membership->get_customer_memberships($id);
+			$data['active_membership'] = $this->membership->get_customer_discount($id);
+		} else {
+			$data['memberships'] = array();
+			$data['active_membership'] = null;
+		}
+
+		// Treatment Notes
+		if(mp_feature_enabled('treatment_notes') && $this->db->table_exists('db_treatment_notes')){
+			$this->load->model('treatment_notes_model', 'notes');
+			$data['treatment_notes'] = $this->notes->get_by_customer($id);
+		} else {
+			$data['treatment_notes'] = array();
+		}
+
+		// Medical Notes (Pharmacy)
+		if(mp_feature_enabled('medical_notes') && $this->db->table_exists('db_medical_notes')){
+			$this->load->model('medical_notes_model', 'med_notes');
+			$data['medical_notes'] = $this->med_notes->get_by_customer($id);
+			$data['medical_allergies'] = $this->med_notes->get_allergies($id);
+		} else {
+			$data['medical_notes'] = array();
+			$data['medical_allergies'] = array();
+		}
+
+		// Customer Notes history
+		if(mp_feature_enabled('customer_notes') && $this->db->table_exists('db_customer_notes')){
+			$this->load->model('customer_notes_model', 'cust_notes');
+			$data['customer_notes'] = $this->cust_notes->get_by_customer($id);
+		} else {
+			$data['customer_notes'] = array();
+			if(mp_feature_enabled('customer_notes') && !empty($customer->notes)){
+				$legacy = new stdClass();
+				$legacy->id = 0;
+				$legacy->note = $customer->notes;
+				$legacy->created_by = $customer->created_by ?? null;
+				$legacy->created_by_id = null;
+				$legacy->created_date = $customer->created_date ?? null;
+				$legacy->created_time = $customer->created_time ?? null;
+				$data['customer_notes'] = array($legacy);
+			}
+		}
+
+		// Custom Orders
+		if(mp_feature_enabled('custom_orders') && $this->db->table_exists('db_custom_orders')){
+			$this->load->model('custom_orders_model', 'custom_orders');
+			$data['custom_orders'] = $this->custom_orders->get_by_customer($id);
+		} else {
+			$data['custom_orders'] = array();
+		}
+
+		// Service / Laundry History
+		if (mp_feature_enabled('laundry_workflow') && $this->db->table_exists('db_laundry_orders')) {
+			$data['service_history'] = $this->db->query(
+				"SELECT lo.id, lo.sales_id, lo.status, lo.tag_number, lo.created_at, lo.updated_at,
+						s.sales_code, s.sales_date, s.grand_total, s.paid_amount,
+						(SELECT GROUP_CONCAT(DISTINCT i.item_name SEPARATOR ', ')
+						 FROM db_salesitems si
+						 JOIN db_items i ON i.id = si.item_id
+						 WHERE si.sales_id = lo.sales_id) as items_list
+				 FROM db_laundry_orders lo
+				 JOIN db_sales s ON s.id = lo.sales_id
+				 WHERE s.customer_id = ? AND lo.store_id = ?
+				 ORDER BY lo.created_at DESC",
+				[$id, $store_id]
+			)->result();
+		} else {
+			$data['service_history'] = array();
+		}
+
+		// Institutional contacts & delivery/service sites
+		$data['contacts'] = ($this->db->table_exists('db_customer_contacts') && mp_feature_enabled('customer_contacts'))
+			? $this->db->where('customer_id',$id)->where('status',1)->order_by('is_primary','DESC')->order_by('id')->get('db_customer_contacts')->result()
+			: array();
+		$data['sites'] = mp_feature_enabled('customer_sites')
+			? $this->db->where('customer_id',$id)->where('status',1)->order_by('id')->get('db_shippingaddress')->result()
+			: array();
+
+		// Equipment register + service jobs for this customer
+		$data['equipment'] = array();
+		$data['service_jobs'] = array();
+		if($this->db->table_exists('db_customer_equipment') && mp_feature_enabled('equipment_register')){
+			$this->load->model('equipment_model','equipment');
+			$data['equipment'] = $this->equipment->get_equipment_list(array('customer_id'=>$id));
+		}
+		if($this->db->table_exists('db_service_jobs') && mp_feature_enabled('service_jobs')){
+			$this->load->model('equipment_model','equipment');
+			$data['service_jobs'] = $this->equipment->get_job_list(array('customer_id'=>$id));
+		}
+
+		$data['page_title'] = 'Customer Profile';
+		$data['content']=$this->load->view('customers/desktop/profile',$data,TRUE);
+		$this->load->view('mp_layout',$data);
+	}
+
+	public function get_customer_by_barcode(){
+		$barcode = $this->input->post('barcode', TRUE);
+		if(empty($barcode)) { echo json_encode(array()); return; }
+
+		$store_id = get_current_store_id();
+		$customer = null;
+
+		// Try C{numeric_id} format (e.g. C123)
+		if(preg_match('/^C(\d+)$/', $barcode, $m)){
+			$customer = $this->db->where('id', (int)$m[1])->where('store_id', $store_id)->get('db_customers')->row_array();
+		}
+
+		// Fallback: search by customer_code, mobile, or id directly
+		if(!$customer){
+			$this->db->where('store_id', $store_id);
+			$this->db->group_start();
+			$this->db->where('customer_code', $barcode);
+			$this->db->or_where('mobile', $barcode);
+			$this->db->or_where('id', (int)$barcode);
+			$this->db->group_end();
+			$customer = $this->db->get('db_customers')->row_array();
+		}
+
+		if(!$customer) { echo json_encode(array()); return; }
+
+		$customer_id = $customer['id'];
+		$customer['previous_due'] = store_number_format(($customer['sales_due'] + $customer['opening_balance']) - get_paid_cob($customer_id), false);
+		$customer['tot_advance'] = store_number_format($customer['tot_advance'], 0);
+
+		// Get available benefits
+		$benefits = array();
+
+		// Gift cards
+		if($this->db->table_exists('db_gift_cards')){
+			$gcs = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 'active')
+							->get('db_gift_cards')
+							->result_array();
+			foreach($gcs as $g){
+				$g['type'] = 'gift_card';
+				$g['label'] = 'Gift Card: '.$g['card_number'];
+				$g['value'] = $g['current_balance'];
+				$g['eligible'] = true;
+				$benefits[] = $g;
+			}
+		}
+
+		// Store credit
+		if($this->db->table_exists('db_store_credit')){
+			$scs = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 'active')
+							->get('db_store_credit')
+							->result_array();
+			foreach($scs as $s){
+				$s['type'] = 'store_credit';
+				$s['label'] = 'Store Credit: '.$s['credit_code'];
+				$s['value'] = $s['balance'];
+				$s['eligible'] = true;
+				$benefits[] = $s;
+			}
+		}
+
+		// Coupons
+		if($this->db->table_exists('db_customer_coupons')){
+			$cps = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->where('status', 1)
+							->get('db_customer_coupons')
+							->result_array();
+			foreach($cps as $c){
+				$c['type'] = 'coupon';
+				$c['label'] = 'Coupon: '.$c['code'];
+				$c['value'] = $c['value'];
+				$expired = !empty($c['expire_date']) && strtotime($c['expire_date']) < strtotime(date('Y-m-d'));
+				$c['eligible'] = !$expired;
+				$c['status_text'] = $expired ? 'Expired' : 'Active';
+				$benefits[] = $c;
+			}
+		}
+
+		$customer['benefits'] = $benefits;
+		echo json_encode($customer);
+	}
+
+	public function getCustomers($id=''){
+		echo $this->customers->getCustomersJson($id);
+	}
+
+	/* Returns all customers for offline sync (IndexedDB caching) */
+	public function sync_customers_for_offline(){
+		$store_id = $this->input->get('store_id');
+		$this->db->select("id, customer_name, mobile, sales_due, opening_balance, tot_advance, delete_bit")
+				->from('db_customers')
+				->where('store_id', $store_id)
+				->where('status', 1)
+				->limit(5000);
+		$query = $this->db->get();
+		$display_json = array();
+		foreach($query->result() as $res){
+			$customer_previous_due = $res->sales_due + $res->opening_balance;
+			$customer_previous_due -= get_paid_cob($res->id);
+			$json_arr = array();
+			$json_arr["id"] = $res->id;
+			$json_arr["text"] = $res->customer_name;
+			$json_arr["mobile"] = $res->mobile;
+			$json_arr["previous_due"] = store_number_format($customer_previous_due, false);
+			$json_arr["tot_advance"] = store_number_format($res->tot_advance, 0);
+			$json_arr["delete_bit"] = $res->delete_bit;
+			array_push($display_json, $json_arr);
+		}
+		echo json_encode($display_json);exit;
+	}
+
+	public function get_customer_details(){
+		$customer_id = $this->input->post('customer_id');
+		if(empty($customer_id)){
+			echo json_encode(array());
+			return;
+		}
+		$row = $this->db->select('id, customer_name, mobile, email, phone, address, nin_bvn, nin_verified, nin_verified_at, nin_waived')
+						->where('id', $customer_id)
+						->get('db_customers')
+						->row_array();
+		echo json_encode($row ?: array());
+	}
+
+	/* JSON list of a customer's delivery/service sites (db_shippingaddress rows).
+	   Used by quotation, sales and delivery site selectors. */
+	public function get_customer_sites(){
+		$customer_id = $this->input->post_get('customer_id', TRUE);
+		if(empty($customer_id)){ echo json_encode(array()); return; }
+		$customer = $this->db->select('shippingaddress_id')->where('id',$customer_id)->get('db_customers')->row();
+		$q = $this->db->where('customer_id',$customer_id)->where('status',1)
+			->get('db_shippingaddress');
+		$out = array();
+		$has_site_name_col = $this->db->field_exists('site_name','db_shippingaddress');
+		foreach($q->result() as $r){
+			$label_parts = array_filter(array(
+				$has_site_name_col ? $r->site_name : null,
+				$r->city,
+				$r->address,
+			));
+			$out[] = array(
+				'id'         => $r->id,
+				'site_name'  => $has_site_name_col ? $r->site_name : null,
+				'label'      => !empty($label_parts) ? implode(' — ', $label_parts) : 'Site #'.$r->id,
+				'is_primary' => (!empty($customer) && (int)$customer->shippingaddress_id === (int)$r->id) ? 1 : ($has_site_name_col ? (int)$r->is_primary : 0),
+				'address'    => $r->address,
+				'city'       => $r->city,
+				'postcode'   => $r->postcode,
+				'country_id' => $r->country_id,
+				'state_id'   => $r->state_id,
+				'location_link' => $r->location_link ?? null,
+			);
+		}
+		echo json_encode($out);
+	}
+
+	/* Institutional customer contacts (db_customer_contacts) */
+	public function get_customer_contacts(){
+		$this->permission_check('customers_view');
+		$customer_id = (int)$this->input->post_get('customer_id', TRUE);
+		if(!$customer_id || !$this->db->table_exists('db_customer_contacts')){ echo json_encode(array()); return; }
+		echo json_encode($this->db->where('customer_id',$customer_id)->where('status',1)->order_by('is_primary','DESC')->order_by('id')->get('db_customer_contacts')->result());
+	}
+
+	public function save_contact(){
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_contacts')){ echo "Contacts are not available on this install."; return; }
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$contact_id  = (int)$this->input->post('contact_id', TRUE);
+		$name = mp_clean_text($this->input->post('contact_name'));
+		if($customer_id <= 0 || empty($name)){ echo "Customer and contact name are required."; return; }
+		$this->belong_to('db_customers', $customer_id);
+		$data = array(
+			'contact_name' => $name,
+			'role_title'   => mp_clean_text($this->input->post('role_title')),
+			'email'        => mp_clean_text($this->input->post('email')),
+			'phone'        => mp_clean_text($this->input->post('phone')),
+			'is_primary'   => (int)$this->input->post('is_primary') ? 1 : 0,
+			'notes'        => mp_clean_text($this->input->post('notes')),
+		);
+		if($data['is_primary']){
+			$this->db->where('customer_id',$customer_id)->update('db_customer_contacts', array('is_primary'=>0));
+		}
+		if($contact_id > 0){
+			$this->db->where('id',$contact_id)->where('customer_id',$customer_id)->update('db_customer_contacts', $data);
+			echo 'success'; return;
+		}
+		$data += array(
+			'store_id' => get_current_store_id(),
+			'customer_id' => $customer_id,
+			'status' => 1,
+			'created_by' => $this->session->userdata('inv_userid'),
+			'created_date' => date('Y-m-d'),
+			'created_time' => date('H:i:s'),
+		);
+		echo $this->db->insert('db_customer_contacts', $data) ? 'success' : 'failed';
+	}
+
+	public function delete_contact(){
+		$this->permission_check('customers_edit');
+		if(!$this->db->table_exists('db_customer_contacts')){ echo "failed"; return; }
+		$id = (int)$this->input->post('contact_id', TRUE);
+		echo $this->db->where('id',$id)->where('store_id',get_current_store_id())->update('db_customer_contacts', array('status'=>0)) ? 'success' : 'failed';
+	}
+
+	/* Institutional customer sites — multiple db_shippingaddress rows per customer */
+	public function save_site(){
+		$this->permission_check('customers_edit');
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$site_id     = (int)$this->input->post('site_id', TRUE);
+		if($customer_id <= 0){ echo "Customer is required."; return; }
+		$this->belong_to('db_customers', $customer_id);
+		$address = mp_clean_text($this->input->post('address'));
+		if(empty($address)){ echo "Site address is required."; return; }
+		$data = array(
+			'address'    => $address,
+			'city'       => mp_clean_text($this->input->post('city')),
+			'postcode'   => mp_clean_text($this->input->post('postcode')),
+			'country_id' => ((int)$this->input->post('country_id')) ?: null,
+			'state_id'   => ((int)$this->input->post('state_id')) ?: null,
+		);
+		if($this->db->field_exists('site_name','db_shippingaddress')){
+			$data['site_name'] = mp_clean_text($this->input->post('site_name'));
+		}
+		if($this->db->field_exists('location_link','db_shippingaddress')){
+			$data['location_link'] = mp_clean_text($this->input->post('location_link'));
+		}
+		$is_primary = (int)$this->input->post('is_primary') ? 1 : 0;
+		if($site_id > 0){
+			$this->db->where('id',$site_id)->where('customer_id',$customer_id)->update('db_shippingaddress', $data);
+			if($is_primary){ $this->_set_primary_site($customer_id, $site_id); }
+			echo 'success'; return;
+		}
+		$data += array(
+			'store_id' => get_current_store_id(),
+			'customer_id' => $customer_id,
+			'status' => 1,
+		);
+		if(!$this->db->insert('db_shippingaddress', $data)){ echo 'failed'; return; }
+		$new_id = $this->db->insert_id();
+		// First site or explicitly primary → link on the customer
+		$existing = $this->db->where('customer_id',$customer_id)->where('status',1)->count_all_results('db_shippingaddress');
+		if($is_primary || $existing === 1){ $this->_set_primary_site($customer_id, $new_id); }
+		echo 'success';
+	}
+
+	public function delete_site(){
+		$this->permission_check('customers_edit');
+		$id = (int)$this->input->post('site_id', TRUE);
+		$site = $this->db->where('id',$id)->where('store_id',get_current_store_id())->get('db_shippingaddress')->row();
+		if(!$site){ echo 'failed'; return; }
+		$this->db->where('id',$id)->update('db_shippingaddress', array('status'=>0));
+		// If this was the customer's primary pointer, move it to another live site
+		$cust = $this->db->select('shippingaddress_id')->where('id',$site->customer_id)->get('db_customers')->row();
+		if($cust && (int)$cust->shippingaddress_id === (int)$id){
+			$next = $this->db->where('customer_id',$site->customer_id)->where('status',1)->order_by('id')->get('db_shippingaddress')->row();
+			$this->_set_primary_site($site->customer_id, $next ? $next->id : null);
+		}
+		echo 'success';
+	}
+
+	public function set_primary_site(){
+		$this->permission_check('customers_edit');
+		$customer_id = (int)$this->input->post('customer_id', TRUE);
+		$site_id     = (int)$this->input->post('site_id', TRUE);
+		$this->belong_to('db_customers', $customer_id);
+		$this->_set_primary_site($customer_id, $site_id);
+		echo 'success';
+	}
+
+	private function _set_primary_site($customer_id, $site_id){
+		if($this->db->field_exists('is_primary','db_shippingaddress')){
+			$this->db->where('customer_id',$customer_id)->update('db_shippingaddress', array('is_primary'=>0));
+			if($site_id){ $this->db->where('id',$site_id)->update('db_shippingaddress', array('is_primary'=>1)); }
+		}
+		$this->db->where('id',$customer_id)->update('db_customers', array('shippingaddress_id'=>$site_id));
+	}
+}

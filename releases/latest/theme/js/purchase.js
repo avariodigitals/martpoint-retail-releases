@@ -1,0 +1,502 @@
+
+//On Enter Move the cursor to desigtation Id
+function shift_cursor(kevent,target){
+
+    if(kevent.keyCode==13){
+		$("#"+target).focus();
+    }
+
+}
+
+$(document).ready(function(){
+  $("#item_search").bind("paste", function(e){
+    $("#item_search").autocomplete('search');
+} );
+
+$("#item_search").autocomplete({
+    source: function(data, cb){
+        $.ajax({
+          autoFocus:true,
+            url: $("#base_url").val()+'items/get_json_items_details',
+            method: 'GET',
+            dataType: 'json',
+            data: {
+                name: data.term,
+                store_id:$("#store_id").val(),
+                warehouse_id:$("#warehouse_id").val(),
+                search_for:"purchase",
+            },
+            beforeSend: function() {
+                // Don't require warehouse for purchase - items can be added without warehouse selection
+                $("#item_search").addClass('ui-autocomplete-loading');
+            },
+            success: function(res){
+                console.log('Search results:', res);
+                var result;
+                result = [
+                    {
+                        label: 'No Records Found ',
+                        value: ''
+                    }
+                ];
+
+                if (res.length) {
+                    result = $.map(res, function(el){
+                        return {
+                            label: el.item_code +'--'+ el.label,
+                            value: '',
+                            id: el.id,
+                            item_name: el.value,
+                        };
+                    });
+                }
+
+                cb(result);
+            },
+            error: function(xhr, status, error) {
+                console.error('Search error:', error);
+                console.error('Response:', xhr.responseText);
+                cb([{label: 'Error loading items', value: ''}]);
+            }
+        });
+    },
+
+        response:function(e,ui){
+          if(ui.content.length==1){
+            $(this).data('ui-autocomplete')._trigger('select', 'autocompleteselect', ui);
+            $(this).autocomplete("close");
+          }
+          //console.log(ui.content[0].id);
+        },
+
+        //loader start
+        search: function (e, ui) {
+        },
+        select: function (e, ui) { 
+          
+            //$("#mobile").val(ui.item.mobile)
+            //$("#item_search").val(ui.item.value);
+            //$("#customer_dob").val(ui.item.customer_dob)
+            //$("#address").val(ui.item.address)
+            //alert("id="+ui.item.id);
+            if(typeof ui.content!='undefined'){
+              console.log("Autoselected first");
+              if(isNaN(ui.content[0].id)){
+                return;
+              }
+              //var stock=ui.content[0].stock;
+              var item_id=ui.content[0].id;
+            }
+            else{
+              console.log("manual Selected");
+              //var stock=ui.item.stock;
+              var item_id=ui.item.id;
+            }
+
+            return_row_with_data(item_id);
+            $("#item_search").val('');
+        },   
+        //loader end
+});
+});
+
+function check_same_item(item_id){
+
+  if($("#purchase_items_container .mp-purchase-item").length>=1){
+    var rowcount=$("#hidden_rowcount").val();
+    for(i=0;i<=rowcount;i++){
+            if($("#tr_item_id_"+i).val()==item_id){
+              increment_qty(i);
+              failed.currentTime = 0;
+              failed.play();
+              return false;
+            }
+      }//end for
+  }
+  return true;
+}
+
+function change_purchase_unit(row_id){
+  var $sel = $("#purchase_unit_id_"+row_id);
+  var $opt = $sel.find(':selected');
+  var unit_name = $opt.data('unit-name') || '';
+  var conversion = parseFloat($opt.data('conversion')) || 1;
+  var purchase_price = $opt.data('purchase-price');
+  $("#purchase_unit_name_"+row_id).val(unit_name);
+  $("#purchase_unit_conversion_"+row_id).val(conversion);
+  if(purchase_price && parseFloat(purchase_price) > 0){
+    $("#td_data_"+row_id+"_4").val(to_Fixed(parseFloat(purchase_price)));
+  }
+  calculate_tax(row_id);
+}
+
+function return_row_with_data(item_id){
+  //CHECK SAME ITEM ALREADY EXIST IN ITEMS TABLE 
+  var item_check=check_same_item(item_id);
+  if(!item_check){return false;}
+  //END
+  
+  $("#item_search").addClass('ui-autocomplete-loader-center');
+	var base_url=$("#base_url").val();
+	var rowcount=$("#hidden_rowcount").val();
+	$.post(base_url+"purchase/return_row_with_data/"+rowcount+"/"+item_id,{},function(result){
+        //alert(result);
+        $("#purchase_items_empty").hide();
+        $('#purchase_items_container').append(result);
+        // Initialize datepickers on new batch date fields
+        $('#purchase_items_container .mp-purchase-item:last .datepicker').datepicker({
+            autoclose: true,
+            format: 'dd-mm-yyyy',
+            todayHighlight: true
+        });
+        // Set initial purchase unit hidden fields and price
+        if($("#purchase_unit_id_"+rowcount).length > 0){
+          change_purchase_unit(rowcount);
+        }
+        // Show/hide batch columns based on current status
+        toggle_batch_fields();
+       	$("#hidden_rowcount").val(parseInt(rowcount)+1);
+        success.currentTime = 0;
+        success.play();
+        enable_or_disable_item_discount();
+        $("#item_search").removeClass('ui-autocomplete-loader-center');
+        $("#item_search").removeClass('ui-autocomplete-loading');
+    }); 
+}
+//INCREMENT ITEM
+function increment_qty(rowcount){
+  var item_qty=$("#td_data_"+rowcount+"_3").val();
+  var available_qty=$("#tr_available_qty_"+rowcount+"_13").val();
+  //if(parseInt(item_qty)<parseInt(available_qty)){
+    item_qty=parseFloat(item_qty)+1;
+    $("#td_data_"+rowcount+"_3").val(format_qty(item_qty));
+  //}
+  
+  calculate_tax(rowcount);
+}
+//DECREMENT ITEM
+function decrement_qty(rowcount){
+  var item_qty=parseFloat($("#td_data_"+rowcount+"_3").val());
+  if(item_qty<=1){
+    $("#td_data_"+rowcount+"_3").val(format_qty(1));
+    return;
+  }
+  $("#td_data_"+rowcount+"_3").val(format_qty(item_qty-1));
+  calculate_tax(rowcount);
+}
+
+//CALCUALATED SALES PRICE
+function calculate_sales_price(rowcount){
+  var purchase_price = (isNaN(parseFloat($("#td_data_"+rowcount+"_10").val()))) ? 0 :parseFloat($("#td_data_"+rowcount+"_10").val()); 
+  var profit_margin = (isNaN(parseFloat($("#td_data_"+rowcount+"_12").val()))) ? 0 :parseFloat($("#td_data_"+rowcount+"_12").val()); 
+  var tax_type = $("#tax_type").val();
+  var sales_price =parseFloat(0);
+    sales_price = purchase_price + ((purchase_price*profit_margin)/parseFloat(100));
+  $("#td_data_"+rowcount+"_13").val(sales_price.toFixed(2));
+}
+//END
+//CALCULATE PROFIT MARGIN PERCENTAGE
+function calculate_profit_margin(rowcount){
+  var purchase_price = (isNaN(parseFloat($("#td_data_"+rowcount+"_10").val()))) ? 0 :parseFloat($("#td_data_"+rowcount+"_10").val()); 
+  var sales_price = (isNaN(parseFloat($("#td_data_"+rowcount+"_13").val()))) ? 0 :parseFloat($("#td_data_"+rowcount+"_13").val());  
+  var profit_margin = (sales_price-purchase_price);
+  var profit_margin = (profit_margin/purchase_price)*parseFloat(100);
+  $("#td_data_"+rowcount+"_12").val(profit_margin.toFixed(2));
+}
+//END
+
+function update_paid_payment_total() {
+  var rowcount=$("#paid_amt_tot").attr("data-rowcount");
+  var tot=0;
+  for(i=1;i<rowcount;i++){
+    if(document.getElementById("paid_amt_"+i)){
+      tot += parseFloat($("#paid_amt_"+i).html());
+    }
+  }
+  $("#paid_amt_tot").html(to_Fixed(tot));
+}
+function delete_payment(payment_id){
+   swal({
+     title: "Are you sure?",
+     text: "You want to delete this record?",
+     icon: "warning",
+     buttons: ["Cancel", "Yes, Delete"],
+     dangerMode: true,
+   }).then(function(willDelete){
+     if(willDelete){
+       var base_url=$("#base_url").val();
+       $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+       $.post(base_url+"purchase/delete_payment",{payment_id:payment_id},function(result){
+         if(result=="success")
+         {
+           toastr["success"]("Record Deleted Successfully!");
+           $("#payment_row_"+payment_id).remove();
+           success.currentTime = 0;
+           success.play();
+         }
+         else if(result=="failed"){
+           toastr["error"]("Failed to Delete .Try again!");
+           failed.currentTime = 0;
+           failed.play();
+         }
+         else{
+           toastr["error"](result);
+           failed.currentTime = 0;
+           failed.play();
+         }
+         $(".overlay").remove();
+         update_paid_payment_total();
+       });
+     }
+   });
+}
+
+  //Delete Record start
+function delete_purchase(q_id)
+{
+  var base_url=$("#base_url").val();
+   swal({
+     title: "Are you sure?",
+     text: "You want to delete this record?",
+     icon: "warning",
+     buttons: ["Cancel", "Yes, Delete"],
+     dangerMode: true,
+   }).then(function(willDelete){
+     if(willDelete){
+       $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+       $.post(base_url+"purchase/delete_purchase",{q_id:q_id},function(result){
+         if(result=="success")
+         {
+           toastr["success"]("Record Deleted Successfully!");
+           $('#example2').DataTable().ajax.reload();
+         }
+         else if(result=="failed"){
+           toastr["error"]("Failed to Delete .Try again!");
+         }
+         else{
+           toastr["error"](result);
+         }
+         $(".overlay").remove();
+         return false;
+       });
+     }
+   });
+}
+//Delete Record end
+function multi_delete(){
+  var base_url=$("#base_url").val();
+    var this_id=this.id;
+    
+   swal({
+     title: "Are you sure?",
+     text: "You want to delete selected records?",
+     icon: "warning",
+     buttons: ["Cancel", "Yes, Delete"],
+     dangerMode: true,
+   }).then(function(willDelete){
+     if(willDelete){
+       data = new FormData($('#table_form')[0]);
+       if(!xss_validation(data)){ return false; }
+       $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+       $("#"+this_id).attr('disabled',true);
+       $.ajax({
+         type: 'POST',
+         url: base_url+'purchase/multi_delete',
+         data: data,
+         cache: false,
+         contentType: false,
+         processData: false,
+         success: function(result){
+           if(result=="success")
+           {
+             toastr["success"]("Record Deleted Successfully!");
+             success.currentTime = 0;
+             success.play();
+             $('#example2').DataTable().ajax.reload();
+             $(".delete_btn").hide();
+             $(".group_check").prop("checked",false).iCheck('update');
+           }
+           else if(result=="failed")
+           {
+             toastr["error"]("Sorry! Failed to save Record.Try again!");
+             failed.currentTime = 0;
+             failed.play();
+           }
+           else
+           {
+             toastr["error"](result);
+             failed.currentTime = 0;
+             failed.play();
+           }
+           $("#"+this_id).attr('disabled',false);
+           $(".overlay").remove();
+         }
+       });
+     }
+   });
+}
+
+function pay_now(purchase_id){
+  var base_url=$("#base_url").val();
+  $.post(base_url+'purchase/show_pay_now_modal', {purchase_id: purchase_id}, function(result) {
+    $(".pay_now_modal").html('').html(result);
+    //Date picker
+    $('.datepicker').datepicker({
+      autoclose: true,
+    format: 'dd-mm-yyyy',
+     todayHighlight: true
+    });
+    $('#pay_now').modal('toggle');
+
+  });
+}
+function view_payments(purchase_id){
+  var base_url=$("#base_url").val();
+  $.post(base_url+'purchase/view_payments_modal', {purchase_id: purchase_id}, function(result) {
+    $(".view_payments_modal").html('').html(result);
+    $('#view_payments_modal').modal('toggle');
+  });
+}
+
+function save_payment(purchase_id){
+  var base_url=$("#base_url").val();
+
+    //Initially flag set true
+    var flag=true;
+
+    function check_field(id)
+    {
+
+      if(!$("#"+id).val() ) //Also check Others????
+        {
+
+            $('#'+id+'_msg').fadeIn(200).show().html('Required Field').addClass('required');
+           // $('#'+id).css({'background-color' : '#E8E2E9'});
+            flag=false;
+        }
+        else
+        {
+             $('#'+id+'_msg').fadeOut(200).hide();
+             //$('#'+id).css({'background-color' : '#FFFFFF'});    //White color
+        }
+    }
+
+
+   //Validate Input box or selection box should not be blank or empty
+    check_field("amount");
+    check_field("payment_date");
+
+
+    var payment_date=$("#payment_date").val();
+    var amount=$("#amount").val();
+    var payment_type=$("#payment_type").val();
+    var payment_note=$("#payment_note").val();
+    var account_id=$("#account_id").val();
+    var supplier_id=$("#supplier_id").val();
+
+    if(amount == 0){
+      toastr["error"]("Please Enter Valid Amount!");
+      return false; 
+    }
+
+    if(amount > parseFloat($("#due_amount_temp").html())){
+      toastr["error"]("Entered Amount Should not be Greater than Due Amount!");
+      return false;
+    }
+
+    $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+    $(".payment_save").attr('disabled',true);  //Enable Save or Update button
+    $.post(base_url+'purchase/save_payment', {supplier_id:supplier_id,account_id:account_id,purchase_id: purchase_id,payment_type:payment_type,amount:amount,payment_date:payment_date,payment_note:payment_note}, function(result) {
+      result=result;
+  //alert(result);return;
+        if(result=="success")
+        {
+          $('#pay_now').modal('toggle');
+          toastr["success"]("Payment Recorded Successfully!");
+          success.currentTime = 0; 
+          success.play();
+          $('#example2').DataTable().ajax.reload();
+        }
+        else if(result=="failed")
+        {
+           toastr["error"]("Sorry! Failed to save Record.Try again!");
+           failed.currentTime = 0; 
+           failed.play();
+        }
+        else
+        {
+          toastr["error"](result);
+          failed.currentTime = 0; 
+          failed.play();
+        }
+        $(".payment_save").attr('disabled',false);  //Enable Save or Update button
+        $(".overlay").remove();
+    });
+}
+
+function delete_purchase_payment(payment_id){
+   swal({
+     title: "Are you sure?",
+     text: "You want to delete this record?",
+     icon: "warning",
+     buttons: ["Cancel", "Yes, Delete"],
+     dangerMode: true,
+   }).then(function(willDelete){
+     if(willDelete){
+       var base_url=$("#base_url").val();
+       $(".box").append('<div class="overlay"><i class="fa fa-refresh fa-spin"></i></div>');
+       $.post(base_url+"purchase/delete_payment",{payment_id:payment_id},function(result){
+         if(result=="success")
+         {
+           $('#view_payments_modal').modal('toggle');
+           toastr["success"]("Record Deleted Successfully!");
+           success.currentTime = 0;
+           success.play();
+           $('#example2').DataTable().ajax.reload();
+         }
+         else if(result=="failed"){
+           toastr["error"]("Failed to Delete .Try again!");
+           failed.currentTime = 0;
+           failed.play();
+         }
+         else{
+           toastr["error"](result);
+           failed.currentTime = 0;
+           failed.play();
+         }
+         $(".overlay").remove();
+       });
+     }
+   });
+}
+
+$(document).ready(function(){
+  $('#item_search').keypress(function (e) {
+    var key = e.which;
+    // the enter key code
+    if(key == 13){
+      $("#item_search").autocomplete('search');
+    }
+  });
+});
+
+function toggle_batch_fields(){
+    var status = $("#purchase_status").val();
+    if(status == 'Partially Received' || status == 'Received'){
+        $(".mp-pi-advanced").addClass('expanded');
+        $(".mp-pi-expand").addClass('expanded').html('<i class="fa fa-chevron-down"></i> Hide Details');
+    } else {
+        $(".mp-pi-advanced").removeClass('expanded');
+        $(".mp-pi-expand").removeClass('expanded').html('<i class="fa fa-chevron-down"></i> Additional Details');
+    }
+    if(status == 'Partially Received'){
+        $("[id^='received_qty_']").closest('.mp-pi-field').show();
+    } else {
+        $("[id^='received_qty_']").closest('.mp-pi-field').hide();
+    }
+}
+
+// Initialize on page load
+$(document).ready(function(){
+    toggle_batch_fields();
+});

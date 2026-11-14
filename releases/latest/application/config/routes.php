@@ -1,0 +1,284 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/*
+| -------------------------------------------------------------------------
+| URI ROUTING
+| -------------------------------------------------------------------------
+| This file lets you re-map URI requests to specific controller functions.
+|
+| Typically there is a one-to-one relationship between a URL string
+| and its corresponding controller class/method. The segments in a
+| URL normally follow this pattern:
+|
+|	example.com/class/method/id/
+|
+| In some instances, however, you may want to remap this relationship
+| so that a different class/function is called than the one
+| corresponding to the URL.
+|
+| Please see the user guide for complete details:
+|
+|	https://codeigniter.com/user_guide/general/routing.html
+|
+| -------------------------------------------------------------------------
+| RESERVED ROUTES
+| -------------------------------------------------------------------------
+|
+| There are three reserved routes:
+|
+|	$route['default_controller'] = 'welcome';
+|
+| This route indicates which controller class should be loaded if the
+| URI contains no data. In the above example, the "welcome" class
+| would be loaded.
+|
+|	$route['404_override'] = 'errors/page_missing';
+|
+| This route will tell the Router which controller/method to use if those
+| provided in the URL cannot be matched to a valid route.
+|
+|	$route['translate_uri_dashes'] = FALSE;
+|
+| This is not exactly a route, but allows you to automatically route
+| controller and method names that contain dashes. '-' isn't a valid
+| class or method name character, so it requires translation.
+| When you set this option to TRUE, it will replace ALL dashes in the
+| controller and method URI segments.
+|
+| Examples:	my-controller/index	-> my_controller/index
+|		my-controller/my-method	-> my_controller/my_method
+*/
+$route['default_controller'] = 'login';
+$route['404_override'] = '';
+$route['translate_uri_dashes'] = FALSE;
+
+// Public Fashion measurement request links
+$route['size-request/(:any)'] = 'size_request/index/$1';
+$route['size-request/(:any)/submit'] = 'size_request/submit/$1';
+$route['invoice/pay/([a-f0-9]{64})'] = 'paystack/invoice/$1';
+$route['invoice/pay/([a-f0-9]{64})/checkout'] = 'paystack/invoice_checkout/$1';
+
+/* Online Storefront Routes */
+$route['store'] = 'storefront/index';
+$route['store/(:any)'] = 'storefront/index/$1';
+$route['store/(:any)/privacy'] = 'storefront/privacy/$1';
+$route['store/(:any)/privacy-policy'] = 'storefront/privacy/$1';
+$route['store/(:any)/contact'] = 'storefront/contact/$1';
+$route['store/(:any)/blog'] = 'storefront/blog/$1';
+$route['store/(:any)/blog/(:any)'] = 'storefront/blog/$1/$2';
+// Building Materials calls the editorial channel "Insights" in its public
+// navigation. Keep /blog as the legacy/shared route, but make the explicit
+// storefront URL work too.
+$route['store/(:any)/insights'] = 'storefront/blog/$1';
+$route['store/(:any)/insights/(:any)'] = 'storefront/blog/$1/$2';
+$route['store/(:any)/products'] = 'storefront/products/$1';
+$route['store/(:any)/applications'] = 'storefront/applications/$1';
+$route['store/(:any)/projects'] = 'storefront/projects/$1';
+$route['store/(:any)/document/(:num)/(:num)'] = 'storefront/document/$1/$2/$3';
+$route['store/(:any)/services'] = 'storefront/services/$1';
+$route['store/(:any)/vehicles'] = 'storefront/vehicles/$1';
+$route['store/(:any)/product/(:num)'] = 'storefront/product/$1/$2';
+$route['store/(:any)/product/(:num)/review'] = 'storefront/submit_product_review/$1/$2';
+$route['store/(:any)/service/(:num)'] = 'storefront/service/$1/$2';
+$route['store/(:any)/appointment/(:num)'] = 'storefront/appointment/$1/$2';
+$route['store/(:any)/vehicle/(:num)'] = 'storefront/vehicle/$1/$2';
+$route['store/(:any)/cart'] = 'storefront/cart/$1';
+$route['store/(:any)/checkout'] = 'storefront/cart/$1/checkout';
+$route['store/(:any)/catalogue'] = 'storefront/catalogue/$1';
+$route['store/(:any)/track/testimonial'] = 'storefront/submit_testimonial/$1';
+$route['store/(:any)/subscribe'] = 'storefront/subscribe/$1';
+$route['store/(:any)/lead'] = 'storefront/submit_lead/$1';
+$route['store/(:any)/garden-request'] = 'storefront/garden_request/$1';
+$route['store/(:any)/track'] = 'storefront/track/$1';
+$route['store/(:any)/branches'] = 'storefront/branches/$1';
+$route['store/(:any)/order_received/(:any)'] = 'storefront/order_received/$1/$2';
+$route['store/(:any)/verify'] = 'storefront/verify/$1';
+$route['store/(:any)/send_otp'] = 'storefront/send_otp/$1';
+$route['store/(:any)/verify_otp'] = 'storefront/verify_otp/$1';
+$route['pharmacy-demo'] = 'pharmacy_demo/index/customer';
+$route['pharmacy-demo/hub'] = 'pharmacy_demo/index/hub';
+$route['pharmacy-demo/reset'] = 'pharmacy_demo/reset';
+$route['store/(:any)/pharmacy/hub'] = 'pharmacy_demo/store/$1/hub';
+$route['store/(:any)/pharmacy'] = 'pharmacy_demo/store/$1/customer';
+$route['store/(:any)/pharmacy/prescription'] = 'pharmacy_demo/prescription_request/$1';
+$route['store/(:any)/pharmacy/prescription/status'] = 'pharmacy_demo/prescription_status/$1';
+$route['store/(:any)/pharmacy/orders'] = 'pharmacy_demo/hub_orders/$1';
+$route['store/(:any)/pharmacy/orders/action'] = 'pharmacy_demo/hub_action/$1';
+$route['store/(:any)/pharmacy/order/status'] = 'pharmacy_demo/order_status/$1';
+$route['pharmacy_workspace/more'] = 'pharmacy_workspace/more';
+$route['pharmacy_workspace/locations'] = 'pharmacy_workspace/locations';
+$route['supplements_workspace/more'] = 'supplements_workspace/more';
+$route['supplements_workspace/locations'] = 'supplements_workspace/locations';
+$route['store/(:any)/account'] = 'storefront/account/$1';
+$route['store/(:any)/wishlist'] = 'storefront/wishlist/$1';
+$route['store/(:any)/wishlist/toggle'] = 'storefront/wishlist_toggle/$1';
+$route['store/(:any)/account/orders'] = 'storefront/account_orders/$1';
+$route['store/(:any)/account/logout'] = 'storefront/account_logout/$1';
+$route['store/(:any)/my_courses'] = 'storefront/my_courses/$1';
+$route['store/(:any)/course/(:num)'] = 'storefront/course/$1/$2';
+$route['store/(:any)/download/(:any)'] = 'storefront/download/$1/$2';
+$route['qr/(:num)'] = 'storefront/qr/$1';
+$route['storefront/place_order'] = 'storefront/place_order';
+$route['storefront/cart_upsells'] = 'storefront/cart_upsells';
+$route['storefront/paystack_callback'] = 'storefront/paystack_callback';
+$route['storefront/verify_payment'] = 'storefront/verify_payment';
+$route['storefront/theme_asset/(:num)/(:num)/(.+)'] = 'storefront/theme_asset/$1/$2/$3';
+$route['sitemap.xml'] = 'storefront/sitemap';
+$route['robots.txt'] = 'storefront/robots';
+$route['store/(:any)/about'] = 'storefront/about/$1';
+$route['store/(:any)/page/(:any)'] = 'storefront/page/$1/$2';
+$route['image/([0-9]+)/(.+)'] = 'storefront/image/$1/$2';
+
+/* Online Store Admin Routes */
+$route['online_store'] = 'online_store';
+$route['building_projects'] = 'building_projects/index';
+$route['building_projects/(:num)'] = 'building_projects/show/$1';
+$route['building_projects/save_material/(:num)'] = 'building_projects/save_material/$1';
+$route['building_projects/reserve_material/(:num)/(:num)'] = 'building_projects/reserve_material/$1/$2';
+$route['building_projects/create_procurement/(:num)/(:num)'] = 'building_projects/create_procurement/$1/$2';
+$route['building_projects/receive_procurement/(:num)/(:num)'] = 'building_projects/receive_procurement/$1/$2';
+$route['building_projects/create_delivery/(:num)'] = 'building_projects/create_delivery/$1';
+$route['building_projects/update_delivery/(:num)/(:num)'] = 'building_projects/update_delivery/$1/$2';
+$route['building_projects/update_installation_step/(:num)/(:num)'] = 'building_projects/update_installation_step/$1/$2';
+$route['building_projects/sign_handover/(:num)'] = 'building_projects/sign_handover/$1';
+$route['building_projects/create_milestones/(:num)'] = 'building_projects/create_milestones/$1';
+$route['building_projects/link_milestone_invoice/(:num)/(:num)'] = 'building_projects/link_milestone_invoice/$1/$2';
+$route['building_projects/register_asset/(:num)'] = 'building_projects/register_asset/$1';
+$route['building_projects/schedule_maintenance/(:num)/(:num)'] = 'building_projects/schedule_maintenance/$1/$2';
+$route['building_projects/create_warranty_claim/(:num)'] = 'building_projects/create_warranty_claim/$1';
+$route['building_projects/resolve_warranty_claim/(:num)/(:num)'] = 'building_projects/resolve_warranty_claim/$1/$2';
+$route['online_store/settings'] = 'online_store/settings';
+$route['online_store/save_settings'] = 'online_store/save_settings';
+$route['online_store/location_states'] = 'online_store/location_states';
+$route['online_store/location_cities'] = 'online_store/location_cities';
+$route['online_store/appearance'] = 'online_store/appearance';
+$route['online_store/html_themes'] = 'online_store/html_themes';
+$route['online_store/html_theme_content/(:num)'] = 'online_store/html_theme_content/$1';
+$route['online_store/save_html_theme_content/(:num)'] = 'online_store/save_html_theme_content/$1';
+$route['online_store/upload_theme'] = 'online_store/upload_theme';
+$route['online_store/activate_html_theme/(:num)'] = 'online_store/activate_html_theme/$1';
+$route['online_store/restore_previous_theme'] = 'online_store/restore_previous_theme';
+$route['online_store/preview_html_theme/(:num)'] = 'online_store/preview_html_theme/$1';
+$route['online_store/save_appearance'] = 'online_store/save_appearance';
+$route['online_store/banners'] = 'online_store/banners';
+$route['online_store/banner_form'] = 'online_store/banner_form';
+$route['online_store/banner_form/(:num)'] = 'online_store/banner_form/$1';
+$route['online_store/save_banner'] = 'online_store/save_banner';
+$route['online_store/delete_banner/(:num)'] = 'online_store/delete_banner/$1';
+$route['online_store/homepage_builder'] = 'online_store/homepage_builder';
+$route['online_store/save_homepage_sections'] = 'online_store/save_homepage_sections';
+$route['online_store/preview_store'] = 'online_store/preview_store';
+$route['online_store/domains'] = 'online_store/domains';
+$route['online_store/save_domain'] = 'online_store/save_domain';
+$route['online_store/verify_domain'] = 'online_store/verify_domain';
+$route['online_store/send_domain_instructions'] = 'online_store/send_domain_instructions';
+$route['online_store/update_domain_status'] = 'online_store/update_domain_status';
+$route['online_store/delete_domain/(:num)'] = 'online_store/delete_domain/$1';
+$route['online_store/orders'] = 'online_store/orders';
+$route['online_store/order/(:num)'] = 'online_store/order_detail/$1';
+$route['online_store/send_payment_link/(:num)'] = 'online_store/send_payment_link/$1';
+// Public invoice link a customer opens from an SMS or email — the 32-character
+// secret in the path is the whole authorisation, so it is validated by shape
+// here before the controller looks it up by hash.
+$route['pay/([a-f0-9]{32})/start'] = 'storefront/pay_link_start/$1';
+$route['pay/([a-f0-9]{32})'] = 'storefront/pay_link/$1';
+$route['online_store/abandoned_carts'] = 'online_store/abandoned_carts';
+$route['online_store/mark_cart_reminded'] = 'online_store/mark_cart_reminded';
+$route['online_store/services'] = 'online_store/services';
+$route['online_store/qr_codes'] = 'online_store/qr_codes';
+$route['online_store/products_online'] = 'online_store/products_online';
+$route['online_store/product_b2b'] = 'online_store/product_b2b';
+$route['online_store/product_b2b/(:num)'] = 'online_store/product_b2b/$1';
+$route['online_store/document_download/(:num)'] = 'online_store/document_download/$1';
+$route['online_store/commerce_rules'] = 'online_store/commerce_rules';
+$route['online_store/save_commerce_rule'] = 'online_store/save_commerce_rule';
+$route['online_store/delete_commerce_rule/(:any)/(:num)'] = 'online_store/delete_commerce_rule/$1/$2';
+$route['online_store/seed_permissions'] = 'online_store/seed_permissions';
+$route['online_store/debug_storefront'] = 'online_store/debug_storefront';
+
+/* New Storefront Section Routes */
+$route['online_store/brands'] = 'online_store/brands';
+$route['online_store/save_brand'] = 'online_store/save_brand';
+$route['online_store/delete_brand/(:num)'] = 'online_store/delete_brand/$1';
+
+/* Attendance Routes */
+$route['attendance/shifts'] = 'attendance/shifts';
+$route['attendance/shift_form'] = 'attendance/shift_form';
+$route['attendance/shift_form/(:num)'] = 'attendance/shift_form/$1';
+$route['attendance/save_shift'] = 'attendance/save_shift';
+$route['attendance/delete_shift/(:num)'] = 'attendance/delete_shift/$1';
+$route['attendance/assign_shifts'] = 'attendance/assign_shifts';
+$route['attendance/get_user_shifts_ajax'] = 'attendance/get_user_shifts_ajax';
+$route['attendance/save_user_shift'] = 'attendance/save_user_shift';
+$route['attendance/daily'] = 'attendance/daily';
+$route['attendance/report'] = 'attendance/report';
+$route['attendance/clock_in'] = 'attendance/clock_in';
+$route['attendance/clock_out'] = 'attendance/clock_out';
+$route['attendance/status_ajax'] = 'attendance/status_ajax';
+$route['attendance/clockin'] = 'attendance/clockin';
+$route['online_store/testimonials'] = 'online_store/testimonials';
+$route['online_store/save_testimonial'] = 'online_store/save_testimonial';
+$route['online_store/delete_testimonial/(:num)'] = 'online_store/delete_testimonial/$1';
+$route['online_store/instagram'] = 'online_store/instagram';
+$route['online_store/save_instagram'] = 'online_store/save_instagram';
+$route['online_store/delete_instagram/(:num)'] = 'online_store/delete_instagram/$1';
+$route['online_store/fetch_instagram'] = 'online_store/fetch_instagram';
+$route['online_store/faqs'] = 'online_store/faqs';
+$route['online_store/save_faq'] = 'online_store/save_faq';
+$route['online_store/delete_faq/(:num)'] = 'online_store/delete_faq/$1';
+$route['online_store/fetch_gmb_reviews'] = 'online_store/fetch_gmb_reviews';
+$route['online_store/subscribers'] = 'online_store/subscribers';
+$route['online_store/export_subscribers'] = 'online_store/export_subscribers';
+$route['online_store/delete_subscriber/(:num)'] = 'online_store/delete_subscriber/$1';
+
+/* Messaging inbox (WhatsApp Business API, Instagram DM, Messenger) */
+$route['online_store/messaging'] = 'online_store/messaging';
+$route['online_store/messaging_conversation/(:num)'] = 'online_store/messaging_conversation/$1';
+$route['online_store/messaging_send'] = 'online_store/messaging_send';
+
+/* Support chat — merchant → Next.js Azera admin console */
+$route['support/chat'] = 'support_chat/index';
+$route['support/chat/send'] = 'support_chat/send';
+$route['support/chat/messages'] = 'support_chat/messages';
+$route['support/chat/end'] = 'support_chat/end';
+$route['support/chat/upload'] = 'support_chat/upload';
+
+/* Meta messaging webhooks (WhatsApp Business API, Instagram DM, Messenger) */
+$route['messaging/webhook'] = 'messaging_webhooks/index';
+
+/* Approval Routes */
+$route['approvals/settings'] = 'approvals/settings';
+$route['approvals/save_settings'] = 'approvals/save_settings';
+$route['approvals/check_ajax'] = 'approvals/check_ajax';
+$route['approvals/validate'] = 'approvals/validate';
+$route['approvals/logs'] = 'approvals/logs';
+
+/* Clinical reports (physiotherapy & rehabilitation business type) */
+$route['clinical_reports'] = 'clinical_reports/index';
+$route['clinical_reports/(:any)'] = 'clinical_reports/view/$1';
+
+/* Self-service profile — the header avatar destination for every role.
+   Must be declared BEFORE nothing conflicting; users/<id> style routes are
+   handled by the controller's own methods. */
+$route['users/profile'] = 'users/profile';
+
+/* Public booking widget (keyed on db_store.intake_key, like intake/lead).
+   Read-only slot lookup + optional self-booking when the store enables it. */
+$route['intake_slots'] = 'intake_slots/index';
+$route['intake_booking'] = 'intake_slots/book';
+$route['migrate'] = 'migrate/index';
+$route['migrate/upload'] = 'migrate/upload';
+$route['migrate/import'] = 'migrate/import';
+$route['migrate/restore_uploads'] = 'migrate/restore_uploads';
+$route['migrate/cleanup'] = 'migrate/cleanup';
+
+/* Ward & admissions. The register lives on the Inpatient controller but is
+   reached as "admission(s)" so the address matches the screen name. */
+$route['admission'] = 'inpatient/index';
+$route['admissions'] = 'inpatient/index';
+$route['admission/(:any)'] = 'inpatient/$1';
+$route['admissions/(:any)'] = 'inpatient/$1';
+
+// Public single-quotation response capability; token is hashed at rest.
+$route['quote_response/([a-f0-9]{64})'] = 'quote_response/index/$1';

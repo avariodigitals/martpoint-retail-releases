@@ -1,0 +1,557 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Users_model extends CI_Model {
+	
+	public function __construct()
+	{
+		parent::__construct();
+	}
+	public function verify_and_save($data){
+		
+		// Tenant user creation is always scoped to the signed-in store; never
+		// trust the hidden store_id field supplied by a mobile/desktop form.
+		$store_id = is_admin()
+			? (isset($_REQUEST['store_id']) ? (int)$_REQUEST['store_id'] : (int)get_current_store_id())
+			: (int)get_current_store_id();
+		
+		//varify max sales usage of the package subscription
+		validate_package_offers('max_users','db_users',$store_id);
+		//END
+
+		// Explicit POST extraction (security: never use extract($_POST))
+		$username = $this->input->post('username', TRUE);
+		$new_user = $this->input->post('new_user', TRUE);
+		$last_name = $this->input->post('last_name', TRUE);
+		$pass = $this->input->post('pass', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		$email = $this->input->post('email', TRUE);
+		$role_id = $this->input->post('role_id', TRUE);
+		$default_warehouse_id = $this->input->post('default_warehouse_id', TRUE);
+		$warehouses = $this->input->post('warehouses');
+		$approval_pin = $this->input->post('approval_pin', TRUE);
+		$CUR_DATE = isset($data['CUR_DATE']) ? $data['CUR_DATE'] : date('Y-m-d');
+		$CUR_TIME = isset($data['CUR_TIME']) ? $data['CUR_TIME'] : date('H:i:s');
+		$CUR_USERNAME = isset($data['CUR_USERNAME']) ? $data['CUR_USERNAME'] : '';
+		$SYSTEM_IP = isset($data['SYSTEM_IP']) ? $data['SYSTEM_IP'] : '';
+		$SYSTEM_NAME = isset($data['SYSTEM_NAME']) ? $data['SYSTEM_NAME'] : '';
+
+		$roleErr = $this->_roleAllowedForStore($role_id, $store_id);
+		if($roleErr !== null){
+			return $roleErr;
+		}
+
+		$this->db->trans_begin();
+
+		$profile_picture='';
+		$signature='';
+		if(!empty($_FILES['profile_picture']['name'])){
+			$config['upload_path']          = './uploads/users/';
+	        $config['allowed_types']        = 'gif|jpg|png|webp';
+	        $config['max_size']             = 500;
+	        $config['max_width']            = 500;
+	        $config['max_height']           = 500;
+
+	        $this->load->library('upload', $config);
+
+	        if ( ! $this->upload->do_upload('profile_picture'))
+	        {
+	                $error = array('error' => $this->upload->display_errors());
+	                print($error['error']);
+	                exit();
+	        }
+	        else
+	        {
+	        	   $profile_picture='uploads/users/'.$this->upload->data('file_name');
+	        }
+		}
+		if(!empty($_FILES['signature']['name']) && $this->db->field_exists('signature', 'db_users')){
+			$config['upload_path'] = './uploads/signatures/'; $config['allowed_types'] = 'gif|jpg|png|webp'; $config['max_size'] = 500; $config['max_width'] = 1200; $config['max_height'] = 400;
+			if(!is_dir($config['upload_path'])) @mkdir($config['upload_path'], 0775, true);
+			$this->load->library('upload', $config); $this->upload->initialize($config);
+			if(!$this->upload->do_upload('signature')) return $this->upload->display_errors();
+			$signature = 'uploads/signatures/'.$this->upload->data('file_name');
+		}
+
+
+		$this->db->where('UPPER(username)', strtoupper($username));
+		$query = $this->db->get('db_users')->num_rows();
+		if($query>0){ return "This username already exist.";}
+
+		if(!empty($mobile)){
+			$this->db->where('mobile', $mobile);
+			$query = $this->db->get('db_users')->num_rows();
+			if($query>0){ return "This Moble Number already exist.";}
+		}
+		if(!empty($email)){
+			$this->db->where('email', $email);
+			$query = $this->db->get('db_users')->num_rows();
+			if($query>0){ return "This Email ID already exist.";}
+		}
+		$info = array(
+		    				'username' 				=> $username, 
+		    				'first_name' 				=> $new_user, 
+		    				'last_name' 			=> $last_name, 
+		    				'password' 				=> password_hash($pass, PASSWORD_BCRYPT), 
+	    					 
+		    				'mobile' 				=> $mobile,
+		    				'email' 				=> $email,
+		    				/*System Info*/
+		    				'created_date' 			=> $CUR_DATE,
+		    				'created_time' 			=> $CUR_TIME,
+		    				'created_by' 			=> $CUR_USERNAME,
+		    				'system_ip' 			=> $SYSTEM_IP,
+		    				'system_name' 			=> $SYSTEM_NAME,
+		    				'default_warehouse_id' 	=> $default_warehouse_id,
+		    				'status' 				=> 1,
+		    			);
+		if($this->db->field_exists('approval_pin', 'db_users')){
+			$info['approval_pin'] = !empty($approval_pin) ? password_hash($approval_pin, PASSWORD_BCRYPT) : null;
+		}
+		//print_r($info);exit;
+		if(!empty($profile_picture)){
+			$info['profile_picture'] = $profile_picture;
+		}
+		if($signature !== '') $info['signature'] = $signature;
+		if(isset($role_id)){
+			$info['role_id'] = $role_id;
+		}
+		$info['store_id']=(store_module()) ? $store_id : $this->session->userdata('store_id');
+		$next_user_id = $this->db->select('COALESCE(MAX(id),0)+1 as next_id')->get('db_users')->row()->next_id;
+		$info['id'] = $next_user_id;
+		$q1 = $this->db->insert('db_users', $info);
+		if (!$q1){
+			$err = $this->db->error();
+			log_message('error', 'Users_model verify_and_save db_users insert failed: '.json_encode($err));
+			return "failed: ".($err['message'] ?? 'Unknown DB error');
+		}
+		if(warehouse_module() && $role_id!=1 && $role_id!=store_admin_id()){
+			// Get warehouses to assign
+			$warehouses_to_assign = array();
+			
+			if(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
+				// Use selected warehouses
+				$warehouses_to_assign = $_POST['warehouses'];
+			} else {
+				// Auto-assign all warehouses for Managers and Business Owners if none selected
+				$all_warehouses = $this->db->select('id')->where('store_id', $info['store_id'])->where('status', 1)->get('db_warehouse')->result();
+				foreach($all_warehouses as $wh){
+					$warehouses_to_assign[] = $wh->id;
+				}
+			}
+
+			// Only process warehouses if we have any to assign
+			if(!empty($warehouses_to_assign)){
+				$warehouseSelectionFlag = false;
+				$user_id = $next_user_id;
+				$max_wh_id = $this->db->select('COALESCE(MAX(id),0) as max_id')->get('db_userswarehouses')->row()->max_id;
+				
+				foreach ($warehouses_to_assign as $idx => $val) {
+					$warehouse_info = array ( 'id' => $max_wh_id + $idx + 1, 'user_id'=> $user_id, 'warehouse_id'=>$val );
+					$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
+					if (!$q2){
+						$err = $this->db->error();
+						log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+						return "failed: ".($err['message'] ?? 'Unknown DB error');
+					}
+
+					//Varify the default warehouse should selected in all warehouse selection?
+					if($default_warehouse_id == $val){
+						$warehouseSelectionFlag = true;
+					}
+				}
+
+				if($warehouseSelectionFlag == false && !empty($default_warehouse_id)){
+					return "Please ensure that the Default Branch is selected in the group selection box";
+				}
+			}
+			
+		}
+
+		$this->db->trans_commit();
+		if(function_exists('mp_audit_log')){
+			mp_audit_log('users', 'create', $next_user_id, 'Created user '.$username);
+		}
+		$this->session->set_flashdata('success', 'Success!! New User created Succssfully!!');
+		return "success";
+
+		
+
+	}
+	public function verify_and_update($data){
+		
+		// Explicit POST extraction (security: never use extract($_POST))
+		$username = $this->input->post('username', TRUE);
+		$new_user = $this->input->post('new_user', TRUE);
+		$last_name = $this->input->post('last_name', TRUE);
+		$pass = $this->input->post('pass', TRUE);
+		$confirm = $this->input->post('confirm', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		$email = $this->input->post('email', TRUE);
+		$role_id = $this->input->post('role_id', TRUE);
+		$default_warehouse_id = $this->input->post('default_warehouse_id', TRUE);
+		$warehouses = $this->input->post('warehouses');
+		$approval_pin = $this->input->post('approval_pin', TRUE);
+		$q_id = $this->input->post('q_id', TRUE);
+		$store_id = $this->input->post('store_id', TRUE);
+		$CUR_USERID = isset($data['CUR_USERID']) ? $data['CUR_USERID'] : 0;
+
+		/*
+		 * Self-service guard.
+		 *
+		 * users/profile lets a user edit their OWN record without holding the
+		 * users_edit staff-management grant. That form also carries role_id,
+		 * store_id, warehouses and status — fields a user must not be able to
+		 * change on themselves, or a therapist could promote themselves to
+		 * administrator. When the save targets the signed-in user and they do
+		 * not hold users_edit, those fields are dropped and the stored values
+		 * are kept.
+		 */
+		$CI =& get_instance();
+		$isSelf = ((int)$q_id === (int)$CUR_USERID);
+		$canManageStaff = (bool)$CI->permissions('users_edit');
+		// Pharmacy staff may update their own profile, but administration is admin-only.
+		$pharmacyIndustry = mp_get_store_profile()['industry_type'] ?? '';
+		if(in_array($pharmacyIndustry, ['pharmacy', 'medical_store', 'healthcare'], true) && !is_admin() && !is_store_admin()) $canManageStaff = false;
+		if($isSelf && !$canManageStaff){
+			$existing = $this->db->select('role_id, store_id, status, approval_pin')
+				->where('id', (int)$q_id)->get('db_users')->row();
+			if($existing){
+				$role_id = $existing->role_id;
+				$store_id = $existing->store_id;
+				// The approval PIN authorises money actions, so it is not
+				// self-assignable either.
+				$approval_pin = $existing->approval_pin;
+			}
+			// Branch assignment is an administrative decision.
+			$warehouses = null;
+			$default_warehouse_id = null;
+		}
+
+		$currentRole = $this->db->select('role_id')->where('id', (int)$q_id)->get('db_users')->row();
+		$roleErr = $this->_roleAllowedForStore($role_id, $store_id ?: get_current_store_id(), $currentRole->role_id ?? null);
+		if($roleErr !== null){
+			return $roleErr;
+		}
+
+		$this->db->trans_begin();
+
+		$profile_picture='';
+		$signature='';
+		if(!empty($_FILES['profile_picture']['name'])){
+			
+			$config['upload_path']          = './uploads/users/';
+	        $config['allowed_types']        = 'gif|jpg|png|webp';
+	        $config['max_size']             = 500;
+	        $config['max_width']            = 500;
+	        $config['max_height']           = 500;
+
+	        $this->load->library('upload', $config);
+
+	        if ( ! $this->upload->do_upload('profile_picture'))
+	        {
+	                $error = array('error' => $this->upload->display_errors());
+	                print($error['error']);
+	                exit();
+	        }
+	        else
+	        {
+	        	   $profile_picture='uploads/users/'.$this->upload->data('file_name');
+	        }
+		}
+		if(!empty($_FILES['signature']['name']) && $this->db->field_exists('signature', 'db_users')){
+			$config['upload_path'] = './uploads/signatures/'; $config['allowed_types'] = 'gif|jpg|png|webp'; $config['max_size'] = 500; $config['max_width'] = 1200; $config['max_height'] = 400;
+			if(!is_dir($config['upload_path'])) @mkdir($config['upload_path'], 0775, true);
+			$this->load->library('upload', $config); $this->upload->initialize($config);
+			if(!$this->upload->do_upload('signature')) return $this->upload->display_errors();
+			$signature = 'uploads/signatures/'.$this->upload->data('file_name');
+		}
+
+
+		$target_user = $this->db->select('store_id')->where('id', (int)$q_id)->get('db_users')->row();
+		if(!$target_user){
+			return 'User not found.';
+		}
+		if(!is_admin()){
+			$user_store_id = (int)$target_user->store_id;
+			if($user_store_id <= 0){
+				echo "Something went Wrong!!";exit();
+			}
+			if($user_store_id!=get_current_store_id()){
+				echo "Something went Wrong!!";exit();
+			}
+			// Editing a tenant user must never transfer that account to another store.
+			$store_id = $user_store_id;
+		}
+
+		$this->db->where('UPPER(username)', strtoupper($username));
+		$this->db->where('id !=', $q_id);
+		$query = $this->db->get('db_users')->num_rows();
+		if($query>0){ return "This username already exist.";}
+
+		if(!empty($mobile)){
+			$this->db->where('mobile', $mobile);
+			$this->db->where('id !=', $q_id);
+			$query = $this->db->get('db_users')->num_rows();
+			if($query>0){ return "This Moble Number already exist.";}
+		}
+		if(!empty($email)){
+			$this->db->where('email', $email);
+			$this->db->where('id !=', $q_id);
+			$query = $this->db->get('db_users')->num_rows();
+			if($query>0){ return "This Email ID already exist.";}
+		}
+		
+		$user_data = array(
+		    				'username' 				=> $username, 
+		    				'first_name' 			=> $new_user, 
+		    				'last_name' 			=> $last_name, 
+		    				'mobile' 				=> $mobile,
+		    				'email' 				=> $email,
+		    				
+		    			);
+		if(isset($role_id)){
+			$user_data['default_warehouse_id'] = $default_warehouse_id;
+			$user_data['role_id'] = $role_id;
+		}
+		$user_data['store_id']=(store_module()) ? $store_id : $this->session->userdata('store_id');	
+
+
+		if(!empty($profile_picture)){
+			$user_data['profile_picture'] = $profile_picture;
+		}
+		if($signature !== '') $user_data['signature'] = $signature;
+
+
+		$pass = trim($pass);
+		if(!empty($pass)){
+			if($pass == $confirm){
+				$user_data['password'] = password_hash($pass, PASSWORD_BCRYPT);
+			}
+			else{
+				return "Password Mismatched!!";
+			}
+		}
+
+		if($this->db->field_exists('approval_pin', 'db_users')){
+			$approval_pin = trim($approval_pin ?? '');
+			if($approval_pin !== ''){
+				$user_data['approval_pin'] = password_hash($approval_pin, PASSWORD_BCRYPT);
+			}
+		}
+
+		$q1 = $this->db->where('id',$q_id)->update('db_users', $user_data);
+		if (!$q1){
+			return "failed";
+		}
+
+		
+
+		if(warehouse_module() && $role_id!=1 && $role_id!=store_admin_id()){
+			// Get warehouses to assign
+			$warehouses_to_assign = array();
+
+			/*
+			 * Branch assignment is administrative. In self-service mode the
+			 * block below must be skipped entirely: to change WHO a user is we
+			 * would otherwise delete and re-insert their db_userswarehouses rows
+			 * (and it re-reads $_POST['warehouses'] rather than the local
+			 * variable, so merely clearing that variable is not enough).
+			 */
+			if($isSelf && !$canManageStaff){
+				$warehouses_to_assign = array();
+			} elseif(isset($_POST['warehouses']) && !empty($_POST['warehouses'])){
+				// Use selected warehouses
+				$warehouses_to_assign = $_POST['warehouses'];
+			} else {
+				// Auto-assign all warehouses for Managers and Business Owners if none selected
+				$all_warehouses = $this->db->select('id')->where('store_id', $user_data['store_id'])->where('status', 1)->get('db_warehouse')->result();
+				foreach($all_warehouses as $wh){
+					$warehouses_to_assign[] = $wh->id;
+				}
+			}
+
+			// Only process warehouses if we have any to assign
+			if(!empty($warehouses_to_assign)){
+				$warehouseSelectionFlag = false;
+				$this->db->where('user_id',$q_id)->delete("db_userswarehouses");
+				
+				foreach ($warehouses_to_assign as $res => $val) {
+					$warehouse_info = array ( 'user_id'=> $q_id, 'warehouse_id'=>$val );
+					$q2 = $this->db->insert("db_userswarehouses",$warehouse_info);
+					if (!$q2){
+						$err = $this->db->error();
+						log_message('error', 'Users_model db_userswarehouses insert failed: '.json_encode($err));
+						return "failed: ".($err['message'] ?? 'Unknown DB error');
+					}
+
+					//Varify the default warehouse should selected in all warehouse selection?
+					if($default_warehouse_id == $val){
+						$warehouseSelectionFlag = true;
+					}
+				}
+
+				if($warehouseSelectionFlag == false && !empty($default_warehouse_id)){
+					return "Please ensure that the Default Branch is selected in the group selection box";
+				}
+			}
+		}
+
+		$this->db->trans_commit();
+
+		// Keep the active session in step with a self-profile edit. The shared
+		// desktop header, mobile avatar and greetings read these session values;
+		// without refreshing them the database changed but the visible account
+		// identity stayed on the old name until the next login.
+		if((int)$q_id === (int)$this->session->userdata('inv_userid')){
+			$display_name = trim((string)$new_user . ' ' . (string)$last_name);
+			if($display_name === '') $display_name = trim((string)$username);
+			$session_update = array(
+				'inv_username' => $username,
+				'first_name'   => $new_user,
+				'user_lname'  => $last_name,
+				'display_name' => $display_name,
+				'email'       => $email,
+			);
+			if(isset($role_id)){
+				$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();
+				$session_update['role_id'] = $role_id;
+				if($role) $session_update['role_name'] = trim((string)$role->role_name);
+			}
+			$this->session->set_userdata($session_update);
+		}
+		$this->session->set_flashdata('success', 'Success!! User Updated Succssfully!!');
+		return "success";
+	}
+
+	/**
+	 * Industry gate for role assignment: a role only fits stores of its own
+	 * business family (a plant must not be given Clinical Director). Returns
+	 * an error message, or null when the assignment is fine. A user keeping
+	 * their current role is always allowed, so editing still works after a
+	 * store switches business type.
+	 */
+	private function _roleAllowedForStore($role_id, $store_id, $current_role_id = null){
+		if(empty($role_id)){
+			return null;
+		}
+		if($current_role_id !== null && (int)$role_id === (int)$current_role_id){
+			return null;
+		}
+		if(!is_admin()){
+			$system_roles = store_admin_role_ids($store_id);
+			if(in_array((int)$role_id, $system_roles, true)){
+				return 'Store Admin is a system role and cannot be assigned as a tenant user role.';
+			}
+		}
+		$role = $this->db->select('role_name')->where('id', (int)$role_id)->get('db_roles')->row();
+		if(!$role){
+			return 'Please select a valid role.';
+		}
+		if(!function_exists('mp_role_visible') || mp_role_visible($role->role_name, $store_id)){
+			return null;
+		}
+		return 'The role "'.$role->role_name.'" does not apply to this business type.';
+	}
+
+	public function status_update($id,$status){
+		if($id==$this->session->userdata('inv_userid')){
+			echo "You Can't Diactivate Yourself!";exit();
+		}
+       if (set_status_of_table($id,$status,'db_users')){
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }
+	}
+	public function password_update($currentpass,$newpass,$data){
+		
+        $this->db->where('id', $data['CUR_USERID']);
+		$query = $this->db->get('db_users');
+		if($query->num_rows()==1){
+			$user = $query->row();
+			$password_valid = false;
+			if(password_verify($currentpass, $user->password)){
+				$password_valid = true;
+			}
+			else if($user->password === md5($currentpass)){
+				$password_valid = true;
+			}
+			if(!$password_valid){
+				return "Invalid Current Password!";
+			}
+
+			$this->db->where('id', $data['CUR_USERID']);
+			$q1 = $this->db->update('db_users', ['password' => password_hash($newpass, PASSWORD_BCRYPT)]);
+			if ($q1){
+			        return "success";
+			}
+			else{
+			        return "failed";
+			}
+		}
+		else{
+			return "Invalid Current Password!";
+			}
+	}
+	//Get users deatils
+	public function get_details($id){
+		$data=$this->data;
+
+		//Validate This suppliers already exist or not
+		$query = $this->db->where('id', $id)->get('db_users');
+		if($query->num_rows()==0){
+			show_404();exit;
+		}
+		else{
+			$query=$query->row();
+			$data['q_id']=$query->id;
+			$data['username']=$query->username;
+			$data['first_name']=$query->first_name;
+			$data['last_name']=$query->last_name;
+			$data['store_id']=$query->store_id;
+			$data['mobile']=$query->mobile;
+			$data['email']=$query->email;
+			$data['role_id']=$query->role_id;
+			$data['profile_picture']=$query->profile_picture;
+			$data['signature']=$this->db->field_exists('signature', 'db_users') ? ($query->signature ?: '') : '';
+			$data['default_warehouse_id']=$query->default_warehouse_id;
+			return $data;
+		}
+	}
+
+	public function delete_user($id){
+
+		if($id==1){
+			echo "Restricted! Can't Delete User Admin!!";
+			exit();
+		}
+		if(demo_app()==true){
+			echo "Restricted! Can't Delete Users in Demo mode!!";
+			exit();	
+		}
+		if($id==$this->session->userdata('inv_userid')){
+			echo "You Can't Delete Yourself!";exit();
+		}
+		$this->db->where('id', $id);
+		$this->db->where('id !=', $this->session->userdata('inv_userid'));
+		//if not admin
+		if(!is_admin()){
+			$this->db->where("store_id",get_current_store_id());
+		}
+
+		$query1=$this->db->delete("db_users");
+        if ($query1){
+        	if(function_exists('mp_audit_log')){
+        		mp_audit_log('users', 'delete', $id, 'Deleted user id '.$id);
+        	}
+        	$this->session->set_flashdata('success', 'Success!! User Deleted Succssfully!');
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }	
+	}
+
+}

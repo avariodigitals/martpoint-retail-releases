@@ -1,0 +1,338 @@
+<?php if (!empty($GLOBALS['__mp_code_js_loaded'])) { return; } $GLOBALS['__mp_code_js_loaded'] = true; ?>
+<script>
+  var base_url = '<?=base_url()?>';
+  window.base_url = base_url;
+  window.csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+  window.csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
+</script>
+<!-- Bootstrap 3.3.6 -->
+<script src="<?php echo $theme_link; ?>bootstrap/js/bootstrap.min.js"></script>
+<!-- DataTables -->
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/js/jquery.dataTables.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/js/dataTables.bootstrap.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/js/dataTables.fixedHeader.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/js/dataTables.responsive.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/js/responsive.bootstrap.min.js"></script>
+<!-- end -->
+<!--  FOR EXPORT BUTTONS START -->
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/JSZip-2.5.0/jszip.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/pdfmake-0.1.36/pdfmake.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/pdfmake-0.1.36/vfs_fonts.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/dataTables.buttons.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.flash.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.html5.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.print.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.colVis.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/js/buttons.bootstrap.min.js"></script>
+<!--  FOR EXPORT BUTTONS END -->
+
+
+<!-- Shortcut Keys -->
+<script src="<?php echo $theme_link; ?>plugins/shortcuts/shortcuts.js"></script>
+<!-- Select2 -->
+<script src="<?php echo $theme_link; ?>plugins/select2/select2.full.min.js"></script>
+<!-- AdminLTE App -->
+<script>
+  var AdminLTEOptions = {
+    /*https://adminlte.io/themes/AdminLTE/documentation/index.html*/
+    sidebarExpandOnHover: true,
+    navbarMenuHeight: "200px", //The height of the inner menu
+    animationSpeed: 250,
+    sidebarSlimScroll: false,
+    navbarMenuSlimscroll: false,
+  };
+</script>
+<script src="<?php echo $theme_link; ?>dist/js/app.js"></script>
+<!-- AdminLTE for demo purposes -->
+<!-- <script src="<?php echo $theme_link; ?>dist/js/demo.js"></script> -->
+<!-- page script -->
+<!--Toastr notification -->
+<script src="<?php echo $theme_link; ?>toastr/toastr.js"></script>
+<script src="<?php echo $theme_link; ?>toastr/toastr_custom.js"></script>
+<!--Toastr notification end-->
+<script>
+function success_show(msg){ toastr.success(msg); }
+function error_show(msg){ toastr.error(msg); }
+</script>
+<!-- bootstrap datepicker -->
+<script src="<?php echo $theme_link; ?>plugins/daterangepicker/moment.min.js"></script>
+<script src="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.js"></script>
+<!-- bootstrap datepicker -->
+<script src="<?php echo $theme_link; ?>plugins/datepicker/bootstrap-datepicker.js"></script>
+<!-- Autocomplete -->
+<script src="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.js"></script>
+<!-- Custom JS -->
+<script src="<?php echo $theme_link; ?>js/special_char_check.js"></script>
+<script src="<?php echo $theme_link; ?>js/custom.js"></script>
+<script src="<?php echo $theme_link; ?>js/martpoint-location-cascade.js?v=2"></script>
+
+<!-- Pace Loader -->
+<script src="<?php echo $theme_link; ?>plugins/pace/pace.min.js"></script>
+<script type="text/javascript">
+$(document).ajaxStart(function() { Pace.restart(); });
+</script>  
+<!-- Sweet alert -->
+<script src="<?php echo $theme_link; ?>js/sweetalert.min.js"></script>
+
+
+<!-- iCheck -->
+<script src="<?php echo $theme_link; ?>plugins/iCheck/icheck.min.js"></script>
+<script>
+  (function () {
+    // Only run iCheck when its CSS is also loaded (old pages); mp_layout does not load it,
+    // so leave native controls visible there.
+    var hasICheckCss = $('link[rel="stylesheet"][href*="iCheck"]').length > 0;
+    if (hasICheckCss) {
+      $(function () {
+        // Skip checkboxes/radios that opt out with .no-icheck (e.g. custom toggle switches)
+        $('input[type="checkbox"]:not(.no-icheck), input[type="radio"]:not(.no-icheck)').iCheck({
+          checkboxClass: 'icheckbox_square-orange',
+          /*uncheckedClass: 'bg-white',*/
+          radioClass: 'iradio_square-orange',
+          increaseArea: '10%' // optional
+        });
+      });
+    } else {
+      // Many list views still call $(...).iCheck(...) after every ajax draw.
+      // Without the skin CSS, real iCheck hides the input inside an unstyled
+      // wrapper, so checkboxes render blank. Shim it to plain native behavior.
+      $.fn.iCheck = function (option) {
+        if (option === 'check' || option === 'uncheck' || option === 'toggle') {
+          return this.each(function () {
+            if (this.type === 'checkbox' || this.type === 'radio') {
+              this.checked = (option === 'toggle') ? !this.checked : (option === 'check');
+              $(this).trigger('change');
+            }
+          });
+        }
+        if (option === 'enable' || option === 'disable') {
+          return this.prop('disabled', option === 'disable');
+        }
+        if (option === 'indeterminate' || option === 'determinate') {
+          return this.prop('indeterminate', option === 'indeterminate');
+        }
+        // 'update', 'destroy' and init calls: native controls need nothing.
+        return this;
+      };
+    }
+  })();
+</script>
+<!-- Initialize Select2 Elements -->
+<script type="text/javascript">
+  // Init per-element so one failing select can't leave the rest as broken native dropdowns
+  $(function () {
+    $(".select2").each(function () {
+      try { $(this).select2(); }
+      catch (e) { if (window.console) console.warn('select2 init failed:', this, e); }
+    });
+  });
+</script>
+<!-- Initialize toggler -->
+<script type="text/javascript">
+  $(document).ready(function(){
+      $('[data-toggle="popover"]').popover();   
+  });
+</script>
+<!-- Initialize date with its Format -->
+<script type="text/javascript">
+  //Date picker
+  $(document).ready(function(){
+    $('.datepicker').datepicker({
+      autoclose: true,
+    format: '<?php echo $VIEW_DATE;?>',
+     todayHighlight: true
+    });
+  });
+</script>
+<script>
+  $(function () {
+    //Date range as a button
+    $('#daterange-btn').daterangepicker(
+      {
+        ranges   : {
+          'Today'       : [moment(), moment()],
+          'Yesterday'   : [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+          'Last 7 Days' : [moment().subtract(6, 'days'), moment()],
+          'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+          'This Month'  : [moment().startOf('month'), moment().endOf('month')],
+          'Last Month'  : [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        },
+        startDate: moment().subtract(29, 'days'),
+        endDate  : moment()
+      },
+      function (start, end) {
+        $('#daterange-btn span').html(start.format('<?php echo strtoupper($VIEW_DATE) ;?>') + ' - ' + end.format('<?php echo strtoupper($VIEW_DATE);?>'))
+      }
+    );
+
+
+  });
+
+    function get_start_date(){
+        return $('#daterange-btn').data('daterangepicker').startDate.format('<?php echo strtoupper($VIEW_DATE) ;?>');
+    }
+    function get_end_date(){
+        return $('#daterange-btn').data('daterangepicker').endDate.format('<?php echo strtoupper($VIEW_DATE) ;?>');
+    }
+</script>
+<script type="text/javascript" >
+$(function($) { // this script needs to be loaded on every page where an ajax POST may happen
+  //var csrf = $('input[name="csrf_token"]').val();  // <- get token value from hidden form input
+    $.ajaxSetup({ data: {'<?php echo $this->security->get_csrf_token_name(); ?>' : '<?php echo $this->security->get_csrf_hash(); ?>' }  });
+    // Refresh CSRF hash from cookie after every AJAX response
+    $(document).ajaxComplete(function(){
+      var c = document.cookie.match('(^|;)\\s*csrf_cookie_name\\s*=\\s*([^;]+)');
+      if(c){ $.ajaxSetup({ data: {'<?php echo $this->security->get_csrf_token_name(); ?>' : c.pop()} }); }
+    }); });
+</script>
+<script type="text/javascript">
+	function show_delete_btn() {
+  var group_check_count = $(".group_check").prop("checked") ? 1: 0;
+  var check_count = $('#example2').find('input[type=checkbox]:checked').length-parseInt(group_check_count);
+
+  //console.log($('#example2 > tbody').find('.checkbox').length);
+  if(parseInt(check_count)>0){
+    $(".delete_btn").removeClass('hidden').show();
+  }    
+  else{
+    $(".delete_btn").addClass('hidden').hide();
+  }
+
+  if($('#example2 > tbody').find('.checkbox').length == check_count){
+    $(".group_check").prop("checked",true).iCheck('update');
+  }
+  else{
+    $(".group_check").prop("checked",false).iCheck('update');
+  }
+
+}
+// iCheck fires 'ifChanged'; native checkboxes (mp_layout pages) fire 'change'.
+// iCheck never emits 'change', so listening to both is safe on every page.
+$(document).on('ifChanged change', '.group_check', function(event) {
+    if(event.target.checked){
+      $(".column_checkbox").prop("checked",true).iCheck('update');
+    }
+    else{
+      $(".column_checkbox").prop("checked",false).iCheck('update');
+    }
+    //$(".undelete").prop("checked",false).iCheck('update');
+    show_delete_btn();
+});
+
+
+function call_code(){
+  // .off() prevents stacked handlers: call_code() runs after every ajax draw.
+  $('.column_checkbox').off('ifChanged.colcb change.colcb').on('ifChanged.colcb change.colcb', function(event) {
+      show_delete_btn();
+  });
+}
+</script>
+<script type="text/javascript">
+$(document).ready(function () { setTimeout(function() {$( ".alert-dismissable" ).fadeOut( 1000, function() {});}, 10000); });
+</script>
+<script type="text/javascript">
+  function round_off(input=0){
+    <?php if(is_enabled_round_off()){ ?>
+      return to_Fixed(Math.round(input));
+    <?php }else{?>
+      return to_Fixed(input);
+    <?php }?>
+  }
+</script>
+
+<script type="text/javascript">
+  function to_Fixed(res=0){
+      var decimals = <?=decimals()?>;
+        return (isNaN(parseFloat(res))) ? parseFloat(0).toFixed(decimals) : parseFloat(res).toFixed(decimals); 
+      }
+</script>
+<script type="text/javascript">
+  function format_qty(res=0){
+      var decimals = <?=qty_decimal()?>;
+        return (isNaN(parseFloat(res))) ? parseFloat(0).toFixed(decimals) : parseFloat(res).toFixed(decimals); 
+      }
+</script>
+<script type="text/javascript">
+  function format_money(res=0){
+    var raw = to_Fixed(res);
+    var parts = raw.split('.');
+    if(parts.length > 1){
+      parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+      return parts.join('.');
+    }
+    return parseInt(raw).toLocaleString('en-US');
+  }
+  function format_qty_display(res=0){
+    var raw = format_qty(res);
+    var parts = raw.split('.');
+    if(parts.length > 1){
+      parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+      return parts.join('.');
+    }
+    return parseInt(raw).toLocaleString('en-US');
+  }
+</script>
+<script type="text/javascript">
+  $("#item_search").on("focusout", function(){
+  $("#item_search").val('').removeClass('ui-autocomplete-loading');
+});
+</script>
+<script>
+  /* MartPoint PWA Service Worker Registration */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.getRegistrations().then(function(registrations){
+        return Promise.all(registrations.map(function(reg){ return reg.unregister(); }));
+      }).then(function(){
+        if('caches' in window){
+          return caches.keys().then(function(names){
+            return Promise.all(names.map(function(name){ return caches.delete(name); }));
+          });
+        }
+      }).then(function(){
+        return navigator.serviceWorker.register('<?= base_url("sw.js"); ?>?v=19');
+      }).then(function(reg){
+        console.log('PWA SW registered:', reg.scope);
+      }).catch(function(err){
+        console.log('PWA SW registration failed:', err);
+      });
+    });
+  }
+</script>
+<!-- MartPoint Assist — loaded here for standalone views; mp_footer also loads it with a guard -->
+<?php if(!defined('MP_ASSIST_LOADED')): ?>
+<?php define('MP_ASSIST_LOADED', true); ?>
+<script>
+// Inject assist CSS if not already loaded (standalone views without mp_header)
+(function(){
+  if(document.querySelector('link[href*="assist.css"]')) return;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = '<?php echo $theme_link; ?>css/assist.css?v=25';
+  document.head.appendChild(l);
+})();
+</script>
+<script src="<?php echo $theme_link; ?>js/assist.js?v=25"></script>
+<?php $this->load->view('assist/panel'); ?>
+<?php endif; ?>
+
+<script>
+  // Close mobile sidebar when clicking a menu link or the overlay
+  $(document).ready(function(){
+    if ($(window).width() <= 767) {
+      $('.sidebar-menu a, .main-sidebar a').on('click', function(e){
+        // Don't close if it's a treeview parent that toggles the submenu
+        if ($(this).attr('href') === '#' || $(this).next('.treeview-menu').length > 0 || $(this).find('.pull-right-container').length > 0) {
+          return;
+        }
+        $('body').removeClass('sidebar-open');
+      });
+      // Close when clicking the dark overlay (sidebar ::before pseudo background)
+      $(document).on('click', function(e){
+        if ($('body').hasClass('sidebar-open') && !$(e.target).closest('.main-sidebar').length && !$(e.target).closest('.sidebar-toggle').length) {
+          $('body').removeClass('sidebar-open');
+        }
+      });
+    }
+  });
+</script>

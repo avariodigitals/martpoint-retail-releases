@@ -1,0 +1,1768 @@
+<?php
+$CI =& get_instance();
+$auto_retail_markup = mp_feature_enabled('auto_retail_markup');
+// Business model: product_based, service_based, product_and_service
+$store_profile = mp_get_store_profile();
+$is_plant = ($store_profile['industry_type'] ?? '') === 'oil_processing_plant';
+$is_quote_first_catalogue = $is_plant || (($store_profile['industry_type'] ?? '') === 'building_materials');
+$business_model = $store_profile['business_model'] ?? 'product_based';
+$services_enabled = service_module();
+$show_item_toggle = ($business_model === 'product_based' || $business_model === 'product_and_service');
+$show_service_toggle = $services_enabled && ($business_model === 'service_based' || $business_model === 'product_and_service');
+
+// Default values for new items
+if(!isset($item_name)){
+  $item_name=$sku=$hsn=$opening_stock=$brand_id=$category_id=$gst_percentage=$tax_type=
+  $sales_price=$purchase_price=$profit_margin=$unit_id=$price=$alert_qty=$store_id="";
+  $stock = 0;
+  $seller_points =0;
+  $custom_barcode ='';
+  $manufacturer_part_no ='';
+  $oem_reference ='';
+  $cross_reference ='';
+  $description ='';
+  $mrp ='';
+  $batch_lot ='';
+  $child_bit ='';
+  $tax_id ='';
+  $serial_number ='';
+  $imei_number ='';
+  $expire_date ='';
+  $mfg_date ='';
+  $warranty_months ='';
+  $track_serial = 0;
+  $track_imei = 0;
+  $not_for_sale = 0;
+  $prescription_required = 0;
+  $consumable_unit ='';
+  $accept_custom_order = 0;
+  $requires_quote = 0;
+  $requires_deposit = 0;
+  $workflow_template_key = 'standard';
+  $item_group='Single';
+  // Fashion stores create more variable products: default new items to Variants
+  // when the feature flag is on and bundles (Variants) are available.
+  if(mp_feature_enabled('fashion_variants_default')
+     && !empty($store_profile['industry_type']) && $store_profile['industry_type']==='fashion'
+     && mp_feature_enabled('item_variants')){
+    $item_group='Variants';
+  }
+  $discount='';
+  $discount_type='Percentage';
+  $warehouse_id='';
+  $opening_stock_readonly='';
+  $item_code = get_init_code('item');
+  $service_bit = 0;
+  $sac = '';
+  $laundry_service_type = '';
+  $commission_type = 'none';
+  $commission_value = 0;
+  $deposit_required = 0;
+  $deposit_percent = 0;
+  $fulfilment_route = 'counter';
+  // If business is service-only, default to Service
+  if($business_model === 'service_based' && $show_service_toggle){
+    $service_bit = 1;
+  }
+}
+else{
+  $opening_stock_readonly = 'readonly';
+  // Ensure these have defaults for edit mode (get_details may not set all)
+  if(!isset($warehouse_id)) $warehouse_id='';
+  if(!isset($manufacturer_part_no)) $manufacturer_part_no='';
+  if(!isset($oem_reference)) $oem_reference='';
+  if(!isset($cross_reference)) $cross_reference='';
+  if(!isset($accept_custom_order)) $accept_custom_order=0;
+  if(!isset($requires_quote)) $requires_quote=0;
+  if(!isset($requires_deposit)) $requires_deposit=0;
+  if(!isset($workflow_template_key)) $workflow_template_key='standard';
+  if(!isset($custom_order_fields_json)) $custom_order_fields_json='';
+  if(!isset($not_for_sale)) $not_for_sale=0;
+  if(!isset($consumable_unit)) $consumable_unit='';
+  if(!isset($fill_qty)) $fill_qty='';
+  if(!isset($bottle_item_id)) $bottle_item_id='';
+  if(!isset($capacity_ml)) $capacity_ml='';
+  if(!isset($track_serial)) $track_serial=0;
+  if(!isset($track_imei)) $track_imei=0;
+  if(!isset($item_barcodes)) $item_barcodes=[];
+  if(!isset($service_bit)) $service_bit=0;
+  if(!isset($sac)) $sac='';
+  if(!isset($laundry_service_type)) $laundry_service_type='';
+  if(!isset($commission_type)) $commission_type='none';
+  if(!isset($commission_value)) $commission_value=0;
+  if(!isset($deposit_required)) $deposit_required=0;
+  if(!isset($deposit_percent)) $deposit_percent=0;
+  if(!isset($fulfilment_route)) $fulfilment_route='counter';
+}
+// Only default opening_stock to 0 when not provided by the controller.
+// The model's get_details() does not pass opening_stock (stock adjustments
+// are handled separately), so edit mode defaults to 0 (no change).
+// For new items, the if(!isset($item_name)) block above already sets it to "".
+if(!isset($opening_stock) || $opening_stock === ''){
+  $opening_stock = '0';
+}
+
+// Is this a service record?
+$is_service = ($service_bit == 1);
+
+// Show barcode/unit table when batch OR any unit tracking is enabled (and not a service)
+$show_unit_table = !$is_service && (mp_feature_enabled('batch_tracking') || mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking') || mp_feature_enabled('warranty_tracking'));
+
+// Laundry detection
+$profile = mp_get_store_profile();
+$is_laundry = ($profile['industry_type'] ?? '') === 'laundry' || mp_feature_enabled('laundry_workflow');
+$is_perfumery = ($profile['industry_type'] ?? '') === 'perfume_shop' || mp_feature_enabled('perfumery_workflow');
+
+// Save vs Update button
+if(!empty($item_name)){
+  $btn_name = 'Update';
+  $btn_id = 'update';
+} else {
+  $btn_name = 'Save';
+  $btn_id = 'save';
+}
+
+$this->load->view('admin/desktop/_styles');
+?>
+
+<style>
+.mp-card-form { background: var(--mp-surface); border: 1px solid var(--mp-border); border-radius: 16px; box-shadow: var(--mp-shadow-sm); overflow: hidden; margin-bottom: 24px; }
+.mp-card-form .mp-card-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--mp-border); }
+.mp-card-form .mp-card-head h3 { font-size: 15px; font-weight: 700; margin: 0; color: var(--mp-text); }
+.mp-card-form .mp-card-body { padding: 20px; }
+
+.mp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+.mp-form-grid .mp-form-group.full { grid-column: 1 / -1; }
+.mp-form-group { display: flex; flex-direction: column; gap: 6px; }
+.mp-form-group > label { font-size: 13px; font-weight: 600; color: var(--mp-ink); }
+.mp-form-group > label .text-danger { color: var(--mp-danger); }
+.mp-form-hint { font-size: 12px; color: var(--mp-muted); margin: 0; }
+
+.mp-form-control { width: 100%; padding: 11px 14px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-surface); color: var(--mp-ink); font-size: 14px; font-weight: 500; font-family: inherit; transition: all .15s ease; }
+.mp-form-control:focus { outline: none; border-color: var(--mp-primary); box-shadow: 0 0 0 3px rgba(0,87,255,.1); }
+.mp-form-control[readonly] { background: var(--mp-bg); color: var(--mp-muted); }
+select.mp-form-control { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2378716C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 38px; }
+textarea.mp-form-control { min-height: 80px; }
+
+/* Compact pricing row — all prices on one line */
+.mp-price-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.mp-price-row .mp-form-group { gap: 4px; }
+.mp-price-row .mp-form-control { padding: 9px 12px; font-size: 13px; }
+.mp-price-row label { font-size: 12px; font-weight: 600; color: var(--mp-muted); text-transform: uppercase; letter-spacing: .02em; }
+@media (max-width: 1280px) { .mp-price-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px) { .mp-price-row { grid-template-columns: 1fr 1fr; } }
+
+.mp-input-row { display: flex; gap: 12px; }
+.mp-input-row .mp-form-control { flex: 1; }
+.mp-input-row .mp-form-control.short { max-width: 160px; }
+
+.mp-select-with-add { display: flex; gap: 8px; align-items: stretch; }
+.mp-select-with-add .mp-form-control { flex: 1; }
+.mp-add-btn { flex-shrink: 0; width: 42px; border: 1px solid var(--mp-border); border-radius: 10px; background: var(--mp-bg); color: var(--mp-primary); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all .15s ease; }
+.mp-add-btn:hover { background: var(--mp-primary); color: #fff; border-color: var(--mp-primary); }
+
+.mp-tax-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mp-tax-row .mp-form-control { width: 200px; flex: 0 0 auto; }
+.mp-tax-row .mp-toggle-row { margin-left: auto; }
+
+.mp-toggle-row { display: flex; align-items: center; gap: 12px; }
+.mp-toggle { appearance: none; width: 42px; height: 24px; border-radius: 12px; background: var(--mp-border); position: relative; cursor: pointer; transition: all .2s ease; flex-shrink: 0; }
+.mp-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: all .2s ease; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.mp-toggle:checked { background: var(--mp-primary); }
+.mp-toggle:checked::after { left: 20px; }
+.mp-toggle-label { font-size: 14px; font-weight: 500; color: var(--mp-ink); }
+
+.mp-toggle-options { display: flex; align-items: center; gap: 32px; }
+.mp-toggle-wrap { display: flex; flex-direction: column; gap: 4px; }
+.mp-toggle-desc { font-size: 12px; color: var(--mp-muted); margin: 0; padding-left: 54px; }
+
+.mp-check-label { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: var(--mp-ink); cursor: pointer; }
+.mp-check-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--mp-primary); cursor: pointer; }
+
+.mp-upload-box { border: 2px dashed var(--mp-border); border-radius: 12px; padding: 28px; text-align: center; color: var(--mp-muted); cursor: pointer; transition: all .15s ease; }
+.mp-upload-box:hover { border-color: var(--mp-primary); background: rgba(0,87,255,.03); }
+.mp-upload-box svg { margin-bottom: 10px; color: var(--mp-muted); }
+.mp-upload-box strong { display: block; font-size: 14px; color: var(--mp-ink); margin-bottom: 4px; }
+.mp-upload-box span { font-size: 13px; }
+
+.mp-hidden { display: none !important; }
+
+/* Tables inside cards */
+.mp-inner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mp-inner-table th { background: var(--mp-bg); padding: 8px 10px; font-weight: 600; color: var(--mp-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .03em; border-bottom: 1px solid var(--mp-border); text-align: left; }
+.mp-inner-table td { padding: 8px 10px; border-bottom: 1px solid var(--mp-border); }
+.mp-inner-table input, .mp-inner-table select { width: 100%; padding: 7px 10px; border: 1px solid var(--mp-border); border-radius: 8px; font-size: 13px; background: var(--mp-surface); }
+.mp-inner-table .btn-xs-danger { background: rgba(220,38,38,.1); color: var(--mp-danger); border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.mp-inner-table .btn-xs-danger:hover { background: var(--mp-danger); color: #fff; }
+.mp-table-add-btn { margin-top: 10px; padding: 7px 14px; background: rgba(5,150,105,.1); color: var(--mp-success); border: 1px solid transparent; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mp-table-add-btn:hover { background: var(--mp-success); color: #fff; }
+
+.mp-recipe-stats { display: flex; gap: 24px; }
+.mp-recipe-stat { text-align: center; }
+.mp-recipe-stat .lbl { font-size: 11px; color: var(--mp-muted); text-transform: uppercase; }
+.mp-recipe-stat .val { font-size: 18px; font-weight: 700; color: var(--mp-text); }
+.mp-recipe-stat .val.green { color: var(--mp-success); }
+
+@media (max-width: 1024px) {
+  .mp-form-grid { grid-template-columns: 1fr; }
+  .mp-tax-row .mp-form-control { width: 100%; flex: 1 1 auto; }
+  .mp-tax-row .mp-toggle-row { margin-left: 0; }
+}
+
+/* Style select2 to match mp-form-control */
+.select2-container--default .select2-selection--single {
+  border: 1px solid var(--mp-border) !important;
+  border-radius: 10px !important;
+  height: 42px !important;
+  background: var(--mp-surface) !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: 40px !important;
+  color: var(--mp-ink) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding-left: 14px !important;
+  padding-right: 8px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 40px !important;
+}
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--open .select2-selection--single {
+  border-color: var(--mp-primary) !important;
+  box-shadow: 0 0 0 3px rgba(0,87,255,.1) !important;
+}
+.select2-container--default .select2-selection--multiple {
+  border: 1px solid var(--mp-border) !important;
+  border-radius: 10px !important;
+  min-height: 42px !important;
+  background: var(--mp-surface) !important;
+}
+.select2-dropdown {
+  border: 1px solid var(--mp-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--mp-shadow) !important;
+}
+.select2-results__option--highlighted[aria-selected] {
+  background: var(--mp-primary) !important;
+}
+
+/* Loading overlay container — items.js appends overlay to .box */
+.mp-items-box { position: relative; }
+.mp-items-box > .overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,.7); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Item/Service visibility toggling — must use !important because the shared
+   finance styles force .mp-form-group{display:flex!important} */
+.mp-item-only { display: block; }
+.mp-service-only { display: none !important; }
+body.mp-mode-service .mp-item-only { display: none !important; }
+body.mp-mode-service .mp-service-only { display: block !important; }
+body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; }
+
+/* The .box class is required (items.js appends its loading .overlay to it),
+   but the card sections inside already carry their own chrome — strip the
+   outer frame so the page head/cards aren't flush against a second border. */
+.box.mp-items-box { border: none !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+
+/* Form actions bar — same pattern as category/customer forms */
+.mp-form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--mp-border); background: var(--mp-bg); border-radius: 0 0 16px 16px; }
+</style>
+
+<!-- Page head -->
+<div class="mp-section">
+  <div class="mp-page-head">
+    <div>
+      <h2><?= $page_title; ?></h2>
+      <div class="mp-page-sub"><?= htmlspecialchars($this->session->userdata('store_name') ?: ($SITE_TITLE ?? 'MartPoint')); ?> &mdash; <?= !empty($q_id) ? 'Update' : 'Add'; ?> <?= mp_label('item'); ?><?= $is_plant ? ' for plant stock, processing, and quotations' : ''; ?></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to <?= mp_label('item'); ?>s
+      </a>
+    </div>
+  </div>
+</div>
+
+<?php if(mp_feature_enabled('automobile_workflow')): ?>
+<div class="mp-section">
+  <div class="mp-card" style="border-left:4px solid #2563EB; padding:16px 20px; display:flex; align-items:center; gap:14px; margin-top:0;">
+    <i class="fa fa-car" style="font-size:24px; color:#2563EB;"></i>
+    <div>
+      <strong>Looking for vehicle records?</strong>
+      <p style="margin:4px 0 0; color:var(--mp-muted); font-size:14px;">This form is for <?= mp_label('item'); ?>s such as spare parts and accessories. To add a full vehicle with make, model, year, VIN and status, use <a href="<?= base_url('automobile/add'); ?>" style="color:#2563EB; font-weight:600;">Vehicles &rarr; Add Vehicle</a>.</p>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="box mp-items-box">
+<?= form_open('#', array('class' => 'form', 'id' => 'items-form', 'enctype' => 'multipart/form-data', 'method' => 'POST', 'data-plant' => $is_plant ? '1' : '0', 'data-allow-zero-prices' => $is_quote_first_catalogue ? '1' : '0')); ?>
+<input type="hidden" id="base_url" value="<?php echo $base_url; ?>">
+<input type="hidden" name="store_id" id="store_id" value="<?php echo get_current_store_id(); ?>">
+<?php if(!empty($q_id)): ?>
+<input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id; ?>">
+<?php endif; ?>
+<input type="hidden" name="hidden_rowcount" id="hidden_rowcount" value="1">
+
+<!-- Item Type (only show toggle if both products and services are enabled) -->
+<?php if($show_item_toggle && $show_service_toggle): ?>
+<div class="mp-card-form" id="item_type_card">
+  <div class="mp-card-head"><h3>Item Type</h3></div>
+  <div class="mp-card-body">
+    <div class="mp-toggle-options">
+      <?php
+        $item_type = ($service_bit == 1) ? 'service' : ($product_type ?? 'item');
+        if($item_type === 'digital' && !mp_feature_enabled('digital_products')) $item_type = 'item';
+        if($item_type === 'course' && !mp_feature_enabled('courses')) $item_type = 'item';
+        if($item_type === 'membership' && !mp_feature_enabled('memberships')) $item_type = 'item';
+      ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_item" name="item_type" type="radio" value="item" <?= ($item_type === 'item' || $item_type === 'physical') ? 'checked' : ''; ?>
+        <label class="mp-toggle-label" for="type_item">Item</label>
+      </div>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_service" name="item_type" type="radio" value="service" <?= ($item_type === 'service') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_service">Service</label>
+      </div>
+      <?php if(mp_feature_enabled('digital_products')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_digital" name="item_type" type="radio" value="digital" <?= ($item_type === 'digital') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_digital">Digital</label>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('courses')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_course" name="item_type" type="radio" value="course" <?= ($item_type === 'course') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_course">Course</label>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('memberships')): ?>
+      <div class="mp-toggle-row">
+        <input class="mp-toggle" id="type_membership" name="item_type" type="radio" value="membership" <?= ($item_type === 'membership') ? 'checked' : ''; ?>>
+        <label class="mp-toggle-label" for="type_membership">Membership</label>
+      </div>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+<?php elseif($show_service_toggle && !$show_item_toggle): ?>
+<input type="hidden" name="item_type" id="item_type_hidden" value="service">
+<?php else: ?>
+<input type="hidden" name="item_type" id="item_type_hidden" value="item">
+<?php endif; ?>
+
+<!-- Basic Information -->
+<div class="mp-card-form">
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Material / Product Identity' : 'Basic Information'; ?></h3></div>
+  <div class="mp-card-body">
+    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 18px;">Use this catalogue for raw materials, finished oil, machine spares, and packaging. The <?= htmlspecialchars(mp_label('sku')) ?> below appears in the quotation item picker and on printed quotations.</p><?php endif; ?>
+    <div class="mp-form-grid">
+      <div class="mp-form-group full">
+        <label for="item_name"><?= $is_plant ? 'Material / Product / Spare Part Name' : mp_label('item').' Name'; ?> <span class="text-danger">*</span></label>
+        <input class="mp-form-control" id="item_name" name="item_name" placeholder="<?= $is_plant ? 'e.g. Feed cage, palm kernel, refined oil' : 'e.g. Coca-Cola 50cl'; ?>" type="text" value="<?php print htmlspecialchars($item_name); ?>" autofocus>
+        <span id="item_name_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="item_code"><?= $is_plant ? 'Part / Material Code' : mp_label('item').' Code'; ?> <span class="text-danger">*</span></label>
+        <input class="mp-form-control" id="item_code" name="item_code" type="text" value="<?php print htmlspecialchars($item_code); ?>" <?= $is_plant ? 'placeholder="e.g. G11, FP-01, EK-200K"' : ''; ?>>
+        <?php if($is_plant): ?><p class="mp-form-hint">Replace the suggested code with the supplier or machine part number when available. The <?= htmlspecialchars(mp_label('sku')) ?> below is shown on quotations.</p><?php endif; ?>
+        <span id="item_code_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="custom_barcode"><?= $is_plant ? 'Supplier barcode (optional)' : $this->lang->line('barcode'); ?></label>
+        <input class="mp-form-control" id="custom_barcode" name="custom_barcode" placeholder="Scan or type barcode" type="text" value="<?php print htmlspecialchars($custom_barcode); ?>">
+        <span id="custom_barcode_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="sku"><?= htmlspecialchars(mp_label('sku')) ?> (optional)</label>
+        <input class="mp-form-control" id="sku" name="sku" placeholder="Stock keeping unit" type="text" value="<?php print htmlspecialchars($sku); ?>">
+        <span id="sku_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <?php if(mp_feature_enabled('auto_parts')): ?>
+      <input type="hidden" name="auto_part_identity_section" value="1">
+      <div class="mp-form-group">
+        <label for="manufacturer_part_no">Manufacturer Part No.</label>
+        <input class="mp-form-control" id="manufacturer_part_no" name="manufacturer_part_no" placeholder="e.g. 04465-33471" type="text" value="<?php print htmlspecialchars($manufacturer_part_no); ?>">
+        <p class="mp-form-hint">The number a workshop or dealer asks for. Searching the <?= htmlspecialchars(mp_label('item')) ?> list finds this part by it.</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="oem_reference">OEM Reference (optional)</label>
+        <input class="mp-form-control" id="oem_reference" name="oem_reference" placeholder="Original equipment number" type="text" value="<?php print htmlspecialchars($oem_reference); ?>">
+      </div>
+      <div class="mp-form-group full">
+        <label for="cross_reference">Cross References / Also Known As (optional)</label>
+        <input class="mp-form-control" id="cross_reference" name="cross_reference" placeholder="e.g. BPR2A, Nippondenso 29129" type="text" value="<?php print htmlspecialchars($cross_reference); ?>">
+        <p class="mp-form-hint">Separate alternatives with commas — any of them will find this part in a search.</p>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('kitchen_workflow')): ?>
+      <div class="mp-form-group mp-item-only">
+        <label for="fulfilment_route">Preparation route</label>
+        <select class="mp-form-control" id="fulfilment_route" name="fulfilment_route">
+          <option value="counter" <?= ($fulfilment_route === 'counter') ? 'selected' : ''; ?>>Ready now — no kitchen</option>
+          <option value="kitchen" <?= ($fulfilment_route === 'kitchen') ? 'selected' : ''; ?>>Kitchen — make to order</option>
+          <option value="bar" <?= ($fulfilment_route === 'bar') ? 'selected' : ''; ?>>Bar — prepare to order</option>
+        </select>
+        <p class="mp-form-hint">Ready now items skip the kitchen ticket (for example prepared Asun, bottled drinks or shelf items). Kitchen items create a cooking ticket (for example pizza or shawarma). Bar items create a drink-preparation ticket.</p>
+      </div>
+      <?php endif; ?>
+      <div class="mp-form-group mp-item-only">
+        <label for="hsn"><?= $is_plant ? 'Tax classification code (optional)' : $this->lang->line('hsn'); ?></label>
+        <input class="mp-form-control" id="hsn" name="hsn" type="text" value="<?php print htmlspecialchars($hsn); ?>">
+      </div>
+      <!-- SAC (Service Accounting Code — service-only) -->
+      <div class="mp-form-group mp-service-only">
+        <label for="sac"><?= $this->lang->line('sac'); ?></label>
+        <input class="mp-form-control" id="sac" name="sac" type="text" value="<?php print htmlspecialchars($sac); ?>">
+        <span id="sac_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group mp-item-only">
+        <label for="brand_id"><?= $is_plant ? 'Manufacturer / Brand' : $this->lang->line('brand'); ?></label>
+        <div class="mp-select-with-add">
+          <select class="mp-form-control select2" id="brand_id" name="brand_id" style="width:100%;">
+            <option value="">-Select-</option>
+            <?= get_brands_select_list($brand_id); ?>
+          </select>
+          <button type="button" class="mp-add-btn" data-toggle="modal" data-target="#brand_modal" title="Add Brand"><i class="fa fa-plus"></i></button>
+        </div>
+        <span id="brand_id_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="category_id"><?= $is_plant ? 'Material / Product Category' : $this->lang->line('category'); ?> <span class="text-danger">*</span></label>
+        <div class="mp-select-with-add">
+          <select class="mp-form-control select2" id="category_id" name="category_id" required style="width:100%;">
+            <option value="">-Select-</option>
+            <?= get_categories_select_list($category_id); ?>
+          </select>
+          <button type="button" class="mp-add-btn" data-toggle="modal" data-target="#category_modal" title="Add Category"><i class="fa fa-plus"></i></button>
+        </div>
+        <span id="category_id_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group mp-item-only">
+        <label for="unit_id"><?= $is_plant ? 'Stock Unit' : 'Base / Stock Unit'; ?> <small class="text-muted"><?= $is_plant ? 'Use the unit used to count this material or part (PC, SET, KG, litre, metre)' : 'All inventory is counted in this unit (Piece, Kg, Litre)'; ?></small> <span class="text-danger">*</span></label>
+        <div class="mp-select-with-add">
+          <select class="mp-form-control select2" id="unit_id" name="unit_id" required style="width:100%;">
+            <?= get_units_select_list($unit_id); ?>
+          </select>
+          <?php if(mp_feature_enabled('multi_unit_inventory')): ?>
+          <button type="button" class="mp-add-btn" data-toggle="modal" data-target="#unit_modal" title="Add Unit"><i class="fa fa-plus"></i></button>
+          <?php endif; ?>
+        </div>
+        <span id="unit_id_msg" style="display:none" class="text-danger"></span>
+      </div>
+
+      <?php if(mp_feature_enabled('multi_unit_selling')): ?>
+      <div class="mp-form-group full mp-item-only" id="selling_units_box" style="margin-top:16px;">
+        <p class="text-muted" style="margin-bottom:8px;font-size:13px;"><strong>Packaging for Sale</strong> — these are the packaging levels customers can buy. Stock is still kept in the Base / Stock Unit above. One Pack = N base units.</p>
+        <label>
+          <?php if($item_group == 'Variants'): ?>
+            Packaging Template (Pack / Piece / Box) <small class="text-muted">Cloned to every variant; edit a variant to override prices or barcodes</small>
+          <?php elseif($child_bit == 1): ?>
+            Selling Units (Pack / Piece / Box) <small class="text-muted">Packaging options for this variant</small>
+          <?php else: ?>
+            Selling Units (Pack / Piece / Box) <small class="text-muted">Optional per-product unit conversions and prices</small>
+          <?php endif; ?>
+        </label>
+        <table class="table table-condensed table-bordered" id="selling_units_table" style="margin-bottom:8px;">
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Conversion <small class="text-muted">(base units)</small></th>
+              <th>Selling Price</th>
+              <th>Wholesale Price</th>
+              <th>Purchase Price</th>
+              <th>SKU</th>
+              <th>Barcode</th>
+              <th>Default</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php $selling_units = isset($selling_units) ? $selling_units : []; ?>
+            <?php foreach($selling_units as $i => $su): ?>
+            <tr class="selling-unit-row">
+              <td>
+                <select class="mp-form-control mp-select-unit" name="selling_unit_unit_id[]" style="width:120px;">
+                  <?= get_units_select_list($su->unit_id); ?>
+                </select>
+              </td>
+              <td><input type="number" step="0.000001" class="mp-form-control" name="selling_unit_conversion[]" value="<?= $su->conversion_factor; ?>" placeholder="e.g. 12" style="width:100px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_selling_price[]" value="<?= $su->selling_price; ?>" placeholder="Price" style="width:110px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_wholesale_price[]" value="<?= $su->wholesale_price ?? ''; ?>" placeholder="Wholesale" style="width:110px;"></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_purchase_price[]" value="<?= $su->purchase_price; ?>" placeholder="Cost" style="width:110px;"></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_sku[]" value="<?= htmlspecialchars($su->sku ?? ''); ?>" placeholder="SKU" style="width:100px;"></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_barcode[]" value="<?= htmlspecialchars($su->barcode ?? ''); ?>" placeholder="Barcode" style="width:120px;"></td>
+              <td class="text-center"><input type="radio" name="selling_unit_default" value="<?= $i; ?>" <?= $su->is_default ? 'checked' : ''; ?>></td>
+              <td><button type="button" class="btn btn-xs btn-danger selling-unit-remove"><i class="fa fa-trash"></i></button></td>
+            </tr>
+            <?php endforeach; ?>
+            <tr id="selling_unit_template" class="selling-unit-row mp-hidden">
+              <td>
+                <select class="mp-form-control mp-select-unit" name="selling_unit_unit_id[]" style="width:120px;" disabled>
+                  <?= get_units_select_list(''); ?>
+                </select>
+              </td>
+              <td><input type="number" step="0.000001" class="mp-form-control" name="selling_unit_conversion[]" value="" placeholder="e.g. 12" style="width:100px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_selling_price[]" value="" placeholder="Price" style="width:110px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_wholesale_price[]" value="" placeholder="Wholesale" style="width:110px;" disabled></td>
+              <td><input type="number" step="0.01" class="mp-form-control" name="selling_unit_purchase_price[]" value="" placeholder="Cost" style="width:110px;" disabled></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_sku[]" value="" placeholder="SKU" style="width:100px;" disabled></td>
+              <td><input type="text" class="mp-form-control" name="selling_unit_barcode[]" value="" placeholder="Barcode" style="width:120px;" disabled></td>
+              <td class="text-center"><input type="radio" name="selling_unit_default" value="__INDEX__" disabled></td>
+              <td><button type="button" class="btn btn-xs btn-danger selling-unit-remove"><i class="fa fa-trash"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-xs btn-info" id="add_selling_unit_row"><i class="fa fa-plus"></i> Add Unit</button>
+      </div>
+      <?php endif; ?>
+
+      <div class="mp-form-group mp-item-only" id="item_group_group">
+        <label for="item_group"><?= $is_plant ? 'Catalogue Structure' : 'Product Type'; ?> <small class="text-muted"><?= $is_plant ? 'One part/material or several specifications' : 'Single product or product with variants (flavor, size, color)'; ?></small> <span class="text-danger">*</span></label>
+        <select class="mp-form-control select2" id="item_group" name="item_group" style="width:100%;">
+          <option value="Single" <?php if($item_group=='Single') echo 'selected'; ?>><?= $is_plant ? 'Single part / material / product' : 'Single Product'; ?></option>
+          <?php if(mp_feature_enabled('item_variants')): ?>
+          <option value="Variants" <?php if($item_group=='Variants') echo 'selected'; ?>><?= $is_plant ? 'Multiple specifications / sizes' : 'Has Variants (flavor / size / color)'; ?></option>
+          <?php endif; ?>
+        </select>
+        <span id="item_group_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group full mp-hidden" id="attribute_types_box">
+        <label for="attribute_types">Attribute Types <small class="text-muted">e.g. Flavor, Size, Color</small></label>
+        <select class="mp-form-control select2" id="attribute_types" name="attribute_types[]" multiple style="width:100%;">
+          <?php
+          $attribute_map = $this->items->get_variant_attribute_map();
+          $selected_attribute_types = isset($attribute_types) ? (array)$attribute_types : array();
+          foreach($attribute_map as $type => $vals):
+            $selected = in_array($type, $selected_attribute_types) ? 'selected' : '';
+            $label = ucfirst($type) . ' (' . implode(', ', array_slice($vals, 0, 3)) . (count($vals) > 3 ? '...' : '') . ')';
+          ?>
+          <option value="<?= $type; ?>" <?= $selected; ?>><?= $label; ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="mp-form-group mp-item-only">
+        <label for="alert_qty"><?= $is_plant ? 'Reorder Alert Quantity' : $this->lang->line('alert_qty'); ?></label>
+        <input class="mp-form-control" id="alert_qty" name="alert_qty" type="number" min="0" value="<?php print $alert_qty; ?>">
+        <span id="alert_qty_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <?php if($is_plant): ?><input type="hidden" id="seller_points" name="seller_points" value="<?= htmlspecialchars((string)$seller_points, ENT_QUOTES, 'UTF-8'); ?>"><?php else: ?><div class="mp-form-group">
+        <label for="seller_points"><?= $this->lang->line('seller_points'); ?></label>
+        <input class="mp-form-control" id="seller_points" name="seller_points" type="text" value="<?php print store_number_format($seller_points,0); ?>">
+        <span id="seller_points_msg" style="display:none" class="text-danger"></span>
+      </div><?php endif; ?>
+      <?php if($is_laundry): ?>
+      <div class="mp-form-group mp-service-only">
+        <label for="laundry_service_type">Laundry Service Type <span class="text-danger">*</span></label>
+        <select class="mp-form-control select2" id="laundry_service_type" name="laundry_service_type" style="width:100%;">
+          <option value="">-Select-</option>
+          <option value="wash_iron" <?= ($laundry_service_type == 'wash_iron') ? 'selected' : ''; ?>>Wash + Iron</option>
+          <option value="wash_only" <?= ($laundry_service_type == 'wash_only') ? 'selected' : ''; ?>>Wash Only</option>
+          <option value="iron_only" <?= ($laundry_service_type == 'iron_only') ? 'selected' : ''; ?>>Iron Only</option>
+          <option value="dry_clean" <?= ($laundry_service_type == 'dry_clean') ? 'selected' : ''; ?>>Dry Clean</option>
+        </select>
+        <span id="laundry_service_type_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('staff_commission')): ?>
+      <div class="mp-form-group mp-service-only">
+        <label for="commission_type">Commission Type</label>
+        <select class="mp-form-control select2" id="commission_type" name="commission_type" style="width:100%;" onchange="toggleCommissionValue()">
+          <option value="none" <?= ($commission_type == 'none') ? 'selected' : ''; ?>>No Commission</option>
+          <option value="flat" <?= ($commission_type == 'flat') ? 'selected' : ''; ?>>Flat Amount</option>
+          <option value="percent" <?= ($commission_type == 'percent') ? 'selected' : ''; ?>>Percentage (%)</option>
+        </select>
+      </div>
+      <div class="mp-form-group mp-service-only" id="commission_value_wrap" style="<?= ($commission_type != 'none') ? '' : 'display:none;'; ?>">
+        <label for="commission_value">Commission Value</label>
+        <input type="number" step="0.01" min="0" class="mp-form-control" id="commission_value" name="commission_value" value="<?= $commission_value; ?>">
+        <span id="commission_value_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <?php endif; ?>
+      <div class="mp-form-group full">
+        <label for="description"><?= $is_plant ? 'Specification / Description' : $this->lang->line('description'); ?></label>
+        <textarea class="mp-form-control" id="description" name="description" rows="3" placeholder="<?= $is_plant ? 'Machine model, dimensions, material grade, or technical specification' : 'Optional description'; ?>"><?php print htmlspecialchars($description); ?></textarea>
+        <span id="description_msg" style="display:none" class="text-danger"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if(mp_feature_enabled('auto_parts')): ?>
+<?php
+  $compat_rows = (isset($vehicle_compat_rows) && is_array($vehicle_compat_rows)) ? $vehicle_compat_rows : [];
+  $compat_makes = (isset($vehicle_makes) && is_array($vehicle_makes)) ? $vehicle_makes : [];
+  $compat_models = (isset($vehicle_models) && is_array($vehicle_models)) ? $vehicle_models : [];
+?>
+<!-- Vehicle fitment — which vehicles this part fits -->
+<div class="mp-card-form mp-item-only" id="vehicle_compat_section">
+  <div class="mp-card-head">
+    <h3>Fits These Vehicles <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Blank means &quot;any&quot; — a workshop searching by a customer's vehicle finds this part)</span></h3>
+    <button type="button" class="mp-table-add-btn" onclick="addCompatRow()"><i class="fa fa-plus"></i> Add Vehicle</button>
+  </div>
+  <div class="mp-card-body">
+    <input type="hidden" name="vehicle_compat_section" value="1">
+    <datalist id="mp_vehicle_makes"><?php foreach($compat_makes as $m): ?><option value="<?=htmlspecialchars($m->name ?? $m);?>"></option><?php endforeach; ?></datalist>
+    <datalist id="mp_vehicle_models"><?php foreach($compat_models as $m): ?><option value="<?=htmlspecialchars($m->name ?? $m);?>"></option><?php endforeach; ?></datalist>
+    <div style="overflow-x:auto;">
+    <table class="mp-inner-table" id="vehicle_compat_table">
+      <thead>
+        <tr>
+          <th>Make</th>
+          <th>Model</th>
+          <th>Year From</th>
+          <th>Year To</th>
+          <th>Engine (optional)</th>
+          <th>Note (optional)</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if(!empty($compat_rows)): $ci = 0; foreach($compat_rows as $crow): $ci++; ?>
+        <tr id="compat_row_<?=$ci;?>">
+          <td><input type="text" name="compat_make[]" list="mp_vehicle_makes" value="<?=htmlspecialchars($crow->make);?>" placeholder="e.g. Toyota"></td>
+          <td><input type="text" name="compat_model[]" list="mp_vehicle_models" value="<?=htmlspecialchars($crow->model ?? '');?>"></td>
+          <td><input type="text" name="compat_year_from[]" value="<?=htmlspecialchars($crow->year_from ?? '');?>" placeholder="2015" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_year_to[]" value="<?=htmlspecialchars($crow->year_to ?? '');?>" placeholder="2020" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_engine[]" value="<?=htmlspecialchars($crow->engine ?? '');?>" placeholder="e.g. 2.0 D-4D"></td>
+          <td><input type="text" name="compat_note[]" value="<?=htmlspecialchars($crow->note ?? '');?>" placeholder="e.g. petrol only, check before fitting"></td>
+          <td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('<?=$ci;?>')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endforeach; else: ?>
+        <tr id="compat_row_1">
+          <td><input type="text" name="compat_make[]" list="mp_vehicle_makes" placeholder="e.g. Toyota"></td>
+          <td><input type="text" name="compat_model[]" list="mp_vehicle_models" placeholder="e.g. Corolla"></td>
+          <td><input type="text" name="compat_year_from[]" placeholder="2015" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_year_to[]" placeholder="2020" style="min-width:70px;"></td>
+          <td><input type="text" name="compat_engine[]" placeholder="e.g. 2.0 D-4D"></td>
+          <td><input type="text" name="compat_note[]" placeholder="Anything a fitter should know"></td>
+          <td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('1')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Optionals (item-only) -->
+<div class="mp-card-form mp-item-only">
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Plant Use & Tracking' : 'Optionals'; ?></h3></div>
+  <div class="mp-card-body">
+    <div class="mp-form-grid">
+      <div class="mp-form-group full">
+        <label class="mp-check-label">
+          <input type="checkbox" id="not_for_sale" name="not_for_sale" value="1" <?= ($not_for_sale==1) ? 'checked' : ''; ?>>
+          <?= $is_plant ? 'Used in processing / not sold directly' : 'Not for Sale'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Consumable / Raw Material)</span>
+        </label>
+        <p class="mp-form-hint"><?= $is_plant ? 'Select for raw inputs and consumables. Leave off for sellable finished oil, products, or spare parts.' : 'Hide from POS. Use in treatments, production, etc.'; ?></p>
+      </div>
+      <?php if(mp_feature_enabled('prescription_required') && $this->db->field_exists('prescription_required', 'db_items')): ?>
+      <div class="mp-form-group full">
+        <label class="mp-check-label">
+          <input type="checkbox" id="prescription_required" name="prescription_required" value="1" <?= ($prescription_required==1) ? 'checked' : ''; ?>>
+          Prescription Required <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Rx-only medicine)</span>
+        </label>
+        <p class="mp-form-hint">The till refuses this medicine unless an approved prescription is linked to the sale.</p>
+      </div>
+      <?php endif; ?>
+      <div class="mp-form-group">
+        <label for="consumable_unit"><?= $is_plant ? 'Consumption Unit' : 'Unit Label'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(for consumables)</span></label>
+        <input class="mp-form-control" id="consumable_unit" name="consumable_unit" placeholder="<?= $is_plant ? 'e.g. kg, litre, metre, piece' : 'e.g. ml, bottle, pump, sachet'; ?>" type="text" value="<?php print htmlspecialchars($consumable_unit); ?>">
+        <span id="consumable_unit_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <?php if($is_perfumery && $this->db->field_exists('capacity_ml', 'db_items')): ?>
+      <div class="mp-form-group">
+        <label for="capacity_ml">Bottle Capacity (ml) <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(perfumery — only if this item is a bottle)</span></label>
+        <input class="mp-form-control" id="capacity_ml" name="capacity_ml" type="number" step="0.001" min="0" placeholder="e.g. 150" value="<?php print htmlspecialchars($capacity_ml); ?>">
+        <p class="mp-form-hint">Set on the empty bottle item so fills can't exceed its size</p>
+      </div>
+      <?php endif; ?>
+      <?php if(!$is_plant || $accept_custom_order==1): ?><div class="mp-form-group full">
+        <label class="mp-check-label">
+          <input type="checkbox" id="accept_custom_order" name="accept_custom_order" value="1" <?= ($accept_custom_order==1) ? 'checked' : ''; ?>>
+          Accept Custom Orders <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(Made to Order)</span>
+        </label>
+        <p class="mp-form-hint"><?= $is_plant ? 'Use for a fabricated part or special specification that needs a separate order.' : 'Furniture, cakes, tailored items. Capture specs at POS.'; ?></p>
+      </div>
+      <?php endif; ?>
+    </div>
+
+    <!-- Custom Order Settings -->
+    <?php if(!$is_plant || $accept_custom_order==1): ?>
+    <div id="custom-order-options" class="mp-hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--mp-border);">
+      <h4 style="font-size:14px;font-weight:700;margin:0 0 14px;color:var(--mp-text);">Custom Order Settings</h4>
+      <div class="mp-form-grid">
+        <div class="mp-form-group">
+          <label class="mp-check-label">
+            <input type="checkbox" id="requires_quote" name="requires_quote" value="1" <?= ($requires_quote==1) ? 'checked' : ''; ?>>
+            Requires Quote
+          </label>
+          <p class="mp-form-hint">Price set by staff after taking order</p>
+        </div>
+        <div class="mp-form-group">
+          <label class="mp-check-label">
+            <input type="checkbox" id="requires_deposit" name="requires_deposit" value="1" <?= ($requires_deposit==1) ? 'checked' : ''; ?>>
+            Requires Deposit
+          </label>
+          <p class="mp-form-hint">Customer pays deposit before production starts</p>
+        </div>
+        <div class="mp-form-group full">
+          <label for="workflow_template_key">Workflow</label>
+          <select class="mp-form-control select2" id="workflow_template_key" name="workflow_template_key" style="width:100%;">
+            <option value="standard" <?= ($workflow_template_key=='standard') ? 'selected' : ''; ?>>Standard (New → Production → Ready → Delivered)</option>
+            <option value="food" <?= ($workflow_template_key=='food') ? 'selected' : ''; ?>>Food / Bakery (New → Confirmed → Baking → Ready → Picked Up)</option>
+            <option value="furniture" <?= ($workflow_template_key=='furniture') ? 'selected' : ''; ?>>Furniture (Quote → Deposit → Build → QC → Delivery)</option>
+            <option value="perfume" <?= ($workflow_template_key=='perfume') ? 'selected' : ''; ?>>Perfumery (Quote → Deposit → Sampling → Blend → Macerate → Bottle → Delivered)</option>
+            <option value="skincare" <?= ($workflow_template_key=='skincare') ? 'selected' : ''; ?>>Skincare (Quote → Deposit → Sampling → Formulate → Cure → Delivered)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <label style="font-size:13px;font-weight:600;color:var(--mp-ink);margin-bottom:8px;">Custom Fields to Capture <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(what the customer must specify)</span></label>
+        <table class="mp-inner-table" id="custom-fields-table">
+          <thead>
+            <tr><th>Field Label</th><th>Type</th><th>Options</th><th>Required?</th><th style="width:40px;"></th></tr>
+          </thead>
+          <tbody>
+            <?php
+            $custom_fields = [];
+            if(isset($custom_order_fields_json) && !empty($custom_order_fields_json)){
+              $custom_fields = json_decode($custom_order_fields_json, true) ?: [];
+            }
+            foreach($custom_fields as $fi => $f):
+            ?>
+            <tr class="cf-row">
+              <td><input type="text" name="cf_label[]" value="<?= htmlspecialchars($f['label'] ?? ''); ?>" placeholder="e.g. Size, Flavor"></td>
+              <td>
+                <select name="cf_type[]">
+                  <option value="text" <?= ($f['type']??'')=='text'?'selected':''; ?>>Text</option>
+                  <option value="textarea" <?= ($f['type']??'')=='textarea'?'selected':''; ?>>Long Text</option>
+                  <option value="number" <?= ($f['type']??'')=='number'?'selected':''; ?>>Number</option>
+                  <option value="select" <?= ($f['type']??'')=='select'?'selected':''; ?>>Dropdown</option>
+                  <option value="date" <?= ($f['type']??'')=='date'?'selected':''; ?>>Date</option>
+                  <option value="color" <?= ($f['type']??'')=='color'?'selected':''; ?>>Color</option>
+                </select>
+              </td>
+              <td><input type="text" name="cf_options[]" value="<?= htmlspecialchars($f['options'] ?? ''); ?>" placeholder="For dropdown: Red, Blue, Green"></td>
+              <td style="text-align:center;"><input type="hidden" name="cf_required[]" value="0"><input type="checkbox" name="cf_required[]" value="1" <?= ($f['required']??0)==1?'checked':''; ?> style="width:auto;"></td>
+              <td><button type="button" class="btn-xs-danger" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+        <button type="button" class="mp-table-add-btn" id="btn-add-cf"><i class="fa fa-plus"></i> Add Field</button>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Serial / IMEI / Warranty tracking (only when no barcode table) -->
+    <?php if(!$show_unit_table && mp_feature_enabled('serial_number_tracking')): ?>
+    <div class="mp-form-group" style="margin-top:16px;">
+      <label for="serial_number">Serial Number</label>
+      <input class="mp-form-control" id="serial_number" name="serial_number" placeholder="Enter serial number" type="text" value="<?= isset($serial_number) ? htmlspecialchars($serial_number) : ''; ?>">
+    </div>
+    <?php endif; ?>
+    <?php if(!$show_unit_table && mp_feature_enabled('imei_tracking')): ?>
+    <div class="mp-form-group" style="margin-top:16px;">
+      <label for="imei_number">IMEI Number</label>
+      <input class="mp-form-control" id="imei_number" name="imei_number" placeholder="Enter IMEI" type="text" value="<?= isset($imei_number) ? htmlspecialchars($imei_number) : ''; ?>">
+    </div>
+    <?php endif; ?>
+    <?php if(!$show_unit_table && mp_feature_enabled('warranty_tracking')): ?>
+    <div class="mp-form-group" style="margin-top:16px;">
+      <label for="warranty_months">Warranty (Months)</label>
+      <input class="mp-form-control" id="warranty_months" name="warranty_months" placeholder="e.g. 12" type="number" min="0" value="<?= isset($warranty_months) ? htmlspecialchars($warranty_months) : ''; ?>">
+    </div>
+    <?php endif; ?>
+    <?php if(!$show_unit_table && mp_feature_enabled('serial_number_tracking')): ?>
+    <div class="mp-form-group full" style="margin-top:16px;">
+      <label class="mp-check-label">
+        <input type="checkbox" id="track_serial" name="track_serial" value="1" <?= ($track_serial==1) ? 'checked' : ''; ?>>
+        Require Serial Number <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(POS will block checkout without it)</span>
+      </label>
+      <p class="mp-form-hint">Used for phones, electronics, appliances.</p>
+    </div>
+    <?php endif; ?>
+    <?php if(!$show_unit_table && mp_feature_enabled('imei_tracking')): ?>
+    <div class="mp-form-group full" style="margin-top:16px;">
+      <label class="mp-check-label">
+        <input type="checkbox" id="track_imei" name="track_imei" value="1" <?= ($track_imei==1) ? 'checked' : ''; ?>>
+        Require IMEI <span style="font-weight:400;color:var(--mp-muted);font-size:12px;">(POS will block checkout without it)</span>
+      </label>
+      <p class="mp-form-hint">Required for mobile phones and cellular devices.</p>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php if(recipe_module()): ?>
+<!-- Recipe & Costing (item-only) -->
+<div class="mp-card-form mp-item-only">
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Process Formula & Costing' : 'Recipe & Costing'; ?></h3></div>
+  <div class="mp-card-body">
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label for="recipe_id"><?= $is_plant ? 'Process Formula / Bill of Materials' : 'Recipe / BOM'; ?></label>
+        <select class="mp-form-control select2" id="recipe_id" name="recipe_id" style="width:100%;">
+          <option value="">-- No Recipe (Manual Costing) --</option>
+          <?php foreach(($recipes_list ?? []) as $r): ?>
+          <option value="<?= $r->id; ?>" data-cost="<?= $r->cost_per_unit ?? 0; ?>" data-yield="<?= $r->yield_qty; ?>" data-unit="<?= htmlspecialchars($r->yield_unit ?? ''); ?>" <?= (isset($recipe_id) && $recipe_id==$r->id)?'selected':''; ?>><?= htmlspecialchars($r->name); ?> (<?= number_format($r->yield_qty ?? 1,0); ?> <?= htmlspecialchars($r->yield_unit ?? 'piece'); ?>)</option>
+          <?php endforeach; ?>
+        </select>
+        <p class="mp-form-hint"><?= $is_plant ? 'Link a process formula to calculate cost from inputs and expected output.' : 'Select a recipe to auto-calculate cost price from ingredients'; ?></p>
+      </div>
+      <div class="mp-form-group">
+        <label for="recipe_margin_pct">Recipe Margin (%)</label>
+        <input class="mp-form-control" id="recipe_margin_pct" name="recipe_margin_pct" type="number" step="0.01" value="<?= isset($recipe_margin_pct) ? $recipe_margin_pct : '30'; ?>">
+        <p class="mp-form-hint">Markup on top of recipe ingredient cost</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="item_production_mode"><?= $is_plant ? 'Processing Stock Mode' : 'Production Mode'; ?></label>
+        <select class="mp-form-control" id="item_production_mode" name="item_production_mode">
+          <option value="batch" <?= (isset($item_production_mode) && $item_production_mode=='batch')?'selected':''; ?>><?= $is_plant ? 'Batch processing — record output after a run' : 'Batch — produce first, then sell finished item'; ?></option>
+          <?php if(!$is_plant || (isset($item_production_mode) && $item_production_mode=='sale_deplete')): ?><option value="sale_deplete" <?= (isset($item_production_mode) && $item_production_mode=='sale_deplete')?'selected':''; ?>>Sale-deplete — deduct raw ingredients at POS sale</option><?php endif; ?>
+          <?php if(!$is_plant || (isset($item_production_mode) && $item_production_mode=='component')): ?><option value="component" <?= (isset($item_production_mode) && $item_production_mode=='component')?'selected':''; ?>>Component plate — sell a plate that deducts pre-cooked parts</option><?php endif; ?>
+        </select>
+        <p class="mp-form-hint"><?= $is_plant ? 'Finished output is added through processing runs; raw inputs are consumed there.' : 'Tells the POS how this item consumes stock'; ?></p>
+      </div>
+      <?php if($is_perfumery && $this->db->field_exists('fill_qty', 'db_items')): ?>
+      <div class="mp-form-group">
+        <label for="fill_qty">Fill per Bottle <small class="text-muted">(perfumery)</small></label>
+        <input class="mp-form-control" id="fill_qty" name="fill_qty" type="number" step="0.001" min="0" placeholder="e.g. 50" value="<?= htmlspecialchars($fill_qty); ?>">
+        <p class="mp-form-hint">Ml of bulk liquid one unit takes — bottling runs deduct this automatically</p>
+      </div>
+      <div class="mp-form-group">
+        <label for="bottle_item_id">Bottle / Packaging Item <small class="text-muted">(perfumery)</small></label>
+        <select class="mp-form-control select2" id="bottle_item_id" name="bottle_item_id" style="width:100%;">
+          <option value="">-- Not bottled --</option>
+          <?php
+            $pack_items = $this->db->select('a.id, a.item_name' . ($this->db->field_exists('capacity_ml','db_items') ? ', a.capacity_ml' : ''))
+              ->from('db_items a')
+              ->where('a.store_id', get_current_store_id())
+              ->where('a.status', 1)->where('a.not_for_sale', 1)->where('a.service_bit', 0)
+              ->order_by('a.item_name', 'asc')->get()->result();
+            foreach($pack_items as $pk):
+          ?>
+          <option value="<?= $pk->id; ?>" <?= (isset($bottle_item_id) && $bottle_item_id==$pk->id)?'selected':''; ?>><?= htmlspecialchars($pk->item_name); ?><?= !empty($pk->capacity_ml) ? ' (' . format_qty($pk->capacity_ml) . ' ml)' : ''; ?></option>
+          <?php endforeach; ?>
+        </select>
+        <p class="mp-form-hint">The empty bottle consumed each time one unit is filled</p>
+      </div>
+      <?php endif; ?>
+      <div class="mp-form-group full">
+        <div class="mp-recipe-stats">
+          <div class="mp-recipe-stat">
+            <div class="lbl">Recipe Cost</div>
+            <div class="val" id="recipe-cost-display">0.00</div>
+          </div>
+          <div class="mp-recipe-stat">
+            <div class="lbl">Suggested Sale Price</div>
+            <div class="val green" id="recipe-sale-display">0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Pricing & Stock -->
+<div class="mp-card-form">
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Unit Pricing & Plant Stock' : 'Pricing & Stock'; ?></h3></div>
+  <div class="mp-card-body">
+    <?php if(!$show_unit_table): ?>
+    <!-- Simple pricing: all prices on one line -->
+    <div class="mp-price-row" id="simple-pricing-section">
+      <div class="mp-form-group">
+        <label for="price"><?= $is_plant ? 'Unit Cost' : 'Base Price'; ?> <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(before tax)</span></label>
+        <input class="mp-form-control only_currency" id="price" name="price" type="text" value="<?php print store_number_format($price,0); ?>" placeholder="0.00">
+        <span id="price_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="purchase_price"><?= $is_plant ? 'Purchase Unit Cost' : 'Purchase Price'; ?> <span style="font-weight:400;color:var(--mp-muted);text-transform:none;">(cost w/ tax)</span></label>
+        <input class="mp-form-control only_currency" id="purchase_price" name="purchase_price" type="text" value="<?php print store_number_format($purchase_price,0); ?>" placeholder="0.00" readonly>
+        <span id="purchase_price_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="sales_price"><?= $is_plant ? 'Quotation / Selling Unit Price' : ($auto_retail_markup ? 'Wholesale Price' : 'Sale Price'); ?></label>
+        <input class="mp-form-control only_currency" id="sales_price" name="sales_price" type="text" value="<?php print store_number_format($sales_price,0); ?>" placeholder="0.00">
+        <span id="sales_price_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="profit_margin">Margin (%)</label>
+        <input class="mp-form-control" id="profit_margin" name="profit_margin" type="text" value="<?php print store_number_format($profit_margin,0); ?>" placeholder="e.g. 20">
+        <span id="profit_margin_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="mrp"><?= $is_plant ? 'List Price (optional)' : ($auto_retail_markup ? 'Retail Price' : 'MRP'); ?></label>
+        <input class="mp-form-control only_currency" id="mrp" name="mrp" type="text" value="<?php print store_number_format($mrp,0); ?>" placeholder="0.00">
+        <span id="mrp_msg" style="display:none" class="text-danger"></span>
+      </div>
+    </div>
+    <!-- Opening Stock for simple items (no barcode/unit table) -->
+    <div class="mp-form-group mp-item-only" style="margin-top:16px;max-width:240px;">
+      <label for="simple_opening_stock"><?= !empty($q_id) ? 'Current Stock' : ($is_plant ? 'Opening Plant Stock' : 'Opening Stock'); ?></label>
+      <input class="mp-form-control only_currency" id="simple_opening_stock" name="simple_opening_stock" type="text" value="<?php print store_number_format(!empty($q_id) ? ($stock ?? 0) : $opening_stock,0); ?>" placeholder="0" <?=$opening_stock_readonly;?> onchange="$('#adjustment_qty').val(this.value);">
+      <?php if(empty($q_id)): ?><p class="mp-form-hint">Stock is added once here &mdash; after saving, use Purchases or Stock Adjustments to change it.</p><?php endif; ?>
+    </div>
+    <?php else: ?>
+    <!-- Hidden price fields when barcode table is visible -->
+    <input type="hidden" id="price" name="price" value="<?php print store_number_format($price,0); ?>">
+    <input type="hidden" id="purchase_price" name="purchase_price" value="<?php print store_number_format($purchase_price,0); ?>">
+    <input type="hidden" id="sales_price" name="sales_price" value="<?php print store_number_format($sales_price,0); ?>">
+    <input type="hidden" id="profit_margin" name="profit_margin" value="<?php print store_number_format($profit_margin,0); ?>">
+    <input type="hidden" id="mrp" name="mrp" value="<?php print store_number_format($mrp,0); ?>">
+    <?php endif; ?>
+
+    <!-- Hidden fields synced from barcode row -->
+    <input type="hidden" id="batch_lot" name="batch_lot" value="<?php print $batch_lot; ?>">
+    <input type="hidden" id="adjustment_qty" name="adjustment_qty" value="<?php print $opening_stock; ?>">
+    <input type="hidden" id="expire_date" name="expire_date" value="<?php print $expire_date; ?>">
+    <input type="hidden" id="mfg_date" name="mfg_date" value="<?php print $mfg_date; ?>">
+
+    <hr style="border:none;border-top:1px solid var(--mp-border);margin:20px 0;">
+
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label for="discount_type"><?= $this->lang->line('discount_type'); ?></label>
+        <select class="mp-form-control select2" id="discount_type" name="discount_type" style="width:100%;">
+          <option value="Percentage" <?php if($discount_type=='Percentage') echo 'selected'; ?>>Percentage (%)</option>
+          <option value="Fixed" <?php if($discount_type=='Fixed') echo 'selected'; ?>>Fixed (<?= $CI->currency(); ?>)</option>
+        </select>
+        <span id="discount_type_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="discount"><?= $this->lang->line('discount'); ?></label>
+        <input class="mp-form-control only_currency" id="discount" name="discount" type="text" value="<?php print store_number_format($discount,0); ?>">
+        <span id="discount_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="tax_id"><?= $this->lang->line('tax'); ?> <span class="text-danger">*</span></label>
+        <div class="mp-select-with-add">
+          <select class="mp-form-control select2" id="tax_id" name="tax_id" required style="width:100%;">
+            <?= get_tax_select_list($tax_id); ?>
+          </select>
+          <button type="button" class="mp-add-btn" data-toggle="modal" data-target="#tax_modal" title="Add Tax"><i class="fa fa-plus"></i></button>
+        </div>
+        <span id="tax_id_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group">
+        <label for="tax_type"><?= $this->lang->line('tax_type'); ?> <span class="text-danger">*</span></label>
+        <select class="mp-form-control select2" id="tax_type" name="tax_type" required style="width:100%;">
+          <option value="Inclusive" <?php if($tax_type=='Inclusive') echo 'selected'; ?>>Inclusive</option>
+          <option value="Exclusive" <?php if($tax_type=='Exclusive') echo 'selected'; ?>>Exclusive</option>
+        </select>
+        <span id="tax_type_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group mp-item-only">
+        <label for="warehouse_id">Branch</label>
+        <select class="mp-form-control select2" id="warehouse_id" name="warehouse_id" style="width:100%;">
+          <?= get_warehouse_select_list($warehouse_id); ?>
+        </select>
+        <span id="warehouse_id_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <!-- Service deposit fields -->
+      <div class="mp-form-group mp-service-only">
+        <label for="deposit_required">Deposit Required</label>
+        <select class="mp-form-control select2" id="deposit_required" name="deposit_required" style="width:100%;">
+          <option value="0" <?= ($deposit_required == '0') ? 'selected' : ''; ?>>No</option>
+          <option value="1" <?= ($deposit_required == '1') ? 'selected' : ''; ?>>Yes</option>
+        </select>
+        <span id="deposit_required_msg" style="display:none" class="text-danger"></span>
+      </div>
+      <div class="mp-form-group mp-service-only">
+        <label for="deposit_percent">Deposit %</label>
+        <input class="mp-form-control only_currency" id="deposit_percent" name="deposit_percent" type="text" value="<?php print store_number_format($deposit_percent,0); ?>" placeholder="e.g. 50">
+        <span id="deposit_percent_msg" style="display:none" class="text-danger"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if($show_unit_table): ?>
+<!-- Unit / Variant Details Table -->
+<div class="mp-card-form mp-item-only" id="barcode_section">
+  <div class="mp-card-head">
+    <h3><?= $is_plant ? 'Batch & Stock Details' : 'Unit / Variant Details'; ?> <span style="font-weight:400;color:var(--mp-muted);font-size:12px;"><?= $is_plant ? '(Record batch/lot and unit prices here. Part code remains above.)' : '(Each row = one physical unit or variant. Prices & stock are set here.)'; ?></span></h3>
+    <button type="button" class="mp-table-add-btn" onclick="addBarcodeRow()"><i class="fa fa-plus"></i> <?= $is_plant ? 'Add Batch / Lot' : 'Add Unit'; ?></button>
+  </div>
+  <div class="mp-card-body">
+    <?php if($is_plant): ?><p class="mp-form-hint" style="margin:0 0 12px;">Record the batch or lot when known. You may leave unit prices at zero and set the exact price on each quotation.</p><?php endif; ?>
+    <?php if(mp_feature_enabled('serial_number_tracking') || mp_feature_enabled('imei_tracking')): ?>
+    <div style="display:flex;gap:24px;margin-bottom:14px;">
+      <?php if(mp_feature_enabled('serial_number_tracking')): ?>
+      <label class="mp-check-label">
+        <input type="checkbox" id="track_serial" name="track_serial" value="1" <?= ($track_serial??0)==1?'checked':''; ?>> Require Serial Number
+      </label>
+      <?php endif; ?>
+      <?php if(mp_feature_enabled('imei_tracking')): ?>
+      <label class="mp-check-label">
+        <input type="checkbox" id="track_imei" name="track_imei" value="1" <?= ($track_imei??0)==1?'checked':''; ?>> Require IMEI
+      </label>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <div style="overflow-x:auto;">
+    <table class="mp-inner-table" id="barcode_table">
+      <thead>
+        <tr>
+          <th><?= $is_plant ? 'Supplier Barcode' : 'Barcode'; ?></th>
+          <?php if(mp_feature_enabled('batch_tracking')): ?><th>Batch / Lot</th><?php endif; ?>
+          <?php if(mp_feature_enabled('serial_number_tracking')): ?><th>Serial Number</th><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><th>IMEI Number</th><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><th>IMEI 2 (Dual SIM)</th><?php endif; ?>
+          <th><?= $is_plant ? 'Unit Purchase Cost' : 'Purchase Price'; ?></th>
+          <th><?= $is_plant ? 'Quotation / Selling Unit Price' : 'Wholesale Price'; ?></th>
+          <th><?= $is_plant ? 'List Price' : 'Retail Price (MRP)'; ?></th>
+          <th><?= $is_plant ? 'Qty in Plant Stock' : 'Qty in Stock'; ?></th>
+          <?php if(mp_feature_enabled('expiry_tracking')): ?><th>Expiry</th><?php endif; ?>
+          <?php if(mp_feature_enabled('mfg_tracking')): ?><th>MFG Date</th><?php endif; ?>
+          <?php if(mp_feature_enabled('warranty_tracking')): ?><th>Warranty (Mo)</th><?php endif; ?>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if(!empty($item_barcodes) && is_array($item_barcodes)):
+          $bi = 0;
+          foreach($item_barcodes as $brow): $bi++; ?>
+        <tr id="barcode_row_<?=$bi;?>">
+          <td><input type="hidden" name="barcode_id[]" value="<?= (int)$brow->id; ?>"><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($brow->barcode);?>" placeholder="Scan or enter barcode"></td>
+          <?php if(mp_feature_enabled('batch_tracking')): ?><td><input type="text" name="barcode_batch[]" value="<?=htmlspecialchars($brow->batch_lot);?>" placeholder="Batch / Lot"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('serial_number_tracking')): ?><td><input type="text" name="barcode_serial[]" value="<?=htmlspecialchars($brow->serial_number ?? '');?>" placeholder="Serial"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei[]" value="<?=htmlspecialchars($brow->imei_number ?? '');?>" placeholder="IMEI"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei_2[]" value="<?=htmlspecialchars($brow->imei_number_2 ?? '');?>" placeholder="IMEI 2 (optional)"></td><?php endif; ?>
+          <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($brow->purchase_price,0);?>" placeholder="0.00"></td>
+          <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($brow->sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
+          <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($brow->mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
+          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($brow->qty,0);?>" placeholder="0" <?=$opening_stock_readonly;?>></td>
+          <?php if(mp_feature_enabled('expiry_tracking')): ?><td><input type="date" name="barcode_expire_date[]" value="<?=htmlspecialchars($brow->expire_date ?? '');?>"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('mfg_tracking')): ?><td><input type="date" name="barcode_mfg_date[]" value="<?=htmlspecialchars($brow->mfg_date ?? '');?>"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('warranty_tracking')): ?><td><input type="text" name="barcode_warranty[]" value="<?=htmlspecialchars($brow->warranty_months ?? '');?>" placeholder="Months" style="min-width:60px;"></td><?php endif; ?>
+          <td><button type="button" class="btn-xs-danger" onclick="removeBarcodeRow('<?=$bi;?>')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endforeach; else: ?>
+        <tr id="barcode_row_1">
+          <td><input type="hidden" name="barcode_id[]" value="0"><input type="text" name="barcode_barcode[]" value="<?=htmlspecialchars($custom_barcode);?>" placeholder="Scan or enter barcode"></td>
+          <?php if(mp_feature_enabled('batch_tracking')): ?><td><input type="text" name="barcode_batch[]" value="<?=htmlspecialchars($batch_lot);?>" placeholder="Batch / Lot"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('serial_number_tracking')): ?><td><input type="text" name="barcode_serial[]" value="<?=htmlspecialchars($serial_number);?>" placeholder="Serial"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei[]" value="<?=htmlspecialchars($imei_number);?>" placeholder="IMEI"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('imei_tracking')): ?><td><input type="text" name="barcode_imei_2[]" placeholder="IMEI 2 (optional)"></td><?php endif; ?>
+          <td><input type="text" class="only_currency" name="barcode_pprice[]" value="<?=store_number_format($purchase_price,0);?>" placeholder="0.00"></td>
+          <td><input type="text" class="only_currency" name="barcode_sprice[]" value="<?=store_number_format($sales_price,0);?>" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>
+          <td><input type="text" class="only_currency" name="barcode_mrp[]" value="<?=store_number_format($mrp,0);?>" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>
+          <td><input type="text" class="only_currency" name="barcode_qty[]" value="<?=store_number_format($opening_stock,0);?>" placeholder="0" <?=$opening_stock_readonly;?>></td>
+          <?php if(mp_feature_enabled('expiry_tracking')): ?><td><input type="date" name="barcode_expire_date[]" value="<?=htmlspecialchars($expire_date);?>"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('mfg_tracking')): ?><td><input type="date" name="barcode_mfg_date[]" value="<?=htmlspecialchars($mfg_date);?>"></td><?php endif; ?>
+          <?php if(mp_feature_enabled('warranty_tracking')): ?><td><input type="text" name="barcode_warranty[]" value="<?=htmlspecialchars($warranty_months);?>" placeholder="Months" style="min-width:60px;"></td><?php endif; ?>
+          <td><button type="button" class="btn-xs-danger" onclick="removeBarcodeRow('1')"><i class="fa fa-trash"></i></button></td>
+        </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+    </div>
+    <div id="barcode_table_msg" style="display:none; margin-top:10px; padding:10px 14px; background:rgba(245,158,11,.1); border-radius:8px; color:#92400E; font-size:13px;">
+      <i class="fa fa-exclamation-circle"></i> <span id="barcode_table_msg_text"><?= $is_plant ? 'Enter unit purchase cost and quotation price for the first batch.' : 'Please fill Purchase Price, Wholesale Price, and Retail Price for at least the first unit row.'; ?></span>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if(mp_feature_enabled('item_variants')): ?>
+<!-- Variant Table -->
+<div class="mp-card-form mp-item-only variant_div" style="display:none;">
+  <div class="mp-card-head">
+    <h3>Variants</h3>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div class="mp-select-with-add">
+        <input type="text" class="mp-form-control" placeholder="Search Variant" id="variant_search" style="width:220px;">
+        <button type="button" class="mp-add-btn" data-toggle="modal" data-target="#variant-modal" title="Add New Variant"><i class="fa fa-plus"></i></button>
+      </div>
+      <button type="button" class="mp-qa-btn purple" id="btn_matrix_generator" data-toggle="modal" data-target="#matrix_generator_modal">
+        <i class="fa fa-th"></i> <?= $this->lang->line('variant_matrix_generator'); ?>
+      </button>
+    </div>
+  </div>
+  <div class="mp-card-body">
+    <div style="overflow-x:auto;">
+    <table class="mp-inner-table" id="variant_table" style="min-width:900px;">
+      <thead>
+        <tr>
+          <th style="width:15%"><?= $this->lang->line('variant_name'); ?></th>
+          <th style="width:8%"><?= $this->lang->line('image'); ?></th>
+          <th style="width:10%"><?= $this->lang->line('sku'); ?></th>
+          <th style="width:10%"><?= $this->lang->line('barcode'); ?></th>
+          <th style="width:10%"><?= $this->lang->line('price'); ?>(<?= $CI->currency(); ?>)</th>
+          <th style="width:10%"><?= $this->lang->line('purchase_price'); ?>(<?= $CI->currency(); ?>)</th>
+          <th style="width:10%"><?= $this->lang->line('profit_margin'); ?></th>
+          <th style="width:10%"><?= $this->lang->line('sales_price'); ?>(<?= $CI->currency(); ?>)</th>
+          <th style="width:10%"><?= $this->lang->line('mrp'); ?>(<?= $CI->currency(); ?>)</th>
+          <th style="width:10%"><?= $this->lang->line('opening_stock'); ?></th>
+          <th style="width:5%"><?= $this->lang->line('action'); ?></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if($item_group!='Single' && !empty($q_id)):
+          echo $this->items->get_variants_list_in_row($q_id);
+        endif; ?>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Digital Product File -->
+<div class="mp-card-form" id="digital_product_card" style="<?= (($product_type ?? '') !== 'digital') ? 'display:none;' : ''; ?>">
+  <div class="mp-card-head"><h3>Digital Product File</h3></div>
+  <div class="mp-card-body">
+    <div class="mp-form-group full">
+      <label for="digital_file">Upload File <?php if(empty($digital_file ?? '')): ?><span class="text-danger">*</span><?php endif; ?></label>
+      <input type="file" name="digital_file" id="digital_file" class="mp-form-control" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.mp4,.m4v,.mov,.avi,.epub,.txt,.csv">
+      <p class="mp-form-hint">PDF, ZIP, MP3, MP4 or any file up to 100MB.</p>
+    </div>
+    <?php if(!empty($digital_file ?? '')): ?>
+    <div class="mp-form-group full">
+      <p class="mp-form-hint">Current file: <a href="<?= base_url($digital_file); ?>" target="_blank"><?= basename($digital_file); ?></a></p>
+      <input type="hidden" name="digital_file_path" id="digital_file_path" value="<?= htmlspecialchars($digital_file); ?>">
+    </div>
+    <?php else: ?>
+    <input type="hidden" name="digital_file_path" id="digital_file_path" value="">
+    <?php endif; ?>
+    <div class="mp-form-grid">
+      <div class="mp-form-group">
+        <label for="download_limit">Download Limit</label>
+        <input type="number" name="download_limit" id="download_limit" class="mp-form-control" value="<?= $download_limit ?? 3; ?>" min="1">
+      </div>
+      <div class="mp-form-group">
+        <label for="download_expiry_hours">Link Expiry (hours)</label>
+        <input type="number" name="download_expiry_hours" id="download_expiry_hours" class="mp-form-control" value="<?= $download_expiry_hours ?? 72; ?>" min="1">
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php if(mp_feature_enabled('meat_butchery_workflow') || mp_feature_enabled('frozen_food_cold_chain')): ?>
+<!-- Butchery / Frozen Product -->
+<div class="mp-card-form" id="butchery_frozen_card" style="<?= (in_array($product_type ?? 'physical', ['service','digital','course','membership'])) ? 'display:none;' : ''; ?>">
+  <div class="mp-card-head"><h3>Butchery &amp; Frozen</h3></div>
+  <div class="mp-card-body">
+    <input type="hidden" name="butchery_frozen_section" value="1">
+    <div class="mp-form-group" style="margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="weight_pricing_enabled" value="1" <?= !empty($weight_pricing_enabled) ? 'checked' : ''; ?>> Enable stepped weight pricing</label>
+      <p class="mp-form-hint">Enter the actual weight at POS. Frozen food uses kg + lines: whole kg × base price, plus each 0.05 kg line charge.</p>
+    </div>
+      <div class="mp-form-grid">
+      <div class="mp-form-group"><label for="weight_pricing_base_kg">Included weight (kg)</label><input type="number" step="0.001" min="0.001" name="weight_pricing_base_kg" id="weight_pricing_base_kg" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_base_kg ?? '1'); ?>"></div>
+      <div class="mp-form-group"><label for="weight_pricing_increment_kg">Additional step (kg)</label><input type="number" step="0.001" min="0.001" name="weight_pricing_increment_kg" id="weight_pricing_increment_kg" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_increment_kg ?? '0.05'); ?>"></div>
+      <div class="mp-form-group"><label for="weight_pricing_increment_charge">Charge per step</label><input type="number" step="0.01" min="0" name="weight_pricing_increment_charge" id="weight_pricing_increment_charge" class="mp-form-control" value="<?= htmlspecialchars($weight_pricing_increment_charge ?? '0'); ?>"></div>
+    </div>
+    <div class="mp-form-grid">
+      <?php if(mp_feature_enabled('meat_butchery_workflow')): ?>
+      <div class="mp-form-group">
+        <label for="is_carcass">This is a whole carcass</label>
+        <select name="is_carcass" id="is_carcass" class="mp-form-control">
+          <option value="0" <?= empty($is_carcass) ? 'selected' : ''; ?>>No</option>
+          <option value="1" <?= !empty($is_carcass) ? 'selected' : ''; ?>>Yes</option>
+        </select>
+      </div>
+      <div class="mp-form-group">
+        <label for="carcass_template_id">Carcass Template ID</label>
+        <input type="number" name="carcass_template_id" id="carcass_template_id" class="mp-form-control" value="<?= $carcass_template_id ?? ''; ?>" placeholder="Template ID for cutting">
+      </div>
+      <div class="mp-form-group">
+        <label for="portion_of_item_id">Portion of Item ID</label>
+        <input type="number" name="portion_of_item_id" id="portion_of_item_id" class="mp-form-control" value="<?= $portion_of_item_id ?? ''; ?>" placeholder="Parent item ID if a cut">
+      </div>
+      <?php endif; ?>
+      <div class="mp-form-group">
+        <label for="storage_temp_min">Min Storage Temp (°C)</label>
+        <input type="number" step="0.1" name="storage_temp_min" id="storage_temp_min" class="mp-form-control" value="<?= $storage_temp_min ?? ''; ?>" placeholder="e.g. -25">
+      </div>
+      <div class="mp-form-group">
+        <label for="storage_temp_max">Max Storage Temp (°C)</label>
+        <input type="number" step="0.1" name="storage_temp_max" id="storage_temp_max" class="mp-form-control" value="<?= $storage_temp_max ?? ''; ?>" placeholder="e.g. -18">
+      </div>
+      <div class="mp-form-group">
+        <label for="thaw_time_hours">Thaw Time (hours)</label>
+        <input type="number" step="0.5" name="thaw_time_hours" id="thaw_time_hours" class="mp-form-control" value="<?= $thaw_time_hours ?? ''; ?>" placeholder="Hours to thaw">
+      </div>
+      <div class="mp-form-group">
+        <label for="use_within_hours_after_thaw">Use Within After Thaw (hours)</label>
+        <input type="number" step="0.5" name="use_within_hours_after_thaw" id="use_within_hours_after_thaw" class="mp-form-control" value="<?= $use_within_hours_after_thaw ?? ''; ?>" placeholder="Safe window">
+      </div>
+      <div class="mp-form-group">
+        <label for="frozen_shelf_life_days">Frozen Shelf Life (days)</label>
+        <input type="number" step="1" name="frozen_shelf_life_days" id="frozen_shelf_life_days" class="mp-form-control" value="<?= $frozen_shelf_life_days ?? ''; ?>" placeholder="Days frozen">
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Item Image -->
+<div class="mp-card-form">
+  <div class="mp-card-head"><h3><?= $is_plant ? 'Material / Part Photo' : 'Product Image'; ?></h3></div>
+  <div class="mp-card-body">
+    <div class="mp-upload-box" id="mp_upload_box" onclick="document.getElementById('item_image').click()">
+      <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <strong>Click to upload image</strong>
+      <span>PNG, JPG, WEBP or AVIF up to 1MB</span>
+    </div>
+    <input type="file" name="item_image" id="item_image" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" accept="image/png,image/jpeg,image/webp,image/avif,.avif">
+    <input type="hidden" name="item_image_existing" id="item_image_existing" value="<?= htmlspecialchars((string)($item_image ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+    <button type="button" class="mp-qa-btn" id="choose_existing_product_image" style="margin-top:10px;background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Choose from uploaded product images</button>
+    <p class="mp-form-hint">Reuse a product image already uploaded for this store, or upload a new image above.</p>
+    <div id="image_preview_wrap" style="margin-top:12px;display:none;">
+      <img id="image_preview" src="" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
+      <button type="button" class="btn-xs-danger" onclick="removeImagePreview()" style="margin-left:8px;"><i class="fa fa-trash"></i></button>
+    </div>
+    <div id="selected_product_image_preview" style="margin-top:12px;display:none;">
+      <img id="selected_product_image_thumb" src="" alt="Selected product image" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
+      <span id="selected_product_image_path" class="mp-form-hint" style="display:block;"></span>
+    </div>
+    <?php if(!empty($q_id) && isset($item_image) && !empty($item_image)): ?>
+    <div id="current_product_image_photo" style="margin-top:12px;">
+      <img src="<?= base_url($item_image); ?>" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--mp-border);">
+    </div>
+    <?php endif; ?>
+    <p class="mp-form-hint" style="color:var(--mp-danger);margin-top:8px;">Max Width/Height: 1500px * 1500px &amp; Size: 1MB</p>
+    <span id="item_image_msg" style="display:none;" class="text-danger"></span>
+    <?php if(!$is_service): ?>
+    <hr style="margin:18px 0;border-color:var(--mp-border);">
+    <div class="mp-form-group full">
+      <label for="item_gallery">Product gallery (optional)</label>
+      <input type="file" name="item_gallery[]" id="item_gallery" class="mp-form-control" accept="image/jpeg,image/png,image/webp,image/avif" multiple>
+      <button type="button" class="mp-qa-btn" id="choose_existing_gallery_images" style="margin-top:8px;background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Add from uploaded product images</button>
+      <p class="mp-form-hint">Add up to 8 extra photos by reusing an uploaded product image or uploading new files. Reused images are linked without making another file copy.</p>
+    </div>
+    <?php if(!empty($gallery_images)): ?>
+    <div class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">
+      <?php foreach($gallery_images as $gallery_image): ?>
+      <label class="existing-gallery-card" style="display:block;border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;">
+        <img src="<?= base_url(htmlspecialchars($gallery_image->image_path, ENT_QUOTES, 'UTF-8')); ?>" alt="Product gallery image" style="width:100%;height:90px;object-fit:cover;border-radius:5px;">
+        <span style="display:block;margin-top:6px;"><input type="checkbox" name="gallery_delete_ids[]" value="<?= (int)$gallery_image->id; ?>"> Remove photo</span>
+      </label>
+      <?php endforeach; ?>
+    </div>
+    <p class="mp-form-hint">Select photos to remove, then save the product.</p>
+    <?php endif; ?>
+    <div id="selected_gallery_media" class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-top:12px;"></div>
+    <?php endif; // Gallery upload is for physical/digital products; service media uses its existing image field. ?>
+  </div>
+  <div class="mp-form-actions">
+    <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-surface);color:var(--mp-ink);border:1px solid var(--mp-border);">Cancel</a>
+    <button type="button" id="<?php echo $btn_id; ?>" class="mp-qa-btn green" title="Save Data">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>
+      <?php echo $btn_name; ?>
+    </button>
+  </div>
+</div>
+
+<?= form_close(); ?>
+</div><!-- /.box.mp-items-box -->
+
+<section id="product_media_picker" aria-label="Uploaded product images" style="display:none;margin:0 0 18px;padding:16px;border:1px solid var(--mp-border);border-radius:12px;background:var(--mp-surface);">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div><h3 style="margin:0;">Uploaded product images</h3><p id="product_media_picker_hint" class="mp-form-hint" style="margin:4px 0 0;">Choose an image already used by a product in this store.</p></div>
+    <button type="button" id="close_product_media_picker" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">Close</button>
+  </div>
+  <p id="product_media_picker_status" class="mp-form-hint" role="status" aria-live="polite"></p>
+  <div id="product_media_picker_grid" class="mp-form-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;"></div>
+</section>
+
+<!-- Modals -->
+<?php include "modals/modal_brand.php"; ?>
+<?php include "modals/modal_category.php"; ?>
+<?php include "modals/modal_unit.php"; ?>
+<?php include "modals/modal_tax.php"; ?>
+<?php include "modals/modal_variant.php"; ?>
+
+<!-- Variant Matrix Generator Modal -->
+<div class="modal fade" id="matrix_generator_modal" tabindex="-1" role="dialog" aria-labelledby="matrixModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#7C3AED;color:#fff;">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="matrixModalLabel"><i class="fa fa-th"></i> <?= $this->lang->line('variant_matrix_generator'); ?></h4>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa fa-info-circle"></i> Pick the values for each attribute flagged on this product. MartPoint will create every combination as a child SKU.
+        </div>
+        <div class="row" id="matrix_attribute_container"></div>
+        <div id="matrix_preview" class="text-muted small" style="margin-top:10px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-purple" id="btn_generate_matrix" style="background:#7C3AED;color:#fff;"><i class="fa fa-magic"></i> Generate Rows</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Item form initialization & helpers -->
+<script type="text/javascript">
+// Item/Service/Digital mode switching
+function setItemTypeMode(itemType){
+  $('body').removeClass('mp-mode-service mp-mode-digital mp-mode-course mp-mode-membership');
+  if(itemType === 'service'){
+    $('body').addClass('mp-mode-service');
+  } else if(itemType === 'digital'){
+    $('body').addClass('mp-mode-digital');
+  } else if(itemType === 'course'){
+    $('body').addClass('mp-mode-course');
+  } else if(itemType === 'membership'){
+    $('body').addClass('mp-mode-membership');
+  }
+  // Services, digital, course and membership products don't have variants
+  if(itemType === 'service' || itemType === 'digital' || itemType === 'course' || itemType === 'membership'){
+    $("#item_group").val("Single").trigger("change");
+    $("#item_group_group").addClass('mp-hidden');
+  } else {
+    <?php if($child_bit==1 || !empty($item_name)): ?>
+    $("#item_group_group").addClass('mp-hidden');
+    <?php else: ?>
+    $("#item_group_group").removeClass('mp-hidden');
+    <?php endif; ?>
+  }
+  // Show/hide digital product card
+  $('#digital_product_card').toggleClass('mp-hidden', itemType !== 'digital');
+  // Show/hide butchery / frozen card
+  if ($('#butchery_frozen_card').length) {
+    $('#butchery_frozen_card').toggleClass('mp-hidden', ['service','digital','course','membership'].indexOf(itemType) !== -1);
+  }
+  // Refresh select2 on any newly visible/hidden selects
+  setTimeout(function(){ $('.select2').each(function(){ var $s=$(this); try{ if($s.data('select2')){ $s.select2('destroy'); } $s.select2(); }catch(e){} }); }, 50);
+}
+
+function toggleCommissionValue() {
+  var type = $('#commission_type').val();
+  if (type === 'none' || type === '') {
+    $('#commission_value_wrap').hide();
+    $('#commission_value').val('0');
+  } else {
+    $('#commission_value_wrap').show();
+  }
+}
+
+$(function(){
+  $("#discount_type").val('<?=$discount_type; ?>');
+  <?php if(isset($q_id)): ?>
+  $("#store_id").attr('readonly',true);
+  <?php endif; ?>
+  $("#item_group").val("<?=$item_group;?>").trigger("change");
+
+  <?php if(!empty($item_name)): ?>
+  $("#hidden_rowcount").val($("#variant_table tbody tr").length);
+  if(typeof calculate_purchase_price_of_all_row === 'function'){
+    calculate_purchase_price_of_all_row();
+    calculate_sales_price_of_all_row();
+  }
+  <?php endif; ?>
+
+  <?php if($child_bit==1 || !empty($item_name)): ?>
+  $("#item_group_group").addClass('mp-hidden');
+  <?php endif; ?>
+
+  // Initialize item mode
+  var initialItemType = "<?= $item_type; ?>";
+  setItemTypeMode(initialItemType);
+
+  // Toggle handler
+  $('input[name="item_type"]').on('change', function(){
+    setItemTypeMode($(this).val());
+  });
+
+  toggleCommissionValue();
+
+  // Image upload preview
+  $('#item_image').on('change', function(){
+    if(this.files && this.files[0]){
+      var currentImage = document.getElementById('current_product_image_photo');
+      if(currentImage) currentImage.style.display = 'none';
+      var file = this.files[0];
+      if(file.size > 1048576){
+        toastr["warning"]("Image size must be less than 1MB.");
+        $(this).val('');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e){
+        $('#image_preview').attr('src', e.target.result);
+        $('#image_preview_wrap').show();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+});
+
+function removeImagePreview(){
+  $('#item_image').val('');
+  $('#image_preview_wrap').hide();
+}
+
+// Reuse image files already attached to products in this store. New uploads
+// remain available from the normal file inputs above.
+(function(){
+  var picker = document.getElementById('product_media_picker');
+  var grid = document.getElementById('product_media_picker_grid');
+  var status = document.getElementById('product_media_picker_status');
+  var hint = document.getElementById('product_media_picker_hint');
+  var media = [];
+  var target = 'main';
+  var selectedGallery = {};
+  if (!picker || !grid) return;
+
+  function galleryCount(){
+    var existing = document.querySelectorAll('.existing-gallery-card').length;
+    var removed = document.querySelectorAll('.existing-gallery-card input[name="gallery_delete_ids[]"]:checked').length;
+    return Math.max(0, existing - removed) + Object.keys(selectedGallery).length;
+  }
+  function addHiddenGalleryPath(path){
+    var input = document.createElement('input');
+    input.type = 'hidden'; input.name = 'gallery_existing_paths[]'; input.value = path;
+    document.getElementById('items-form').appendChild(input);
+  }
+  function drawGallerySelections(){
+    var wrap = document.getElementById('selected_gallery_media');
+    if (!wrap) return;
+    wrap.textContent = '';
+    Object.keys(selectedGallery).forEach(function(path){
+      var entry = selectedGallery[path];
+      var card = document.createElement('div');
+      card.style.cssText = 'border:1px solid var(--mp-border);border-radius:8px;padding:8px;font-size:12px;';
+      var img = document.createElement('img'); img.src = entry.url; img.alt = entry.label;
+      img.style.cssText = 'width:100%;height:90px;object-fit:cover;border-radius:5px;';
+      var label = document.createElement('span'); label.textContent = entry.label; label.style.cssText = 'display:block;margin:6px 0;overflow-wrap:anywhere;';
+      var remove = document.createElement('button'); remove.type = 'button'; remove.className = 'mp-qa-btn'; remove.textContent = 'Remove selection';
+      remove.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:5px 8px;';
+      remove.addEventListener('click', function(){ delete selectedGallery[path]; drawGallerySelections(); });
+      card.appendChild(img); card.appendChild(label); card.appendChild(remove); wrap.appendChild(card);
+    });
+    document.querySelectorAll('#items-form input[name="gallery_existing_paths[]"]').forEach(function(input){ input.remove(); });
+    Object.keys(selectedGallery).forEach(addHiddenGalleryPath);
+  }
+  function chooseMain(entry){
+    document.getElementById('item_image_existing').value = entry.path;
+    var currentImage = document.getElementById('current_product_image_photo');
+    if(currentImage) currentImage.style.display = 'none';
+    document.getElementById('selected_product_image_thumb').src = entry.url;
+    document.getElementById('selected_product_image_path').textContent = 'Selected existing image: ' + entry.label;
+    document.getElementById('selected_product_image_preview').style.display = 'block';
+    picker.style.display = 'none';
+  }
+  function chooseGallery(entry){
+    if (selectedGallery[entry.path]) return;
+    if (galleryCount() >= 8) { status.textContent = 'A product can have at most 8 gallery photos. Remove a photo or selection first.'; return; }
+    selectedGallery[entry.path] = entry;
+    drawGallerySelections();
+    status.textContent = 'Image added to the gallery selection. Save the product to link it.';
+  }
+  function render(){
+    grid.textContent = '';
+    if (!media.length) { status.textContent = 'No previously uploaded product images found for this store. Upload a new image using the upload control above.'; return; }
+    status.textContent = '';
+    media.forEach(function(entry){
+      var card = document.createElement('article');
+      card.style.cssText = 'border:1px solid var(--mp-border);border-radius:10px;padding:10px;min-width:0;';
+      var img = document.createElement('img'); img.src = entry.url; img.alt = entry.label;
+      img.loading = 'lazy'; img.style.cssText = 'width:100%;height:120px;object-fit:cover;border-radius:7px;background:var(--mp-bg);';
+      var label = document.createElement('p'); label.textContent = entry.label; label.title = entry.path;
+      label.style.cssText = 'font-size:12px;overflow-wrap:anywhere;margin:7px 0;';
+      card.appendChild(img); card.appendChild(label);
+      if (target === 'main') {
+        var use = document.createElement('button'); use.type = 'button'; use.className = 'mp-qa-btn'; use.textContent = 'Use as product image';
+        use.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:6px 8px;';
+        use.addEventListener('click', function(){ chooseMain(entry); }); card.appendChild(use);
+      } else {
+        var add = document.createElement('button'); add.type = 'button'; add.className = 'mp-qa-btn'; add.textContent = 'Add to gallery';
+        add.style.cssText = 'background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);font-size:12px;padding:6px 8px;';
+        add.addEventListener('click', function(){ chooseGallery(entry); }); card.appendChild(add);
+      }
+      grid.appendChild(card);
+    });
+  }
+  function openPicker(which){
+    target = which;
+    picker.style.display = 'block';
+    hint.textContent = which === 'main' ? 'Choose an image already used by a product in this store.' : 'Add existing images to this product gallery without uploading another copy.';
+    picker.scrollIntoView({behavior:'smooth', block:'nearest'});
+    if (media.length) { render(); return; }
+    status.textContent = 'Loading uploaded images…';
+    fetch((document.getElementById('base_url').value || '/') + 'items/media_library', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+      .then(function(response){ if(!response.ok) throw new Error('Could not load the image library.'); return response.json(); })
+      .then(function(data){ if(!data.success) throw new Error(data.message || 'Could not load the image library.'); media = Array.isArray(data.images) ? data.images : []; render(); })
+      .catch(function(error){ status.textContent = error.message + ' You can still upload a new image above.'; });
+  }
+  document.getElementById('choose_existing_product_image').addEventListener('click', function(){ openPicker('main'); });
+  var galleryButton = document.getElementById('choose_existing_gallery_images');
+  if (galleryButton) galleryButton.addEventListener('click', function(){ openPicker('gallery'); });
+  document.getElementById('close_product_media_picker').addEventListener('click', function(){ picker.style.display = 'none'; });
+  var current = document.getElementById('item_image_existing').value;
+  if (current && !document.getElementById('current_product_image_photo')) {
+    document.getElementById('selected_product_image_thumb').src = (document.getElementById('base_url').value || '/') + current;
+    document.getElementById('selected_product_image_path').textContent = 'Current product image: ' + current;
+    document.getElementById('selected_product_image_preview').style.display = 'block';
+  }
+})();
+</script>
+
+<script>
+var barcodeRowIndex = <?= (!empty($item_barcodes) && is_array($item_barcodes)) ? count($item_barcodes) : 1; ?>;
+function addBarcodeRow(){
+  barcodeRowIndex++;
+  var html = '<tr id="barcode_row_'+barcodeRowIndex+'">'+
+    '<td><input type="hidden" name="barcode_id[]" value="0"><input type="text" name="barcode_barcode[]" placeholder="Scan or enter barcode"></td>'+
+    <?php if(mp_feature_enabled('batch_tracking')): ?>'<td><input type="text" name="barcode_batch[]" placeholder="Batch / Lot"></td>'+
+    <?php endif; ?><?php if(mp_feature_enabled('serial_number_tracking')): ?>'<td><input type="text" name="barcode_serial[]" placeholder="Serial"></td>'+
+    <?php endif; ?><?php if(mp_feature_enabled('imei_tracking')): ?>'<td><input type="text" name="barcode_imei[]" placeholder="IMEI"></td>'+
+    '<td><input type="text" name="barcode_imei_2[]" placeholder="IMEI 2 (optional)"></td>'+
+    <?php endif; ?>'<td><input type="text" class="only_currency" name="barcode_pprice[]" placeholder="0.00"></td>'+
+    '<td><input type="text" class="only_currency" name="barcode_sprice[]" placeholder="0.00"><div class="profit-indicator wholesale-profit text-success small"></div></td>'+
+    '<td><input type="text" class="only_currency" name="barcode_mrp[]" placeholder="0.00"><div class="profit-indicator retail-profit text-success small"></div></td>'+
+    '<td><input type="text" class="only_currency" name="barcode_qty[]" placeholder="0" <?=$opening_stock_readonly;?>></td>'+
+    <?php if(mp_feature_enabled('expiry_tracking')): ?>'<td><input type="date" name="barcode_expire_date[]"></td>'+
+    <?php endif; ?><?php if(mp_feature_enabled('mfg_tracking')): ?>'<td><input type="date" name="barcode_mfg_date[]"></td>'+
+    <?php endif; ?><?php if(mp_feature_enabled('warranty_tracking')): ?>'<td><input type="text" name="barcode_warranty[]" placeholder="Months" style="min-width:60px;"></td>'+
+    <?php endif; ?>'<td><button type="button" class="btn-xs-danger" onclick="removeBarcodeRow('+barcodeRowIndex+')"><i class="fa fa-trash"><\/i><\/button><\/td>'+
+    '<\/tr>';
+  $('#barcode_table tbody').append(html);
+}
+function removeBarcodeRow(id){
+  $('#barcode_row_'+id).remove();
+}
+<?php if(mp_feature_enabled('auto_parts')): ?>
+var compatRowIndex = <?= count((isset($vehicle_compat_rows) && is_array($vehicle_compat_rows)) ? $vehicle_compat_rows : []); ?>;
+function addCompatRow(){
+  compatRowIndex++;
+  var html = '<tr id="compat_row_'+compatRowIndex+'">'+
+    '<td><input type="text" name="compat_make[]" list="mp_vehicle_makes" placeholder="e.g. Toyota"></td>'+
+    '<td><input type="text" name="compat_model[]" list="mp_vehicle_models" placeholder="e.g. Corolla"></td>'+
+    '<td><input type="text" name="compat_year_from[]" placeholder="2015" style="min-width:70px;"></td>'+
+    '<td><input type="text" name="compat_year_to[]" placeholder="2020" style="min-width:70px;"></td>'+
+    '<td><input type="text" name="compat_engine[]" placeholder="e.g. 2.0 D-4D"></td>'+
+    '<td><input type="text" name="compat_note[]" placeholder="Anything a fitter should know"></td>'+
+    '<td><button type="button" class="btn-xs-danger" onclick="removeCompatRow('+compatRowIndex+')"><i class="fa fa-trash"><\/i><\/button><\/td>'+
+    '<\/tr>';
+  $('#vehicle_compat_table tbody').append(html);
+}
+function removeCompatRow(id){
+  $('#compat_row_'+id).remove();
+}
+<?php endif; ?>
+
+$(function(){
+  // Custom Order field builder
+  $('#accept_custom_order').on('change', function(){
+    if($(this).is(':checked')){
+      $('#custom-order-options').slideDown(200);
+    } else {
+      $('#custom-order-options').slideUp(200);
+    }
+  });
+  // Trigger on load so the section is visible if the item already has accept_custom_order=1
+  $('#accept_custom_order').trigger('change');
+  $('#btn-add-cf').on('click', function(){
+    var html = '<tr class="cf-row">'+
+      '<td><input type="text" name="cf_label[]" placeholder="e.g. Size, Flavor"></td>'+
+      '<td><select name="cf_type[]"><option value="text">Text</option><option value="textarea">Long Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="date">Date</option><option value="color">Color</option></select></td>'+
+      '<td><input type="text" name="cf_options[]" placeholder="For dropdown: Red, Blue, Green"></td>'+
+      '<td style="text-align:center;"><input type="hidden" name="cf_required[]" value="0"><input type="checkbox" name="cf_required[]" value="1" style="width:auto;"></td>'+
+      '<td><button type="button" class="btn-xs-danger" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>'+
+      '</tr>';
+    $('#custom-fields-table tbody').append(html);
+  });
+
+  <?php if(recipe_module()): ?>
+  // Recipe cost calculator
+  function updateRecipeCost(){
+    var $opt = $('#recipe_id option:selected');
+    var cost = parseFloat($opt.data('cost')) || 0;
+    var margin = parseFloat($('#recipe_margin_pct').val()) || 0;
+    var sale = cost > 0 ? (cost * (1 + margin / 100)) : 0;
+    $('#recipe-cost-display').text(cost.toFixed(2));
+    $('#recipe-sale-display').text(sale.toFixed(2));
+    if($('#simple-pricing-section').is(':visible') && cost > 0){
+      $('#purchase_price').val(cost.toFixed(2));
+      $('#price').val(cost.toFixed(2));
+      if(sale > 0){
+        $('#sales_price').val(sale.toFixed(2));
+      }
+      $('#price').trigger('change');
+      $('#sales_price').trigger('change');
+    }
+  }
+  $('#recipe_id').on('change', updateRecipeCost);
+  $('#recipe_margin_pct').on('input', updateRecipeCost);
+  updateRecipeCost();
+  <?php endif; ?>
+
+  <?php if(mp_feature_enabled('multi_unit_selling')): ?>
+  // Selling units add/remove
+  function reindexSellingUnitRadios(){
+    $('#selling_units_table tbody tr.selling-unit-row:visible').each(function(i){
+      $(this).find('input[type="radio"]').val(i);
+    });
+  }
+  $('#add_selling_unit_row').on('click', function(){
+    var idx = $('#selling_units_table tbody tr.selling-unit-row:visible').length;
+    var $template = $('#selling_unit_template').clone();
+    $template.removeAttr('id').removeClass('mp-hidden');
+    $template.find('input, select').prop('disabled', false);
+    $template.find('input[type="radio"]').val(idx);
+    $('#selling_units_table tbody').append($template);
+  });
+  $(document).on('click', '.selling-unit-remove', function(){
+    $(this).closest('tr.selling-unit-row').remove();
+    reindexSellingUnitRadios();
+  });
+  <?php endif; ?>
+});
+</script>
+
+<!-- Variant Matrix Generator JS -->
+<script type="text/javascript">
+var base_url_js = "<?= base_url(); ?>";
+var attributeMap = {};
+
+function toggleAttributeTypesBox(){
+  var ig = $("#item_group").val();
+  if(ig == 'Variants'){
+    $("#attribute_types_box").removeClass('mp-hidden');
+  } else {
+    $("#attribute_types_box").addClass('mp-hidden');
+  }
+}
+
+function previewVariantImage(input, rowcount){
+  if(input.files && input.files[0]){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = $('#variant_preview_' + rowcount);
+      if(img.length === 0){
+        $(input).closest('td').prepend('<img id="variant_preview_' + rowcount + '" src="' + e.target.result + '" style="max-width:48px; max-height:48px; border-radius:4px; margin-bottom:6px; cursor:pointer;" onclick="$(\'#variant_image_' + rowcount + '\').click()">');
+      } else {
+        img.attr('src', e.target.result);
+      }
+      $(input).closest('td').find('.variant-choose-link').text('Change image');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+$(function(){
+  $("#item_group").on('change', function(){
+    toggleAttributeTypesBox();
+  });
+  toggleAttributeTypesBox();
+  $("#item_group").trigger('change');
+});
+
+function loadMatrixAttributeMap(){
+  $.get(base_url_js+'items/get_variant_attribute_map', function(res){
+    if(res.status == 'success'){
+      attributeMap = res.map || {};
+      renderMatrixAttributeRows();
+    }
+  }, 'json');
+}
+
+function renderMatrixAttributeRows(){
+  var container = $("#matrix_attribute_container");
+  container.html('');
+  var selectedTypes = $("#attribute_types").val() || [];
+  if(selectedTypes.length == 0){
+    container.html('<div class="col-md-12"><div class="alert alert-warning">Please flag attribute types for this product first (Size, Colour, Length).</div></div>');
+    return;
+  }
+  selectedTypes.forEach(function(type){
+    var vals = attributeMap[type] || [];
+    if(vals.length == 0) return;
+    var html = '<div class="col-md-4">';
+    html += '<div class="form-group">';
+    html += '<label class="text-capitalize">'+type+'</label>';
+    html += '<select class="form-control matrix-attribute-values" data-type="'+type+'" multiple style="min-height:120px;">';
+    vals.forEach(function(v){ html += '<option value="'+v+'">'+v+'</option>'; });
+    html += '</select></div></div>';
+    container.append(html);
+  });
+  updateMatrixPreview();
+}
+
+function updateMatrixPreview(){
+  var combos = 1;
+  var active = false;
+  $(".matrix-attribute-values").each(function(){
+    var vals = $(this).val() || [];
+    if(vals.length > 0){
+      combos *= vals.length;
+      active = true;
+    }
+  });
+  if(active){
+    $("#matrix_preview").html('<b>'+combos+'</b> combinations will be generated.');
+  } else {
+    $("#matrix_preview").html('');
+  }
+}
+
+$(document).on('change', '.matrix-attribute-values', updateMatrixPreview);
+
+$(function(){
+  $("#matrix_generator_modal").on('shown.bs.modal', function(){
+    loadMatrixAttributeMap();
+  });
+
+  $("#btn_generate_matrix").on('click', function(){
+    var attribute_map = {};
+    var anySelected = false;
+    $(".matrix-attribute-values").each(function(){
+      var type = $(this).data('type');
+      var vals = $(this).val() || [];
+      if(vals.length > 0){
+        attribute_map[type] = vals;
+        anySelected = true;
+      }
+    });
+    if(!anySelected){
+      alert('Please select at least one value for each attribute.');
+      return;
+    }
+    var starting_rowcount = $("#variant_table tbody tr").length + 1;
+    $("#btn_generate_matrix").attr('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Generating...');
+    $.post(base_url_js+'items/generate_matrix_rows', {
+      attribute_map: JSON.stringify(attribute_map),
+      base_item_name: $("#item_name").val() || '',
+      base_sku: $("#sku").val() || '',
+      base_price: $("#price").val() || '0',
+      base_sales_price: $("#sales_price").val() || '0',
+      base_mrp: $("#mrp").val() || '0',
+      starting_rowcount: starting_rowcount,
+      '<?= $this->security->get_csrf_token_name(); ?>': '<?= $this->security->get_csrf_hash(); ?>'
+    }, function(res){
+      $("#btn_generate_matrix").attr('disabled', false).html('<i class="fa fa-magic"></i> Generate Rows');
+      if(res.status == 'success' && res.html){
+        $("#variant_table tbody").append(res.html);
+        $("#hidden_rowcount").val($("#variant_table tbody tr").length);
+        if(typeof calculate_purchase_price_of_all_row === 'function') calculate_purchase_price_of_all_row();
+        if(typeof calculate_sales_price_of_all_row === 'function') calculate_sales_price_of_all_row();
+        $("#matrix_generator_modal").modal('hide');
+      } else {
+        alert('Could not generate matrix rows.');
+      }
+    }, 'json');
+  });
+});
+</script>
+
+<!-- Make sidebar menu highlighter/selector -->
+<script>$(".<?php echo basename(__FILE__,'.php');?>-active-li").addClass("active");</script>
+
+<?php $this->load->view('inventory/retail_markup_script'); ?>

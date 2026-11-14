@@ -1,0 +1,85 @@
+-- ============================================================================
+-- MartPoint 4.0.9.115 — Pass A: industry-aware labels, menu de-duplication
+--
+-- No schema change. Carries the release forward and records the work.
+--
+-- WHAT WAS RETAIL LEAKING INTO PRINTING
+--
+-- 1. LICENCE LABELS (views/subscription_license/index.php)
+--
+--    Every install read "Product Limit (top-level items)", "SKU Limit",
+--    "Online Product Limit (storefront)" and a bare "Service Limit". For a
+--    print shop that is three synonyms for a product it does not sell, and its
+--    own terms last and unqualified.
+--
+--    Labels are now business-aware: a printing store reads Materials /
+--    Material variants / Catalogue items / Print job types. The LIMITS are
+--    untouched and enforced exactly as before — only the noun changes.
+--
+--    There were TWO limit blocks on that page (the plan preview and the
+--    override form) and both were hard-coded. Both are fixed; verified by
+--    reading every rendered label back and asserting none still said
+--    "Product Limit" / "SKU Limit" / "Online Product Limit".
+--
+-- 2. OPERATIONS OFF FOR PRINTING (views/mp_sidebar.php)
+--
+--    Operations is a production rail. Its flags are production_workflow,
+--    recipe_tracking, delivery_scheduling, custom_orders, equipment_register,
+--    service_jobs — all of which Print Shop and Machine Floor already cover, in
+--    the language of print rather than generic manufacturing. A print shop had
+--    two menus for one job and the wrong vocabulary in one of them.
+--
+--    Suppressed for printing only. Every other industry keeps it.
+--
+-- 3. REPORT MERGED INTO INSIGHTS (views/mp_sidebar.php)
+--
+--    Insights (print costing) and Reports (shared report list) were two groups
+--    for one idea, duplicated on the same rail. The shared reports are folded
+--    into Insights, so there is one reporting group and one place to keep in
+--    step. Every link keeps its own permission gate — nothing becomes
+--    reachable that was not reachable before. The separate Reports group is
+--    suppressed for printing only.
+--
+-- 4. CLIENT SEGMENTS LINKED (views/mp_sidebar.php)
+--
+--    db_customer_segments and Marketing::segments() have existed for a while,
+--    but nothing linked them: the screen was reachable only by typing the URL.
+--    Orphaned exactly like the printing module was. Now on the Marketing rail,
+--    gated on customers_view.
+--
+-- 5. QUICK JOB (views/mp_header.php, views/dashboard.php)
+--
+--    A print shop has no till — /pos redirects it to the new-job builder,
+--    because every print job is priced from a quotation and there is nothing
+--    meaningful to add to a cart. The header button said "POS" and the
+--    dashboard said "New Sale", both naming a screen the store does not have.
+--    They now read "Quick Job" and "New Print Job" and link straight to
+--    /printing/job. Every other industry keeps POS / New Sale.
+--
+-- A NOTE ON THE PURCHASE SCREEN AND PRODUCTION MATERIALS
+--
+-- Investigated and found ALREADY CORRECT — nothing to build.
+--
+-- db_items.not_for_sale is the flag for "production material, never sellable".
+-- It is enforced everywhere it needs to be: Pos_model, Storefront_model,
+-- Online_store, Operations and custom_helper all filter not_for_sale = 0, and
+-- the item form exposes the checkbox (items.php / theme/js/items.js) with a
+-- CONSUMABLE badge in the list.
+--
+-- The production deduction path is likewise already built in Printing_model:
+--   issue_material()          deducts stock from db_items
+--   consume_material()        records usage (no second stock movement — the
+--                             issue already moved it)
+--   return_unused_material()  puts unused back
+--   wastage tracked separately, and "consumed + wastage exceeds issued" is
+--   refused rather than allowed to over-consume.
+--
+-- Customer-supplied material is the OTHER path and is separate by design:
+-- Printing_ops_model::move_custody() (issue / finish / consume / return) draws
+-- down db_print_customer_materials, never db_items — a client's paper is not
+-- the shop's stock. Both paths exist; a print shop needs its own materials
+-- entered with not_for_sale = 1 before either shows data.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

@@ -1,0 +1,394 @@
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+<style>
+.os-theme-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important;gap:16px!important}
+.os-theme-card{border:2px solid var(--mp-border)!important;border-radius:14px!important;padding:18px!important;text-align:center!important;cursor:pointer!important;transition:all .15s ease!important;background:var(--mp-surface)!important}
+.os-theme-card:hover{border-color:var(--mp-primary)!important}
+.os-theme-card.selected{border-color:var(--mp-primary)!important;box-shadow:0 0 0 3px rgba(0,87,255,.15)!important}
+.os-theme-preview{width:44px!important;height:44px!important;border-radius:50%!important;margin:0 auto 10px!important}
+.os-theme-name{font-weight:700!important;font-size:14px!important;color:var(--mp-text)!important}
+.os-theme-ind{font-size:12px!important;color:var(--mp-muted)!important;margin-top:2px!important}
+.os-color-input{width:54px!important;height:42px!important;border:1px solid var(--mp-border)!important;border-radius:8px!important;cursor:pointer!important;padding:2px!important;background:var(--mp-surface)!important}
+.os-form-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px 24px!important}
+.os-form-grid .full{grid-column:1/-1!important}
+.os-form-grid .mp-form-group{display:flex!important;flex-direction:column!important;gap:6px!important}
+.os-form-grid .mp-form-group>label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin:0!important}
+.os-color-row{display:flex!important;align-items:center!important;gap:10px!important}
+.os-color-row label{font-size:13px!important;font-weight:600!important;color:var(--mp-ink)!important;margin:0!important;min-width:120px!important}
+.os-section-title{font-size:13px!important;font-weight:700!important;color:var(--mp-muted)!important;text-transform:uppercase!important;letter-spacing:.05em!important;margin:0 0 14px!important}
+</style>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">Customise your storefront theme, colours, branding and SEO</div>
+  </div>
+  <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" target="_blank" class="mp-qa-btn blue"><i class="fa fa-external-link"></i> View Store</a>
+  <a href="<?= base_url('online_store/html_themes'); ?>" class="mp-qa-btn" style="margin-left:8px;"><i class="fa fa-upload"></i> HTML Themes</a>
+</div>
+
+<div class="mp-card-form">
+  <div class="mp-card-head"><h3><i class="fa fa-paint-brush"></i> Theme</h3></div>
+  <div class="mp-card-body">
+    <div class="os-theme-grid" id="theme-selector">
+      <?php foreach($themes as $t): ?>
+      <div class="os-theme-card <?= ($current_theme && $current_theme->id == $t->id) ? 'selected' : ''; ?>" data-theme-id="<?= (int)$t->id; ?>" onclick="selectTheme(<?= (int)$t->id; ?>)">
+        <div class="os-theme-preview" style="background:<?= htmlspecialchars($t->default_primary_color); ?>"></div>
+        <div class="os-theme-name"><?= htmlspecialchars($t->theme_name); ?></div>
+        <div class="os-theme-ind"><?= htmlspecialchars($t->industry); ?></div>
+        <a href="<?= base_url('online_store/preview_store?theme_id=' . $t->id); ?>" target="_blank" class="mp-qa-btn blue" style="margin-top:10px;padding:6px 12px;font-size:12px;" onclick="event.stopPropagation();">Preview</a>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <input type="hidden" id="theme_id" value="<?= $current_theme ? (int)$current_theme->id : ''; ?>">
+  </div>
+</div>
+
+<?php $osThemeKey=(string)($current_theme->theme_key ?? '');$osBuildingTheme=in_array($osThemeKey,['framework_atelier','vector_systems'],true);$osFoodTheme=in_array($osThemeKey,['food_express','market_fresh'],true);$osMaisonForme=$osThemeKey==='maison_forme';$osGadgetsTheme=$osThemeKey==='martpoint_gadgets';$osUploadedTheme=($current_theme->theme_source ?? '')==='html_zip'; ?>
+<?php if($osGadgetsTheme && $osUploadedTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Edit your electronics storefront</strong><p class="mp-form-hint">Change the homepage hero and feature banner wording, and upload your own product or lifestyle images. For the banner shown in your preview, edit <b>Feature heading</b>, <b>Feature text</b> and <b>Feature image</b>.</p><a class="mp-btn-primary" href="<?= base_url('online_store/html_theme_content/'.(int)$current_theme->id); ?>">Edit electronics storefront ↗</a></div></div><?php endif; ?>
+<?php if($osThemeKey==='botanical_elegance'): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Rename the garden shop, edit page headings, navigation, buttons and sign-in artwork in the grouped content editor.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit storefront content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage text & images</a></div></div><?php elseif($osMaisonForme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Make Maison Forme your own.</strong><p class="mp-form-hint">Edit hero and editorial copy, headings, buttons and theme images. Product and category details stay connected to your Online Store catalogue.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit Maison Forme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Manage homepage sections</a></div></div><?php elseif($osBuildingTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit this theme's brand line, hero, page headings, imagery and calls to action. Product specifications and project stories have their own screens.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/product_b2b'); ?>">Specifications & documents</a> <a class="mp-qa-btn" href="<?= base_url('online_store/journal'); ?>">Applications & projects</a></div></div><?php elseif($osFoodTheme): ?><div class="mp-card-form" style="margin-bottom:20px"><div class="mp-card-body"><strong>Your storefront, your wording.</strong><p class="mp-form-hint">Edit the hero text and banner images, trust badges, category labels and footer copy. Product and category details come from their catalogue screens.</p><a class="mp-btn-primary" href="<?= base_url('online_store/theme_content'); ?>">Edit theme content ↗</a> <a class="mp-qa-btn" href="<?= base_url('online_store/homepage_builder'); ?>">Edit homepage sections</a></div></div><?php endif; ?>
+<p><a href="<?= base_url('online_store/content_settings'); ?>"><?= $osBuildingTheme?'Manage enquiry page & privacy policies':'Manage contact page, journal & product conversion features'; ?> ↗</a></p>
+<form id="appearance-form" onsubmit="return false;">
+  <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
+
+  <?php
+    // What this storefront sells. This drives the nav and which catalogue
+    // sections appear. It lives INSIDE #appearance-form so the
+    // radio value is actually submitted — rendered outside the form it would
+    // look right and silently save nothing.
+    //
+    // Defaults to 'products' when unset, matching Theme_engine::catalogueMode(),
+    // so the checked state and the engine can never disagree.
+    $os_mode = $settings->catalogue_mode ?? '';
+    if(!in_array($os_mode, ['services', 'products', 'both'], true)){ $os_mode = 'products'; }
+    // Selling mode controls whether product pages offer checkout or enquiries;
+    // keep its default aligned with Theme_engine for older settings rows.
+    $os_selling_mode = $settings->selling_mode ?? '';
+    if(!in_array($os_selling_mode, ['catalogue', 'ecommerce', 'hybrid'], true)){
+      $os_selling_mode = in_array($os_mode, ['products', 'both'], true) ? 'ecommerce' : 'catalogue';
+    }
+  ?>
+  <?php if(!$osBuildingTheme): ?>
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-shopping-bag"></i> What You Sell</h3></div>
+    <div class="mp-card-body">
+      <p class="mp-form-hint" style="margin-top:0">Choose which kinds of items appear in your storefront. Set cart and checkout behavior below.</p>
+      <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="services" <?= $os_mode === 'services' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Services only</b><br><span class="mp-form-hint">Jobs, quotes and enquiries. No cart — customers request a price.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="products" <?= $os_mode === 'products' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Products only</b><br><span class="mp-form-hint">Show your products and product categories in the storefront.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="catalogue_mode" value="both" <?= $os_mode === 'both' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Both</b><br><span class="mp-form-hint">Show products and services in the same storefront.</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <?php if(!$osBuildingTheme): ?>
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-shopping-cart"></i> How Customers Order</h3></div>
+    <div class="mp-card-body">
+      <p class="mp-form-hint" style="margin-top:0">Choose whether customers can check out products online or should contact you first.</p>
+      <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="selling_mode" value="catalogue" <?= $os_selling_mode === 'catalogue' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Catalogue and enquiries</b><br><span class="mp-form-hint">Customers browse products and contact you. No cart or checkout.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="selling_mode" value="ecommerce" <?= $os_selling_mode === 'ecommerce' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Online orders</b><br><span class="mp-form-hint">Customers add products to their cart and check out online.</span></span>
+          </label>
+        </div>
+        <div class="mp-form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+            <input type="radio" name="selling_mode" value="hybrid" <?= $os_selling_mode === 'hybrid' ? 'checked' : ''; ?> style="margin-top:3px;">
+            <span><b>Online orders and enquiries</b><br><span class="mp-form-hint">Products use the cart; service work can still be quoted by enquiry.</span></span>
+          </label>
+        </div>
+      </div>
+      <?php if(isset($settings->show_prices)): ?><input type="hidden" name="show_prices" value="<?= (int)$settings->show_prices === 1 ? '1' : '0'; ?>"><?php endif; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
+<?php if($osBuildingTheme): ?>
+  <div class="mp-card-form"><div class="mp-card-head"><h3><i class="fa fa-comment-o"></i> Enquiry-led B2B website</h3></div><div class="mp-card-body"><p>Framework Atelier and Vector Systems receive project enquiries, survey requests and service requests. There is no cart, checkout or public price list.</p><p><a href="<?= base_url('online_store'); ?>">Open website inbox & operational handoffs ↗</a> · <a href="<?= base_url('online_store/settings'); ?>">Contact & publishing settings</a></p><input type="hidden" name="catalogue_mode" value="<?= htmlspecialchars($os_mode,ENT_QUOTES); ?>"><input type="hidden" name="selling_mode" value="catalogue"><input type="hidden" name="show_prices" value="0"></div></div>
+<?php endif; ?>
+
+<?php
+/**
+ * The swatches must show the colour the storefront is ACTUALLY painting, and
+ * a blank must be distinguishable from a deliberate choice.
+ *
+ * Previously these read `$settings->primary_color ?? '#3B82F6'` — the raw
+ * store-wide column. Two consequences, both of them the reported bug:
+ *
+ *   1. Opening Appearance on a theme you had not customised showed the seeded
+ *      #3B82F6, implying blue was the theme's colour. It was not; it was the
+ *      column default masquerading as a decision.
+ *   2. Whatever was displayed got posted back on Save. So switching theme and
+ *      saving re-persisted the PREVIOUS theme's colour as the store brand
+ *      colour, which then beat the new theme's design. The colour appeared
+ *      stuck no matter how many times you switched.
+ *
+ * resolveBrandColor() already knows the difference between "merchant chose
+ * this" and "untouched default", so the form delegates to it. `$is_custom`
+ * drives the reset control below and is written into the hidden
+ * `<name>_custom` flags that save_appearance() reads.
+ */
+$effectivePrimary   = $this->theme_engine->resolveBrandColor('primary');
+$effectiveSecondary = $this->theme_engine->resolveBrandColor('secondary');
+$primaryCustom      = !$this->theme_engine->isStockDefault($settings->primary_color ?? null, 'primary');
+$secondaryCustom    = !$this->theme_engine->isStockDefault($settings->secondary_color ?? null, 'secondary');
+$themeP = htmlspecialchars($current_theme->default_primary_color ?? '#3B82F6');
+$themeS = htmlspecialchars($current_theme->default_secondary_color ?? '#10B981');
+?>
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-palette"></i> Colours & Typography</h3></div>
+    <div class="mp-card-body">
+      <p class="os-hint" style="font-size:13px;color:#64748B;margin:0 0 14px;">
+        Leave these alone to use <b><?= htmlspecialchars($current_theme->theme_name ?? 'the theme'); ?></b>'s own palette
+        (<span style="font-weight:600;"><?= $themeP; ?></span> / <span style="font-weight:600;"><?= $themeS; ?></span>).
+        Pick a colour only if you want your branding to override it.
+      </p>
+      <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label>Primary Colour<?= $primaryCustom ? ' <span style="color:#0E7490;font-size:11px;font-weight:700;">(custom)</span>' : ' <span style="color:#94A3B8;font-size:11px;">(theme default)</span>' ?></label>
+          <div class="os-color-row">
+            <input type="color" class="os-color-input" id="primary_color" name="primary_color" value="<?= htmlspecialchars($effectivePrimary); ?>">
+            <button type="button" class="os-color-reset" data-target="primary_color" data-default="<?= $themeP; ?>" title="Use the theme's own colour">&times;</button>
+          </div>
+        </div>
+        <div class="mp-form-group">
+          <label>Secondary Colour<?= $secondaryCustom ? ' <span style="color:#0E7490;font-size:11px;font-weight:700;">(custom)</span>' : ' <span style="color:#94A3B8;font-size:11px;">(theme default)</span>' ?></label>
+          <div class="os-color-row">
+            <input type="color" class="os-color-input" id="secondary_color" name="secondary_color" value="<?= htmlspecialchars($effectiveSecondary); ?>">
+            <button type="button" class="os-color-reset" data-target="secondary_color" data-default="<?= $themeS; ?>" title="Use the theme's own colour">&times;</button>
+          </div>
+        </div>
+        <div class="mp-form-group">
+          <label>Page Background</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="background_color" name="background_color" value="<?= htmlspecialchars(preg_match('/^#[0-9a-fA-F]{6}$/', trim($settings->background_color ?? '')) ? $settings->background_color : '#FFFFFF'); ?>" title="White = theme default"></div>
+        </div>
+        <div class="mp-form-group">
+          <label>Footer Background</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="footer_bg_color" name="footer_bg_color" value="<?= htmlspecialchars($settings->footer_bg_color ?? '#0F172A'); ?>"></div>
+        </div>
+        <div class="mp-form-group">
+          <label>Footer Text Colour</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="footer_text_color" name="footer_text_color" value="<?= htmlspecialchars($settings->footer_text_color ?? '#94A3B8'); ?>"></div>
+        </div>
+        <div class="mp-form-group">
+          <label>Button Colour</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="button_color" name="button_color" value="<?= htmlspecialchars($settings->button_color ?? ($settings->primary_color ?? '#3B82F6')); ?>"></div>
+        </div>
+        <div class="mp-form-group">
+          <label>Header Text Colour</label>
+          <div class="os-color-row"><input type="color" class="os-color-input" id="header_text_color" name="header_text_color" value="<?= htmlspecialchars($settings->header_text_color ?? '#000000'); ?>" title="Leave empty for default"></div>
+        </div>
+        <div class="mp-form-group">
+          <label for="font_family">Font Family</label>
+          <select class="mp-form-control" id="font_family" name="font_family">
+            <option value="Inter" <?= ($settings->font_family ?? '') == 'Inter' ? 'selected' : ''; ?>>Inter (Modern)</option>
+            <option value="Instrument Serif" <?= ($settings->font_family ?? '') == 'Instrument Serif' ? 'selected' : ''; ?>>Instrument Serif (Editorial)</option>
+            <option value="Playfair Display" <?= ($settings->font_family ?? '') == 'Playfair Display' ? 'selected' : ''; ?>>Playfair Display (Elegant)</option>
+            <option value="Montserrat" <?= ($settings->font_family ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat (Bold)</option>
+            <option value="Roboto" <?= ($settings->font_family ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto (Clean)</option>
+            <option value="Poppins" <?= ($settings->font_family ?? '') == 'Poppins' ? 'selected' : ''; ?>>Poppins (Friendly)</option>
+            <option value="Open Sans" <?= ($settings->font_family ?? '') == 'Open Sans' ? 'selected' : ''; ?>>Open Sans (Readable)</option>
+          </select>
+        </div>
+        <div class="mp-form-group">
+          <label for="button_style">Button Style</label>
+          <select class="mp-form-control" id="button_style" name="button_style">
+            <option value="rounded" <?= ($settings->button_style ?? '') == 'rounded' ? 'selected' : ''; ?>>Rounded</option>
+            <option value="pill" <?= ($settings->button_style ?? '') == 'pill' ? 'selected' : ''; ?>>Pill</option>
+            <option value="square" <?= ($settings->button_style ?? '') == 'square' ? 'selected' : ''; ?>>Square</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-store"></i> Store Branding</h3></div>
+    <div class="mp-card-body">
+      <div class="os-form-grid">
+        <div class="mp-form-group">
+          <label for="store_logo">Store Logo</label>
+          <?php
+            $osLogo = '';
+            if(!empty($settings->store_logo) && file_exists($settings->store_logo)) $osLogo = base_url($settings->store_logo);
+            elseif(!empty($store->store_logo) && file_exists($store->store_logo)) $osLogo = base_url($store->store_logo);
+          ?>
+          <?php if($osLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osLogo; ?>" alt="Logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
+          <input type="file" class="mp-form-control" id="store_logo" name="store_logo" accept="image/*">
+          <div class="mp-form-hint">Shown in the storefront header and footer. Leave empty to keep the current logo.</div>
+        </div>
+        <div class="mp-form-group">
+          <label for="footer_logo">Footer Logo</label>
+          <?php
+            $osFooterLogo = '';
+            if(!empty($settings->footer_logo) && is_file(FCPATH . ltrim($settings->footer_logo, '/'))) $osFooterLogo = base_url(ltrim($settings->footer_logo, '/'));
+          ?>
+          <?php if($osFooterLogo): ?><div style="margin-bottom:8px;"><img src="<?= $osFooterLogo; ?>" alt="Footer logo" style="max-height:48px;max-width:160px;border:1px solid var(--mp-border);border-radius:8px;padding:6px;background:#fff;"></div><?php endif; ?>
+          <input type="file" class="mp-form-control" id="footer_logo" name="footer_logo" accept="image/*">
+          <div class="mp-form-hint">Shown in the online-store footer across supported themes. Leave empty to use the store logo there.</div>
+        </div>
+        <div class="mp-form-group">
+          <label for="show_sale_stock_labels">Sale & Stock Labels</label>
+          <label style="display:flex;align-items:center;gap:10px;font-weight:500;margin-top:8px;">
+            <input type="checkbox" id="show_sale_stock_labels" name="show_sale_stock_labels" value="1" <?= ((int)($settings->show_sale_stock_labels ?? 1) === 1) ? 'checked' : ''; ?> style="width:18px;height:18px;">
+            Show sale prices, sale badges and out-of-stock labels
+          </label>
+          <div class="mp-form-hint">Applies to the online store and POS product catalogue. Checkout and stock validation remain server-controlled.</div>
+        </div>
+        <div class="mp-form-group"><label for="store_headline">Store Headline</label><input type="text" class="mp-form-control" id="store_headline" name="store_headline" value="<?= htmlspecialchars($settings->store_headline ?? ''); ?>" placeholder="Welcome to our store"></div>
+        <div class="mp-form-group"><label for="store_subheadline">Store Subheadline</label><input type="text" class="mp-form-control" id="store_subheadline" name="store_subheadline" value="<?= htmlspecialchars($settings->store_subheadline ?? ''); ?>" placeholder="Discover amazing products"></div>
+        <div class="mp-form-group"><label for="footer_style">Footer Style</label>
+          <select class="mp-form-control" id="footer_style" name="footer_style">
+            <option value="standard" <?= ($settings->footer_style ?? '') == 'standard' ? 'selected' : ''; ?>>Standard (4 columns)</option>
+            <option value="compact" <?= ($settings->footer_style ?? '') == 'compact' ? 'selected' : ''; ?>>Compact (centered)</option>
+            <option value="about_focused" <?= ($settings->footer_style ?? '') == 'about_focused' ? 'selected' : ''; ?>>About-Focused</option>
+          </select>
+        </div>
+        <div class="mp-form-group"><label for="footer_address_url">Address Link</label><input type="url" class="mp-form-control" id="footer_address_url" name="footer_address_url" value="<?= htmlspecialchars($settings->footer_address_url ?? ''); ?>" placeholder="https://maps.google.com/..."></div>
+        <div class="mp-form-group full"><label for="footer_about_us">About Us (Footer)</label><textarea class="mp-form-control" id="footer_about_us" name="footer_about_us" rows="3" placeholder="Short about us text shown under the brand in footer"><?= htmlspecialchars($settings->footer_about_us ?? ''); ?></textarea></div>
+        <div class="mp-form-group"><label for="announcement_bar">Announcement Bar</label><input type="text" class="mp-form-control" id="announcement_bar" name="announcement_bar" value="<?= htmlspecialchars($settings->announcement_bar ?? ''); ?>" placeholder="Free delivery on orders over N10,000"></div>
+        <div class="mp-form-group"><label>Bar Colour</label><div class="os-color-row"><input type="color" class="os-color-input" id="announcement_bar_color" name="announcement_bar_color" value="<?= htmlspecialchars($settings->announcement_bar_color ?? '#0F172A'); ?>"></div></div>
+        <div class="mp-form-group full"><label for="marquee_items">Announcement Marquee (including Lumière)</label><textarea class="mp-form-control" id="marquee_items" name="marquee_items" rows="4" placeholder="Free Shipping Over N15,000&#10;New Season Drop&#10;Authentic Guaranteed&#10;Pay On Delivery Available"><?= htmlspecialchars($settings->marquee_items ?? ''); ?></textarea><div class="mp-form-hint">One item per line. Lumière scrolls these above the header; when empty, it shows the Announcement Bar text.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-search"></i> SEO & Analytics</h3></div>
+    <div class="mp-card-body">
+      <div class="os-form-grid">
+        <div class="mp-form-group"><label for="meta_title">Meta Title</label><input type="text" class="mp-form-control" id="meta_title" name="meta_title" value="<?= htmlspecialchars($settings->meta_title ?? ''); ?>" placeholder="Homepage title for search engines"></div>
+        <div class="mp-form-group"><label for="meta_description">Meta Description</label><textarea class="mp-form-control" id="meta_description" name="meta_description" rows="2" placeholder="Short description shown in Google results"><?= htmlspecialchars($settings->meta_description ?? ''); ?></textarea></div>
+        <div class="mp-form-group"><label for="meta_keywords">Meta Keywords</label><input type="text" class="mp-form-control" id="meta_keywords" name="meta_keywords" value="<?= htmlspecialchars($settings->meta_keywords ?? ''); ?>" placeholder="products, shop, online store"></div>
+        <div class="mp-form-group"><label for="google_analytics_id">Google Analytics ID</label><input type="text" class="mp-form-control" id="google_analytics_id" name="google_analytics_id" value="<?= htmlspecialchars($settings->google_analytics_id ?? ''); ?>" placeholder="G-XXXXXXXXXX or UA-XXXXX-X"></div>
+        <div class="mp-form-group"><label for="facebook_pixel_id">Facebook Pixel ID</label><input type="text" class="mp-form-control" id="facebook_pixel_id" name="facebook_pixel_id" value="<?= htmlspecialchars($settings->facebook_pixel_id ?? ''); ?>" placeholder="1234567890"></div>
+        <div class="mp-form-group"><label for="tiktok_pixel_id">TikTok Pixel ID</label><input type="text" class="mp-form-control" id="tiktok_pixel_id" name="tiktok_pixel_id" value="<?= htmlspecialchars($settings->tiktok_pixel_id ?? ''); ?>" placeholder="C4A8BC1D77U9M2MG0P50"></div>
+        <div class="mp-form-group"><label for="require_tracking_consent">Visitor Consent for Trackers</label>
+          <select class="mp-form-control" id="require_tracking_consent" name="require_tracking_consent">
+            <option value="1" <?= ($settings->require_tracking_consent ?? 1) == 1 ? 'selected' : ''; ?>>Required — load analytics only after visitor accepts</option>
+            <option value="0" <?= ($settings->require_tracking_consent ?? 1) == 0 ? 'selected' : ''; ?>>Not required — trackers load immediately</option>
+          </select>
+          <div class="mp-form-hint">When required, a consent banner is shown and Google Analytics / Meta Pixel only load after the visitor accepts.</div>
+        </div>
+        <div class="mp-form-group"><label for="robots_index">Allow Search Indexing</label>
+          <select class="mp-form-control" id="robots_index" name="robots_index">
+            <option value="1" <?= ($settings->robots_index ?? '1') == '1' ? 'selected' : ''; ?>>Yes — index, follow</option>
+            <option value="0" <?= ($settings->robots_index ?? '1') == '0' ? 'selected' : ''; ?>>No — noindex, nofollow</option>
+          </select>
+        </div>
+        <div class="mp-form-group full"><label for="custom_head_scripts">Custom Head Scripts</label><textarea class="mp-form-control" id="custom_head_scripts" name="custom_head_scripts" rows="4" placeholder="Paste Google Search Console verification tag, Tag Manager, or any custom script here."><?= htmlspecialchars($settings->custom_head_scripts ?? ''); ?></textarea><div class="mp-form-hint">These scripts are output exactly as entered inside the <head> tag. Use with care.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-share-alt"></i> Social Links</h3></div>
+    <div class="mp-card-body">
+      <div class="os-form-grid">
+        <div class="mp-form-group"><label for="instagram_url">Instagram</label><input type="url" class="mp-form-control" id="instagram_url" name="instagram_url" value="<?= htmlspecialchars($settings->instagram_url ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="facebook_url">Facebook</label><input type="url" class="mp-form-control" id="facebook_url" name="facebook_url" value="<?= htmlspecialchars($settings->facebook_url ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="tiktok_url">TikTok</label><input type="url" class="mp-form-control" id="tiktok_url" name="tiktok_url" value="<?= htmlspecialchars($settings->tiktok_url ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="x_url">X (Twitter)</label><input type="url" class="mp-form-control" id="x_url" name="x_url" value="<?= htmlspecialchars($settings->x_url ?? ''); ?>"></div>
+        <div class="mp-form-group"><label for="youtube_url">YouTube</label><input type="url" class="mp-form-control" id="youtube_url" name="youtube_url" value="<?= htmlspecialchars($settings->youtube_url ?? ''); ?>"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mp-card-form">
+    <div class="mp-card-head"><h3><i class="fa fa-clock-o"></i> Business Hours</h3></div>
+    <div class="mp-card-body">
+      <div class="os-form-grid">
+        <div class="mp-form-group full"><label for="business_hours">Hours (one per line)</label><textarea class="mp-form-control" id="business_hours" name="business_hours" rows="4" placeholder="Mon - Fri: 9:00 AM - 6:00 PM"><?= htmlspecialchars($settings->business_hours ?? ''); ?></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mp-form-actions" style="margin-top:20px;">
+    <button type="button" class="mp-btn-primary" onclick="saveAppearance()"><i class="fa fa-check"></i> Save Appearance</button>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" target="_blank" class="mp-btn-secondary"><i class="fa fa-external-link"></i> View Store</a>
+  </div>
+</form>
+
+<script>
+toastr.options = { positionClass: 'toast-top-center', closeButton: true, progressBar: true, timeOut: 3000, showMethod: 'slideDown', hideMethod: 'slideUp' };
+function selectTheme(id){
+  document.getElementById('theme_id').value = id;
+  document.querySelectorAll('.os-theme-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector('.os-theme-card[data-theme-id="'+id+'"]').classList.add('selected');
+}
+function saveAppearance(){
+  const btn = document.querySelector('#appearance-form .mp-btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const fd = new FormData(document.getElementById('appearance-form'));
+  fd.append('theme_id', document.getElementById('theme_id').value);
+  // Tell the controller these swatches were reverted rather than chosen, so it
+  // can store NULL and let the theme's palette govern again. Without this the
+  // colour input's current value would be saved as a deliberate override.
+  document.queryAll('#primary_color, #secondary_color').forEach(function(input){
+    if(input.dataset.reverted === '1') fd.append(input.id + '_reverted', '1');
+  });
+  fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})
+  .then(r=>r.json()).then(res=>{
+    if(res.status === 'success'){ toastr.success(res.message); }
+    else { toastr.error(res.message || 'Failed to save'); }
+    btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance';
+  }).catch(()=>{ toastr.error('Error saving appearance'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance'; });
+}
+
+/**
+ * Reset a swatch to the active theme's own colour.
+ *
+ * Clicking this marks the field as "not customised" so save_appearance()
+ * stores NULL instead of a colour. NULL is what lets resolveBrandColor() fall
+ * through to the theme's designed palette — without it the merchant could see
+ * the theme colour but never return to it, because every save re-pinned the
+ * hue that happened to be showing.
+ */
+document.querySelectorAll('.os-color-reset').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    const input = document.getElementById(btn.dataset.target);
+    if(!input) return;
+    input.value = btn.dataset.default;
+    input.dataset.reverted = '1';
+    const label = input.closest('.mp-form-group').querySelector('label');
+    if(label) label.innerHTML = label.innerHTML.replace(/\(custom\)/, '(theme default)').replace(/#0E7490/, '#94A3B8');
+    if(window.toastr) toastr.info('Reverted to the theme colour — save to apply.');
+  });
+});
+// A swatch the merchant touches is a real choice again.
+document.querySelectorAll('#primary_color, #secondary_color').forEach(function(input){
+  input.addEventListener('input', function(){ input.dataset.reverted = ''; });
+});
+</script>
+<style>
+.os-color-reset{ width:30px; height:30px; margin-left:8px; flex:0 0 auto; border:1px solid #CBD5E1;
+  background:#fff; color:#64748B; border-radius:6px; cursor:pointer; font-size:16px; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center; }
+.os-color-reset:hover{ border-color:#0E7490; color:#0E7490; }
+.os-color-row{ display:flex; align-items:center; }
+</style>
+<script>$(".online_store-appearance-active-li").addClass("active").closest(".mp-nav-group").addClass("open");</script>

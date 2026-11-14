@@ -1,0 +1,70 @@
+  <meta charset="utf-8">
+<?php $this->load->view('comman/app_icons'); ?>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title><?=$page_title;?></title>
+  <meta name="theme-color" content="#0B1120">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Bootstrap 3.3.6 -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>bootstrap/css/bootstrap.min.css">
+   <!-- Font Awesome -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/font-awesome-4.7.0/css/font-awesome.min.css">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/ionicons-2.0.1/css/ionicons.min.css">
+  <!-- Select2 -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/select2/select2.min.css">
+    <!-- DataTables -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/css/dataTables.bootstrap.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.dataTables.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/FixedHeader-3.1.4/css/fixedHeader.bootstrap.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.dataTables.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Responsive-2.2.2/css/responsive.bootstrap.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/DataTables-1.10.18/extensions/Buttons-1.5.4/css/buttons.bootstrap.min.css">
+  <!-- end -->
+  <!-- Theme style -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/AdminLTE.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/newcustom.css">
+  <!-- AdminLTE Skins. Choose a skin from the css/skins
+       folder instead of downloading all of them to reduce the load. -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/skins/_all-skins.min.css">
+  <!-- bootstrap date-range-picker -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/daterangepicker/daterangepicker.css">
+  <!-- bootstrap datepicker -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/datepicker/datepicker3.css">
+ <!--Toastr notification -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>toastr/toastr.css">
+  <!--Toastr notification end-->
+  <!-- iCheck -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/iCheck/square/orange.css">
+  <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--Custom Css File-->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/custom.css">
+  <!-- MartPoint Retail Reskin -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-reskin.css?v=32">
+  <!-- Prototype-matching overrides -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/martpoint-prototype.css?v=25">
+
+  <!-- Autocomplete -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/autocomplete/autocomplete.css">
+  <!-- MartPoint Assist -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>css/assist.css?v=25">
+  <!-- Pace Loader -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/pace/pace.min.css">
+  <?php
+      $lang = trim(strtoupper($this->session->userdata('language')));
+      if($lang==strtoupper('arabic') || $lang==strtoupper('urdu')) {?>
+  <!-- RTL For arabic styles -->
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>bootstrap/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="<?php echo $theme_link; ?>dist/css/AdminLTE.rtl.min.css">
+  <?php } ?>
+  <!-- Theme color finder -->
+  <script type="text/javascript">
+   var theme_skin = 'skin-blue' ;
+  var sidebar_collapse = 'skin-blue';
+  </script>
+  <!-- jQuery 2.2.3 -->
+  <script src="<?php echo $theme_link; ?>plugins/jQuery/jquery-2.2.3.min.js"></script>
+
+<link rel="stylesheet" href="<?= base_url('theme/dist/css/application-controls.css?v=1'); ?>">

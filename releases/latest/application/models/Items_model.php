@@ -1,0 +1,2200 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Items_model extends CI_Model {
+
+	//Datatable start
+	var $table = 'db_items as a';
+	var $column_order = array(
+								'a.id',
+								'a.item_image',
+								'a.item_code',
+								'a.item_name',
+								'e.brand_name',
+								'b.category_name',
+								'c.unit_name',
+								'a.stock',
+								'a.alert_qty',
+								'a.sales_price',
+								'd.tax_name',
+								'a.service_bit',
+								'd.tax',
+								'a.status',
+								'a.store_id',
+								'a.sku',
+								'a.hsn',
+								'a.item_group',
+								'a.expire_date',
+								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
+								); //set column field database for datatable orderable
+	var $column_search = array(
+								'a.id',
+								'a.item_image',
+								'a.item_code',
+								'a.item_name',
+								'e.brand_name',
+								'b.category_name',
+								'c.unit_name',
+								'a.stock',
+								'a.alert_qty',
+								'a.sales_price',
+								'd.tax_name',
+								'a.service_bit',
+								'd.tax',
+								'a.status',
+								'a.store_id',
+								'a.sku',
+								'a.hsn',
+								'a.item_group',
+								'a.expire_date',
+								'a.mfg_date',
+								'a.not_for_sale',
+								'a.consumable_unit',
+								'a.manufacturer_part_no',
+								'a.oem_reference',
+								'a.cross_reference',
+								); //set column field database for datatable searchable 
+	var $order = array('a.item_code' => 'asc'); // stable catalogue order; the code header remains user-sortable
+
+	public function __construct()
+	{
+		parent::__construct();
+	}
+
+	private function _get_datatables_query()
+	{	
+		
+
+		$this->db->select(implode(',', $this->column_order));
+		$this->db->select('a.mrp');
+		$this->db->from($this->table);
+		$this->db->join('db_category as b',"b.id=a.category_id","left");
+		$this->db->join('db_units as c',"c.id=a.unit_id","left");
+		$this->db->join('db_tax as d',"d.id=a.tax_id","left");
+		$this->db->select("CASE WHEN e.brand_name IS NULL THEN '' ELSE e.brand_name END AS brand_name", FALSE);
+		$this->db->join('db_brands as e','e.id=a.brand_id','left');
+		
+
+		/*If warehouse selected*/
+		$warehouse_id = $this->input->post('warehouse_id');
+		$item_type = $this->input->post('item_type');
+
+		if(!empty($warehouse_id)){
+			/*$this->db->from('db_warehouseitems as w');
+			$this->db->where('a.id=w.item_id');
+			$this->db->where('w.warehouse_id',$warehouse_id);*/
+		}
+		if($item_type=='Items'){
+			$this->db->where('a.service_bit=0');
+		}
+		if($item_type=='Services'){
+			$this->db->where('a.service_bit=1');
+		}
+
+		//if not admin
+		//if(!is_admin()){
+			$this->db->where("a.store_id",get_current_store_id());
+		//}
+		
+		// Show parent products and single items only — hide child variant rows from the catalog list
+		$this->db->where("a.child_bit", 0);
+
+		// The shared item catalogue defaults to active records for every industry.
+		// Inactive and all-item views remain available through the status filter.
+		$status_filter = strtolower(trim((string)$this->input->post('status_filter')));
+		if(!in_array($status_filter, array('active', 'inactive', 'all'), true)){
+			$status_filter = 'active';
+		}
+		if($status_filter === 'active'){
+			$this->db->where('a.status', 1);
+		}elseif($status_filter === 'inactive'){
+			$this->db->where('a.status', 0);
+		}
+		//	echo $this->db->get_compiled_select();exit();
+		$i = 0;
+		// Part references are searched too; the columns arrive with 4.0.9.243,
+		// so a store that has not migrated yet keeps catalogue search working.
+		$search_columns = $this->column_search;
+		if (!$this->db->field_exists('manufacturer_part_no', 'db_items')) {
+			$search_columns = array_values(array_diff($search_columns,
+				['a.manufacturer_part_no', 'a.oem_reference', 'a.cross_reference']));
+		}
+	
+		foreach ($search_columns as $item) // loop column
+		{
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
+			{
+
+				if($i===0) // first loop
+				{
+					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
+					$this->db->like($item, $_POST['search']['value']);
+				}
+				else
+				{
+					$this->db->or_like($item, $_POST['search']['value']);
+				}
+
+				if(count($search_columns) - 1 == $i) //last loop
+					$this->db->group_end(); //close bracket
+			}
+			$i++;
+		}
+		
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
+		{
+			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+		}
+		else if(isset($this->order))
+		{
+			$order = $this->order;
+			$this->db->order_by(key($order), $order[key($order)]);
+		}
+	}
+
+	function get_datatables()
+	{
+		$this->_get_datatables_query();
+		if(isset($_POST['length']) && $_POST['length'] != -1)
+		$this->db->limit($_POST['length'], $_POST['start']);
+		$query = $this->db->get();
+		if(!$query){
+			log_message('error', 'Items_model get_datatables query failed: '.$this->db->error()['message']);
+			return [];
+		}
+		return $query->result();
+	}
+
+	function count_filtered()
+	{
+		$this->_get_datatables_query();
+		$query = $this->db->get();
+		return $query->num_rows();
+	}
+
+	public function count_all()
+	{
+		$this->db->where("store_id",get_current_store_id());
+		$this->db->from($this->table);
+		return $this->db->count_all_results();
+	}
+	//Datatable end
+
+	public function log_details(){
+		$data = $this->data;
+		return array(
+    				'created_date' 				=> $data['CUR_DATE'],
+    				'created_time' 				=> $data['CUR_TIME'],
+    				'created_by' 				=> $data['CUR_USERNAME'],
+    				'system_ip' 				=> $data['SYSTEM_IP'],
+    				'system_name' 				=> $data['SYSTEM_NAME']
+			    );
+	}
+
+	// Columns that actually exist in db_items (cached per request).
+	// Industry-specific feature columns (butchery, digital, vehicle, ...) only
+	// exist after their migration runs; filtering keeps one industry's schema
+	// from breaking item saves for every other industry.
+	private $_db_items_columns = null;
+	private function _filter_item_columns(array $data){
+		if ($this->_db_items_columns === null) {
+			$this->_db_items_columns = array_flip($this->db->list_fields('db_items'));
+		}
+		$dropped = array_diff_key($data, $this->_db_items_columns);
+		if ($dropped) {
+			log_message('error', 'Items_model: skipped missing db_items columns: '.implode(',', array_keys($dropped)));
+		}
+		return array_intersect_key($data, $this->_db_items_columns);
+	}
+
+	/**
+	 * Part references (manufacturer part no, OEM, cross refs) come only from the
+	 * auto catalogue form; stores without that section keep stored values.
+	 */
+	private function _auto_part_identity_fields(){
+		if ($this->input->post('auto_part_identity_section') === false) return [];
+		$limits = ['manufacturer_part_no' => 100, 'oem_reference' => 100, 'cross_reference' => 255];
+		$fields = [];
+		foreach ($limits as $col => $len) {
+			$val = trim((string) $this->input->post($col, TRUE));
+			$fields[$col] = ($val === '') ? null : substr($val, 0, $len);
+		}
+		return $fields;
+	}
+
+	/** Vehicle fitments are part knowledge; the part form posts the whole list,
+	 * and a form that never showed it must leave the stored list untouched. */
+	private function _save_vehicle_compat($store_id, $item_id){
+		if (!$this->db->table_exists('db_item_vehicle_compat')) return;
+		$this->load->model('item_vehicle_compat_model');
+		$this->item_vehicle_compat_model->replace_from_post($store_id, $item_id);
+	}
+
+	/** Only allow reusing image files already referenced by this store's products or galleries. */
+	private function _store_product_media_is_referenced($path, $store_id)
+	{
+		$path = str_replace('\\', '/', trim((string)$path));
+		if ($path === '' || strpos($path, 'uploads/items/') !== 0 || strpos($path, '..') !== false) return false;
+		if (!in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp','avif'], true)) return false;
+		$root = realpath(FCPATH . 'uploads/items');
+		$file = realpath(FCPATH . $path);
+		if (!$root || !$file || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) return false;
+
+		$used_by_item = $this->db->where('store_id', (int)$store_id)->where('item_image', $path)->count_all_results('db_items') > 0;
+		if ($used_by_item) return true;
+		return $this->db->table_exists('db_item_images')
+			&& $this->db->where('store_id', (int)$store_id)->where('image_path', $path)->count_all_results('db_item_images') > 0;
+	}
+
+	/** Remove an uploaded gallery file only when no product in the fleet still references it. */
+	private function _delete_unreferenced_gallery_file($path)
+	{
+		$path = str_replace('\\', '/', trim((string)$path));
+		if (strpos($path, 'uploads/items/gallery/') !== 0 || strpos($path, '..') !== false) return;
+		$used_by_item = $this->db->where('item_image', $path)->count_all_results('db_items') > 0;
+		$used_by_gallery = $this->db->table_exists('db_item_images')
+			&& $this->db->where('image_path', $path)->count_all_results('db_item_images') > 0;
+		if ($used_by_item || $used_by_gallery) return;
+		$root = realpath(FCPATH . 'uploads/items/gallery');
+		$file = realpath(FCPATH . $path);
+		if ($root && $file && strpos($file, $root . DIRECTORY_SEPARATOR) === 0 && is_file($file)) @unlink($file);
+	}
+
+	/** Save extra storefront gallery photos without changing db_items.item_image. */
+	private function save_product_gallery($item_id, $store_id, &$new_files, &$deleted_files)
+	{
+		if (!$this->db->table_exists('db_item_images') || !$item_id) return true;
+		$item = $this->db->where('id', (int)$item_id)->where('store_id', (int)$store_id)->get('db_items')->row();
+		if (!$item) return 'Product was not found in this store.';
+		$requested_paths = $this->input->post('gallery_existing_paths');
+		if (!is_array($requested_paths)) $requested_paths = [];
+		$validated_paths = [];
+		foreach ($requested_paths as $path) {
+			$path = str_replace('\\', '/', trim((string)$path));
+			if (!$this->_store_product_media_is_referenced($path, $store_id)) return 'One of the selected media files is no longer available for this store. Refresh the form and choose it again.';
+			$validated_paths[$path] = $path;
+		}
+
+		$delete_ids = $this->input->post('gallery_delete_ids');
+		if (!is_array($delete_ids)) $delete_ids = [];
+		foreach (array_unique(array_map('intval', $delete_ids)) as $image_id) {
+			if ($image_id < 1) continue;
+			$existing = $this->db->where('id', $image_id)->where('store_id', (int)$store_id)
+				->where('item_id', (int)$item_id)->get('db_item_images')->row();
+			if ($existing) {
+				$deleted_files[] = $existing->image_path;
+				$this->db->where('id', $image_id)->where('store_id', (int)$store_id)
+					->where('item_id', (int)$item_id)->delete('db_item_images');
+			}
+		}
+
+		$current_rows = $this->db->select('image_path')->where('store_id', (int)$store_id)
+			->where('item_id', (int)$item_id)->get('db_item_images')->result();
+		$current_paths = [];
+		foreach ($current_rows as $row) $current_paths[(string)$row->image_path] = true;
+		$current_count = count($current_paths);
+		$linked_paths = [];
+		foreach ($validated_paths as $path) {
+			if (isset($current_paths[$path])) continue;
+			$linked_paths[$path] = $path;
+		}
+		$upload_count = 0;
+		if (!empty($_FILES['item_gallery']['name']) && is_array($_FILES['item_gallery']['name'])) {
+			$upload_count = count(array_filter($_FILES['item_gallery']['name'], 'strlen'));
+		}
+		if ($current_count + count($linked_paths) + $upload_count > 8) return 'A product can have at most 8 gallery photos. Remove a photo or choose fewer files.';
+		$position = $current_count;
+		foreach ($linked_paths as $path) {
+			$ok = $this->db->insert('db_item_images', [
+				'store_id' => (int)$store_id, 'item_id' => (int)$item_id,
+				'image_path' => $path, 'sort_order' => $position++, 'created_at' => date('Y-m-d H:i:s'),
+			]);
+			if (!$ok) return 'Could not link the selected gallery image.';
+		}
+
+		if (empty($_FILES['item_gallery']) || empty($_FILES['item_gallery']['name'])) return true;
+		$files = $_FILES['item_gallery'];
+		$names = is_array($files['name']) ? array_values(array_filter($files['name'], 'strlen')) : [$files['name']];
+		if (!$names) return true;
+		$current_count = (int)$this->db->where('store_id', (int)$store_id)->where('item_id', (int)$item_id)->count_all_results('db_item_images');
+		if ($current_count + count($names) > 8) return 'A product can have at most 8 gallery photos. Remove a photo or choose fewer files.';
+
+		$directory = FCPATH . 'uploads/items/gallery/' . (int)$store_id . '/';
+		if (!is_dir($directory) && !@mkdir($directory, 0755, true)) return 'Could not prepare the product gallery folder.';
+		$allowed = ['jpg', 'jpeg', 'png', 'webp', 'avif'];
+		$position = $current_count;
+		for ($i = 0; $i < count($files['name']); $i++) {
+			if (empty($files['name'][$i])) continue;
+			$_FILES['__item_gallery_one'] = [
+				'name' => $files['name'][$i], 'type' => $files['type'][$i] ?? '',
+				'tmp_name' => $files['tmp_name'][$i] ?? '', 'error' => $files['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+				'size' => $files['size'][$i] ?? 0,
+			];
+			$extension = strtolower(pathinfo($_FILES['__item_gallery_one']['name'], PATHINFO_EXTENSION));
+			if (!in_array($extension, $allowed, true)) {
+				unset($_FILES['__item_gallery_one']);
+				return 'Gallery photos must be JPG, PNG, WEBP or AVIF.';
+			}
+			$config = [
+				'upload_path' => $directory, 'allowed_types' => 'jpg|jpeg|png|webp|avif',
+				'max_size' => 3072, 'max_width' => 5000, 'max_height' => 5000,
+				'encrypt_name' => true, 'file_ext_tolower' => true, 'remove_spaces' => true,
+			];
+			$this->load->library('upload');
+			$this->upload->initialize($config, true);
+			if (!$this->upload->do_upload('__item_gallery_one')) {
+				$error = strip_tags($this->upload->display_errors('', ''));
+				unset($_FILES['__item_gallery_one']);
+				return 'Gallery photo upload failed: ' . $error;
+			}
+			$upload = $this->upload->data();
+			$relative_path = 'uploads/items/gallery/' . (int)$store_id . '/' . basename($upload['file_name']);
+			$new_files[] = $relative_path;
+			$ok = $this->db->insert('db_item_images', [
+				'store_id' => (int)$store_id, 'item_id' => (int)$item_id,
+				'image_path' => $relative_path, 'sort_order' => $position++, 'created_at' => date('Y-m-d H:i:s'),
+			]);
+			unset($_FILES['__item_gallery_one']);
+			if (!$ok) return 'Could not save the gallery photo record.';
+		}
+		return true;
+	}
+
+	//Save Record
+	public function save_record($modal_post=array()){
+		$item_code = $this->input->post('item_code', TRUE);
+		$item_name = $this->input->post('item_name', TRUE);
+		$brand_id = $this->input->post('brand_id', TRUE);
+		$category_id = $this->input->post('category_id', TRUE);
+		$sku = $this->input->post('sku', TRUE);
+		$hsn = $this->input->post('hsn', TRUE);
+		$sac = $this->input->post('sac', TRUE);
+		$unit_id = $this->input->post('unit_id', TRUE);
+		$alert_qty = $this->input->post('alert_qty', TRUE);
+		$price = str_replace(',','',$this->input->post('price', TRUE));
+		$tax_id = $this->input->post('tax_id', TRUE);
+		$purchase_price = str_replace(',','',$this->input->post('purchase_price', TRUE));
+		$tax_type = $this->input->post('tax_type', TRUE);
+		$profit_margin = str_replace(',','',$this->input->post('profit_margin', TRUE));
+		$sales_price = str_replace(',','',$this->input->post('sales_price', TRUE));
+		$seller_points = $this->input->post('seller_points', TRUE);
+		$custom_barcode = $this->input->post('custom_barcode', TRUE);
+		$manufacturer_part_no = $this->input->post('manufacturer_part_no', TRUE);
+		$oem_reference = $this->input->post('oem_reference', TRUE);
+		$cross_reference = $this->input->post('cross_reference', TRUE);
+		$description = $this->input->post('description', TRUE);
+		$laundry_service_type = $this->input->post('laundry_service_type', TRUE);
+		$commission_type = $this->input->post('commission_type', TRUE) ?? 'none';
+		$commission_value = $this->input->post('commission_value', TRUE) ?? 0;
+		$deposit_required = $this->input->post('deposit_required', TRUE) ?? 0;
+		$deposit_percent = $this->input->post('deposit_percent', TRUE) ?? 0;
+		$item_type_post = $this->input->post('item_type', TRUE);
+		$item_type_map = [
+			'item'       => 'physical',
+			'service'    => 'service',
+			'digital'    => 'digital',
+			'course'     => 'course',
+			'membership' => 'membership'
+		];
+		$product_type = $item_type_map[$item_type_post] ?? 'physical';
+		$service_bit = ($product_type === 'service') ? 1 : 0;
+		$download_limit = 0;
+		$download_expiry_hours = 0;
+		$digital_file_path = $this->input->post('digital_file_path', TRUE) ?? '';
+		if($product_type === 'digital'){
+			$download_limit = (int) ($this->input->post('download_limit', TRUE) ?? 3);
+			$download_expiry_hours = (int) ($this->input->post('download_expiry_hours', TRUE) ?? 72);
+		}
+		$item_group = $this->input->post('item_group', TRUE);
+		$attribute_types = $this->input->post('attribute_types', TRUE);
+		$attribute_types_json = (!empty($attribute_types) && is_array($attribute_types)) ? json_encode(array_map('strtolower', $attribute_types)) : null;
+		$discount_type = $this->input->post('discount_type', TRUE);
+		$discount = str_replace(',','',$this->input->post('discount', TRUE));
+		$mrp = str_replace(',','',$this->input->post('mrp', TRUE));
+		$batch_lot = $this->input->post('batch_lot', TRUE);
+		$expire_date = $this->input->post('expire_date', TRUE);
+		$mfg_date = $this->input->post('mfg_date', TRUE);
+		$serial_number = $this->input->post('serial_number', TRUE);
+		$imei_number = $this->input->post('imei_number', TRUE);
+		$warranty_months = $this->input->post('warranty_months', TRUE);
+		$track_serial = $this->input->post('track_serial', TRUE) ? 1 : 0;
+		$track_imei = $this->input->post('track_imei', TRUE) ? 1 : 0;
+		$not_for_sale = $this->input->post('not_for_sale', TRUE) ? 1 : 0;
+		$consumable_unit = $this->input->post('consumable_unit', TRUE);
+		// Perfumery bottled-product link (columns only exist after 4.0.9.27; _filter_item_columns skips otherwise)
+		$fill_qty = $this->input->post('fill_qty', TRUE);
+		$fill_qty = ($fill_qty !== '' && $fill_qty !== null) ? (float)$fill_qty : null;
+		$bottle_item_id = $this->input->post('bottle_item_id', TRUE);
+		$bottle_item_id = !empty($bottle_item_id) ? (int)$bottle_item_id : null;
+		$capacity_ml = $this->input->post('capacity_ml', TRUE);
+		$capacity_ml = ($capacity_ml !== '' && $capacity_ml !== null) ? (float)$capacity_ml : null;
+		$accept_custom_order = $this->input->post('accept_custom_order', TRUE) ? 1 : 0;
+		$requires_quote = $this->input->post('requires_quote', TRUE) ? 1 : 0;
+		$requires_deposit = $this->input->post('requires_deposit', TRUE) ? 1 : 0;
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE) ?: 'standard';
+		// Butchery / frozen fields
+		$is_carcass = $this->input->post('is_carcass', TRUE) ? 1 : 0;
+		$carcass_template_id = $this->input->post('carcass_template_id', TRUE) !== '' ? (int)$this->input->post('carcass_template_id', TRUE) : null;
+		$portion_of_item_id = $this->input->post('portion_of_item_id', TRUE) !== '' ? (int)$this->input->post('portion_of_item_id', TRUE) : null;
+		$storage_temp_min = $this->input->post('storage_temp_min', TRUE) !== '' ? (float)$this->input->post('storage_temp_min', TRUE) : null;
+		$storage_temp_max = $this->input->post('storage_temp_max', TRUE) !== '' ? (float)$this->input->post('storage_temp_max', TRUE) : null;
+		$thaw_time_hours = $this->input->post('thaw_time_hours', TRUE) !== '' ? (float)$this->input->post('thaw_time_hours', TRUE) : 0;
+		$use_within_hours_after_thaw = $this->input->post('use_within_hours_after_thaw', TRUE) !== '' ? (float)$this->input->post('use_within_hours_after_thaw', TRUE) : 0;
+		$frozen_shelf_life_days = $this->input->post('frozen_shelf_life_days', TRUE) !== '' ? (int)$this->input->post('frozen_shelf_life_days', TRUE) : 0;
+		$weight_pricing_enabled = $this->input->post('weight_pricing_enabled', TRUE) ? 1 : 0;
+		$weight_pricing_base_kg = (float)($this->input->post('weight_pricing_base_kg', TRUE) ?: 1);
+		$weight_pricing_increment_kg = (float)($this->input->post('weight_pricing_increment_kg', TRUE) ?: 0.05);
+		$weight_pricing_increment_charge = (float)($this->input->post('weight_pricing_increment_charge', TRUE) ?: 0);
+		if($weight_pricing_base_kg <= 0) $weight_pricing_base_kg = 1;
+		if($weight_pricing_increment_kg <= 0) $weight_pricing_increment_kg = 0.05;
+		if($weight_pricing_increment_charge < 0) $weight_pricing_increment_charge = 0;
+		// Only update recipe fields if the Recipe & Costing section was visible (key exists in POST)
+		// This preserves existing links when the feature is disabled for the business
+		$recipe_id = null;
+		$recipe_margin_pct = null;
+		if ($this->input->post('recipe_id') !== false) {
+			$recipe_id = $this->input->post('recipe_id', TRUE) ? (int)$this->input->post('recipe_id', TRUE) : null;
+		}
+		if ($this->input->post('recipe_margin_pct') !== false) {
+			$recipe_margin_pct = $this->input->post('recipe_margin_pct', TRUE) !== '' ? (float)$this->input->post('recipe_margin_pct', TRUE) : null;
+		}
+		$item_production_mode = 'batch';
+		if ($this->input->post('item_production_mode') !== false) {
+			$posted = $this->input->post('item_production_mode', TRUE);
+			$item_production_mode = in_array($posted, ['batch','sale_deplete','component'], true) ? $posted : 'batch';
+		}
+		$fulfilment_route = 'counter';
+		if ($this->input->post('fulfilment_route') !== false) {
+			$posted_route = $this->input->post('fulfilment_route', TRUE);
+			$fulfilment_route = in_array($posted_route, ['counter','kitchen','bar'], true) ? $posted_route : 'counter';
+		}
+
+		// If recipe is linked, auto-calculate purchase/sales price from recipe cost + margin
+		if ($recipe_id && $this->db->table_exists('db_recipes')) {
+			$this->load->model('recipe_model');
+			$recipe = $this->recipe_model->get($recipe_id);
+			if ($recipe) {
+				$cost_per_unit = $this->recipe_model->calculate_cost_per_unit($recipe_id);
+				if ($cost_per_unit > 0) {
+					$purchase_price = $cost_per_unit;
+					$price = $cost_per_unit;
+					if ($recipe_margin_pct !== null && $recipe_margin_pct > 0) {
+						$sales_price = round($cost_per_unit * (1 + $recipe_margin_pct / 100), 2);
+					}
+				}
+			}
+		}
+		// Build custom order fields JSON
+		$cf_labels = $this->input->post('cf_label', TRUE) ?: [];
+		$cf_types = $this->input->post('cf_type', TRUE) ?: [];
+		$cf_options = $this->input->post('cf_options', TRUE) ?: [];
+		$cf_required = $this->input->post('cf_required', TRUE) ?: [];
+		$custom_fields = [];
+		for($i=0; $i<count($cf_labels); $i++){
+			if(!empty($cf_labels[$i])){
+				$custom_fields[] = [
+					'label' => $cf_labels[$i],
+					'type' => $cf_types[$i] ?? 'text',
+					'options' => $cf_options[$i] ?? '',
+					'required' => isset($cf_required[$i]) ? 1 : 0,
+				];
+			}
+		}
+		$custom_order_fields_json = !empty($custom_fields) ? json_encode($custom_fields) : null;
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$adjustment_qty = $this->input->post('adjustment_qty', TRUE);
+		$command = $this->input->post_get('command', TRUE);
+		if(empty($command) && isset($modal_post['command'])){
+			$command = $modal_post['command'];
+		}
+		$q_id = $this->input->post('q_id', TRUE);
+		// Try to get existing_row_count from URL parameter first (passed by JavaScript), then fall back to hidden_rowcount from POST
+		$existing_row_count = $this->input->get('existing_row_count', TRUE) ?? $this->input->post('hidden_rowcount', TRUE);
+		
+		// Ensure parents with children are always saved as Variants, and new saves with variants become Variants
+		if($command == 'update' && !empty($q_id)){
+			$child_count = $this->db->where('parent_id',$q_id)->count_all_results('db_items');
+			if($child_count > 0){
+				$item_group = 'Variants';
+			}
+		}
+		elseif($existing_row_count > 0){
+			for($i=1; $i<=$existing_row_count; $i++){
+				if(!empty($_REQUEST['tr_variant_id_'.$i])){
+					$item_group = 'Variants';
+					break;
+				}
+			}
+		}
+		
+		//varify max sales usage of the package subscription
+		validate_package_offers('max_items','db_items');
+		//END
+
+		$this->db->trans_begin();
+		$this->db->trans_strict(TRUE);
+
+		$file_name='';
+		if(!empty($_FILES['item_image']['name'])){
+
+			$new_name = time();
+			$config['file_name'] = $new_name;
+			$config['upload_path']          = './uploads/items/';
+	        $config['allowed_types']        = 'jpg|png|jpeg|gif|webp|avif';
+	        $config['max_size']             = 1024;
+	        $config['max_width']            = 1500;
+	        $config['max_height']           = 1500;
+	       
+	        $this->load->library('upload', $config);
+
+	        if ( ! $this->upload->do_upload('item_image'))
+	        {	
+	                $error = array('error' => $this->upload->display_errors());
+	                print($error['error']);
+	                exit();
+	        }
+	        else
+	        {		
+	        	$file_name=$this->upload->data('file_name');
+				// PHP 7.4 GD cannot decode AVIF. Keep the original; the shared
+				// thumbnail helper already falls back to it when no thumb exists.
+				if(strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) !== 'avif'){
+	        	/*Create Thumbnail*/
+	        	$config['image_library'] = 'gd2';
+				$config['source_image'] = 'uploads/items/'.$file_name;
+				$config['create_thumb'] = TRUE;
+				$config['maintain_ratio'] = TRUE;
+				$config['width']         = 75;
+				$config['height']       = 50;
+				$this->load->library('image_lib', $config);
+				$this->image_lib->resize();
+				//end
+				}
+
+	        	
+	        }
+		}
+
+
+		
+		//Validate This items already exist or not
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+        $retail_markup = mp_retail_markup_config($store_id);
+        if (!$service_bit) $mrp = mp_retail_price_from_wholesale($sales_price, $mrp, $retail_markup);
+		/*$query=$this->db->query("select * from db_items where upper(item_name)=upper('$item_name') and store_id=$store_id");
+		if($query->num_rows()>0){
+			return "Sorry! This Items Name already Exist.";
+		}*/
+		
+		//Create items unique Number
+		// (auto-increment is managed by MySQL; removed the runtime DDL reset to keep schema governance clean)
+		//end
+
+		
+		//$stock = $current_opening_stock + $new_opening_stock;
+
+		$alert_qty = empty(trim($alert_qty)) ? '0' : $alert_qty;
+
+		// Tracks whether the barcode/batch table saved without error; also used by variants
+		$barcode_save_ok = true;
+
+		if($item_group=='Single'){
+			$initial = array();
+			if ( $command == 'save' ) {
+				$initial = array(
+			    				'store_id' 					=> $store_id,
+								'count_id' 					=> get_count_id('db_items'),
+			    				//'item_code' 				=> get_init_code('item'),
+			    				'status' 					=> 1,
+			    				'publish_online'				=> 0,
+			    			);
+				$initial = array_merge($initial,$this->log_details());
+
+			}//Command SAVE
+			$profit_margin = (empty(trim($profit_margin))) ? 'null' : $profit_margin;
+			$info = array(
+			    				'item_name' 				=> $item_name,
+			    				'brand_id' 					=> $brand_id,
+			    				'category_id' 				=> $category_id,
+			    				'sku' 						=> $sku,
+			    				'hsn' 						=> $hsn,
+			    				'unit_id' 					=> $unit_id,
+			    				'alert_qty' 				=> $alert_qty,
+			    				
+			    				'price' 					=> $price,
+			    				'tax_id' 					=> $tax_id,
+			    				'purchase_price' 			=> $purchase_price,
+			    				'tax_type' 					=> $tax_type,
+			    				'profit_margin' 			=> $profit_margin,
+			    				'sales_price' 				=> $sales_price,
+			    				
+			    				'seller_points'				=> $seller_points,
+			    				'custom_barcode'			=> $custom_barcode,
+			    				'description'				=> $description,
+			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
+			    				'product_type'				=> $product_type,
+'service_bit'				=> $service_bit,
+'digital_file'				=> !empty($digital_file_path) ? $digital_file_path : null,
+'download_limit'			=> ($product_type === 'digital') ? $download_limit : 0,
+'download_expiry_hours'		=> ($product_type === 'digital') ? $download_expiry_hours : 0,
+			    				'sac'						=> !empty($sac) ? $sac : null,
+			    				'commission_type'			=> $commission_type,
+			    				'commission_value'			=> $commission_value,
+			    				'deposit_required'			=> $deposit_required,
+			    				'deposit_percent'			=> $deposit_percent,
+			    				'item_group'				=> $item_group,
+			    				'discount_type'				=> $discount_type,
+			    				'discount'					=> $discount,
+			    				'mrp'						=> $mrp,
+								'batch_lot'					=> $batch_lot,
+								'expire_date'				=> (!empty($expire_date) ? $expire_date : null),
+
+								'mfg_date'				=> (!empty($mfg_date) ? $mfg_date : null),
+								'serial_number'				=> !empty($serial_number) ? $serial_number : null,
+								'imei_number'				=> !empty($imei_number) ? $imei_number : null,
+								'warranty_months'			=> is_numeric($warranty_months) ? (int)$warranty_months : 0,
+								'track_serial'				=> $track_serial,
+								'track_imei'				=> $track_imei,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+								'fill_qty'					=> $fill_qty,
+								'bottle_item_id'			=> $bottle_item_id,
+								'capacity_ml'				=> $capacity_ml,
+								'accept_custom_order'		=> $accept_custom_order,
+								'custom_order_fields_json'	=> $custom_order_fields_json,
+								'requires_quote'			=> $requires_quote,
+								'requires_deposit'			=> $requires_deposit,
+								'workflow_template_key'		=> $workflow_template_key,
+								'attribute_types_json'		=> $attribute_types_json,
+								'weight_pricing_enabled' => $weight_pricing_enabled,
+								'weight_pricing_base_kg' => $weight_pricing_base_kg,
+								'weight_pricing_increment_kg' => $weight_pricing_increment_kg,
+								'weight_pricing_increment_charge' => $weight_pricing_increment_charge,
+								'item_code' 				=> $item_code,
+								'fulfilment_route' 	=> $fulfilment_route,
+
+			    			);
+			if ($this->input->post('fulfilment_route') === false) unset($info['fulfilment_route']);
+			// Rx-only flag arrives only when the pharmacy form shows the box;
+			// other business types keep whatever was stored before.
+			if ($this->input->post('prescription_required') !== false) {
+				$info['prescription_required'] = $this->input->post('prescription_required', TRUE) ? 1 : 0;
+			}
+			$info = array_merge($info, $this->_auto_part_identity_fields());
+			// Items flagged "not for sale" must never stay published online
+			if($not_for_sale){
+				$info['publish_online'] = 0;
+			}
+			if(!empty($file_name)){
+								$info['item_image'] = 'uploads/items/'.$file_name;
+							}
+			elseif ($this->input->post('item_image_existing', TRUE) !== false) {
+				$selected_media = trim((string)$this->input->post('item_image_existing', TRUE));
+				if ($this->_store_product_media_is_referenced($selected_media, $store_id)) $info['item_image'] = $selected_media;
+			}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
+								$info['item_production_mode'] = $item_production_mode;
+							}
+							// Only include butchery/frozen fields if that section was visible
+							if ($this->input->post('butchery_frozen_section') !== false) {
+								if ($this->input->post('is_carcass') !== false) {
+									$info['is_carcass'] = $is_carcass;
+									$info['carcass_template_id'] = $carcass_template_id;
+									$info['portion_of_item_id'] = $portion_of_item_id;
+								}
+								$info['storage_temp_min'] = $storage_temp_min;
+								$info['storage_temp_max'] = $storage_temp_max;
+								$info['thaw_time_hours'] = $thaw_time_hours;
+								$info['use_within_hours_after_thaw'] = $use_within_hours_after_thaw;
+								$info['frozen_shelf_life_days'] = $frozen_shelf_life_days;
+							}
+							
+			if ( $command == 'save' ){
+				$query1 = $this->db->insert('db_items', $this->_filter_item_columns(array_merge($info,$initial)));
+				$item_id = $this->db->insert_id();
+			}
+			else{
+				$item_id = $q_id;
+				// Snapshot before the write: the audit trail has to be able to
+				// say what the price used to be, not only what it is now.
+				$audit_before = $this->db->where('id', $q_id)->get('db_items')->row();
+				$audit_lots_before = $this->_audit_lot_snapshot($item_id);
+				$query1 = $this->db->where('id',$q_id)->update('db_items', $this->_filter_item_columns(array_merge($info,$initial)));
+			}
+			
+			if(!$query1){
+				$this->db->trans_rollback();
+				return "failed";
+			}
+			$this->_save_vehicle_compat($store_id, $item_id);
+
+			// Save barcode / batch / lot records (also unit tracking for electronics)
+			$barcode_save_ok = true;
+			// Keep physical-unit history intact. Updating an item used to delete
+			// every barcode row (including sold units referenced by invoices and
+			// warranty cases), then recreate only the rows still visible in the form.
+			$barcode_ids     = $this->input->post('barcode_id', TRUE) ?? [];
+			$barcode_barcodes = $this->input->post('barcode_barcode', TRUE) ?? [];
+			$barcode_batches  = $this->input->post('barcode_batch', TRUE) ?? [];
+			$barcode_serials  = $this->input->post('barcode_serial', TRUE) ?? [];
+			$barcode_imeis    = $this->input->post('barcode_imei', TRUE) ?? [];
+			$barcode_imei_2s  = $this->input->post('barcode_imei_2', TRUE) ?? [];
+			$barcode_pprices  = $this->input->post('barcode_pprice', TRUE) ?? [];
+			$barcode_sprices  = $this->input->post('barcode_sprice', TRUE) ?? [];
+			$barcode_mrps     = $this->input->post('barcode_mrp', TRUE) ?? [];
+			$barcode_qtys     = $this->input->post('barcode_qty', TRUE) ?? [];
+			$barcode_expires  = $this->input->post('barcode_expire_date', TRUE) ?? [];
+			$barcode_mfgs     = $this->input->post('barcode_mfg_date', TRUE) ?? [];
+			$barcode_warranties = $this->input->post('barcode_warranty', TRUE) ?? [];
+			$bc_count = count($barcode_barcodes);
+			for($bc = 0; $bc < $bc_count; $bc++){
+				$bc_barcode = trim($barcode_barcodes[$bc] ?? '');
+				$bc_batch   = trim($barcode_batches[$bc] ?? '');
+				$bc_serial  = trim($barcode_serials[$bc] ?? '');
+				$bc_imei    = trim($barcode_imeis[$bc] ?? '');
+				$bc_imei_2  = trim($barcode_imei_2s[$bc] ?? '');
+				$bc_id      = (int)($barcode_ids[$bc] ?? 0);
+				// Skip completely empty rows (no barcode, no batch, no serial, no imei)
+				if($bc_barcode === '' && $bc_batch === '' && $bc_serial === '' && $bc_imei === '' && $bc_imei_2 === '') continue;
+				$bc_data = array(
+					'item_id'        => $item_id,
+					'barcode'        => $bc_barcode,
+					'batch_lot'      => $bc_batch,
+					'serial_number'  => $bc_serial !== '' ? $bc_serial : null,
+					'imei_number'    => $bc_imei !== '' ? $bc_imei : null,
+					'purchase_price' => store_number_format($barcode_pprices[$bc] ?? 0,0),
+					'sales_price'    => store_number_format($barcode_sprices[$bc] ?? 0,0),
+					'mrp'            => mp_retail_price_from_wholesale($barcode_sprices[$bc] ?? '', store_number_format($barcode_mrps[$bc] ?? 0,0), $retail_markup),
+					'qty'            => store_number_format($barcode_qtys[$bc] ?? 0,0),
+					'warehouse_id'   => $warehouse_id,
+					'status'         => 1,
+					'created_date'   => date('Y-m-d'),
+					'created_time'   => date('H:i:s'),
+				);
+				if($this->db->field_exists('imei_number_2','db_item_barcodes')) $bc_data['imei_number_2'] = $bc_imei_2 !== '' ? $bc_imei_2 : null;
+				if(!empty($barcode_expires[$bc])) $bc_data['expire_date'] = $barcode_expires[$bc];
+				if(!empty($barcode_mfgs[$bc]))    $bc_data['mfg_date']    = $barcode_mfgs[$bc];
+				if(!empty($barcode_warranties[$bc])) $bc_data['warranty_months'] = (int)$barcode_warranties[$bc];
+				$known_bc = $bc_id ? $this->db->where('id',$bc_id)->where('item_id',(int)$item_id)->get('db_item_barcodes')->row() : null;
+				$existing_bc = ($known_bc && (int)$known_bc->status === 1) ? $known_bc : null;
+				if($known_bc && !$existing_bc){
+					// Sold, returned, or quarantined identities are historical records.
+					// Never recreate them as fresh stock from an item-edit form.
+					continue;
+				}elseif($existing_bc){
+					unset($bc_data['item_id'],$bc_data['created_date'],$bc_data['created_time']);
+					$bc_insert = $this->db->where('id',$bc_id)->where('item_id',(int)$item_id)->where('status',1)->update('db_item_barcodes',$bc_data);
+				}else{
+					$bc_insert = $this->db->insert('db_item_barcodes', $bc_data);
+				}
+				if(!$bc_insert){
+					$barcode_save_ok = false;
+					$error = $this->db->error();
+					$barcode_error_msg = "Barcode save failed: " . $error['message'];
+					break;
+				}
+			}
+
+			// Sync first barcode row's serial/imei/warranty back to db_items for backward compatibility
+			$first_bc = $this->db->where('item_id', $item_id)->where('status', 1)->order_by('id', 'asc')->get('db_item_barcodes')->row();
+			if($first_bc){
+				$this->db->where('id', $item_id)->update('db_items', array(
+					'serial_number'   => !empty($first_bc->serial_number) ? $first_bc->serial_number : null,
+					'imei_number'     => !empty($first_bc->imei_number) ? $first_bc->imei_number : null,
+					'warranty_months' => !empty($first_bc->warranty_months) ? (int)$first_bc->warranty_months : 0,
+				));
+			}
+
+			//Opening Stock Exist (create only — re-adding on update duplicates stock each save)
+			if($command == 'save' && $adjustment_qty>0){
+				$array_params = array(  'store_id'			=> 	$store_id,
+                                        'item_id'			=>	$item_id, 
+                                        'warehouse_id'		=>	$warehouse_id, 
+                                        'adjustment_qty'	=> 	$adjustment_qty, 
+                                   	);
+                $q2 = $this->add_opening_stock($array_params); 
+                if(!$q2){
+                    $this->db->trans_rollback();
+                    log_message('error', "Opening stock save failed: " . $this->db->error()['message']);
+                    return "failed";
+                }
+            }
+
+		// Save per-product selling units (pack/piece/box) when multi-unit selling is enabled
+		if($this->db->table_exists('db_item_selling_units') && $this->input->post('selling_unit_unit_id')){
+			$this->load->model('item_selling_units_model','selling_units');
+			$su_saved = $this->selling_units->save_units($item_id, $store_id);
+			if(!$su_saved){
+				$this->db->trans_rollback();
+				return "failed";
+			}
+		}
+
+		}//Single END
+
+		//Insert Variants in db_items table
+		if( $item_group =='Variants'){
+
+			// Save the parent product row first so children can reference it
+			$profit_margin = (empty(trim($profit_margin))) ? 'null' : $profit_margin;
+			$parent_info = array(
+	    							'item_name' 				=> $item_name,
+	    							'brand_id' 					=> $brand_id,
+	    							'category_id' 				=> $category_id,
+	    							'sku' 						=> $sku,
+	    							'hsn' 						=> $hsn,
+	    							'unit_id' 					=> $unit_id,
+	    							'alert_qty' 				=> $alert_qty,
+	    							
+	    							'price' 					=> $price,
+	    							'tax_id' 					=> $tax_id,
+	    							'purchase_price' 			=> $purchase_price,
+	    							'tax_type' 					=> $tax_type,
+	    							'profit_margin' 			=> $profit_margin,
+	    							'sales_price' 				=> $sales_price,
+	    							
+	    							'seller_points'				=> $seller_points,
+	    							'custom_barcode'			=> $custom_barcode,
+	    							'description'				=> $description,
+	    							'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
+	    							'product_type'				=> $product_type,
+'service_bit'				=> $service_bit,
+'digital_file'				=> !empty($digital_file_path) ? $digital_file_path : null,
+'download_limit'			=> ($product_type === 'digital') ? $download_limit : 0,
+'download_expiry_hours'		=> ($product_type === 'digital') ? $download_expiry_hours : 0,
+	    							'sac'						=> !empty($sac) ? $sac : null,
+	    							'commission_type'			=> $commission_type,
+	    							'commission_value'			=> $commission_value,
+	    							'deposit_required'			=> $deposit_required,
+	    							'deposit_percent'			=> $deposit_percent,
+	    							'item_group'				=> 'Variants',
+	    							'discount_type'				=> $discount_type,
+	    							'discount'					=> $discount,
+	    							'mrp'						=> $mrp,
+									'batch_lot'					=> $batch_lot,
+									'expire_date'				=> (!empty($expire_date) ? $expire_date : null),
+									'mfg_date'					=> (!empty($mfg_date) ? $mfg_date : null),
+									'serial_number'				=> !empty($serial_number) ? $serial_number : null,
+									'imei_number'				=> !empty($imei_number) ? $imei_number : null,
+									'warranty_months'			=> is_numeric($warranty_months) ? (int)$warranty_months : 0,
+									'track_serial'				=> $track_serial,
+									'track_imei'				=> $track_imei,
+									'not_for_sale'				=> $not_for_sale,
+									'consumable_unit'			=> !empty($consumable_unit) ? $consumable_unit : null,
+									'accept_custom_order'		=> $accept_custom_order,
+									'custom_order_fields_json'	=> $custom_order_fields_json,
+									'requires_quote'			=> $requires_quote,
+									'requires_deposit'			=> $requires_deposit,
+									'workflow_template_key'		=> $workflow_template_key,
+									'attribute_types_json'		=> $attribute_types_json,
+										'item_code' 				=> $item_code,
+										'fulfilment_route' 	=> $fulfilment_route,
+										'child_bit' 								=> 0,
+	    						);
+			if ($this->input->post('fulfilment_route') === false) unset($parent_info['fulfilment_route']);
+			if ($this->input->post('prescription_required') !== false) {
+				$parent_info['prescription_required'] = $this->input->post('prescription_required', TRUE) ? 1 : 0;
+			}
+			$parent_info = array_merge($parent_info, $this->_auto_part_identity_fields());
+			// Items flagged "not for sale" must never stay published online
+			if($not_for_sale){
+				$parent_info['publish_online'] = 0;
+			}
+			if(!empty($file_name)){
+				$parent_info['item_image'] = 'uploads/items/'.$file_name;
+			}
+			elseif ($this->input->post('item_image_existing', TRUE) !== false) {
+				$selected_media = trim((string)$this->input->post('item_image_existing', TRUE));
+				if ($this->_store_product_media_is_referenced($selected_media, $store_id)) $parent_info['item_image'] = $selected_media;
+			}
+			// Only include recipe fields if the Recipe & Costing section was visible
+			if ($this->input->post('recipe_id') !== false) {
+				$parent_info['recipe_id'] = $recipe_id;
+				$parent_info['recipe_margin_pct'] = $recipe_margin_pct;
+				$parent_info['item_production_mode'] = $item_production_mode;
+			}
+			// Only include butchery/frozen fields if that section was visible
+			if ($this->input->post('butchery_frozen_section') !== false) {
+				if ($this->input->post('is_carcass') !== false) {
+					$parent_info['is_carcass'] = $is_carcass;
+					$parent_info['carcass_template_id'] = $carcass_template_id;
+					$parent_info['portion_of_item_id'] = $portion_of_item_id;
+				}
+				$parent_info['storage_temp_min'] = $storage_temp_min;
+				$parent_info['storage_temp_max'] = $storage_temp_max;
+				$parent_info['thaw_time_hours'] = $thaw_time_hours;
+				$parent_info['use_within_hours_after_thaw'] = $use_within_hours_after_thaw;
+				$parent_info['frozen_shelf_life_days'] = $frozen_shelf_life_days;
+			}
+
+			if ( $command == 'save' ) {
+				$initial = array(
+	    								'store_id' 					=> $store_id,
+										'count_id' 					=> get_count_id('db_items'),
+	    								//'item_code' 				=> get_init_code('item'),
+	    								'status' 					=> 1,
+	    								'publish_online'				=> 0,
+	    							);
+				$initial = array_merge($initial,$this->log_details());
+				$query1 = $this->db->insert('db_items', $this->_filter_item_columns(array_merge($parent_info,$initial)));
+				$item_id = $this->db->insert_id();
+			}
+			else{
+				$item_id = $q_id;
+				$query1 = $this->db->where('id',$q_id)->update('db_items', $this->_filter_item_columns($parent_info));
+			}
+
+			if(!$query1){
+				$this->db->trans_rollback();
+				log_message('error', "Variant parent save failed: " . $this->db->error()['message']);
+				return "failed";
+			}
+			$this->_save_vehicle_compat($store_id, $item_id);
+
+			// Save the parent selling-unit template (not sellable itself; cloned to children)
+			if($this->db->table_exists('db_item_selling_units') && $this->input->post('selling_unit_unit_id')){
+				if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+				$su_saved = $this->selling_units->save_units($item_id, $store_id, 1);
+				if(!$su_saved){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+			}
+
+			if($existing_row_count>0){
+				for($i=1;$i<=$existing_row_count;$i++){
+					$child_id = $this->input->post('tr_item_id_'.$i, TRUE) ?? '';
+					$variant_id = isset($_REQUEST['tr_variant_id_'.$i]) ? $this->xss_html_filter(trim($_REQUEST['tr_variant_id_'.$i])) : '';
+					if(!empty($child_id) || !empty($variant_id)){
+
+						$child_id = $this->xss_html_filter(trim($child_id));
+						$sku				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_2'] ?? ''));
+						$hsn				=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_9'] ?? ''));
+						$custom_barcode 	=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_8'] ?? ''));
+						$price 			 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3'] ?? '')));
+						$purchase_price	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4'] ?? '')));
+						$profit_margin	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_5'] ?? '')));
+						$sales_price	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_6'] ?? '')));
+						$item_mrp	 		=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_10'] ?? '')));
+                        $item_mrp = mp_retail_price_from_wholesale($sales_price, $item_mrp, $retail_markup);
+						$opening_stock	 	=str_replace(',','',$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11'] ?? '')));
+						
+						$child_item_name = '';
+						$existing_child = !empty($child_id) ? $this->db->where('id',$child_id)->get('db_items')->row() : $this->db->where('variant_id',$variant_id)->where('parent_id',$item_id)->get('db_items')->row();
+						if($existing_child && empty($child_id)){ $child_id = $existing_child->id; }
+						if($command == 'update' && $existing_child){
+							$child_item_name = $existing_child->item_name;
+						}
+						if(empty($variant_id) && $existing_child){ $variant_id = $existing_child->variant_id; }
+
+						$variant_details = $this->db->select("*")->where("id",$variant_id)->get("db_variants")->row();
+						if(!$variant_details && empty($child_item_name)){
+							$this->db->trans_rollback();
+							return "Variant details missing for row ".$i;
+						}
+						$variant_name = $variant_details ? $variant_details->variant_name : '';
+
+						
+						$initial = array();
+						if ( $command == 'save' ) {
+							$initial = array(
+						    				'store_id' 					=> $store_id,
+											'count_id' 					=> get_count_id('db_items'), 
+						    				'item_code' 				=> get_init_code('item'), 
+						    				'status' 					=> 1,
+						    			);
+							$initial = array_merge($initial,$this->log_details());
+
+						}//Command SAVE
+						else{
+							$count_id 			=$this->xss_html_filter(trim($_REQUEST['count_id_'.$i] ?? ''));
+							$item_code 			=$this->xss_html_filter(trim($_REQUEST['item_code_'.$i] ?? ''));
+							$initial = array(
+											'count_id' 					=> $count_id, 
+						    				'item_code' 				=> $item_code,
+						    			);
+						}
+
+						$info = array(
+			    				'item_name' 				=> ((isset($child_item_name) && !empty($child_item_name)) ? $child_item_name : $item_name."-".$variant_name),
+			    				'brand_id' 					=> $brand_id,
+			    				'category_id' 				=> $category_id,
+			    				'sku' 						=> $sku,
+			    				'hsn' 						=> $hsn,
+			    				'unit_id' 					=> $unit_id,
+			    				'alert_qty' 				=> $alert_qty,
+			    				
+			    				'price' 					=> $price,
+			    				'tax_id' 					=> $tax_id,
+			    				'purchase_price' 			=> $purchase_price,
+			    				'tax_type' 					=> $tax_type,
+			    				'profit_margin' 			=> $profit_margin,
+			    				'sales_price' 				=> $sales_price,
+			    				'mrp' 						=> $item_mrp,
+								'batch_lot'					=> $batch_lot,
+			    				
+			    				'seller_points'				=> $seller_points,
+			    				'custom_barcode'			=> $custom_barcode,
+			    				'description'				=> $description,
+			    				'item_group'				=> 'Single',
+			    				'store_id'					=> $store_id,
+		    				'parent_id'					=> $item_id,
+								'child_bit'					=> 1,
+								'fulfilment_route' 	=> $fulfilment_route,
+		    				'status'						=> 1,
+			    				'variant_id'				=> $variant_id,
+			    				'discount_type'				=> $discount_type,
+			    				'discount'					=> $discount,
+								'not_for_sale'				=> $not_for_sale,
+								'consumable_unit'			=> $consumable_unit,
+			    			
+							);
+							if ($this->input->post('fulfilment_route') === false) unset($info['fulfilment_route']);
+							// Items flagged "not for sale" must never stay published online
+							if($not_for_sale){
+								$info['publish_online'] = 0;
+							}
+							$variant_file_name = '';
+							if(!empty($_FILES['variant_image_'.$i]['name'])){
+								if(!isset($this->upload)){
+									$this->load->library('upload');
+								}
+								$v_config['file_name'] = time().'_'.$i;
+								$v_config['upload_path'] = './uploads/items/';
+								$v_config['allowed_types'] = 'jpg|png|jpeg|gif|webp|avif';
+								$v_config['max_size'] = 1024;
+								$v_config['max_width'] = 1500;
+								$v_config['max_height'] = 1500;
+								$this->upload->initialize($v_config);
+								if($this->upload->do_upload('variant_image_'.$i)){
+									$variant_file_name = $this->upload->data('file_name');
+								} else {
+									log_message('error', 'Variant image upload failed for row '.$i.': '.$this->upload->display_errors());
+								}
+							}
+							if(!empty($variant_file_name)){
+								$info['item_image'] = 'uploads/items/'.$variant_file_name;
+							}
+							// Only include recipe fields if the Recipe & Costing section was visible
+							if ($this->input->post('recipe_id') !== false) {
+								$info['recipe_id'] = $recipe_id;
+								$info['recipe_margin_pct'] = $recipe_margin_pct;
+								$info['item_production_mode'] = $item_production_mode;
+							}
+							/*echo "<pre>";
+							print_r($info);
+							exit;*/
+							$info = $this->_filter_item_columns(array_merge($info,$initial));
+							$query1 = false; // Initialize per iteration
+							$child_inserted = false;
+							if ( $command == 'save'){
+								$query1 = $this->db->insert('db_items', $info);
+								$child_inserted = true;
+							}
+							else{
+								//FIND THE THIS VARIANT SAVED IN DB_ITEMS OR NOT
+								if(!empty($child_id)){
+									$query1 = $this->db->where("id",$child_id)->update('db_items', $info);
+								}
+								elseif(!empty($variant_id)){
+									$q3 = $this->db->select("id")->where('variant_id',$variant_id)->where('parent_id',$item_id)->get("db_items");
+									if($q3->num_rows()>0){
+										//YES ITEM ALREADY EXIST
+										$query1 = $this->db->where("id",$q3->row()->id)->update('db_items', $info);
+									}
+									else{
+										$query1 = $this->db->insert('db_items', $info);
+										$child_inserted = true;
+									}
+								}
+								else{
+									// Both child_id and variant_id are empty - cannot update this row
+									log_message('error', "Variant row $i: both child_id and variant_id are empty, skipping");
+									$query1 = true; // Don't fail the whole save, just skip this row
+								}
+							}
+							#------------------------------------
+							if(!$query1){
+								$err = $this->db->error();
+								$this->db->trans_rollback();
+								log_message('error', "Variant child save failed for row $i: " . ($err['message'] ?? 'unknown'));
+								return "failed";
+							}
+							$variant_item_id = $this->db->insert_id();
+
+							// Clone the parent's selling-unit template to this new child variant
+							if($variant_item_id && $this->db->table_exists('db_item_selling_units')){
+								if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+								$this->selling_units->clone_template_to_child($item_id, $variant_item_id, $store_id);
+							}
+
+							//Opening Stock Exist (only for newly inserted child rows)
+							if($child_inserted && $opening_stock>0){
+								$array_params = array(  'store_id'			=> 	$store_id,
+		                                                'item_id'			=>	$variant_item_id, 
+		                                                'warehouse_id'		=>	$warehouse_id, 
+		                                                'adjustment_qty'	=> 	$opening_stock, 
+		                                           	);
+		                        $q2 = $this->add_opening_stock($array_params); 
+		                        if(!$q2){
+		                            $this->db->trans_rollback();
+		                            return "failed";
+		                        }
+		                    }
+
+
+					}
+				
+				}//for end
+			}//existing_row_count END
+		}//Variant END
+
+		$gallery_new_files = [];
+		$gallery_deleted_files = [];
+		if ($query1 && $barcode_save_ok) {
+			$gallery_result = $this->save_product_gallery($item_id ?? $q_id, $store_id, $gallery_new_files, $gallery_deleted_files);
+			if ($gallery_result !== true) {
+				$this->db->trans_rollback();
+				foreach ($gallery_new_files as $path) { if (is_file(FCPATH . $path)) @unlink(FCPATH . $path); }
+				return $gallery_result;
+			}
+		}
+		if ($query1 && $barcode_save_ok){
+				if ($command != 'save' && !empty($audit_before)) {
+					$this->_audit_item_edit($audit_before, $audit_lots_before, $item_id, $store_id);
+				}
+				$this->db->trans_commit();
+				foreach ($gallery_deleted_files as $path) {
+					$this->_delete_unreferenced_gallery_file($path);
+				}
+				if ($command=='save') {
+					@$this->session->set_flashdata('success', 'Success!! New Item Added Successfully!');
+				}
+				else{
+					@$this->session->set_flashdata('success', 'Success!! Item Updated Successfully!');
+				}
+				
+		        return "success";
+		}
+		else{
+				$this->db->trans_rollback();
+				foreach ($gallery_new_files as $path) { if (is_file(FCPATH . $path)) @unlink(FCPATH . $path); }
+				//unlink('uploads/items/'.$file_name);
+				$error = $this->db->error();
+				$msg = isset($barcode_error_msg) ? $barcode_error_msg : "failed";
+				if(!empty($error['message'])){
+					$msg .= " | DB: " . $error['message'];
+					log_message('error', "Item save failed [command=$command group=$item_group]: " . $error['message']);
+				}
+		        return $msg;
+		}
+		
+	}
+
+	/**
+	 * The lots on a product as they stand right now, keyed by batch number, so
+	 * an edit can be compared against what it replaced.
+	 */
+	private function _audit_lot_snapshot($item_id){
+		$item_id = (int)$item_id;
+		if ($item_id <= 0 || !$this->db->table_exists('db_item_barcodes')) return array();
+		$rows = $this->db->where('item_id', $item_id)->get('db_item_barcodes')->result_array();
+		$snapshot = array();
+		foreach ($rows as $row) {
+			$key = trim((string)($row['batch_lot'] ?? ''));
+			if ($key === '') continue;          // an unlabelled row is not something to name in a trail
+			$snapshot[$key] = $row;
+		}
+		return $snapshot;
+	}
+
+	/**
+	 * Record what a catalogue edit actually moved. The row is read back from the
+	 * database rather than taken from the form, so the trail reports what the
+	 * shelf now holds — including prices the app recalculated itself, such as a
+	 * recipe cost or a retail markup — and an edit that changed nothing
+	 * contributes nothing to the trail.
+	 */
+	private function _audit_item_edit($before, $lotsBefore, $item_id, $store_id){
+		if (!function_exists('mp_audit_log')) return;
+		try {
+			$after = $this->db->where('id', (int)$item_id)->get('db_items')->row();
+			if (!$after) return;
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$changes = mp_audit_diff($before, $after, array(
+				'alert_qty'             => array('label' => 'Low-stock warning level', 'type' => 'qty'),
+				'prescription_required' => array('label' => 'Needs a prescription', 'type' => 'yesno'),
+				'publish_online'        => array('label' => 'Listed in the online store', 'type' => 'yesno'),
+			) + $capture->priceFields());
+
+			if (is_array($lotsBefore) && $lotsBefore) {
+				foreach ($this->_audit_lot_snapshot($item_id) as $lot => $row) {
+					$was = isset($lotsBefore[$lot]) ? $lotsBefore[$lot] : null;
+					if (!$was) continue;   // a batch first seen here arrived on a receipt, not on this edit
+					$moved = $capture->lotLine($lot,
+						$was['qty'] ?? null, $row['qty'] ?? null,
+						$was['expire_date'] ?? null, $row['expire_date'] ?? null);
+					if ($moved) $changes = array_merge($changes, $moved);
+				}
+			}
+			if (!$changes) return;
+			$capture->event($store_id, 'catalogue', 'update', $item_id,
+				mp_catalogue_name($after->item_name ?? ''), $changes);
+		} catch (Throwable $e) {
+			log_message('error', 'Catalogue audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	//Get items_details
+	public function get_details($id,$data){
+		//Validate This items already exist or not
+		$query=$this->db->query("select * from db_items where upper(id)=upper('$id')");
+		if($query->num_rows()==0){
+			show_404();exit;
+		}
+		else{
+			$query=$query->row();
+			$data['q_id']=$query->id;
+			$data['store_id']=$query->store_id;
+			$data['item_code']=$query->item_code;
+			$data['item_name']=$query->item_name;
+			$data['brand_id']=$query->brand_id;
+			$data['category_id']=$query->category_id;
+			$data['sku']=$query->sku;
+			$data['hsn']=$query->hsn;
+			$data['sac']=$query->sac ?? '';
+			$data['unit_id']=$query->unit_id;
+			$data['alert_qty']=$query->alert_qty;
+			$data['price']=store_number_format($query->price,0);
+			$data['tax_id']=$query->tax_id;
+			$data['purchase_price']=store_number_format($query->purchase_price,0);
+			$data['tax_type']=$query->tax_type;
+			$data['profit_margin']=$query->profit_margin;
+			$data['sales_price']=store_number_format($query->sales_price,0);
+			$data['stock']=$query->stock;
+			
+			$data['seller_points']=$query->seller_points;
+			$data['custom_barcode']=$query->custom_barcode;
+			$data['manufacturer_part_no']=$query->manufacturer_part_no ?? '';
+			$data['oem_reference']=$query->oem_reference ?? '';
+			$data['cross_reference']=$query->cross_reference ?? '';
+			$data['description']=$query->description;
+			$data['laundry_service_type']=$query->laundry_service_type;
+			$data['item_group']=$query->item_group;
+			// If this item already has children in the DB, it must always be treated as a Variants parent
+			if($this->db->where('parent_id',$id)->count_all_results('db_items') > 0){
+				$data['item_group']='Variants';
+			}
+			$data['attribute_types']=(!empty($query->attribute_types_json)) ? json_decode($query->attribute_types_json, true) : array();
+			$data['discount']=$query->discount;
+			$data['discount_type']=$query->discount_type;
+			$data['commission_type']=$query->commission_type ?? 'none';
+			$data['commission_value']=$query->commission_value ?? 0;
+			$data['product_type']=$query->product_type ?? 'physical';
+			$data['service_bit']=$query->service_bit ?? 0;
+			$data['digital_file']=$query->digital_file ?? '';
+			$data['download_limit']=$query->download_limit ?? 3;
+			$data['download_expiry_hours']=$query->download_expiry_hours ?? 72;
+			$data['deposit_required']=$query->deposit_required ?? 0;
+			$data['deposit_percent']=$query->deposit_percent ?? 0;
+			$data['item_image']=$query->item_image ?? '';
+			$data['child_bit']=$query->child_bit;
+			$data['mrp']=store_number_format($query->mrp,0);
+			$data['batch_lot']=$query->batch_lot;
+			$data['expire_date']=$query->expire_date;
+			$data['mfg_date']=$query->mfg_date;
+			$data['serial_number']=$query->serial_number ?? '';
+			$data['imei_number']=$query->imei_number ?? '';
+			$data['warranty_months']=$query->warranty_months ?? 0;
+			$data['track_serial']=$query->track_serial ?? 0;
+			$data['track_imei']=$query->track_imei ?? 0;
+			$data['not_for_sale']=$query->not_for_sale ?? 0;
+			$data['prescription_required']=$query->prescription_required ?? 0;
+			$data['consumable_unit']=$query->consumable_unit ?? '';
+			$data['fill_qty']=$query->fill_qty ?? '';
+			$data['bottle_item_id']=$query->bottle_item_id ?? '';
+			$data['capacity_ml']=$query->capacity_ml ?? '';
+			$data['recipe_id']=$query->recipe_id ?? null;
+			$data['recipe_margin_pct']=$query->recipe_margin_pct ?? null;
+			$data['fulfilment_route']=$query->fulfilment_route ?? 'counter';
+			$data['item_production_mode']=$query->item_production_mode ?? 'batch';
+			// Butchery / frozen fields must be loaded back into the edit form so
+			// saved settings remain visible and checked when the item is reopened.
+			$data['is_carcass']=$query->is_carcass ?? 0;
+			$data['carcass_template_id']=$query->carcass_template_id ?? null;
+			$data['portion_of_item_id']=$query->portion_of_item_id ?? null;
+			$data['storage_temp_min']=$query->storage_temp_min ?? null;
+			$data['storage_temp_max']=$query->storage_temp_max ?? null;
+			$data['thaw_time_hours']=$query->thaw_time_hours ?? 0;
+			$data['use_within_hours_after_thaw']=$query->use_within_hours_after_thaw ?? 0;
+			$data['frozen_shelf_life_days']=$query->frozen_shelf_life_days ?? 0;
+			$data['weight_pricing_enabled']=$query->weight_pricing_enabled ?? 0;
+			$data['weight_pricing_base_kg']=$query->weight_pricing_base_kg ?? 1;
+			$data['weight_pricing_increment_kg']=$query->weight_pricing_increment_kg ?? 0.05;
+			$data['weight_pricing_increment_charge']=$query->weight_pricing_increment_charge ?? 0;
+
+			// Load barcode / batch records
+			$data['item_barcodes'] = $this->db->where('item_id', $id)->where('status', 1)->get('db_item_barcodes')->result();
+
+			// Load selling units for multi-unit selling
+			// Parent products keep a template; single items and child variants keep real sellable units
+			if($this->db->table_exists('db_item_selling_units')){
+				$this->load->model('item_selling_units_model','selling_units');
+				$is_template = ($data['item_group'] == 'Variants') ? 1 : 0;
+				$data['selling_units'] = $this->selling_units->get_units($id, $data['store_id'], $is_template);
+			} else {
+				$data['selling_units'] = [];
+			}
+
+			return $data;
+		}
+	}
+	
+	//Lookup item by barcode from db_item_barcodes
+	public function get_item_by_barcode($barcode, $warehouse_id=null){
+		$this->db->select('b.*, a.item_name, a.item_code, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, a.unit_id, a.brand_id, a.category_id');
+		$this->db->from('db_item_barcodes b');
+		$this->db->join('db_items a', 'a.id = b.item_id', 'left');
+		$this->db->where('b.barcode', $barcode);
+		$this->db->where('b.status', 1);
+		$this->db->where('a.status', 1);
+		if(!empty($warehouse_id)){
+			$this->db->where("(b.warehouse_id = $warehouse_id OR b.warehouse_id IS NULL OR b.warehouse_id = 0)");
+		}
+		$res = $this->db->get()->row();
+		if(!$res) return null;
+		return $res;
+	}
+
+	public function update_status($id,$status){
+       if (set_status_of_table($id,$status,'db_items')){
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }
+	}
+
+	public function delete_items_from_table($ids){
+		$this->db->trans_begin();
+		//find the this item has the Purchase Return 
+		$purchase_ret_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitemsreturn");
+		if($purchase_ret_rec && $purchase_ret_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Purchase Returns Records!";
+			foreach($purchase_ret_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}
+
+		//find the this item has the Purchase
+		$purchase_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_purchaseitems");
+		if($purchase_rec && $purchase_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Purchase Records!";
+			foreach($purchase_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}
+
+		//find the this item has the Sales Return 
+		$sales_ret_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitemsreturn");
+		if($sales_ret_rec && $sales_ret_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Sales Returns Records!";
+			foreach($sales_ret_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}
+
+		//find the this item has the sales
+		$sales_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_salesitems");
+		if($sales_rec && $sales_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Sales Records!";
+			foreach($sales_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}
+
+		//find the this item has the quotation
+		$quotation_rec = $this->db->select("item_id")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_quotationitems");
+		if($quotation_rec && $quotation_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Quotation Records!";
+			foreach($quotation_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}
+	
+		//find the this item has the stock adjustment entries
+		/*$quotation_rec = $this->db->select("*")->where("store_id",get_current_store_id())->where("item_id in($ids)")->group_by('item_id')->get("db_stockadjustmentitems");
+		if($quotation_rec->num_rows()>0){
+			$i=1;
+			echo "Can't Delete!<br>These Items List Have the Stock Adjustment Records!";
+			foreach($quotation_rec->result() as $res1){
+				echo "<br>".$i++.". ".get_item_name($res1->item_id);
+			}
+			exit;
+		}		*/
+
+
+		
+		$q1=$this->db->query("delete from db_items where id in($ids)");
+		$q1=$this->db->query("delete from db_items where parent_id in($ids)");
+		
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehousewise_items_qty_by_store(null,$ids);
+		if(!$q7){
+			echo "failed";
+			return "failed";
+		}
+
+        if($q1 && $q7){
+        	$this->db->trans_commit();
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }	
+	}
+
+
+	public function inclusive($price, $tax_per){
+		return $price/(($tax_per/100)+1)/10;
+	}
+
+	//GET Labels from Purchase Invoice
+	public function get_purchase_items_info($rowcount,$item_id,$purchase_qty){
+		$q1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get();
+		$tax=$this->db->query("select tax from db_tax where id=".$q1->row()->tax_id)->row()->tax;
+
+		$info['item_id'] = $q1->row()->id;
+		$info['item_name'] = $q1->row()->item_name;
+		$info['item_available_qty'] = $q1->row()->stock;
+		$info['item_sales_qty'] = $purchase_qty;
+
+	    return $this->return_row_with_data($rowcount,$info);
+	}
+
+	public function get_items_info($rowcount,$item_id){
+		$q1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get();
+
+		// Server-side expiry check as safety net
+		$row = $q1->row();
+		if(is_valid_date($row->expire_date)){
+			$CI =& get_instance();
+			$CI->load->model('expiry_settings_model');
+			$expiry_settings = $CI->expiry_settings_model->get_settings();
+			if($expiry_settings->stop_selling_expired == 1 && $row->expire_date < date('Y-m-d')){
+				echo "<script>toastr['error']('Expired Item! Cannot sell expired products.');</script>";
+				return;
+			}
+		}
+
+		$tax=$this->db->query("select tax from db_tax where id=".$row->tax_id)->row()->tax;
+
+		$info['item_id'] = $row->id;
+		$info['item_name'] = $row->item_name;
+		$info['item_available_qty'] = $row->stock;
+		$info['item_sales_qty'] = 1;
+
+		$this->return_row_with_data($rowcount,$info);
+	}
+	
+
+	public function return_row_with_data($rowcount,$info){
+		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
+		$item_sales_qty = isset($info['item_sales_qty']) ? $info['item_sales_qty'] : '';
+		$item_available_qty = isset($info['item_available_qty']) ? $info['item_available_qty'] : '';
+		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+
+		?>
+            <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
+               <td id="td_<?=$rowcount;?>_1">
+                  <!-- item name  -->
+                  <input type="text" style="font-weight: bold;" id="td_data_<?=$rowcount;?>_1" class="form-control no-padding" value='<?=$item_name;?>' readonly >
+               </td>
+               <!-- Qty -->
+               <td id="td_<?=$rowcount;?>_3">
+                  <div class="input-group ">
+                     <span class="input-group-btn">
+                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>
+                     <input typ="text" value="<?=$item_sales_qty;?>" class="form-control no-padding text-center" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
+                     <span class="input-group-btn">
+                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span>
+                  </div>
+               </td>
+               
+               <!-- Remove button -->
+               <td id="td_<?=$rowcount;?>_16" style="text-align: center;">
+                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
+               </td>
+              <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
+               <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+            </tr>
+		<?php
+
+	}
+	public function xss_html_filter($input){
+		return $this->security->xss_clean(html_escape($input));
+	}
+
+	public function preview_labels(){
+		$CI =& get_instance();
+		$store_name = $this->db->query("select store_name from db_store where id=".get_current_store_id())->row()->store_name;
+		$rowcount = $this->input->post('hidden_rowcount');
+		?>
+		<style type="text/css">
+			@page { size: 60mm 40mm; margin: 0; }
+			.mp-label-sheet {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 8px;
+				padding: 16px;
+				background: #f7f7f7;
+			}
+			.mp-label-60x40 {
+				width: 60mm;
+				height: 40mm;
+				box-sizing: border-box;
+				padding: 2mm;
+				background: #fff;
+				text-align: center;
+				overflow: hidden;
+				break-after: page;
+				page-break-after: always;
+				display: block;
+				border: 1px dashed #ccc;
+			}
+			.mp-label-60x40:last-child {
+				break-after: auto;
+				page-break-after: auto;
+			}
+			.mp-label-store {
+				font-size: 7pt;
+				font-weight: bold;
+				line-height: 1.1;
+				margin-bottom: 1mm;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.mp-label-name {
+				font-size: 7pt;
+				line-height: 1.1;
+				margin-bottom: 1mm;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.mp-label-price {
+				font-size: 9pt;
+				font-weight: bold;
+				line-height: 1.1;
+				margin-bottom: 1.5mm;
+			}
+			.mp-label-barcode {
+				height: 15mm;
+				width: 56mm;
+				margin: 0 auto 1mm;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.mp-label-barcode img {
+				max-width: 100%;
+				max-height: 100%;
+				width: auto;
+				height: auto;
+				display: block;
+			}
+			.mp-label-code {
+				font-size: 7pt;
+				line-height: 1;
+				letter-spacing: 0.5pt;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			@media print {
+				body { background: #fff; }
+				.mp-label-sheet { padding: 0; background: #fff; gap: 0; align-items: stretch; }
+				.mp-label-60x40 { border: none; }
+			}
+		</style>
+		<div class="mp-label-sheet">
+			<?php
+			for ($i = 1; $i <= $rowcount; $i++) {
+				if (isset($_POST['tr_item_id_'.$i]) && !empty($_POST['tr_item_id_'.$i])) {
+					$item_id    = $this->xss_html_filter(trim($_POST['tr_item_id_'.$i]));
+					$item_count = $this->xss_html_filter(trim($_POST['td_data_'.$i."_3"]));
+					$res1       = $this->db->query("select * from db_items where id=$item_id")->row();
+
+					if (! $res1) {
+						continue;
+					}
+
+					$item_name  = $res1->item_name;
+					$item_code  = (!empty($res1->custom_barcode)) ? $res1->custom_barcode : $res1->item_code;
+					$item_price = $res1->sales_price;
+
+					for ($j = 1; $j <= $item_count; $j++) {
+					?>
+					<div class="mp-label-60x40">
+						<div class="mp-label-store"><?= htmlspecialchars($store_name); ?></div>
+						<div class="mp-label-name"><?= htmlspecialchars($item_name); ?></div>
+						<div class="mp-label-price"><?= $CI->currency($item_price); ?></div>
+						<div class="mp-label-barcode">
+							<img src="<?= base_url(); ?>barcode/label/<?= rawurlencode($item_code); ?>" alt="">
+						</div>
+						<div class="mp-label-code"><?= htmlspecialchars($item_code); ?></div>
+					</div>
+					<?php
+					}
+				}
+			}
+			?>
+		</div>
+		<?php
+	}
+
+
+
+	public function return_variant_data_in_row($rowcount,$variant_id){
+
+		$res1=$this->db->select('*')->from('db_variants')->where("id=$variant_id")->get()->row();
+		
+		$info = array(
+							'item_id'					=> '', 
+							'variant_id' 				=> $res1->id, 
+							'variant_name' 				=> $res1->variant_name,
+							'item_price' 				=> '',
+							'item_sales_price' 			=> '',
+							'variant_item_sku' 			=> '',
+							'variant_item_hsn' 			=> '',
+							'variant_profit_margin' 	=> '',
+							'variant_purchase_price' 	=> '',
+							'barcode'				 	=> '',
+							'count_id'				 	=> '',
+							'item_code'				 	=> '',
+							'item_mrp'				 	=> '',
+							'opening_stock'				=> '0',
+						);
+
+		$this->return_variant_data_in_html_row($rowcount,$info);
+	}
+	public function get_variants_list_in_row($parent_id){
+		$q1=$this->db->select('*')->from('db_items')->where("parent_id=$parent_id")->get();
+		$rowcount =1;
+		$html = '';
+		foreach ($q1->result() as $res1) {
+
+			$res2=$this->db->select('*')->from('db_variants')->where("id",$res1->variant_id)->get()->row();
+			
+			$info = array(
+							'item_id'					=> $res1->id, 
+							'variant_id' 				=> $res2 ? $res2->id : $res1->variant_id, 
+							'variant_name' 				=> $res2 ? $res2->variant_name : $res1->item_name,
+							'item_image'				=> $res1->item_image,
+							'item_price' 				=> '',
+							'item_sales_price' 			=> store_number_format($res1->sales_price,0),
+							'variant_item_sku' 			=> $res1->sku,
+							'variant_item_hsn' 			=> $res1->hsn,
+							'variant_profit_margin' 	=> $res1->profit_margin,
+							'variant_purchase_price' 	=> store_number_format($res1->price,0),
+							'barcode'				 	=> $res1->custom_barcode,
+							'count_id'				 	=> $res1->count_id,
+							'item_code'				 	=> $res1->item_code,
+							'item_mrp'				 	=> store_number_format($res1->mrp,0),
+							'opening_stock'				=> 0,
+						);
+			
+			ob_start();
+			$this->return_variant_data_in_html_row($rowcount++,$info);
+			$html .= ob_get_clean();
+		}
+		return $html;
+	}
+
+	public function return_variant_data_in_html_row($rowcount,$info){
+		$variant_id = isset($info['variant_id']) ? $info['variant_id'] : '';
+		$variant_name = isset($info['variant_name']) ? $info['variant_name'] : '';
+		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+		$item_image = isset($info['item_image']) ? $info['item_image'] : '';
+		$item_price = isset($info['item_price']) ? $info['item_price'] : '';
+		$item_sales_price = isset($info['item_sales_price']) ? $info['item_sales_price'] : '';
+		$variant_item_sku = isset($info['variant_item_sku']) ? $info['variant_item_sku'] : '';
+		$variant_item_hsn = isset($info['variant_item_hsn']) ? $info['variant_item_hsn'] : '';
+		$variant_profit_margin = isset($info['variant_profit_margin']) ? $info['variant_profit_margin'] : '';
+		$variant_purchase_price = isset($info['variant_purchase_price']) ? $info['variant_purchase_price'] : '';
+		$barcode = isset($info['barcode']) ? $info['barcode'] : '';
+		$count_id = isset($info['count_id']) ? $info['count_id'] : '';
+		$item_code = isset($info['item_code']) ? $info['item_code'] : '';
+		$item_mrp = isset($info['item_mrp']) ? $info['item_mrp'] : '';
+		$opening_stock = isset($info['opening_stock']) ? $info['opening_stock'] : '0';
+		?>
+            <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
+               <td id="td_<?=$rowcount;?>_1">
+                  <label class='form-control' style='height:auto;' >
+                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:" title=""><?=$variant_name;?></a>
+                  	</label>
+               </td>
+
+               <!-- Image -->
+               <td id="td_<?=$rowcount;?>_0" style="text-align:center; min-width:80px;">
+                  <?php if(!empty($item_image) && file_exists($item_image)): ?>
+                     <img id="variant_preview_<?=$rowcount;?>" src="<?= base_url($item_image); ?>" style="max-width:48px; max-height:48px; border-radius:4px; margin-bottom:6px; cursor:pointer;" onclick="$('#variant_image_<?=$rowcount;?>').click()"><br>
+                  <?php else: ?>
+                     <img id="variant_preview_<?=$rowcount;?>" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="width:48px; height:48px; border-radius:4px; margin-bottom:6px; cursor:pointer; background:#eee;" onclick="$('#variant_image_<?=$rowcount;?>').click()"><br>
+                  <?php endif; ?>
+                  <input type="file" name="variant_image_<?=$rowcount;?>" id="variant_image_<?=$rowcount;?>" class="form-control input-sm" accept="image/*" style="display:none;" onchange="previewVariantImage(this, <?=$rowcount;?>)">
+                  <a href="javascript:" class="variant-choose-link small" onclick="$('#variant_image_<?=$rowcount;?>').click()">Choose image</a>
+               </td>
+  
+               <!-- SKU-->
+               <td id="td_<?=$rowcount;?>_2"><input type="text" name="td_data_<?=$rowcount;?>_2" id="td_data_<?=$rowcount;?>_2" class="form-control text-center no-padding" value="<?=$variant_item_sku;?>" placeholder='Optional'></td>
+
+               <!-- HSN-->
+               <td id="td_<?=$rowcount;?>_9" style="display:none;"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-center no-padding" value="<?=$variant_item_hsn;?>" placeholder='Optional'></td>
+
+               <!-- Barcode-->
+               <td id="td_<?=$rowcount;?>_8"><input type="text" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control text-center no-padding" value="<?=$barcode;?>" placeholder='Optional'></td>
+
+               <!-- Price-->
+               <td id="td_<?=$rowcount;?>_3"><input type="text" name="td_data_<?=$rowcount;?>_3" id="td_data_<?=$rowcount;?>_3" class="form-control text-right no-padding only_currency text-center" onkeyup='calculate_purchase_price_of_all_row()' placeholder='Required' style="border-color: #f39c12;" value="<?=$variant_purchase_price;?>"></td>
+
+               <!-- Purchase Price-->
+               <td id="td_<?=$rowcount;?>_4"><input type="text" name="td_data_<?=$rowcount;?>_4" id="td_data_<?=$rowcount;?>_4" class="form-control text-right no-padding only_currency text-center" placeholder='Required' style="border-color: #f39c12;" value="" readonly></td>
+
+               <!-- Profit Margin-->
+               <td id="td_<?=$rowcount;?>_5"><input type="text" name="td_data_<?=$rowcount;?>_5" id="td_data_<?=$rowcount;?>_5" class="form-control text-right no-padding only_currency text-center" placeholder='Required' onchange='calculate_sales_price_of_all_row()' style="border-color: #f39c12;" value="<?=$variant_profit_margin;?>"></td>
+
+               <!-- Sales Price -->
+               <td id="td_<?=$rowcount;?>_6"><input type="text" name="td_data_<?=$rowcount;?>_6" id="td_data_<?=$rowcount;?>_6" class="form-control text-right no-padding only_currency text-center" placeholder='Required' onchange='calculate_profit_margin_of_all_row()' style="border-color: #f39c12;" value="<?=$item_sales_price;?>"></td>
+
+               <!-- MRP -->
+               <td id="td_<?=$rowcount;?>_10"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="form-control text-right no-padding only_currency text-center" placeholder='Optional' value="<?=$item_mrp;?>"></td>
+
+               <!-- Opening Stock -->
+               <td id="td_<?=$rowcount;?>_11"><input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="form-control text-right no-padding only_currency text-center" placeholder='Optional' value="<?=$opening_stock;?>" <?= !empty($item_id) ? 'readonly' : ''; ?>></td>
+
+               
+               <!-- Delete button -->
+               <td id="td_<?=$rowcount;?>_7" style="text-align: center;">
+                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow_also_delete_from_database('<?=$item_id;?>',<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_7" id="td_data_<?=$rowcount;?>_7"></a>
+                  <input type="hidden" id="tr_variant_id_<?=$rowcount;?>" name="tr_variant_id_<?=$rowcount;?>" value="<?=$variant_id;?>">
+                  <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+                  <input type="hidden" id="count_id_<?=$rowcount;?>" name="count_id_<?=$rowcount;?>" value="<?=$count_id;?>">
+                  <input type="hidden" id="item_code_<?=$rowcount;?>" name="item_code_<?=$rowcount;?>" value="<?=$item_code;?>">
+               </td>
+            </tr>
+		<?php
+
+	}
+
+	public function add_opening_stock(array $info){
+			//From MyController
+			$data = $this->data;
+
+			$stock_adjustment = array(
+                'store_id'              	=> $info['store_id'], 
+                'warehouse_id'              => $info['warehouse_id'], 
+                'adjustment_date'           => $data['CUR_DATE'],
+                //System Info
+                'created_date'              => $data['CUR_DATE'],
+                'created_time'              => $data['CUR_TIME'],
+                'created_by'                => $data['CUR_USERNAME'],
+                'system_ip'                 => $data['SYSTEM_IP'],
+                'system_name'               => $data['SYSTEM_NAME'],
+                'status'                    => 1,
+            );
+
+
+            $q1 = $this->db->insert('db_stockadjustment', $stock_adjustment);
+            $adjustment_id = $this->db->insert_id();
+
+
+            $adjustment_entry = array(
+                        'store_id'              => $info['store_id'], 
+                        'warehouse_id'          => $info['warehouse_id'], 
+                        'adjustment_id'         => $adjustment_id,
+                        'item_id'           	=> $info['item_id'],
+                        'adjustment_qty'        => $info['adjustment_qty'],
+                        'status'            => 1,
+                    );
+            
+            
+            try{
+            	$insert = $this->db->insert('db_stockadjustmentitems', $adjustment_entry);
+            	if($insert){
+            		//Update Item Master stock
+            		
+            		//UPDATE itemS QUANTITY IN itemS TABLE
+					$this->load->model('pos_model');				
+					$query2=$this->pos_model->update_items_quantity($info['item_id']);
+					if($query2){
+						//update warehouse stock
+						$q7=update_warehouse_items(array(array($info['item_id'])));
+						if(!$q7){
+							return false;
+						}
+						return true;
+					}
+					else{
+						return false;
+					}
+
+            		return true;
+            	}
+            	else{
+            		return false;
+            	}
+            }//try
+            catch(Exception $e){
+            	return false;
+            }//catch
+
+	}
+
+	public function getItemsArray($id=''){
+
+		$store_id = (isset($_REQUEST['store_id'])) ? $_REQUEST['store_id'] : get_current_store_id();
+
+		
+
+		$q = '';
+		
+		$this->db->select("id, item_name, item_code")->from('db_items');
+		$this->db->where("store_id",$store_id);
+
+		if(isset($_REQUEST['category_id']) && !empty($_REQUEST['category_id'])){
+			mp_category_filter('category_id',$_REQUEST['category_id'],$store_id);
+		}
+
+		if(isset($_REQUEST['brand_id']) && !empty($_REQUEST['brand_id'])){
+			$this->db->where("brand_id",$_REQUEST['brand_id']);
+		}
+
+		if(isset($_REQUEST['item_type']) && !empty($_REQUEST['item_type'])){
+			$service_bit = ($_REQUEST['item_type'] == 'Services') ? 1 : 0;
+			$this->db->where("service_bit",$service_bit);
+		}
+
+		if(!empty($id)){
+
+			$this->db->where("id",$id);
+			
+		}else{
+
+			$q = (isset($_POST['searchTerm'])) ? strtoupper($_POST['searchTerm']) : '';
+
+			// For name/code search: show parent products and single items only (child_bit=0)
+			// For barcode scan: allow matching a child variant by its custom_barcode
+			$this->db->where("(
+				(child_bit = 0 AND (upper(item_name) like '%$q%' or upper(item_code) like '%$q%'))
+				OR
+				(upper(custom_barcode) like '%$q%' AND custom_barcode != '')
+			)");
+		}
+		$this->db->limit(10);
+		//echo $this->db->get_compiled_select();exit;
+		$query = $this->db->get();
+
+		$display_json = array();
+
+		if($query->num_rows()>0){
+			foreach($query->result() as $res){
+
+
+				$json_arr["id"] 					 = $res->id;
+			  	$json_arr["text"] 					 = $res->item_name;
+			  	$json_arr["item_code"] 					 = $res->item_code;
+			  	
+			  	array_push($display_json, $json_arr);
+			}
+		}
+		return $display_json;
+	}
+	public function getItemsJson($id){
+		return json_encode($this->getItemsArray($id));
+	}
+
+	/**
+	 * Get distinct variant attribute types and values for this store.
+	 * Returns an array keyed by attribute_type, e.g.
+	 * [ 'size' => ['S','M','L'], 'colour' => ['Red','Blue'] ]
+	 */
+	public function get_variant_attribute_map($store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		$map = array();
+
+		// 1. Prefer the master attribute table (attribute-driven products)
+		if($this->db->table_exists('db_attributes')){
+			$this->db->select('attribute_type, attribute_value');
+			$this->db->where('store_id', $store_id);
+			$this->db->where('status', 1);
+			$this->db->order_by('attribute_type','asc');
+			$this->db->order_by('sort_order','asc');
+			$this->db->order_by('attribute_value','asc');
+			$q = $this->db->get('db_attributes');
+			if($q->num_rows() > 0){
+				foreach($q->result() as $r){
+					$type = strtolower($r->attribute_type);
+					if(!isset($map[$type])) $map[$type] = array();
+					$map[$type][] = $r->attribute_value;
+				}
+				return $map;
+			}
+		}
+
+		// 2. Fallback: variant_attributes created manually
+		if($this->db->table_exists('db_variant_attributes')){
+			$this->db->select('attribute_type, attribute_value, COUNT(*) as c');
+			$this->db->where('store_id', $store_id);
+			$this->db->group_by(array('attribute_type','attribute_value'));
+			$this->db->order_by('attribute_type','asc');
+			$this->db->order_by('attribute_value','asc');
+			$q = $this->db->get('db_variant_attributes');
+			if($q->num_rows() > 0){
+				foreach($q->result() as $r){
+					$type = strtolower($r->attribute_type);
+					if(!isset($map[$type])) $map[$type] = array();
+					$map[$type][] = $r->attribute_value;
+				}
+				return $map;
+			}
+		}
+
+		// Fallback: legacy single-dimension variants
+		$this->db->select('attribute_type, attribute_value, variant_name');
+		$this->db->where('store_id', $store_id);
+		$this->db->where('status', 1);
+		$this->db->order_by('attribute_value','asc');
+		$q = $this->db->get('db_variants');
+		foreach($q->result() as $r){
+			$type = !empty($r->attribute_type) ? strtolower($r->attribute_type) : 'variant';
+			$value = !empty($r->attribute_value) ? $r->attribute_value : $r->variant_name;
+			if(!isset($map[$type])) $map[$type] = array();
+			if(!in_array($value, $map[$type])) $map[$type][] = $value;
+		}
+		return $map;
+	}
+
+	/**
+	 * Generate or retrieve a variant record that matches a set of attribute values.
+	 * This enables N-dimensional item matrix generation on the item form.
+	 *
+	 * @param array $attributes associative [ 'size' => 'M', 'colour' => 'Red' ]
+	 * @param string $base_sku  parent SKU base for child SKU auto-generation
+	 * @param int $store_id
+	 * @return int|null variant_id
+	 */
+	public function find_or_create_variant_by_attributes($attributes, $base_sku = '', $store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		if(empty($attributes)) return null;
+
+		$attribute_values = array_values($attributes);
+		$variant_name = implode(' / ', $attribute_values);
+
+		// 1. Try to find an exact existing variant by name
+		$this->db->where('store_id', $store_id);
+		$this->db->where('UPPER(variant_name)', strtoupper($variant_name));
+		$q = $this->db->get('db_variants');
+		if($q->num_rows() > 0){
+			return $q->row()->id;
+		}
+
+		// 2. Try to match via db_variant_attributes (multi-attribute table)
+		if($this->db->table_exists('db_variant_attributes')){
+			$where_parts = array();
+			foreach($attributes as $type => $value){
+				$type = $this->db->escape_str(strtolower($type));
+				$value = $this->db->escape_str($value);
+				$where_parts[] = "(attribute_type = '{$type}' AND attribute_value = '{$value}')";
+			}
+			$sql = "SELECT variant_id, COUNT(*) as cnt
+					FROM db_variant_attributes
+					WHERE store_id = " . (int)$store_id . " AND (" . implode(' OR ', $where_parts) . ")
+					GROUP BY variant_id
+					HAVING cnt >= " . count($attributes) . "
+					LIMIT 1";
+			$q = $this->db->query($sql);
+			if($q->num_rows() > 0){
+				return $q->row()->variant_id;
+			}
+		}
+
+		// 3. Create a new variant master record (auto-generation)
+		$primary_type = key($attributes);
+		$primary_value = reset($attributes);
+		$this->db->insert('db_variants', array(
+			'store_id' => $store_id,
+			'variant_name' => $variant_name,
+			'attribute_type' => $primary_type,
+			'attribute_value' => $primary_value,
+			'description' => 'Auto-generated by variant matrix',
+			'status' => 1,
+		));
+		$variant_id = $this->db->insert_id();
+
+		if($this->db->table_exists('db_variant_attributes')){
+			$sort = 1;
+			foreach($attributes as $type => $value){
+				$this->db->insert('db_variant_attributes', array(
+					'store_id' => $store_id,
+					'variant_id' => $variant_id,
+					'attribute_type' => strtolower($type),
+					'attribute_value' => $value,
+					'sort_order' => $sort++,
+					'created_date' => date('Y-m-d'),
+				));
+			}
+		}
+		return $variant_id;
+	}
+
+	/**
+	 * Given a parent item and a set of attribute values, return the child item_id.
+	 * Used by the POS variant picker to sell the correct variant.
+	 *
+	 * @param int $parent_id
+	 * @param array $attributes associative [ 'size' => '14', 'colour' => 'Red' ]
+	 * @return int|null child item_id
+	 */
+	public function find_child_item_id_by_attributes($parent_id, $attributes){
+		if(empty($parent_id) || empty($attributes)) return null;
+		$store_id = get_current_store_id();
+		// Find the master variant_id for this attribute combination
+		$variant_id = $this->find_or_create_variant_by_attributes($attributes, '', $store_id);
+		if(empty($variant_id)) return null;
+		// Find the child db_items row with this variant_id and parent
+		$child = $this->db->where('parent_id', $parent_id)
+						  ->where('variant_id', $variant_id)
+						  ->where('store_id', $store_id)
+						  ->get('db_items')->row();
+		return $child ? $child->id : null;
+	}
+
+	/**
+	 * Build the HTML rows for an item-level variant matrix cross-product.
+	 * Called via AJAX from the item form. Works for N attribute dimensions,
+	 * e.g. size × colour × length, storage × colour, etc.
+	 *
+	 * @return string HTML <tr> rows concatenated
+	 */
+	public function build_matrix_rows_html(){
+		$store_id = get_current_store_id();
+		$attribute_map = $this->input->post('attribute_map', TRUE);
+		$attribute_map = is_string($attribute_map) ? json_decode($attribute_map, true) : $attribute_map;
+		if(!is_array($attribute_map) || empty($attribute_map)){
+			return "<tr><td colspan='11' class='text-center text-info'>Please select at least one attribute and value.</td></tr>";
+		}
+		// Clean keys and values
+		$attributes = array();
+		foreach($attribute_map as $type => $vals){
+			$type = strtolower(trim($type));
+			if(empty($type)) continue;
+			$vals = is_array($vals) ? $vals : explode(',', $vals);
+			$vals = array_filter(array_map('trim', $vals));
+			if(!empty($vals)) $attributes[$type] = $vals;
+		}
+		if(empty($attributes)){
+			return "<tr><td colspan='11' class='text-center text-info'>No attribute values selected.</td></tr>";
+		}
+
+		$base_name = trim($this->input->post('base_item_name', TRUE));
+		$base_sku = trim($this->input->post('base_sku', TRUE));
+		$base_price = (float)$this->input->post('base_price', TRUE);
+		$base_sales_price = (float)$this->input->post('base_sales_price', TRUE);
+		$base_mrp = (float)$this->input->post('base_mrp', TRUE);
+
+		$html = '';
+		$rowcount = (int)$this->input->post('starting_rowcount', TRUE);
+		if($rowcount < 1) $rowcount = 1;
+
+		// Recursively generate the Cartesian product across N dimensions
+		$combinations = $this->_cartesian_product($attributes);
+		foreach($combinations as $combo){
+			$attributes_for_variant = array();
+			foreach($combo as $type => $val){
+				$attributes_for_variant[strtolower($type)] = trim($val);
+			}
+			$variant_id = $this->find_or_create_variant_by_attributes($attributes_for_variant, $base_sku, $store_id);
+			if(empty($variant_id)) continue;
+
+			$variant = $this->db->where('id', $variant_id)->get('db_variants')->row();
+			if(!$variant) continue;
+
+			$variant_name = $variant->variant_name; // pure variant name like "14 / Red / Short"
+			$slugs = array();
+			foreach($attributes_for_variant as $v){
+				$slugs[] = $this->_matrix_sku_slug($v);
+			}
+			$slug = implode('-', $slugs);
+			$child_sku = !empty($base_sku) ? $base_sku . '-' . $slug : $slug;
+
+			$info = array(
+				'variant_id' => $variant_id,
+				'variant_name' => $variant_name,
+				'item_price' => $base_price,
+				'item_sales_price' => $base_sales_price,
+				'variant_purchase_price' => $base_price,
+				'variant_item_sku' => $child_sku,
+				'variant_item_hsn' => '',
+				'variant_profit_margin' => '',
+				'barcode' => '',
+				'count_id' => '',
+				'item_code' => '',
+				'item_mrp' => $base_mrp,
+				'opening_stock' => 0,
+			);
+			ob_start();
+			$this->return_variant_data_in_html_row($rowcount++, $info);
+			$html .= ob_get_clean();
+		}
+
+		if(empty($html)){
+			$html = "<tr><td colspan='11' class='text-center text-info'>No combinations could be generated. Check that attribute values are not empty.</td></tr>";
+		}
+		return $html;
+	}
+
+	/**
+	 * Cartesian product helper for N attribute dimensions.
+	 */
+	private function _cartesian_product($input){
+		$result = array(array());
+		foreach($input as $key => $values){
+			$append = array();
+			foreach($result as $product){
+				foreach($values as $value){
+					$product[$key] = $value;
+					$append[] = $product;
+				}
+			}
+			$result = $append;
+		}
+		return $result;
+	}
+
+	private function _matrix_sku_slug($val){
+		$val = trim($val);
+		$val = preg_replace('/[^A-Za-z0-9]/', '', $val);
+		return strtoupper($val);
+	}
+
+
+}

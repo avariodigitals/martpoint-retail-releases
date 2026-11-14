@@ -1,0 +1,212 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+require_once APPPATH.'libraries/Communication_copy.php';
+
+/** Fleet transport. Provider keys and balances never travel to the fleet. */
+class Messaging_client {
+    protected $CI;
+    public function __construct() { $this->CI =& get_instance(); $this->CI->load->library('messaging_pricing'); }
+
+    protected function identity() {
+        return $this->CI->db->select('fleet_url,install_key')->where('id',1)->get('db_sitesettings')->row_array() ?: array();
+    }
+
+    public function managed() {
+        if (mp_is_central()) return false;
+        $id = $this->identity();
+        return !empty($id['fleet_url']) && !empty($id['install_key']);
+    }
+
+    /**
+     * The name and reply address this store wants its customers to see. MartPoint
+     * still sends from its own verified address, and can pin either value per store.
+     */
+    public function senderIdentity($storeId, $store = null) {
+        $store = $store ?: $this->CI->db->where('id',(int)$storeId)->get('db_store')->row();
+        $cfg = $this->CI->db->table_exists('db_email_settings')
+            ? $this->CI->db->where('store_id',(int)$storeId)->get('db_email_settings')->row_array() : array();
+        $name = trim((string)($cfg['email_from_name'] ?? '')) ?: trim((string)($cfg['resend_from_name'] ?? ''))
+            ?: trim((string)($store->store_name ?? ''));
+        $reply = trim((string)($cfg['email_reply_to'] ?? ''));
+        if (!filter_var($reply,FILTER_VALIDATE_EMAIL)) $reply = trim((string)($store->email ?? ''));
+        return array('name'=>mb_substr($name,0,190), 'reply_to'=>filter_var($reply,FILTER_VALIDATE_EMAIL) ? $reply : '');
+    }
+
+    public function request($action, $storeId, array $payload = array()) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false,'code'=>'not_enrolled','message'=>'Messaging is not set up for this account. Contact your Administrator before buying credits or sending campaigns.');
+        }
+        $url = rtrim($id['fleet_url'],'/');
+        if (parse_url($url,PHP_URL_SCHEME) !== 'https') return array('success'=>false,'message'=>'Messaging is unavailable because the account connection needs attention. Contact your Administrator.');
+        $store = $this->CI->db->where('id',(int)$storeId)->get('db_store')->row();
+        if (!$store) return array('success'=>false,'message'=>'Store not found.');
+        $payload['store_id'] = (int)$storeId;
+        $payload['store_name'] = $store->store_name;
+        $sender = $this->senderIdentity((int)$storeId, $store);
+        $payload['sender_name'] = $sender['name'];
+        $payload['reply_to'] = $sender['reply_to'];
+        $payload['nonce'] = bin2hex(random_bytes(12));
+        $body = json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE);
+        $timestamp = (string)time();
+        $installUrl = rtrim(base_url(),'/').'/';
+        $envelope = array('install_url'=>$installUrl,'timestamp'=>$timestamp,'payload'=>$body,
+            'signature'=>Messaging_pricing::signature($action,$timestamp,$installUrl,$body,$id['install_key']));
+        return $this->transport($url.'/messaging_api/'.$action,$envelope);
+    }
+
+    protected function transport($url, array $body, $logPaystackRouteFailure = false) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($body),
+            CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>45,
+            CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,
+            CURLOPT_HTTPHEADER=>array('Accept: application/json')));
+        $raw = curl_exec($ch); $http = (int)curl_getinfo($ch,CURLINFO_HTTP_CODE);
+        $contentType = (string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE);
+        $curlErrno = curl_errno($ch); $curlError = curl_error($ch); curl_close($ch);
+        $result = is_string($raw) ? json_decode($raw,true) : null;
+        if (!is_array($result) || $http !== 200) {
+            if ($logPaystackRouteFailure) {
+                $reason = !is_array($result) ? 'response was not valid JSON' : 'unexpected HTTP status';
+                log_message('error', 'Paystack Central route transport failed: '.$reason.' (HTTP '.$http
+                    .', content-type '.mb_substr($contentType, 0, 100).', cURL '.$curlErrno
+                    .($curlError !== '' ? ': '.mb_substr($curlError, 0, 160) : '').').');
+            }
+            return array('success'=>false,'code'=>'central_unavailable',
+                'message'=>'Your request could not be confirmed. Check its history before retrying, or contact your Administrator.');
+        }
+        if(isset($result['message']))$result['message']=Communication_copy::message($result['message']);
+        return $result;
+    }
+
+    /** Register a fleet Paystack subaccount through its existing signed Central connection. */
+    public function registerPaystackPayoutRoute($storeId, $subaccountCode, $enabled) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false,'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false,'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode(array(
+            'store_id'=>(int)$storeId,
+            'subaccount_code'=>(string)$subaccountCode,
+            'enabled'=>(bool)$enabled,
+        ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false,'message'=>'Could not prepare the payout route request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_payout_route_register', $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/register', $envelope, true);
+    }
+
+    /** Ask Central whether this mapped fleet may view or edit settlement details. */
+    public function payoutAccountEditPolicy($storeId) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false, 'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false, 'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode(array('store_id'=>(int)$storeId), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false, 'message'=>'Could not prepare the payout policy request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_payout_account_policy', $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/policy', $envelope);
+    }
+
+    /** Read public MartPoint Pay settings without copying the secret key to a fleet. */
+    public function paystackSettings($storeId) {
+        return $this->paystackRelay('settings', array('store_id'=>(int)$storeId));
+    }
+
+    /** Ask Central to make a Paystack API request with its shared provider key. */
+    public function paystackRequest($storeId, $method, $endpoint, $data = null) {
+        return $this->paystackRelay('request', array(
+            'store_id'=>(int)$storeId,
+            'method'=>strtoupper((string)$method),
+            'endpoint'=>(string)$endpoint,
+            'data'=>$data,
+        ));
+    }
+
+    private function paystackRelay($action, array $payload) {
+        $id = $this->identity();
+        if (mp_is_central() || empty($id['fleet_url']) || strlen($id['install_key'] ?? '') < 32) {
+            return array('success'=>false, 'message'=>'This installation is not enrolled with Central.');
+        }
+        $centralUrl = rtrim((string)$id['fleet_url'], '/');
+        if (parse_url($centralUrl, PHP_URL_SCHEME) !== 'https' || !parse_url($centralUrl, PHP_URL_HOST)) {
+            return array('success'=>false, 'message'=>'The Central connection URL is invalid.');
+        }
+        $installUrl = rtrim(base_url(), '/') . '/';
+        $payload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) return array('success'=>false, 'message'=>'Could not prepare the MartPoint Pay request.');
+        $timestamp = (string)time();
+        $envelope = array(
+            'install_url'=>$installUrl,
+            'timestamp'=>$timestamp,
+            'payload'=>$payload,
+            'signature'=>Messaging_pricing::signature('paystack_'.$action, $timestamp, $installUrl, $payload, $id['install_key']),
+        );
+        return $this->transport($centralUrl.'/paystack_route_api/'.$action, $envelope);
+    }
+
+    public function sendEmail($storeId, $to, $subject, $html, $text, array $options = array()) {
+        $recipients = is_array($to) ? $to : preg_split('/[,;]/',(string)$to);
+        if (!empty($options['send_copy_to_owner'])) {
+            $store = $this->CI->db->where('id',(int)$storeId)->get('db_store')->row();
+            if (!empty($store->email)) $recipients[] = $store->email;
+        }
+        $recipients = array_values(array_unique(array_map(function($email){return strtolower(trim($email));},$recipients)));
+        foreach ($recipients as $recipient) {
+            if (!filter_var($recipient,FILTER_VALIDATE_EMAIL)) return array('success'=>false,'message'=>'A recipient email address is invalid.');
+        }
+        if (!$recipients || count($recipients)>100) return array('success'=>false,'message'=>'Send between 1 and 100 recipients per request.');
+        $rootKey = $options['messaging_key'] ?? bin2hex(random_bytes(20));
+        $accepted = 0; $cost = 0;
+        foreach ($recipients as $recipient) {
+            $payload = array('channel'=>'email','category'=>Messaging_pricing::category($options),
+                'recipient'=>$recipient,'subject'=>$subject,'html'=>$html,'text'=>$text,
+                'request_key'=>hash('sha256',$rootKey.'|'.strtolower($recipient)),
+                'campaign_id'=>(string)(($options['related_module'] ?? '') === 'campaign' ? ($options['related_record_id'] ?? '') : ''),
+                'retry_failed'=>!empty($options['retry_failed']),'requires_automation'=>!empty($options['requires_automation']),'automation_workflow_key'=>$options['automation_workflow_key']??'','automation_template_key'=>$options['automation_template_key']??'');
+            // Only server-rendered, allowlisted security/subscription templates
+            // can use the uncharged platform lane. Raw HTML cannot opt into it.
+            if (!empty($options['platform_data']) && Messaging_pricing::platformTemplate($options['template_key'] ?? '')) {
+                $payload['platform_template'] = $options['template_key'];
+                $payload['platform_data'] = $options['platform_data'];
+                $payload['category'] = 'platform';
+                unset($payload['html'],$payload['text'],$payload['subject']);
+            }
+            $result = $this->request('send',$storeId,$payload);
+            if (empty($result['success'])) {
+                $result['message'] = ($accepted ? $accepted.' recipient(s) accepted before this pause. ' : '').($result['message'] ?? 'Send paused.');
+                return $result;
+            }
+            $accepted++; $cost += (int)($result['cost_kobo'] ?? 0);
+        }
+        return array('success'=>true,'message'=>$accepted.' email(s) accepted for sending.','cost_kobo'=>$cost,'accepted'=>$accepted);
+    }
+
+    public function sendSms($storeId, $recipient, $text, array $options = array()) {
+        return $this->request('send',$storeId,array('channel'=>'sms','category'=>Messaging_pricing::category($options),
+            'recipient'=>$recipient,'text'=>$text,'request_key'=>hash('sha256',($options['messaging_key'] ?? bin2hex(random_bytes(20))).'|'.$recipient),
+            'campaign_id'=>(string)($options['related_record_id'] ?? ''),'retry_failed'=>!empty($options['retry_failed']),'requires_automation'=>!empty($options['requires_automation']),'automation_workflow_key'=>$options['automation_workflow_key']??'','automation_template_key'=>$options['automation_template_key']??''));
+    }
+}

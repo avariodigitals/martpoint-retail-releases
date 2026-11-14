@@ -1,0 +1,1776 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Customers_model extends CI_Model {
+	//Datatable start
+	var $table = 'db_customers as a';
+	var $order = array('a.id' => 'desc'); // default order
+
+	private function _get_available_columns(){
+		$all = [
+			'a.id','a.customer_code','a.customer_name','a.mobile','a.email',
+			'a.location_link','a.credit_limit','a.sales_due','a.sales_return_due',
+			'a.opening_balance','a.tot_advance','a.loyalty_points','a.loyalty_tier',
+			'a.store_credit_balance','a.gift_card_balance','a.status','a.store_id','a.delete_bit'
+		];
+		$exists = [];
+		foreach($all as $col){
+			$field = str_replace('a.', '', $col);
+			if($this->db->field_exists($field, 'db_customers')){
+				$exists[] = $col;
+			}
+		}
+		return $exists;
+	}
+
+	public function __construct()
+	{
+		parent::__construct();
+	}
+
+	private function _upload_customer_photo(){
+		if(empty($_FILES['photo']['name']) || !$this->db->field_exists('photo', 'db_customers')){
+			return null;
+		}
+		$upload_dir = FCPATH . 'uploads/customers/photos/';
+		if(!is_dir($upload_dir)){
+			@mkdir($upload_dir, 0755, true);
+		}
+		$config = array(
+			'file_name'     => 'customer_' . time() . '_' . mt_rand(1000, 9999),
+			'upload_path'   => './uploads/customers/photos/',
+			'allowed_types' => 'gif|jpg|jpeg|png|webp',
+			'max_size'      => 2048,
+			'overwrite'     => false,
+		);
+		$this->load->library('upload');
+		$this->upload->initialize($config);
+		if(!$this->upload->do_upload('photo')){
+			print('Photo: ' . $this->upload->display_errors());
+			exit();
+		}
+		return 'uploads/customers/photos/' . $this->upload->data('file_name');
+	}
+
+	private function _get_datatables_query()
+	{
+		/*If account receivable checked*/
+		if(isset($_POST['show_account_receivable']) && $_POST['show_account_receivable']=='checked'){
+			$store_id = (int)get_current_store_id();
+			$this->db->where("(COALESCE(a.sales_due,0) + COALESCE(a.opening_balance,0) - COALESCE(a.sales_return_due,0) - (SELECT COALESCE(SUM(payment),0) FROM db_salespayments WHERE customer_id = a.id AND short_code = 'OPENING BALANCE PAID' AND store_id = ".$store_id.")) >", 0, FALSE);
+		}
+
+		$columns = $this->_get_available_columns();
+		$this->db->select($columns);
+		$this->db->from($this->table);
+		//if not admin
+	    //if(!is_admin()){
+	      $this->db->where("a.store_id",get_current_store_id());
+	    //}
+		$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+		$membershipFilterEnabled = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('memberships')
+			&& $this->db->table_exists('db_customer_memberships');
+		if($membershipFilterEnabled && in_array(($_POST['membership_status'] ?? ''), ['active','none'], true)){
+			$activeMembership = "EXISTS (SELECT 1 FROM db_customer_memberships cm
+				WHERE cm.store_id=a.store_id AND cm.customer_id=a.id AND cm.status='active'
+				AND cm.start_date <= CURDATE() AND cm.end_date >= CURDATE())";
+			$this->db->where(($_POST['membership_status'] === 'active' ? $activeMembership : 'NOT '.$activeMembership), null, false);
+		}
+		$i = 0;
+
+		foreach ($columns as $item) // loop column
+		{
+			if(isset($_POST['search']['value']) && $_POST['search']['value']) // if datatable send POST for search
+			{
+
+				if($i===0) // first loop
+				{
+					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
+					$this->db->like($item, $_POST['search']['value']);
+				}
+				else
+				{
+					$this->db->or_like($item, $_POST['search']['value']);
+				}
+
+				if(count($columns) - 1 == $i) //last loop
+					$this->db->group_end(); //close bracket
+			}
+			$i++;
+		}
+
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
+		{
+			$col_idx = (int) $_POST['order']['0']['column'];
+			if(isset($columns[$col_idx])){
+				$this->db->order_by($columns[$col_idx], $_POST['order']['0']['dir']);
+			}
+		}
+		else if(isset($this->order))
+		{
+			$order = $this->order;
+			$this->db->order_by(key($order), $order[key($order)]);
+		}
+	}
+
+	function get_datatables()
+	{
+		$this->_get_datatables_query();
+		if(isset($_POST['length']) && $_POST['length'] != -1)
+		$this->db->limit($_POST['length'], $_POST['start']);
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	function count_filtered()
+	{
+		$this->_get_datatables_query();
+		$query = $this->db->get();
+		return $query->num_rows();
+	}
+
+	public function count_all()
+	{
+		$this->db->where("store_id",get_current_store_id());
+		$this->db->from($this->table);
+		return $this->db->count_all_results();
+	}
+	//Datatable end
+
+	public function create_walk_in_customer($store_id){
+		$CUR_DATE = $this->data['CUR_DATE'];
+		$CUR_TIME = $this->data['CUR_TIME'];
+		$CUR_USERNAME = $this->data['CUR_USERNAME'];
+		$SYSTEM_IP = $this->data['SYSTEM_IP'];
+		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
+	    $info = array(
+	                'store_id'         		=> $store_id, 
+	                'count_id' 				=> get_count_id('db_customers'), 
+	                'customer_code'         => get_init_code('customer',$store_id), 
+	                'customer_name'         => get_walk_in_customer_name(),
+	                /*System Info*/
+	                'created_date'        	=> $CUR_DATE,
+	                'created_time'        	=> $CUR_TIME,
+	                'created_by'        	=> $CUR_USERNAME,
+	                'system_ip'         	=> $SYSTEM_IP,
+	                'system_name'         	=> $SYSTEM_NAME,
+	                'status'          		=> 1,
+	                'delete_bit'          	=> 1,
+	              );
+		
+	    
+
+	    $query1 = $this->db->insert('db_customers', $info);
+	    #------------------------------------
+		
+		if ($query1){
+		        return true;
+		}
+		else{
+		        return false;
+		}
+	
+	}
+	//Save Cutomers
+	public function verify_and_save(){
+		$customer_name = $this->input->post('customer_name', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		$phone = $this->input->post('phone', TRUE);
+		$email = $this->input->post('email', TRUE);
+		$country = $this->input->post('country', TRUE);
+		$state = $this->input->post('state', TRUE);
+		$city = $this->input->post('city', TRUE);
+		$postcode = $this->input->post('postcode', TRUE);
+		$address = $this->input->post('address', TRUE);
+		$opening_balance = $this->input->post('opening_balance', TRUE);
+		$tax_number = $this->input->post('tax_number', TRUE);
+		$location_link = $this->input->post('location_link', TRUE);
+		$credit_limit = $this->input->post('credit_limit', TRUE);
+		$payment_terms_days = (int) $this->input->post('payment_terms_days', TRUE);
+		$price_level_type = $this->input->post('price_level_type', TRUE);
+		$price_level = $this->input->post('price_level', TRUE);
+		$gstin = $this->input->post('gstin', TRUE);
+		$nin_bvn = $this->input->post('nin_bvn', TRUE);
+		$nin_verified = $this->input->post('nin_verified', TRUE);
+		$shipping_country = $this->input->post('shipping_country', TRUE);
+		$shipping_state = $this->input->post('shipping_state', TRUE);
+		$shipping_city = $this->input->post('shipping_city', TRUE);
+		$shipping_postcode = $this->input->post('shipping_postcode', TRUE);
+		$shipping_address = $this->input->post('shipping_address', TRUE);
+		$shipping_location_link = $this->input->post('shipping_location_link', TRUE);
+		$birthday = $this->input->post('birthday', TRUE);
+		$notes = $this->input->post('notes', TRUE);
+		$CUR_DATE = $this->data['CUR_DATE'];
+		$CUR_TIME = $this->data['CUR_TIME'];
+		$CUR_USERNAME = $this->data['CUR_USERNAME'];
+		$SYSTEM_IP = $this->data['SYSTEM_IP'];
+		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
+
+		$store_id=get_current_store_id();
+        try { $pricingAssignment = mp_customer_pricing()->assignment($store_id, (array)$this->input->post(null, TRUE)); }
+        catch (RuntimeException $e) { return $e->getMessage(); }
+
+		$this->db->where('mobile', $mobile);
+		$this->db->where('store_id', $store_id);
+		$query2 = $this->db->get('db_customers');
+		if($query2->num_rows()>0 && !empty($mobile)){
+			return "Sorry!This Mobile Number already Exist.";;
+		}
+
+		#------------------------------------
+	    $info = array(
+	                'store_id'         		=> $store_id, 
+	                'count_id' 				=> get_count_id('db_customers'), 
+	                'customer_code'         => get_init_code('customer'), 
+	                'customer_name'         => $customer_name,
+	                'mobile'        	    => $mobile,
+	                'phone'         		=> $phone,
+	                'email'             	=> $email,
+	                'country_id'        	=> (!empty($country)) ? $country : NULL,
+	                'state_id'        	 	=> (!empty($state)) ? $state : NULL,
+	                'city'        			=> $city,
+	                'postcode'         		=> $postcode,
+	                'address'           	=> $address,
+	                'opening_balance'       => $opening_balance,
+	                'tax_number'          	=> $tax_number,
+	                /*System Info*/
+	                'created_date'        	=> $CUR_DATE,
+	                'created_time'        	=> $CUR_TIME,
+	                'created_by'        	=> $CUR_USERNAME,
+	                'system_ip'         	=> $SYSTEM_IP,
+	                'system_name'         	=> $SYSTEM_NAME,
+	                'status'          		=> 1,
+	                'location_link'         => $location_link,
+	                'credit_limit'         => $credit_limit,
+                'payment_terms_days'   => $payment_terms_days,
+                'birthday'             => (!empty($birthday)) ? $birthday : NULL,
+                'notes'                => $notes,
+	              );
+        $info = array_merge($info, $pricingAssignment);
+		// Preserve existing notes when the feature is disabled and its input is hidden.
+		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
+			
+			if(isset($price_level_type)){
+				$info['price_level_type'] = $price_level_type;
+				$info['price_level'] = $price_level;
+			}
+	    /*Attchment Upload*/
+	    	$config['file_name'] 			= time();
+			$config['upload_path']          = './uploads/customers/attachments/';
+	       	$config['allowed_types']        = 'gif|jpg|png|webp|pdf|doc|xlsx|docx|txt';
+	       	$config['max_size']             = 2048;
+	       	$this->load->library('upload', $config);
+
+			if(!empty($_FILES['attachment_1']['name'])){
+		           if ( ! $this->upload->do_upload('attachment_1')){
+		                   $error = array('error' => $this->upload->display_errors());
+		                   print("Attachment 1 :");
+		                   print($error['error']);
+		                   exit();
+		           }
+		           else{
+		               $attachment_1='uploads/customers/attachments/'.$this->upload->data('file_name');
+		               $info['attachment_1'] = $attachment_1;
+		           }
+		      }
+	    /*Attchment Upload End*/
+		$photo = $this->_upload_customer_photo();
+		if($photo !== null){
+			$info['photo'] = $photo;
+		}
+
+	    /*custom helper*/
+        if(gst_number()){
+          $info['gstin']=$gstin;
+        }
+	    $query1 = $this->db->insert('db_customers', $info);
+	    $customer_id=$this->db->insert_id();
+	    #------------------------------------
+
+	    if(isset($shipping_country)){
+		    //Insert Shipping Address
+		    $shipping_address_details = array(
+		    									'store_id'		=>$store_id,
+		    									'country_id'	=>$shipping_country,
+		    									'state_id'		=>$shipping_state,
+		    									'city'			=>$shipping_city,
+		    									'postcode'		=>$shipping_postcode,
+		    									'address'		=>$shipping_address,
+		    									'customer_id'	=>$customer_id,
+		    									'location_link'	=>$shipping_location_link,
+		    									'status'		=>1,
+		    								);
+		    $Q2 = $this->db->insert('db_shippingaddress', $shipping_address_details);
+		    if(!$Q2){
+		    	return "failed";
+		    }
+		    $shipping_address_id=$this->db->insert_id();
+		    //end
+			//Update shipping address to customer
+			$Q3 = $this->db->set('shippingaddress_id',$shipping_address_id)->where('id',$customer_id)->update('db_customers');
+			if(!$Q3){
+		    	return "failed";
+		    }
+		    //end
+		}
+
+
+		if ($query1){
+				$this->session->set_flashdata('success', 'Success!! New Customer Added Successfully!');
+		        return "success";
+		}
+		else{
+		        return "failed";
+		}
+		
+	}
+
+	//Get customers_details
+	public function get_details($id,$data){
+		//Validate This customers already exist or not
+		$query=$this->db->query("select * from db_customers where upper(id)=upper('$id')");
+		if($query->num_rows()==0){
+			show_404();exit;
+		}
+		else{
+			$query=$query->row();
+			$data['q_id']=$query->id;
+			$data['store_id']=$query->store_id;
+			$data['customer_name']=$query->customer_name;
+			$data['mobile']=$query->mobile;
+			$data['phone']=$query->phone;
+			$data['email']=$query->email;
+			
+			$data['gstin']=$query->gstin;
+			$data['tax_number']=$query->tax_number;
+			$data['opening_balance']=$query->opening_balance;
+			$data['location_link']=$query->location_link;
+			$data['attachment_1']=$query->attachment_1;
+			$data['photo']= property_exists($query, 'photo') ? $query->photo : '';
+			$data['price_level_type']=$query->price_level_type;
+			$data['price_level']=$query->price_level;
+            $data['pricing_group_id']=$query->pricing_group_id ?? null;
+            $data['pricing_rule_mode']=$query->pricing_rule_mode ?? ((float)$query->price_level != 0 ? 'custom' : 'inherit');
+			$data['credit_limit']=$query->credit_limit;
+		$data['payment_terms_days']=$query->payment_terms_days ?? 0;
+
+			$data['country_id']=$query->country_id;
+			$data['state_id']=$query->state_id;
+			$data['city']=$query->city;
+			$data['postcode']=$query->postcode;
+			$data['address']=$query->address;
+
+			$shipping_details = array();
+			if(!empty($query->shippingaddress_id)){
+				$shipping_details = get_shipping_address_details($query->shippingaddress_id);
+			}
+			$data['shipping_country']=(!empty($shipping_details)) ? $shipping_details->country_id :'';
+			$data['shipping_state']=(!empty($shipping_details)) ? $shipping_details->state_id :'';
+			$data['shipping_city']=(!empty($shipping_details)) ? $shipping_details->city :'';
+			$data['shipping_postcode']=(!empty($shipping_details)) ? $shipping_details->postcode :'';
+			$data['shipping_address']=(!empty($shipping_details)) ? $shipping_details->address :'';
+			$data['shipping_location_link']=(!empty($shipping_details)) ? $shipping_details->location_link :'';
+
+			$data['loyalty_points']= property_exists($query, 'loyalty_points') ? $query->loyalty_points : 0;
+			$data['loyalty_tier']= property_exists($query, 'loyalty_tier') ? $query->loyalty_tier : '';
+			$data['store_credit_balance']= property_exists($query, 'store_credit_balance') ? $query->store_credit_balance : 0;
+			$data['gift_card_balance']= property_exists($query, 'gift_card_balance') ? $query->gift_card_balance : 0;
+			$data['birthday']= property_exists($query, 'birthday') ? $query->birthday : '';
+			$data['referral_code']= property_exists($query, 'referral_code') ? $query->referral_code : '';
+			$data['referral_count']= property_exists($query, 'referral_count') ? $query->referral_count : 0;
+			$data['notes']= property_exists($query, 'notes') ? $query->notes : '';
+
+			return $data;
+		}
+	}
+	public function update_customers(){
+		$q_id = $this->input->post('q_id', TRUE);
+		$customer_name = $this->input->post('customer_name', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		$phone = $this->input->post('phone', TRUE);
+		$email = $this->input->post('email', TRUE);
+		$country = $this->input->post('country', TRUE);
+		$state = $this->input->post('state', TRUE);
+		$city = $this->input->post('city', TRUE);
+		$postcode = $this->input->post('postcode', TRUE);
+		$address = $this->input->post('address', TRUE);
+		$opening_balance = $this->input->post('opening_balance', TRUE);
+		$tax_number = $this->input->post('tax_number', TRUE);
+		$location_link = $this->input->post('location_link', TRUE);
+		$credit_limit = $this->input->post('credit_limit', TRUE);
+		$payment_terms_days = (int) $this->input->post('payment_terms_days', TRUE);
+		$price_level_type = $this->input->post('price_level_type', TRUE);
+		$price_level = $this->input->post('price_level', TRUE);
+		$gstin = $this->input->post('gstin', TRUE);
+		$shipping_country = $this->input->post('shipping_country', TRUE);
+		$shipping_state = $this->input->post('shipping_state', TRUE);
+		$shipping_city = $this->input->post('shipping_city', TRUE);
+		$shipping_postcode = $this->input->post('shipping_postcode', TRUE);
+		$shipping_address = $this->input->post('shipping_address', TRUE);
+		$shipping_location_link = $this->input->post('shipping_location_link', TRUE);
+		$birthday = $this->input->post('birthday', TRUE);
+		$notes = $this->input->post('notes', TRUE);
+
+		if($q_id==1){
+			echo "Sorry! This Record Restricted! Can't Update";exit();
+		}
+
+		$state = (!empty($state)) ? $state : NULL;
+
+		//Validate This customers already exist or not
+		$store_id= get_current_store_id();
+        try { $pricingAssignment = mp_customer_pricing()->assignment($store_id, (array)$this->input->post(null, TRUE)); }
+        catch (RuntimeException $e) { return $e->getMessage(); }
+		
+			    $info = array(
+			                'customer_name'         => $customer_name,
+			                'mobile'        	    => $mobile,
+			                'phone'         		=> $phone,
+			                'email'             	=> $email,
+			                'country_id'        	=> $country,
+			                'state_id'        	 	=> $state,
+			                'city'        			=> $city,
+			                'postcode'         		=> $postcode,
+			                'address'           	=> $address,
+			                'opening_balance'       => $opening_balance,
+			                'tax_number'          	=> $tax_number,
+			                'location_link'         => $location_link,
+			                'credit_limit'         => empty($credit_limit) ? null : $credit_limit,
+			                'payment_terms_days'   => $payment_terms_days,
+                'birthday'             => (!empty($birthday)) ? $birthday : NULL,
+                'notes'                => $notes,
+			              );
+        $info = array_merge($info, $pricingAssignment);
+		// Preserve existing notes when the feature is disabled and its input is hidden.
+		if (!mp_feature_enabled('customer_notes')) { unset($info['notes']); }
+			    if(isset($price_level_type)){
+					$info['price_level_type'] = $price_level_type;
+					$info['price_level'] = $price_level;
+				}
+			    /*Upload Attchements*/
+				$config['file_name'] 			= time();
+				$config['upload_path']          = './uploads/customers/attachments/';
+		       	$config['allowed_types']        = 'gif|jpg|png|webp|pdf|doc|xlsx|docx|txt';
+		       	$config['max_size']             = 2048;
+		       	$this->load->library('upload', $config);
+
+				if(!empty($_FILES['attachment_1']['name'])){
+			           if ( ! $this->upload->do_upload('attachment_1')){
+			                   $error = array('error' => $this->upload->display_errors());
+			                   print("Attachment 1 :");
+			                   print($error['error']);
+			                   exit();
+			           }
+			           else{
+			               $attachment_1='uploads/customers/attachments/'.$this->upload->data('file_name');
+			               $info['attachment_1'] = $attachment_1;
+			           }
+			      }
+				$photo = $this->_upload_customer_photo();
+				if($photo !== null){
+					$info['photo'] = $photo;
+				}
+			      
+			     /*custom helper*/
+		        if(gst_number()){
+		          $info['gstin']=$gstin;
+		        }
+			    $info['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  
+
+			    $query1 = $this->db->where('id',$q_id)->update('db_customers', $info);
+			    #------------------------------------
+			
+
+		//Insert Shipping Address
+		$shipping_address_id = get_customer_details($q_id)->shippingaddress_id;
+		
+	    $shipping_address_details = array(
+	    									'country_id'	=>$shipping_country,
+	    									'state_id'		=>$shipping_state,
+	    									'city'			=>$shipping_city,
+	    									'postcode'		=>$shipping_postcode,
+	    									'address'		=>$shipping_address,
+	    									'location_link'	=>$shipping_location_link,
+	    								);
+	    if(!empty($shipping_address_id)){
+	    	//Update
+	    	$Q2 = $this->db->where('id',$shipping_address_id)->update('db_shippingaddress', $shipping_address_details);
+		    if(!$Q2){
+		    	return "failed";
+		    }
+		}else{//Insert
+			$shipping_address_details['store_id'] = $store_id;
+			$shipping_address_details['customer_id'] = $q_id;
+			$shipping_address_details['status'] = 1;
+			$Q2 = $this->db->insert('db_shippingaddress', $shipping_address_details);
+		    if(!$Q2){
+		    	return "failed";
+		    }
+		    $shipping_address_id=$this->db->insert_id();
+
+		    //Update shipping address to customer
+			$Q3 = $this->db->set('shippingaddress_id',$shipping_address_id)->where('id',$q_id)->update('db_customers');
+			if(!$Q3){
+		    	return "failed";
+		    }
+		    //end
+		}
+	    //end
+		
+
+
+			if ($query1){
+					$this->session->set_flashdata('success', 'Success!! Customer Updated Successfully!');
+			        return "success";
+			}
+			else{
+			        return "failed";
+			}
+		/*}*/
+	}
+
+	public function update_status($id,$status){
+
+		if($id==1){
+			echo "Sorry! This Record Restricted! Can't Update Status";exit();
+		}
+
+		if (set_status_of_table($id,$status,'db_customers')){
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }
+        
+	}
+
+	public function delete_customers_from_table($ids){
+		$this->db->trans_begin();
+
+		if($ids==1){
+			echo "Sorry! This Record Restricted! Can't Delete";exit();
+		}
+		$q1 = $this->db->query("select count(*) as tot_entrys from db_sales where customer_id in ($ids)");
+		if($q1->row()->tot_entrys >0 ){
+			echo "Sales Invoices Exist of Customer! Please Delete Sales Invoices!";exit();
+		}
+
+		//ACCOUNT RESET
+		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
+									->where("customer_id in ($ids)")
+									->group_by("debit_account_id,credit_account_id")
+									->get("ac_transactions");
+		//ACCOUNT RESET END
+
+		#----------------------------------
+		$this->db->where("customer_id in ($ids)");
+		$this->db->where("customer_id!=1");
+		$this->db->where("short_code",'OPENING BALANCE PAID');
+      	//if not admin
+      	if(!is_admin()){
+        	$this->db->where("store_id",get_current_store_id());
+      	}
+
+      	$query1=$this->db->delete("db_salespayments");
+        #---------------------------------
+        $this->db->where("id in ($ids)");
+		$this->db->where("id!=1");
+      	//if not admin
+      	if(!is_admin()){
+        	$this->db->where("store_id",get_current_store_id());
+      	}
+
+      	$query2=$this->db->delete("db_customers");
+        #---------------------------------
+
+      	//ACCOUNT RESET
+        if($reset_accounts->num_rows()>0){
+        	foreach ($reset_accounts->result() as $res1) {
+        		if(!update_account_balance($res1->debit_account_id)){
+					return 'failed';
+				}
+
+				if(!update_account_balance($res1->credit_account_id)){
+					return 'failed';
+				}
+
+        	}
+        }
+        //ACCOUNT RESET END
+        
+        if ($query1 && $query2){
+        	$this->db->trans_commit();
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }	
+	}
+
+	public function show_pay_now_modal($customer_id){
+		$CI =& get_instance();
+		$sales_id='';
+		
+		$q2=$this->db->query("select * from db_customers where id=$customer_id");
+		$res2=$q2->row();
+
+		$customer_name=$res2->customer_name;
+	    $customer_mobile=$res2->mobile;
+	    $customer_phone=$res2->phone;
+	    $customer_email=$res2->email;
+	    $customer_country=$res2->country_id;
+	    $customer_state=$res2->state_id;
+	    $customer_address=$res2->address;
+	    $customer_postcode=$res2->postcode;
+	    $customer_gst_no=$res2->gstin;
+	    $customer_tax_number=$res2->tax_number;
+	    $customer_opening_balance=$res2->opening_balance;
+	    $customer_sales_due=$res2->sales_due;
+
+	    $sales_date='';//$res1->sales_date;
+	    $reference_no='';//$res1->reference_no;
+	    $sales_code='';//$res1->sales_code;
+	    $sales_note='';//$res1->sales_note;
+	    $grand_total=0;//$res1->grand_total;
+	    $paid_amount=0;//$res1->paid_amount;
+	    //$due_amount =0;//$grand_total - $paid_amount;
+
+	    if(!empty($customer_country)){
+	      $customer_country = $this->db->query("select country from db_country where id='$customer_country'")->row()->country;  
+	    }
+	    if(!empty($customer_state)){
+	      $customer_state = $this->db->query("select state from db_states where id='$customer_state'")->row()->state;  
+	    }
+
+	    $sum_of_ob_paid = $this->db->query("select coalesce(sum(payment),0) sum_of_ob_paid from db_salespayments where customer_id=$customer_id and short_code='OPENING BALANCE PAID'")->row()->sum_of_ob_paid; 
+	    $customer_opening_balance_due = $customer_opening_balance - $sum_of_ob_paid;
+
+			$q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_sales where customer_id=$customer_id and (sales_status NOT IN ('Opening','Draft') or sales_status is null)");
+	    $total_sales_amount = $q6->row()->total_sales_amount;
+	    $total_paid_amount = $q6->row()->total_paid_amount;
+	    //$total_sales_due_amount =$total_sales_amount - $total_paid_amount;
+	    $due_amount = number_format($customer_sales_due + $customer_opening_balance_due,2,'.','') ;
+		?>
+		<div class="modal fade" id="pay_now">
+		  <div class="modal-dialog ">
+		    <div class="modal-content">
+		      <div class="modal-header header-custom">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title text-center">Pay Due Payments</h4>
+		      </div>
+		      <div class="modal-body">
+		        
+		    <div class="row">
+		      <div class="col-md-12">
+		      	<div class="row invoice-info">
+			        <div class="col-sm-12 invoice-col">
+			          <i><?= $this->lang->line('customer_details'); ?></i>
+			          <address>
+			            <strong><?php echo  $customer_name; ?></strong><br>
+			            <?php echo (!empty(trim($customer_mobile))) ? $this->lang->line('mobile').": ".$customer_mobile."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_phone))) ? $this->lang->line('phone').": ".$customer_phone."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_email))) ? $this->lang->line('email').": ".$customer_email."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_gst_no))) ? $this->lang->line('gst_number').": ".$customer_gst_no."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_tax_number))) ? $this->lang->line('tax_number').": ".$customer_tax_number."<br>" : '';?>
+			            
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <div class="col-sm-12 invoice-col">
+
+			        	<table class="table table-sm table-bordered bg-info" width="100%">
+			        		<tr>
+			        			<td class="text-right"><?= $this->lang->line('opening_balance'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($customer_opening_balance); ?></td>
+			        			<td class="text-right"><?= $this->lang->line('total_sales_amount'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($total_sales_amount); ?></td>
+			        		</tr>
+			        		<tr>
+			        			<td class="text-right"><?= $this->lang->line('opening_balance_due'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($customer_opening_balance_due); ?></td>
+			        			<td class="text-right"><?= $this->lang->line('paid_amount'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($total_paid_amount); ?></td>
+			        		</tr>
+			        		<tr>
+			        			<td colspan="2"></td>
+			        			<td class="text-right"><?= $this->lang->line('sales_due'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($customer_sales_due); ?></td>
+			        		</tr>
+			        	</table>
+			         
+			        </div>
+			        <!-- /.col -->
+			      </div>
+			      <!-- /.row -->
+		      </div>
+		      <div class="col-md-12">
+		        <div>
+		        <input type="hidden" name="payment_row_count" id='payment_row_count' value="1">
+		        <div class="col-md-12  payments_div">
+		          <div class="box box-solid bg-gray">
+		            <div class="box-body">
+		              <div class="row">
+		         		<div class="col-md-6">
+		                  <div class="">
+		                  <label for="payment_date"><?= $this->lang->line('date'); ?></label>
+		                    <div class="input-group date">
+			                      <div class="input-group-addon">
+			                      <i class="fa fa-calendar"></i>
+			                      </div>
+			                      <input type="text" class="form-control pull-right datepicker" value="<?= show_date(date("d-m-Y")); ?>" id="payment_date" name="payment_date" readonly>
+			                    </div>
+		                      <span id="payment_date_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                  <label for="amount"><?= $this->lang->line('amount'); ?></label>
+		                    <input type="text" class="form-control text-right paid_amt" data-due-amt='<?=$due_amount;?>' id="amount" name="amount" placeholder="" value="<?=$due_amount;?>" onkeyup="calculate_payments()">
+		                      <span id="amount_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
+		                    <select class="form-control" id='payment_type' name="payment_type">
+		                      <?php
+		                        $q1=$this->db->query("select * from db_paymenttypes where status=1 and store_id=".get_current_store_id());
+		                         if($q1->num_rows()>0){
+		                             foreach($q1->result() as $res1){
+		                             echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
+		                           }
+		                         }
+		                         else{
+		                            echo "No Records Found";
+		                         }
+		                        ?>
+		                    </select>
+		                    <span id="payment_type_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="account_id"><?= $this->lang->line('account'); ?></label>
+		                    <select class="form-control" id='account_id' name="account_id">
+		                      <option value="">-None-</option>
+                                <?= get_accounts_select_list(get_store_details()->default_account_id);?>
+		                    </select>
+		                    <span id="account_id_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+		            <div class="clearfix"></div>
+		        </div>  
+		        <div class="row">
+		               <div class="col-md-12">
+		                  <div class="">
+		                    <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
+		                    <textarea type="text" class="form-control" id="payment_note" name="payment_note" placeholder="" ></textarea>
+		                    <span id="payment_note_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		               </div>
+		                
+		            <div class="clearfix"></div>
+		        </div>   
+		        </div>
+		        </div>
+		      </div><!-- col-md-12 -->
+		    </div>
+		      </div><!-- col-md-9 -->
+		      <!-- RIGHT HAND -->
+		    </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+		        <button type="button" onclick="save_payment(<?=$customer_id;?>)" class="btn bg-green btn-lg place_order btn-lg payment_save">Save<i class="fa  fa-check "></i></button>
+		      </div>
+		    </div>
+		    <!-- /.modal-content -->
+		  </div>
+		  <!-- /.modal-dialog -->
+		</div>
+		<?php
+	}
+
+	public function save_payment(){
+		$this->db->trans_begin();
+		$amount = $this->input->post('amount', TRUE);
+		$payment_type = $this->input->post('payment_type', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$payment_date = $this->input->post('payment_date', TRUE);
+		$payment_note = $this->input->post('payment_note', TRUE);
+		$account_id = $this->input->post('account_id', TRUE);
+		$CUR_DATE = $this->data['CUR_DATE'];
+		$CUR_TIME = $this->data['CUR_TIME'];
+		$CUR_USERNAME = $this->data['CUR_USERNAME'];
+		$SYSTEM_IP = $this->data['SYSTEM_IP'];
+		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
+		//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST,$_GET))));exit();
+
+		$this->load->model('sales_model');
+		
+    	if($amount=='' || $amount==0){$amount=null;}
+
+
+		if($amount>0 && !empty($payment_type)){
+			$bulk_payment = $amount;
+			//Get Opening Balance
+			$res2=get_customer_details($customer_id);
+
+			$customer_opening_balance=$res2->opening_balance;
+	    	$customer_sales_due=$res2->sales_due;
+	    	$store_id = $res2->store_id;
+
+	    	$payment_date = system_fromatted_date($payment_date);
+
+	    	$this->db->select("coalesce(sum(payment),0) sum_of_ob_paid");
+	    	$this->db->where('customer_id', $customer_id);
+	    	$this->db->where("short_code", 'OPENING BALANCE PAID');
+	    	$sum_of_ob_paid = $this->db->get('db_salespayments')->row()->sum_of_ob_paid; 
+	    	$customer_opening_balance_due = $customer_opening_balance - $sum_of_ob_paid;
+
+	    	$payment_code =  get_init_code('sales_payment');
+		    $count_id	  = get_count_id('db_salespayments');
+
+	    	while($amount>0) {
+
+	    		$entry_init = array(
+	    					'created_date' 		=> $CUR_DATE,
+		    				'created_time' 		=> $CUR_TIME,
+		    				'created_by' 		=> $CUR_USERNAME,
+		    				'system_ip' 		=> $SYSTEM_IP,
+		    				'system_name' 		=> $SYSTEM_NAME,		
+	    				);
+	    		//Adjust Opening Balance
+	    		if($amount<=$customer_opening_balance_due && $amount>0 && $customer_opening_balance_due>0){
+	    			$row_data = array(	
+							'payment_code' 		=> $payment_code,
+							'count_id' 			=> $count_id,
+							'store_id' 			=> $store_id,
+							'customer_id' 		=> $customer_id,
+						  	'payment_date'		=> $payment_date,
+							'payment_type' 		=> $payment_type,
+							'payment' 			=> $amount,
+							'payment_note' 		=> $payment_note,
+							
+		    				'status' 			=> 1,
+		    				'short_code' 		=> 'OPENING BALANCE PAID',
+		    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+							 );
+	    			
+	    			$q3 = $this->db->insert('db_salespayments', array_merge($row_data,$entry_init));
+	    			$insert_id = $this->db->insert_id();
+	    			$credit_amt = $amount;
+
+	    			//Set the payment to specified account
+					if(!empty($account_id)){
+						//ACCOUNT INSERT
+						$insert_bit = insert_account_transaction(array(
+								'transaction_type'  	=> 'OPENING BALANCE PAID',
+								'reference_table_id'  	=> $insert_id,
+								'debit_account_id'  	=> null,
+								'credit_account_id'  	=> $account_id,
+								'debit_amt'  			=> 0,
+								'credit_amt'  			=> $credit_amt,
+								'process'  				=> 'SAVE',
+								'note'  				=> $payment_note,
+								'transaction_date'  	=> $CUR_DATE,
+								'payment_code'  		=> $payment_code,
+								'customer_id'  			=> $customer_id,
+								'supplier_id'  			=> '',
+						));
+						if(!$insert_bit){
+							return "failed";
+						}
+					}
+	    			$amount=0;
+	    		}//If 1
+
+
+	    		if($amount>=$customer_opening_balance_due && $customer_opening_balance_due){
+	    			$row_data = array(	
+							'payment_code' 		=> $payment_code,
+							'count_id' 			=> $count_id,
+							'store_id' 			=> $store_id,
+							'customer_id' 		=> $customer_id,
+						  	'payment_date'		=> $payment_date,
+							'payment_type' 		=> $payment_type,
+							'payment' 			=> $customer_opening_balance_due,
+							'payment_note' 		=> $payment_note,
+		    				'status' 			=> 1,
+		    				'short_code' 		=> 'OPENING BALANCE PAID',
+		    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+							 );
+
+	    			$q3 = $this->db->insert('db_salespayments', array_merge($row_data,$entry_init));
+	    			$insert_id = $this->db->insert_id();
+
+	    			$credit_amt = $customer_opening_balance_due;
+	    			//Set the payment to specified account
+	    			if(!empty($account_id)){
+						//ACCOUNT INSERT
+						$insert_bit = insert_account_transaction(array(
+								'transaction_type'  	=> 'OPENING BALANCE PAID',
+								'reference_table_id'  	=> $insert_id,
+								'debit_account_id'  	=> null,
+								'credit_account_id'  	=> $account_id,
+								'debit_amt'  			=> 0,
+								'credit_amt'  			=> $credit_amt,
+								'process'  				=> 'SAVE',
+								'note'  				=> $payment_note,
+								'transaction_date'  	=> $CUR_DATE,
+								'payment_code'  		=> $payment_code,
+								'customer_id'  			=> $customer_id,
+								'supplier_id'  			=> '',
+						));
+						if(!$insert_bit){
+							return "failed";
+						}
+					}
+					//end
+
+	    			$amount-=$customer_opening_balance_due;
+	    		}//If 2
+
+	    		//Set Sales Payments
+
+	    		if($amount<=$customer_sales_due && $amount>0){
+	    			$this->db->select("id,grand_total,grand_total,paid_amount");
+	    			$this->db->where("grand_total!=paid_amount");
+			$this->db->where("(sales_status IS NULL OR sales_status <> 'Draft')");
+	    			$this->db->where("customer_id",$customer_id);
+	    			$this->db->from("db_sales");
+	    			$qs4 = $this->db->get();
+	    			
+	    			foreach ($qs4->result() as $res) {
+	    				//Solve multiple 0 records
+	    				if($amount<=0){continue;}
+	    				
+	    				$sales_due = $res->grand_total - $res->paid_amount;
+	    				
+	    				$salespayments_entry = array(
+    						'payment_code' 		=> $payment_code,
+	    					'count_id' 			=> $count_id,
+	    					'store_id' 			=> $store_id,
+    						'customer_id' 		=> $customer_id,
+							'sales_id' 			=> $res->id, 
+							'payment_date'		=> $payment_date,
+							'payment_type' 		=> $payment_type,
+							'payment_note' 		=> $payment_note,
+		    				'status' 			=> 1,
+		    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+						);
+
+
+	    				if($amount > 0 && $amount<=$sales_due && $sales_due>0 ){
+	    				   $salespayments_entry['payment'] = $amount;
+						   $credit_amt = $amount;
+						   $amount=0;
+	    				}
+	    			    if($amount>=$sales_due && $sales_due>0){
+	    			    	$salespayments_entry['payment'] = $sales_due;
+							$credit_amt = $sales_due;
+						   	$amount-=$sales_due;
+	    				}
+
+	    				$q3 = $this->db->insert('db_salespayments', array_merge($salespayments_entry,$entry_init));
+	    				$insert_id = $this->db->insert_id();
+
+	    				//Set the payment to specified account
+	    				if(!empty($account_id)){
+							//ACCOUNT INSERT
+							$insert_bit = insert_account_transaction(array(
+								'transaction_type'  	=> 'SALES PAYMENT',
+								'reference_table_id'  	=> $insert_id,
+								'debit_account_id'  	=> null,
+								'credit_account_id'  	=> $account_id,
+								'debit_amt'  			=> 0,
+								'credit_amt'  			=> $credit_amt,
+								'process'  				=> 'SAVE',
+								'note'  				=> $payment_note,
+								'transaction_date'  	=> $CUR_DATE,
+								'payment_code'  		=> $payment_code,
+								'customer_id'  			=> $customer_id,
+								'supplier_id'  			=> '',
+						));
+							if(!$insert_bit){
+								return "failed";
+							}
+						}
+						//end
+						
+	    				
+	    				$q10=$this->sales_model->update_sales_payment_status($res->id,$customer_id);
+						if($q10!=1){
+							return "failed";
+						}
+	    			}//for 
+					
+	    		}//If 3
+	    		
+	    		
+	    		/*$bulkpayments_entry = array(
+	    						'customer_id' 		=> $customer_id,
+								'payment_date'		=> system_fromatted_date($payment_date),//Current Payment with sales entry
+								'payment_type' 		=> $payment_type,
+								'payment' 			=> $bulk_payment,
+								'payment_note' 		=> $payment_note,
+								'created_date' 		=> $CUR_DATE,
+			    				'created_time' 		=> $CUR_TIME,
+			    				'created_by' 		=> $CUR_USERNAME,
+			    				'system_ip' 		=> $SYSTEM_IP,
+			    				'system_name' 		=> $SYSTEM_NAME,
+			    				'store_id' 			=> get_current_store_id(),
+			    				'payment_of'		=> "Sales",
+							);
+
+	    		$q33 = $this->db->insert('db_custbulkpayments', $bulkpayments_entry);
+				if(!$q33){
+					return "failed";
+				}*/
+
+
+
+
+
+	    	}//amount>0
+				
+			
+		}
+		else{
+			return "Please Enter Valid Amount!";
+		}
+		
+		$this->db->trans_commit();
+		return "success";
+
+	}
+
+	public function show_pay_return_due_modal($customer_id){
+
+		$CI =& get_instance();
+		$sales_id='';
+		
+		$q2=$this->db->query("select * from db_customers where id=$customer_id");
+		$res2=$q2->row();
+
+		$customer_name=$res2->customer_name;
+	    $customer_mobile=$res2->mobile;
+	    $customer_phone=$res2->phone;
+	    $customer_email=$res2->email;
+	    $customer_country=$res2->country_id;
+	    $customer_state=$res2->state_id;
+	    $customer_address=$res2->address;
+	    $customer_postcode=$res2->postcode;
+	    $customer_gst_no=$res2->gstin;
+	    $customer_tax_number=$res2->tax_number;
+	    //$customer_opening_balance=$res2->opening_balance;
+	    $customer_sales_return_due=$res2->sales_return_due;
+
+	    $sales_date='';//$res1->sales_date;
+	    $reference_no='';//$res1->reference_no;
+	    $sales_code='';//$res1->sales_code;
+	    $sales_note='';//$res1->sales_note;
+	    $grand_total=0;//$res1->grand_total;
+	    $paid_amount=0;//$res1->paid_amount;
+	    //$due_amount =0;//$grand_total - $paid_amount;
+
+	    if(!empty($customer_country)){
+	      $customer_country = $this->db->query("select country from db_country where id='$customer_country'")->row()->country;  
+	    }
+	    if(!empty($customer_state)){
+	      $customer_state = $this->db->query("select state from db_states where id='$customer_state'")->row()->state;  
+	    }
+	    //$sum_of_ob_paid = $this->db->query("select coalesce(sum(payment),0) sum_of_ob_paid from db_cobpayments where customer_id=$customer_id")->row()->sum_of_ob_paid; 
+	    //$customer_opening_balance_due = $customer_opening_balance - $sum_of_ob_paid;
+
+	    $q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_salesreturn where customer_id=$customer_id"); 
+	    $total_sales_amount = $q6->row()->total_sales_amount;
+	    $total_paid_amount = $q6->row()->total_paid_amount;
+	    //$total_sales_due_amount =$total_sales_amount - $total_paid_amount;
+	    $due_amount = number_format($total_sales_amount - $total_paid_amount,2,'.','') ;
+		?>
+		<div class="modal fade" id="pay_return_due">
+		  <div class="modal-dialog ">
+		    <div class="modal-content">
+		      <div class="modal-header header-custom">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title text-center">Pay Sales Return Due Payments</h4>
+		      </div>
+		      <div class="modal-body">
+		        
+		    <div class="row">
+		      <div class="col-md-12">
+		      	<div class="row invoice-info">
+			        <div class="col-sm-12 invoice-col">
+			          <i><?= $this->lang->line('customer_details'); ?></i>
+			          <address>
+			            <strong><?php echo  $customer_name; ?></strong><br>
+			            <?php echo (!empty(trim($customer_mobile))) ? $this->lang->line('mobile').": ".$customer_mobile."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_phone))) ? $this->lang->line('phone').": ".$customer_phone."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_email))) ? $this->lang->line('email').": ".$customer_email."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_gst_no))) ? $this->lang->line('gst_number').": ".$customer_gst_no."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_tax_number))) ? $this->lang->line('tax_number').": ".$customer_tax_number."<br>" : '';?>
+			            
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <div class="col-sm-12 invoice-col">
+
+			        	<table class="table table-sm table-bordered bg-info" width="100%">
+			        		<tr>
+			        			<td class="text-right"><?= $this->lang->line('total_sales_amount'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($total_sales_amount); ?></td>
+			        		</tr>
+			        		<tr>
+			        			<td class="text-right"><?= $this->lang->line('paid_amount'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($total_paid_amount); ?></td>
+			        		</tr>
+			        		<tr>
+			        			<td class="text-right"><?= $this->lang->line('sales_due'); ?></td>
+			        			<td class="text-right"><?= $CI->currency($customer_sales_return_due); ?></td>
+			        		</tr>
+			        	</table>
+			         
+			        </div>
+			        <!-- /.col -->
+			      </div>
+			      <!-- /.row -->
+		      </div>
+		      <div class="col-md-12">
+		        <div>
+		        <input type="hidden" name="payment_row_count" id='payment_row_count' value="1">
+		        <div class="col-md-12  payments_div">
+		          <div class="box box-solid bg-gray">
+		            <div class="box-body">
+		              <div class="row">
+		         		<div class="col-md-6">
+		                  <div class="">
+		                  <label for="payment_date"><?= $this->lang->line('date'); ?></label>
+		                    <div class="input-group date">
+			                      <div class="input-group-addon">
+			                      <i class="fa fa-calendar"></i>
+			                      </div>
+			                      <input type="text" class="form-control pull-right datepicker" value="<?= show_date(date("d-m-Y")); ?>" id="return_due_payment_date" name="return_due_payment_date" readonly>
+			                    </div>
+		                      <span id="return_due_payment_date_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                  <label for="amount"><?= $this->lang->line('amount'); ?></label>
+		                    <input type="text" class="form-control text-right return_due_paid_amt" data-due-amt='<?=$due_amount;?>' id="return_due_amount" name="return_due_amount" placeholder="" value="<?=$due_amount;?>" >
+		                      <span id="return_due_amount_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
+		                    <select class="form-control" id='return_due_payment_type' name="return_due_payment_type">
+		                      <?php
+		                        $q1=$this->db->query("select * from db_paymenttypes where status=1 and store_id=".get_current_store_id());
+		                         if($q1->num_rows()>0){
+		                             foreach($q1->result() as $res1){
+		                             echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
+		                           }
+		                         }
+		                         else{
+		                            echo "No Records Found";
+		                         }
+		                        ?>
+		                    </select>
+		                    <span id="return_due_payment_type_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="account_id"><?= $this->lang->line('account'); ?></label>
+		                    <select class="form-control" id='account_id' name="account_id">
+		                      <?php
+                                echo '<option value="">-None-</option>'; 
+                                echo get_accounts_select_list();
+                                ?>
+		                    </select>
+		                    <span id="account_id_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+		            <div class="clearfix"></div>
+		        </div>  
+		        <div class="row">
+		               <div class="col-md-12">
+		                  <div class="">
+		                    <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
+		                    <textarea type="text" class="form-control" id="return_due_payment_note" name="return_due_payment_note" placeholder="" ></textarea>
+		                    <span id="return_due_payment_note_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		               </div>
+		                
+		            <div class="clearfix"></div>
+		        </div>   
+		        </div>
+		        </div>
+		      </div><!-- col-md-12 -->
+		    </div>
+		      </div><!-- col-md-9 -->
+		      <!-- RIGHT HAND -->
+		    </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+		        <button type="button" onclick="save_return_due_payment(<?=$customer_id;?>)" class="btn bg-green btn-lg place_order btn-lg return_due_payment_save">Save<i class="fa  fa-check "></i></button>
+		      </div>
+		    </div>
+		    <!-- /.modal-content -->
+		  </div>
+		  <!-- /.modal-dialog -->
+		</div>
+		<?php
+	}
+	public function save_return_due_payment(){
+		$this->db->trans_begin();
+		$amount = $this->input->post('amount', TRUE);
+		$payment_type = $this->input->post('payment_type', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$payment_date = $this->input->post('payment_date', TRUE);
+		$payment_note = $this->input->post('payment_note', TRUE);
+		$account_id = $this->input->post('account_id', TRUE);
+		$CUR_DATE = $this->data['CUR_DATE'];
+		$CUR_TIME = $this->data['CUR_TIME'];
+		$CUR_USERNAME = $this->data['CUR_USERNAME'];
+		$SYSTEM_IP = $this->data['SYSTEM_IP'];
+		$SYSTEM_NAME = $this->data['SYSTEM_NAME'];
+		//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST,$_GET))));exit();
+
+		$this->load->model('sales_return_model');
+		
+    	if($amount=='' || $amount==0){$amount=null;}
+
+
+		if($amount>0 && !empty($payment_type)){
+
+			$res2 = $this->db->where('id', $customer_id)->get('db_customers')->row();
+	    	$customer_sales_return_due=$res2->sales_return_due;
+
+	    	$payment_code =  get_init_code('sales_return_payment');
+		    $count_id	  = get_count_id('db_salespaymentsreturn');
+
+	    	while($amount>0) {
+
+	    		//Set Sales Payments
+	    		if($amount<=$customer_sales_return_due){
+	    			$this->db->select("id,grand_total,paid_amount,coalesce(grand_total-paid_amount,0) as sales_due");
+	    			$this->db->where("grand_total != paid_amount");
+	    			$this->db->where('customer_id', $customer_id);
+	    			$qs4 = $this->db->get('db_salesreturn');
+	    			foreach ($qs4->result() as $res) {
+	    				$grand_total = $res->grand_total;
+	    				$paid_amount = $res->paid_amount;
+	    				$sales_due = $res->sales_due;
+	    				$return_id = $res->id;
+	    				if($amount<=$sales_due && $sales_due>0){
+	    					$salespayments_entry = array(
+	    						'payment_code'      => $payment_code,
+                            	'count_id'          => $count_id,       
+								'return_id' 		=> $return_id, 
+								'payment_date'		=> system_fromatted_date($payment_date),//Current Payment with sales entry
+								'payment_type' 		=> $payment_type,
+								'payment' 			=> $amount,
+								'payment_note' 		=> $payment_note,
+								'created_date' 		=> $CUR_DATE,
+			    				'created_time' 		=> $CUR_TIME,
+			    				'created_by' 		=> $CUR_USERNAME,
+			    				'system_ip' 		=> $SYSTEM_IP,
+			    				'system_name' 		=> $SYSTEM_NAME,
+			    				'status' 			=> 1,
+			    				'customer_id' 		=> $customer_id,
+                      			'account_id'    	=> (empty($account_id)) ? null : $account_id,
+							);
+							$debit_amt = $amount;
+						   $amount=0;
+	    				}
+	    			    if($amount>=$sales_due && $sales_due>0){
+	    					$salespayments_entry = array(
+	    						'payment_code'      => $payment_code,
+                            	'count_id'          => $count_id,     
+								'return_id' 		=> $return_id, 
+								'payment_date'		=> system_fromatted_date($payment_date),//Current Payment with sales entry
+								'payment_type' 		=> $payment_type,
+								'payment' 			=> $sales_due,
+								'payment_note' 		=> $payment_note,
+								'created_date' 		=> $CUR_DATE,
+			    				'created_time' 		=> $CUR_TIME,
+			    				'created_by' 		=> $CUR_USERNAME,
+			    				'system_ip' 		=> $SYSTEM_IP,
+			    				'system_name' 		=> $SYSTEM_NAME,
+			    				'status' 			=> 1,
+			    				'customer_id' 		=> $customer_id,
+			    				'account_id'    	=> (empty($account_id)) ? null : $account_id,
+							);
+							$debit_amt = $sales_due;
+						   $amount-=$sales_due;
+	    				}
+
+	    				$salespayments_entry['store_id'] = get_current_store_id();
+	    				$q3 = $this->db->insert('db_salespaymentsreturn', $salespayments_entry);
+
+	    				//Set the payment to specified account
+	    				if(!empty($account_id)){
+							//ACCOUNT INSERT
+							$insert_bit = insert_account_transaction(array(
+																		'transaction_type'  	=> 'SALES PAYMENT RETURN',
+																		'reference_table_id'  	=> $this->db->insert_id(),
+																		'debit_account_id'  	=> $account_id,
+																		'credit_account_id'  	=> null,
+																		'debit_amt'  			=> $debit_amt,
+																		'credit_amt'  			=> 0,
+																		'process'  				=> 'SAVE',
+																		'note'  				=> $payment_note,
+																		'transaction_date'  	=> $CUR_DATE,
+																		'payment_code'  		=> $payment_code,
+																		'customer_id'  			=> $customer_id,
+																		'supplier_id'  			=> '',
+																));
+							if(!$insert_bit){
+								return "failed";
+							}
+						}
+						//end
+			             
+		              
+	    				$q10=$this->sales_return_model->update_sales_payment_status($return_id,$customer_id);
+						if($q10!=1){
+							return "failed";
+						}
+
+						if($amount==0){break;}
+
+	    			}//foreach
+					
+	    		}
+	    		
+
+	    	}
+				
+			
+		}
+		else{
+			return "Please Enter Valid Amount!";
+		}
+		
+		$this->db->trans_commit();
+		return "success";
+
+	}
+
+	public function delete_opening_balance_entry($entry_id){
+		$customer_id = $this->input->post('customer_id');
+        $this->db->trans_begin();
+		$q1=$this->db->query("delete from db_salespayments where id=$entry_id and short_code='OPENING BALANCE PAID'");
+		if(!$q1){
+			return "failed";
+		}
+		$this->session->set_flashdata('success', 'Success!! Opening Balance Entry Deleted!');
+		$this->db->trans_commit();
+		return "success";
+	}
+
+	/*27-06-2020*/
+	public function view_payment_list_modal($customer_id){
+
+		$res2=$this->db->query("select * from db_customers where id=$customer_id")->row();
+
+		$customer_name=$res2->customer_name;
+	    $customer_mobile=$res2->mobile;
+	    $customer_phone=$res2->phone;
+	    $customer_email=$res2->email;
+	    $customer_country=$res2->country_id;
+	    $customer_state=$res2->state_id;
+	    $customer_address=$res2->address;
+	    $customer_postcode=$res2->postcode;
+	    $customer_gst_no=$res2->gstin;
+	    $customer_tax_number=$res2->tax_number;
+	    $customer_opening_balance=$res2->opening_balance;
+
+
+	    if(!empty($customer_country)){
+	      $customer_country = $this->db->query("select country from db_country where id='$customer_country'")->row()->country;  
+	    }
+	    if(!empty($customer_state)){
+	      $customer_state = $this->db->query("select state from db_states where id='$customer_state'")->row()->state;  
+	    }
+
+	    $q6 = $this->db->query("select coalesce(sum(grand_total),0) as total_sales_amount,coalesce(sum(paid_amount),0) as total_paid_amount from db_salesreturn where customer_id=$customer_id"); 
+	    $total_sales_amount = $q6->row()->total_sales_amount;
+	    $total_paid_amount = $q6->row()->total_paid_amount;
+	    //$total_sales_due_amount =$total_sales_amount - $total_paid_amount;
+	    $due_amount = number_format($total_sales_amount - $total_paid_amount,2,'.','') ;
+
+		?>
+		<div class="modal fade" id="view_payments_modal">
+		  <div class="modal-dialog modal-lg">
+		    <div class="modal-content">
+		      <div class="modal-header header-custom">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title text-center"><?= $this->lang->line('payments'); ?></h4>
+		      </div>
+		      <div class="modal-body">
+		        
+		    <div class="row">
+		      <div class="col-md-12">
+		      	<div class="row invoice-info">
+			        <div class="col-sm-6 invoice-col">
+			          <?= $this->lang->line('customer_details'); ?>
+			          <address>
+			            <strong><?php echo  $customer_name; ?></strong><br>
+			            <?php echo (!empty(trim($customer_mobile))) ? $this->lang->line('mobile').": ".$customer_mobile."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_phone))) ? $this->lang->line('phone').": ".$customer_phone."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_email))) ? $this->lang->line('email').": ".$customer_email."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_gst_no))) ? $this->lang->line('gst_number').": ".$customer_gst_no."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_tax_number))) ? $this->lang->line('tax_number').": ".$customer_tax_number."<br>" : '';?>
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <!-- /.col -->
+			        <div class="col-sm-6 invoice-col">
+			          <b><?= $this->lang->line('due_amount'); ?> :<span id='due_amount_temp'><?php echo number_format($due_amount,2,'.',''); ?></span></b><br>
+			         
+			        </div>
+			        <!-- /.col -->
+			      </div>
+			      <!-- /.row -->
+		      </div>
+		      <div class="col-md-12">
+		       
+		     
+		              <div class="row">
+		         		<div class="col-md-12">
+		                  
+		                      <table class="table table-bordered">
+                                  <thead>
+                                  <tr class="bg-primary">
+                                    <th>#</th>
+                                    <th><?= $this->lang->line('payment_number'); ?></th>
+                                    <th><?= $this->lang->line('payment_date'); ?></th>
+                                    <th><?= $this->lang->line('payment'); ?></th>
+                                    <th><?= $this->lang->line('account'); ?></th>
+                                    <th><?= $this->lang->line('payment_type'); ?></th>
+                                    <th><?= $this->lang->line('payment_note'); ?></th>
+                                    <th><?= $this->lang->line('created_by'); ?></th>
+                                    <th><?= $this->lang->line('action'); ?></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                	<?php
+                                	
+                                	$q1=$this->db->query("select * from db_salespayments where customer_id=$customer_id");
+									$i=1;
+									$str = '';
+									if($q1->num_rows()>0){
+										foreach ($q1->result() as $res1) {
+											echo "<tr>";
+											echo "<td>".$i++."</td>";
+											echo "<td>".$res1->payment_code."</td>";
+											echo "<td>".show_date($res1->payment_date)."</td>";
+											echo "<td>".store_number_format($res1->payment)."</td>";
+											echo "<td><a title='Click to check account' data-toggle='tooltip' href=".base_url('accounts/book/').$res1->account_id.">".get_account_name($res1->account_id)."</td>";
+											echo "<td>".$res1->payment_type."</td>";
+											echo "<td>".$res1->payment_note."</td>";
+											echo "<td>".ucfirst($res1->created_by)."</td>";
+										
+											echo "<td>
+											<a onclick='show_receipt(".$res1->id.")' title='Print Payment Receipt' class='pointer btn  btn-default' ><i class='fa fa-print'></i></a>
+											</i>
+											</td>";	
+											echo "</tr>";
+										}
+									}
+									else{
+										echo "<tr><td colspan='9' class='text-danger text-center'>No Records Found</td></tr>";
+									}
+									?>
+                                </tbody>
+                            </table>
+		               
+		               </div>
+		            <div class="clearfix"></div>
+		        </div>    
+		       
+		     
+		   
+		      </div><!-- col-md-9 -->
+		      <!-- RIGHT HAND -->
+		    </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+		        
+		      </div>
+		    </div>
+		    <!-- /.modal-content -->
+		  </div>
+		  <!-- /.modal-dialog -->
+		</div>
+		<?php
+	}
+	/*end*/
+
+	public function getCustomersArray($id=''){
+		$store_id = (isset($_REQUEST['store_id'])) ? $_REQUEST['store_id'] : get_current_store_id();
+		$q = '';
+		
+		$select_cols = "id, customer_name, mobile, sales_due, opening_balance, tot_advance, delete_bit";
+		$possible = ['loyalty_points','loyalty_tier','store_credit_balance','gift_card_balance'];
+		foreach($possible as $c){
+			if($this->db->field_exists($c, 'db_customers')){ $select_cols .= ', ' . $c; }
+		}
+		$this->db->select($select_cols);
+		$this->db->from('db_customers');
+		$this->db->where("store_id",$store_id);
+		if(!empty($id)){
+
+			$this->db->where("id",$id);
+			
+		}else{
+
+			$q = (isset($_POST['searchTerm'])) ? strtoupper($_POST['searchTerm']) : '';
+
+			$this->db->where("(upper(customer_name) like '%$q%' or upper(mobile) like '%$q%')");
+		}
+		$this->db->limit(10);
+		//echo $this->db->get_compiled_select();exit;
+		$query = $this->db->get();
+
+		$display_json = array();
+
+		if($query->num_rows()>0){
+			foreach($query->result() as $res){
+
+				$customer_previous_due = $res->sales_due +$res->opening_balance;
+		      	$customer_previous_due -=get_paid_cob($res->id);
+
+		      	$tot_advance = store_number_format($res->tot_advance,0);
+
+				$json_arr["id"] 					 = $res->id;
+			  	$json_arr["text"] 					 = $res->customer_name;
+			  	$json_arr["mobile"] 				 = $res->mobile;
+			  	$json_arr["previous_due"] 	 = store_number_format($customer_previous_due,false);
+			  	$json_arr["tot_advance"] 			 = $tot_advance;
+			  	$json_arr["delete_bit"] 				 = $res->delete_bit;
+		  	$json_arr["loyalty_points"] 			 = property_exists($res, 'loyalty_points') ? $res->loyalty_points : 0;
+		  	$json_arr["loyalty_tier"] 			 = $res->loyalty_tier;
+		  	$json_arr["store_credit_balance"] 	 = $res->store_credit_balance;
+		  	$json_arr["gift_card_balance"] 		 = $res->gift_card_balance;
+			  	
+			  	array_push($display_json, $json_arr);
+			}
+		}
+		return $display_json;
+	}
+	public function getCustomersJson($id){
+		return json_encode($this->getCustomersArray($id));
+	}
+
+	public function getInvoiceCustomer($customer_id='')
+	{
+		$customersArrayData = $this->getCustomersArray($customer_id);
+
+		$singleCustomerData = array(
+				'cu_id' =>$customersArrayData[0]['id'],
+				'cu_text' =>$customersArrayData[0]['text'],
+				'cu_mobile' =>$customersArrayData[0]['mobile'],
+				'cu_previous_due' =>$customersArrayData[0]['previous_due'],
+				'cu_tot_advance' =>$customersArrayData[0]['tot_advance'],
+				'cu_delete_bit' =>$customersArrayData[0]['delete_bit'],
+		);
+		return $singleCustomerData;
+	}
+
+	public function get_statement($customer_id, $store_id = null, $from = null, $to = null){
+		$store_id = $store_id ?: get_current_store_id();
+		$customer = $this->db->where('id', $customer_id)->where('store_id', $store_id)->get('db_customers')->row();
+		if(!$customer) return array('opening' => 0, 'rows' => array(), 'summary' => array());
+
+		$opening = ($customer->opening_balance ?? 0) - get_paid_cob($customer_id);
+		$rows = array();
+
+		$rows[] = array(
+			'date' => $customer->created_date ?? '1970-01-01',
+			'sort' => 0,
+			'type' => 'opening',
+			'description' => 'Opening Balance',
+			'reference' => '-',
+			'debit' => ($opening > 0) ? $opening : 0,
+			'credit' => ($opening < 0) ? abs($opening) : 0,
+			'balance' => $opening
+		);
+
+		$sales = $this->db->where('customer_id', $customer_id)
+						  ->where("(sales_status IS NULL OR sales_status <> 'Draft')")
+						  ->where('store_id', $store_id)
+						  ->order_by('sales_date', 'ASC')
+						  ->get('db_sales')
+						  ->result();
+		foreach($sales as $s){
+			$rows[] = array(
+				'date' => $s->sales_date,
+				'sort' => strtotime($s->sales_date) . '1',
+				'type' => 'sale',
+				'description' => 'Invoice',
+				'reference' => $s->sales_code,
+				'debit' => (float)$s->grand_total,
+				'credit' => 0,
+				'balance' => 0
+			);
+		}
+
+		$payments = $this->db->where('customer_id', $customer_id)
+							 ->order_by('payment_date', 'ASC')
+							 ->get('db_customer_payments')
+							 ->result();
+		foreach($payments as $p){
+			$rows[] = array(
+				'date' => $p->payment_date,
+				'sort' => strtotime($p->payment_date) . '2',
+				'type' => 'payment',
+				'description' => 'Payment',
+				'reference' => ucfirst(str_replace('_', ' ', $p->payment_type)),
+				'debit' => 0,
+				'credit' => (float)($p->payment ?? $p->amount ?? 0),
+				'balance' => 0
+			);
+		}
+
+		$returns = $this->db->where('customer_id', $customer_id)
+							->where('store_id', $store_id)
+							->order_by('return_date', 'ASC')
+							->get('db_salesreturn')
+							->result();
+		foreach($returns as $r){
+			$rows[] = array(
+				'date' => $r->return_date,
+				'sort' => strtotime($r->return_date) . '3',
+				'type' => 'return',
+				'description' => 'Sales Return',
+				'reference' => $r->return_code,
+				'debit' => 0,
+				'credit' => (float)$r->grand_total,
+				'balance' => 0
+			);
+		}
+
+		// Archive rows are informational: monetary values remain in their source
+		// fields and never enter the live balance/debit/credit calculation.
+		$this->load->model('legacy_history_model', 'legacy_history');
+		$history_rows = $this->legacy_history->statement_rows($customer_id, $store_id);
+		$rows = array_merge($rows, $history_rows);
+		$quotes = $this->db->where('customer_id', $customer_id)->where('store_id', $store_id)
+			->order_by('id', 'ASC')->get('db_quotation')->result();
+		foreach($quotes as $quote){
+			$rows[] = array('date'=>$quote->quotation_date,'sort'=>'q:'.str_pad($quote->id,20,'0',STR_PAD_LEFT),
+				'type'=>'quotation','description'=>'Quotation · '.$quote->quotation_status,'reference'=>$quote->quotation_code,
+				'debit'=>0,'credit'=>0,'balance'=>0,'informational'=>true,
+				'document_url'=>base_url('quotation/invoice/'.(int)$quote->id));
+		}
+
+		usort($rows, function($a, $b){
+			$ad = $a['date'] ?: (!empty($a['historical']) ? '9999-12-31' : '1970-01-01');
+			$bd = $b['date'] ?: (!empty($b['historical']) ? '9999-12-31' : '1970-01-01');
+			if($ad == $bd) return strcmp($a['sort'], $b['sort']);
+			return strcmp($ad, $bd);
+		});
+
+		// Date-range filter: rows before `from` are folded into the period
+		// opening balance; rows after `to` are dropped entirely.
+		$from = ($from && strtotime($from)) ? date('Y-m-d', strtotime($from)) : null;
+		$to   = ($to && strtotime($to)) ? date('Y-m-d', strtotime($to)) : null;
+		if($from || $to){
+			$period_opening = $opening;
+			$kept = array();
+			foreach($rows as $r){
+				if($r['type'] === 'opening') continue;
+				// Unknown source dates stay visible and flagged, never fabricated
+				// or folded into a dated opening balance.
+				if(!$r['date'] && !empty($r['historical'])){ $kept[] = $r; continue; }
+				$d = $r['date'] ?: '1970-01-01';
+				if($from && $d < $from){ $period_opening += $r['debit'] - $r['credit']; continue; }
+				if($to && $d > $to){ continue; }
+				$kept[] = $r;
+			}
+			$rows = array_merge(array(array(
+				'date' => $from ?: ($customer->created_date ?? '1970-01-01'),
+				'sort' => 0,
+				'type' => 'opening',
+				'description' => 'Opening Balance',
+				'reference' => '-',
+				'debit' => ($period_opening > 0) ? $period_opening : 0,
+				'credit' => ($period_opening < 0) ? abs($period_opening) : 0,
+				'balance' => $period_opening
+			)), $kept);
+			$opening = $period_opening;
+		}
+
+		$balance = 0;
+		$total_debit = 0;
+		$total_credit = 0;
+		foreach($rows as &$row){
+			$balance += $row['debit'] - $row['credit'];
+			$row['balance'] = $balance;
+			$total_debit += $row['debit'];
+			$total_credit += $row['credit'];
+		}
+
+		return array(
+			'opening' => $opening,
+			'rows' => $rows,
+			'has_history' => !empty($history_rows),
+			'summary' => array(
+				'total_sales' => $total_debit - $opening,
+				'total_payments' => $total_credit,
+				'closing_balance' => $balance
+			)
+		);
+	}
+
+	public function getOrCreateStorefrontCustomer($storeId, $name, $phone, $email = '', $allowExistingMatch = true){
+		$phone = trim($phone);
+		$email = trim($email);
+
+		// Try to find by phone first, then by email
+		$this->db->where('store_id', $storeId);
+		if(!empty($phone)){
+			$this->db->where('mobile', $phone);
+		} elseif(!empty($email)){
+			$this->db->where('email', $email);
+		} else {
+			return 0;
+		}
+		if (!$allowExistingMatch) $this->db->where('1=0',null,false);
+		$existing = $this->db->get('db_customers')->row();
+
+		if($existing){
+			$update = [];
+			if(empty($existing->customer_name) && !empty($name)) $update['customer_name'] = $name;
+			if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) $update['email'] = $email;
+			if(!empty($phone)) $update['mobile'] = $phone;
+			if(!empty($update)) $this->db->where('id', $existing->id)->update('db_customers', $update);
+			return $existing->id;
+		}
+
+		$code = get_init_code('customer', $storeId);
+		$this->db->insert('db_customers', [
+			'store_id' => $storeId,
+			'customer_code' => $code,
+			'customer_name' => $name,
+			'mobile' => $phone ?: NULL,
+			'email' => $email ?: NULL,
+			'status' => 1,
+			'created_date' => date('Y-m-d'),
+			'created_time' => date('H:i:s'),
+			'created_by' => 'STOREFRONT'
+		]);
+		return $this->db->insert_id();
+	}
+}

@@ -1,0 +1,1206 @@
+<?php
+/* Store Profile / Add Store form — content-only view for mp_layout */
+?>
+<link rel="stylesheet" href="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css">
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php
+$CI =& get_instance();
+if(!isset($q_id)){
+  $store_name=$logo=$currency_id=$currency_placement=$timezone=
+  $date_format=$time_format=
+  $round_off='';
+  $mobile=$phone=$email=$country=$state=$city=
+  $postcode=$address=$gst_no=$vat_no=
+  $store_website=$pan_no=$bank_details=
+  $store_logo=
+  $signature='';
+  $sales_target=0;
+  $decimals=2;
+  $qty_decimals=2;
+  $invoice_terms = '';
+  $default_account_id='';
+  $nin_api_enabled=0;
+  $nin_api_url='';
+  $nin_api_key='';
+  $nin_api_provider='ninbvnportal';
+  $nin_api_cost=50.00;
+  $nin_provider='ninbvnportal';
+  $bvn_provider='ninbvnportal';
+  $interswitch_client_id='';
+  $interswitch_client_secret='';
+}
+// Session Lock (idle timeout + snooze) defaults — stored in db_store_settings
+$idle_enabled        = isset($idle_enabled) ? (int)$idle_enabled : 0;
+$weight_scale_mode  = isset($weight_scale_mode) && in_array($weight_scale_mode, array('digital', 'analog', 'hybrid'), true) ? $weight_scale_mode : 'analog';
+$idle_timeout_minutes= isset($idle_timeout_minutes) && (int)$idle_timeout_minutes > 0 ? (int)$idle_timeout_minutes : 15;
+$idle_warning_seconds= isset($idle_warning_seconds) && (int)$idle_warning_seconds > 0 ? (int)$idle_warning_seconds : 60;
+$snooze_enabled      = isset($snooze_enabled) ? (int)$snooze_enabled : 0;
+$snooze_title        = isset($snooze_title) ? $snooze_title : '';
+$snooze_message      = isset($snooze_message) ? $snooze_message : '';
+$snooze_image        = isset($snooze_image) ? $snooze_image : '';
+?>
+<div class="mp-page-head"><h1 class="mp-page-title"><?= $page_title; ?></h1><p class="mp-page-sub"><?= isset($q_id) ? 'Update store profile, system, sales and prefix settings.' : 'Create a new store.'; ?></p></div>
+<?= form_open('#', array('class' => 'form-horizontal', 'id' => 'store-form', 'enctype'=>'multipart/form-data', 'method'=>'POST'));?>
+<div class="mp-card">
+<div class="mp-card-body">
+<div class="nav-tabs-custom">
+<ul class="nav nav-tabs">
+  <li class="active"><a href="#tab_4" id='tab_4_btn' data-toggle="tab"><?= $this->lang->line('store'); ?></a></li>
+  <li><a href="#tab_1" id='tab_1_btn' data-toggle="tab"><?= $this->lang->line('system'); ?></a></li>
+  <?php if(!is_user()){?>
+  <li><a href="#tab_2" id='tab_2_btn' data-toggle="tab"><?= $this->lang->line('sales'); ?></a></li>
+  <li><a href="#tab_3" id='tab_3_btn' data-toggle="tab"><?= $this->lang->line('prefixes'); ?></a></li>
+  <?php if($CI->permissions('nin_settings')){ ?>
+  <li><a href="#tab_nin" id='tab_nin_btn' data-toggle="tab">NIN/BVN API</a></li>
+  <?php } ?>
+  <?php if($CI->permissions('system_settings')){ ?>
+  <li><a href="#tab_session_lock" id='tab_session_lock_btn' data-toggle="tab">Session Lock</a></li>
+  <?php } ?>
+  <?php }?>
+</ul>
+                        <div class="tab-content">
+                          <div class="tab-pane active" id="tab_4">
+                              <div class="row">
+                                 <!-- right column -->
+                                 <div class="col-md-12">
+                                    <!-- form start -->
+                                       <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
+                                       <div class="box-body">
+                                          <div class="row">
+                                             <div class="col-md-5">
+                                                <div class="form-group">
+                                                   <label for="store_code" class="col-sm-4 control-label"><?= $this->lang->line('store_code'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="store_code" name="store_code" readonly=""  placeholder="" onkeyup="shift_cursor(event,'mobile')" value="<?php print $store_code; ?>" >
+                                                      <span id="store_code_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="store_name" class="col-sm-4 control-label"><?= $this->lang->line('store_name'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="store_name" name="store_name" placeholder="" onkeyup="shift_cursor(event,'mobile')" value="<?php print $store_name; ?>" >
+                                                      <span id="store_name_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="sales_target" class="col-sm-4 control-label">Daily Sales Target</label>
+                                                   <div class="col-sm-8">
+                                                      <input type="number" step="any" min="0" class="form-control" id="sales_target" name="sales_target" placeholder="0" value="<?php print (float)($sales_target ?? 0); ?>" >
+                                                      <span class="text-muted"><small>Dashboard target progress bar uses this value.</small></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="mobile" class="col-sm-4 control-label"><?= $this->lang->line('mobile'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control no_special_char_no_space" id="mobile" name="mobile" placeholder="" value="<?php print $mobile; ?>" onkeyup="shift_cursor(event,'email')" >
+                                                      <span id="mobile_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="email" class="col-sm-4 control-label"><?= $this->lang->line('email'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="email" name="email" placeholder="" value="<?php print $email; ?>" onkeyup="shift_cursor(event,'phone')">
+                                                      <span id="email_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="phone" class="col-sm-4 control-label"><?= $this->lang->line('phone'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control no_special_char_no_space" id="phone" name="phone" placeholder="" value="<?php print $phone; ?>" onkeyup="shift_cursor(event,'gst_no')" >
+                                                      <span id="phone_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+
+                                                <?php if(gst_number()){ ?>
+                                                <div class="form-group">
+                                                   <label for="gst_no" class="col-sm-4 control-label"><?= $this->lang->line('gst_number'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="gst_no" name="gst_no" placeholder="" value="<?php print $gst_no; ?>" onkeyup="shift_cursor(event,'vat_no')">
+                                                      <span id="gstin_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <?php } ?>
+
+                                                <?php if(vat_number()){ ?>
+                                                <div class="form-group">
+                                                   <label for="vat_no" class="col-sm-4 control-label"><?= $this->lang->line('vat_number'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="vat_no" name="vat_no" placeholder="" value="<?php print $vat_no; ?>" onkeyup="shift_cursor(event,'store_website')">
+                                                      <span id="vat_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <?php } ?>
+                                                <?php if(pan_number()){ ?>
+                                                <div class="form-group">
+                                                   <label for="pan_no" class="col-sm-4 control-label"><?= $this->lang->line('pan_number'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="pan_no" name="pan_no" placeholder="" value="<?php print $pan_no; ?>" onkeyup="shift_cursor(event,'store_website')">
+                                                      <span id="pan_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <?php } ?>
+                                                <div class="form-group">
+                                                   <label for="store_website" class="col-sm-4 control-label"><?= $this->lang->line('store_website'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="store_website" name="store_website" placeholder="" value="<?php print $store_website; ?>" onkeyup="shift_cursor(event,'country')">
+                                                      <span id="website_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+
+                                                <?php
+                                                //Signature Checkbox
+                                                   $show_signature_checkbox ='';
+                                                   if($show_signature==1){
+                                                    $show_signature_checkbox='checked';
+                                                   }
+                                                ?>
+                                                <div class="form-group">
+                                                   <label for="show_signature" class="col-sm-4 control-label"><?= $this->lang->line('show_signature'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="checkbox" <?=$show_signature_checkbox;?> id="show_signature" name="show_signature" >
+                                                      <span id="show_signature_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+
+                                                   <label for="signature" class="col-sm-4 control-label"><?= $this->lang->line('signature'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="file" id="signature" name="signature">
+                                                      <span id="signature_msg" style="display:block;" class="text-danger">Max Width/Height: 1000px * 1000px &amp; Size: 1024kb</span>
+                                                      <small class="text-muted">Upload a signature and enable Show Signature to place it on quotations and invoices.</small>
+                                                      <?php if(!empty($show_signature) && empty($signature)): ?>
+                                                        <small class="text-danger" style="display:block;">Show Signature is on, but no signature image is saved yet.</small>
+                                                      <?php endif; ?>
+                                                   </div>
+
+                                                </div>
+                                                <?php 
+                                                if(empty($signature)){
+                                                  $signature = base_url('uploads/no_logo/noimage.png');
+                                                }
+                                                else{
+                                                  $signature = base_url($signature);
+                                                }
+                                                ?>
+                                                <div class="form-group">
+                                                   <div class="col-sm-8 col-sm-offset-4">
+                                                      <img class='img-responsive' style='border:3px solid #d2d6de;' src="<?=$signature;?>">
+                                                   </div>
+                                                </div>
+
+
+
+
+                                                <!-- ########### -->
+                                             </div>
+                                             <div class="col-md-5">
+                                                <div class="form-group">
+                                                   <label for="bank_details" class="col-sm-4 control-label"><?= $this->lang->line('bank_details'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <textarea type="text" class="form-control" id="bank_details" name="bank_details" placeholder="" ><?php print $bank_details; ?></textarea>
+                                                      <span id="bank_details_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="country" class="col-sm-4 control-label"><?= $this->lang->line('country'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="country" name="country"  style="width: 100%;" onkeyup="shift_cursor(event,'state')" value="<?php print $country; ?>">
+                                                         <?php
+                                                            $allowed_countries = array(
+                                                              'Nigeria','Ghana','Benin','Burkina Faso','Cape Verde',
+                                                              "Cote d'Ivoire","Côte d'Ivoire",'Gambia','Guinea',
+                                                              'Guinea-Bissau','Liberia','Mali','Mauritania','Niger',
+                                                              'Senegal','Sierra Leone','Togo','Cameroon',
+                                                              'United Kingdom','UK','Great Britain',
+                                                              'United States','USA','United States of America','US'
+                                                            );
+                                                            $q1=$this->db->where('status',1)->where_in('country',$allowed_countries)->get('db_country');
+                                                            if($q1->num_rows()>0)
+                                                             {
+                                                                 foreach($q1->result() as $res1)
+                                                               {
+                                                                 $selected = ($res1->country == $country) ? 'selected' : '';
+                                                                 echo "<option $selected value='".$res1->country."'>".$res1->country."</option>";
+                                                               }
+                                                             }
+                                                             else
+                                                             {
+                                                                ?>
+                                                         <option value="">No Records Found</option>
+                                                         <?php
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="country_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="state" class="col-sm-4 control-label"><?= $this->lang->line('state'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="state" name="state"  style="width: 100%;" onkeyup="shift_cursor(event,'city')">
+                                                         <?php
+                                                            if(!empty($country)){
+                                                              $this->db->where('status',1)->where('country',$country);
+                                                              if(strcasecmp(trim((string)$country),'Nigeria')===0 && $this->db->table_exists('ng_states')) $this->db->where('store_id',NULL);
+                                                              $q2=$this->db->order_by('state','asc')->get('db_states');
+                                                            } else {
+                                                              $q2 = $this->db->where('id',0)->get('db_states');
+                                                            }
+                                                            if($q2->num_rows()>0)
+                                                             {
+                                                              echo '<option value="">-Select-</option>'; 
+                                                              foreach($q2->result() as $res1)
+                                                               {
+                                                                 $selected = ($res1->state == $state) ? 'selected' : '';
+                                                                 echo "<option $selected value='".$res1->state."'>".$res1->state."</option>";
+                                                               }
+                                                             }
+                                                             else
+                                                             {
+                                                                ?>
+                                                         <option value="">Select Country First</option>
+                                                         <?php
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="state_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                   <label for="city" class="col-sm-4 control-label"><?= $this->lang->line('city'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="city" name="city"  style="width: 100%;" onkeyup="shift_cursor(event,'postcode')">
+                                                         <?php
+                                                            if(!empty($state)){
+                                                              $this->db->where('state',$state)->where('status',1);
+                                                              if(strcasecmp(trim((string)$country),'Nigeria')===0 && $this->db->table_exists('ng_states')) $this->db->where('store_id',NULL);
+                                                              $state_row = $this->db->get('db_states')->row();
+                                                              if($state_row){
+                                                                echo get_city_select_list($state_row->id,$city);
+                                                              } else {
+                                                                // State not found in db_states, show all active cities
+                                                                $q3 = $this->db->where('status',1)->get('db_cities');
+                                                                if($q3->num_rows()>0){
+                                                                  echo '<option value="">Select City</option>';
+                                                                  foreach($q3->result() as $res1){
+                                                                    $selected = ($res1->city == $city) ? 'selected' : '';
+                                                                    echo "<option $selected value='".$res1->city."'>".$res1->city."</option>";
+                                                                  }
+                                                                } else {
+                                                                  echo '<option value="">No Records Found</option>';
+                                                                }
+                                                              }
+                                                            } else {
+                                                              echo '<option value="">Select State First</option>';
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="city_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="postcode" class="col-sm-4 control-label"><?= $this->lang->line('postcode'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control no_special_char_no_space" id="postcode" name="postcode" placeholder="" value="<?php print $postcode; ?>" onkeyup="shift_cursor(event,'address')">
+                                                      <span id="postcode_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="address" class="col-sm-4 control-label"><?= $this->lang->line('address'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <textarea type="text" class="form-control" id="address" name="address" placeholder="" ><?php print $address; ?></textarea>
+                                                      <span id="address_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="store_logo" class="col-sm-4 control-label"><?= $this->lang->line('store_logo'); ?></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="file" id="store_logo" name="store_logo">
+                                                      <span id="store_logo_msg" style="display:block;" class="text-danger">Max Width/Height: 1000px * 1000px & Size: 1024kb </span>
+                                                   </div>
+                                                </div>
+                                                <?php 
+                                                if(empty($store_logo)){
+                                                  $logo = base_url('uploads/no_logo/nologo.png');
+                                                }
+                                                else{
+                                                  $logo = base_url($store_logo);
+                                                }
+                                                ?>
+                                                <div class="form-group">
+                                                   <div class="col-sm-8 col-sm-offset-4">
+                                                      <img class='img-responsive' style='border:3px solid #d2d6de;' src="<?=$logo;?>">
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <!-- ########### -->
+                                          </div>
+                                       </div>
+                                       <!-- /.box-body -->
+                                       <!-- /.box-footer -->
+                                    
+                                 </div>
+                                 <!--/.col (right) -->
+                              </div>
+                              <!-- /.row -->
+                           </div>
+                           <div class="tab-pane" id="tab_1">
+                              <div class="row">
+                                 <!-- right column -->
+                                 <div class="col-md-12">
+                                    <!-- form start -->
+                                       <input type="hidden" id="base_url" value="<?php echo $base_url;; ?>">
+                                       <div class="box-body">
+                                          <div class="row">
+                                             <div class="col-md-5">
+                                                
+                                                <div class="form-group">
+                                                   <label for="timezone" class="col-sm-4 control-label"><?= $this->lang->line('timezone'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="timezone" name="timezone"  style="width: 100%;">
+                                                         <?php
+                                                            $query2="select * from db_timezone where status=1";
+                                                            $q2=$this->db->query($query2);
+                                                            if($q2->num_rows()>0)
+                                                             {
+                                                              
+                                                              foreach($q2->result() as $res1)
+                                                               {
+                                                                 if((isset($timezone) && !empty($timezone)) && trim($timezone)==trim($res1->timezone)){$selected='selected';}else{$selected='';}
+                                                                 echo "<option ".$selected." value='".$res1->timezone."'>".$res1->timezone."</option>";
+                                                               }
+                                                             }
+                                                             else
+                                                             {
+                                                                ?>
+                                                         <option value="">No Records Found</option>
+                                                         <?php
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="timezone_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="date_format" class="col-sm-4 control-label"><?= $this->lang->line('date_format'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="date_format" name="date_format"  style="width: 100%;">
+                                                         <option value="dd-mm-yyyy">dd-mm-yyyy</option>
+                                                         <!-- <option value="dd/mm/yyyy">dd/mm/yyyy</option> -->
+                                                         <option value="mm/dd/yyyy">mm/dd/yyyy</option>
+                                                      </select>
+                                                      <span id="date_format_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="time_format" class="col-sm-4 control-label"><?= $this->lang->line('time_format'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="time_format" name="time_format"  style="width: 100%;">
+                                                         <option value="12">12 Hours</option>
+                                                         <option value="24">24 Hours</option>
+                                                      </select>
+                                                      <span id="time_format_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="currency" class="col-sm-4 control-label"><?= $this->lang->line('currency'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="currency" name="currency"  style="width: 100%;">
+                                                         <?php
+                                                            $query2="select * from db_currency where status=1";
+                                                            $q2=$this->db->query($query2);
+                                                            if($q2->num_rows()>0)
+                                                             {
+                                                              
+                                                              foreach($q2->result() as $res1)
+                                                               {
+                                                                 if((isset($currency_id) && !empty($currency_id)) && $currency_id==$res1->id){$selected='selected';}else{$selected='';}
+                                                                 echo "<option ".$selected." value='".$res1->id."'>".$res1->currency_name.' '.$res1->currency_code.' ('.$res1->currency.")</option>";
+                                                               }
+                                                             }
+                                                             else
+                                                             {
+                                                                ?>
+                                                         <option value="">No Records Found</option>
+                                                         <?php
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="currency_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="currency_placement" class="col-sm-4 control-label"><?= $this->lang->line('currency_symbol_placement'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="currency_placement" name="currency_placement"  style="width: 100%;">
+                                                         <option value="Right">After Amount</option>
+                                                         <option value="Left">Before Amount</option>
+                                                      </select>
+                                                      <span id="currency_placement_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                <div class="form-group">
+                                                   <label for="decimals" class="col-sm-4 control-label"><?= $this->lang->line('decimals'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="decimals" name="decimals"  style="width: 100%;">
+                                                         <option value="0">0</option>
+                                                         <option value="1">1</option>
+                                                         <option value="2">2</option>
+                                                         <option value="3">3</option>
+                                                         <option value="4">4</option>
+                                                      </select>
+                                                      <span id="decimals_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                   <label for="qty_decimals" class="col-sm-4 control-label"><?= $this->lang->line('qty_decimals'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="qty_decimals" name="qty_decimals"  style="width: 100%;">
+                                                         <option value="0">0</option>
+                                                         <option value="1">1</option>
+                                                         <option value="2">2</option>
+                                                         <option value="3">3</option>
+                                                         <option value="4">4</option>
+                                                      </select>
+                                                      <span id="qty_decimals_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+
+                                                
+                                             </div>
+                                             <!-- ########### -->
+                                             <div class="col-md-5">
+                                                
+                                                <div class="form-group">
+                                                   <label for="language_id" class="col-sm-4 control-label"><?= $this->lang->line('language'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-8">
+                                                      <select class="form-control select2" id="language_id" name="language_id"  style="width: 100%;">
+                                                         <?php
+                                                            $query2="select * from db_languages where status=1";
+                                                            $q2=$this->db->query($query2);
+                                                            if($q2->num_rows()>0)
+                                                             {
+                                                              
+                                                              foreach($q2->result() as $res1)
+                                                               {
+                                                                 $selected = ($res1->id ==$language_id) ? 'selected' : '';
+                                                                 echo "<option ".$selected." value='".$res1->id."'>".$res1->language."</option>";
+                                                               }
+                                                             }
+                                                             else
+                                                             {
+                                                                ?>
+                                                         <option value="">No Records Found</option>
+                                                         <?php
+                                                            }
+                                                            ?>
+                                                      </select>
+                                                      <span id="language_id_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                                
+                                                <?php 
+                                               $round_off_checkbox ='';
+                                               if($round_off==1){
+                                                $round_off_checkbox='checked';
+                                               }
+                                               ?>
+                                                <div class="form-group">
+                                                   <label for="round_off" class="col-sm-4 control-label"><?= $this->lang->line('enable_round_off'); ?> ?</label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?=$round_off_checkbox;?> id="round_off" name="round_off" >
+                                                      <span id="round_off_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                               
+
+                                             </div>
+                                          </div>
+                                       </div>
+                                       <!-- /.box-body -->
+                                       <!-- /.box-footer -->
+                                    
+                                 </div>
+                                 <!--/.col (right) -->
+                              </div>
+                              <!-- /.row -->
+                           </div>
+                           <!-- /.tab-pane -->
+                           <?php 
+                           //Change Return
+                           $change_return_checkbox ='';
+                           if($change_return==1){
+                            $change_return_checkbox='checked';
+                           }
+
+                           //MRP Column Checkbox
+                           $mrp_column_checkbox ='';
+                           if($mrp_column==1){
+                            $mrp_column_checkbox='checked';
+                           }
+
+                           
+
+                           //Previous Balance Checkbox
+                           $previous_balance_checkbox ='';
+                           if($previous_balance_bit==1){
+                            $previous_balance_checkbox='checked';
+                           }
+                          
+                            ?>
+                           <div class="tab-pane" id="tab_2">
+                              <div class="row">
+                                 <!-- right column -->
+                                 <div class="col-md-12">
+                                       <div class="box-body">
+                                          <div class="row">
+                                             <div class="col-md-12">
+                                             <div class="form-group">
+                                                   <label for="default_account_id" class="col-sm-3 control-label"><?= $this->lang->line('default_account'); ?></label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="default_account_id" name="default_account_id"  style="width: 100%;">
+                                                         <option value="">-None-</option>
+                                                         <?= get_accounts_select_list($default_account_id)?>
+                                                      </select>
+                                                      <span id="default_account_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                              </div>
+
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="sales_discount" class="col-sm-3 control-label"><?= $this->lang->line('default_sales_discount'); ?></label>
+                                                   <div class="col-sm-4">
+                                                      <input type="text" class="form-control" id="sales_discount" name="sales_discount" placeholder="" value="<?php print store_number_format($sales_discount,0); ?>" >
+                                                      <span id="sales_discount_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             
+                                            
+
+                                             <div class="col-md-12">
+                                             <div class="form-group">
+                                                   <label for="weight_scale_mode" class="col-sm-3 control-label">Frozen-food POS weighing</label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="weight_scale_mode" name="weight_scale_mode" style="width:100%;">
+                                                         <option value="digital" <?= $weight_scale_mode === 'digital' ? 'selected' : ''; ?>>Digital scale — enter measured kg</option>
+                                                         <option value="analog" <?= $weight_scale_mode === 'analog' ? 'selected' : ''; ?>>Analogue scale — use KG + Lines</option>
+                                                         <option value="hybrid" <?= $weight_scale_mode === 'hybrid' ? 'selected' : ''; ?>>Hybrid — measured kg + optional Lines</option>
+                                                      </select>
+                                                      <small class="text-muted">Controls weight-enabled products in POS. Existing stores keep the current KG + Lines workflow until changed.</small>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="sales_invoice_formats" class="col-sm-3 control-label"><?= $this->lang->line('sales_invoice_formats'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="sales_invoice_format_id" name="sales_invoice_format_id"  style="width: 100%;">
+                                                         <option value="3">Default</option>
+                                                         <option value="4">AFR Format</option>
+                                                      </select>
+                                                      <span id="sales_invoice_format_id_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                              </div>
+                                            <div class="col-md-12">
+                                             <div class="form-group">
+                                                   <label for="pos_invoice_formats" class="col-sm-3 control-label"><?= $this->lang->line('pos_invoice_formats'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="pos_invoice_format_id" name="pos_invoice_format_id"  style="width: 100%;">
+                                                         <option value="1">Default</option>
+                                                         <option value="2">AFR Format</option>
+                                                         <option value="3">No Tax</option>
+                                                      </select>
+                                                      <span id="pos_invoice_format_id_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                              </div>
+
+
+                                              <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="mrp_column" class="col-sm-3 control-label"><?= $this->lang->line('show_mrp_column_on_pos_invoice'); ?></label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?=$mrp_column_checkbox;?> id="mrp_column" name="mrp_column" >
+                                                      <span id="mrp_column_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="show_tax" class="col-sm-3 control-label">Show tax on receipts</label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?= ($show_tax ? 'checked' : '') ?> id="show_tax" name="show_tax" >
+                                                      <span id="show_tax_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="sales_discount" class="col-sm-3 control-label"><?= $this->lang->line('show_paid_amount_and_change_return_in_pos'); ?></label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?=$change_return_checkbox;?> id="change_return" name="change_return" >
+                                                      <span id="change_return_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="mrp_column" class="col-sm-3 control-label"><?= $this->lang->line('show_previous_balance_on_invoice'); ?></label>
+                                                   <div class="col-sm-4">
+                                                      <input type="checkbox" <?=$previous_balance_checkbox;?> id="previous_balance_bit" name="previous_balance_bit" >
+                                                      <span id="previous_balance_bit_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-12">
+                                             <div class="form-group">
+                                                   <label for="number_to_words" class="col-sm-3 control-label"><?= $this->lang->line('number_to_words_format'); ?><label class="text-danger">*</label> </label>
+                                                   <div class="col-sm-4">
+                                                      <select class="form-control select2" id="number_to_words" name="number_to_words"  style="width: 100%;">
+                                                         <option value="Default">Default</option>
+                                                         <option value="Nigerian">Nigerian</option>
+                                                      </select>
+                                                      <span id="number_to_words_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                              </div>
+                                              <div class="col-md-12">
+                                                <div class="form-group">
+                                                   <label for="sales_invoice_footer_text" class="col-sm-3 control-label"><?= $this->lang->line('sales_invoice_footer_text'); ?></label>
+                                                   <div class="col-sm-9">
+                                                      <textarea class="form-control" id="sales_invoice_footer_text" name="sales_invoice_footer_text"><?= $sales_invoice_footer_text;?></textarea>
+                                                      <span id="sales_invoice_footer_text_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-12">
+                                                <div class="form-group">
+                                                   
+                                                     
+                                                   
+
+                                                   <label for="invoice_terms" class="col-sm-3 control-label"><?= $this->lang->line('invoiceTermsAndConditions')?></label>
+                                                   <div class="col-sm-9">
+
+                                                      <label>
+                                                       <input type="radio" name="t_and_c_status" id="t_and_c_status_show" value="1" checked="">
+                                                       <?= $this->lang->line('show_on_invoice')?> 
+                                                     </label>
+                                                   
+                                                     <label for="options">
+                                                       <input type="radio" name="t_and_c_status" id="t_and_c_status_hide" value="0">
+                                                       <?= $this->lang->line('hide_on_invoice')?>
+                                                     </label>
+
+                                                     <br>
+                                                     <label>
+                                                       <input type="radio" name="t_and_c_status_pos" id="t_and_c_status_show_pos" value="1" checked="">
+                                                       <?= $this->lang->line('show_on_pos_invoice')?> 
+                                                     </label>
+                                                   
+                                                     <label for="options">
+                                                       <input type="radio" name="t_and_c_status_pos" id="t_and_c_status_hide_pos" value="0">
+                                                       <?= $this->lang->line('hide_on_pos_invoice')?>
+                                                     </label>
+
+                                                     <br/>
+                                                     <br/>
+                                                      <textarea id="invoice_terms" name="invoice_terms" class="textarea" placeholder="Place some text here" style="width: 100%; height: 200px; font-size: 14px; border: 1px solid #dddddd; padding: 10px;"><?= htmlspecialchars(html_entity_decode((string)$invoice_terms, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             
+
+
+                                          </div>
+                                       </div>
+                                 </div>
+                                 <!--/.col (right) -->
+                              </div>
+                              <!-- /.row -->
+                           </div>
+                           <!-- /.tab-pane -->
+                           <div class="tab-pane" id="tab_3">
+                             <div class="row">
+                                 <!-- right column -->
+                                 <div class="col-md-12">
+                                       <div class="box-body">
+                                          <div class="row">
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="category_init" class="col-sm-4 control-label"><?= $this->lang->line('category'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="category_init" name="category_init" placeholder="" value="<?php print $category_init; ?>" >
+                                                      <span id="category_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="item_init" class="col-sm-4 control-label"><?= $this->lang->line('item'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control no_special_no_space" id="item_init" name="item_init" placeholder="" value="<?php print $item_init; ?>" >
+                                                      <span id="item_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="supplier_init" class="col-sm-4 control-label"><?= $this->lang->line('supplier'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="supplier_init" name="supplier_init" placeholder="" value="<?php print $supplier_init; ?>" >
+                                                      <span id="supplier_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="purchase_init" class="col-sm-4 control-label"><?= $this->lang->line('purchase'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="purchase_init" name="purchase_init" placeholder="" value="<?php print $purchase_init; ?>" >
+                                                      <span id="purchase_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="purchase_return_init" class="col-sm-4 control-label"><?= $this->lang->line('purchase_return'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="purchase_return_init" name="purchase_return_init" placeholder="" value="<?php print $purchase_return_init; ?>" >
+                                                      <span id="purchase_return_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="customer_init" class="col-sm-4 control-label"><?= $this->lang->line('customer'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="customer_init" name="customer_init" placeholder="" value="<?php print $customer_init; ?>" >
+                                                      <span id="customer_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="sales_init" class="col-sm-4 control-label"><?= $this->lang->line('sales'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="sales_init" name="sales_init" placeholder="" value="<?php print $sales_init; ?>" >
+                                                      <span id="sales_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="sales_return_init" class="col-sm-4 control-label"><?= $this->lang->line('sales_return'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="sales_return_init" name="sales_return_init" placeholder="" value="<?php print $sales_return_init; ?>" >
+                                                      <span id="sales_return_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="expense_init" class="col-sm-4 control-label"><?= $this->lang->line('expense'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="expense_init" name="expense_init" placeholder="" value="<?php print $expense_init; ?>" >
+                                                      <span id="expense_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="accounts_init" class="col-sm-4 control-label"><?= $this->lang->line('accounts'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="accounts_init" name="accounts_init" placeholder="" value="<?php print $accounts_init; ?>" >
+                                                      <span id="accounts_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="quotation_init" class="col-sm-4 control-label"><?= $this->lang->line('quotation'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="quotation_init" name="quotation_init" placeholder="" value="<?php print $quotation_init; ?>" >
+                                                      <span id="quotation_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="money_transfer_init" class="col-sm-4 control-label"><?= $this->lang->line('money_transfer'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="money_transfer_init" name="money_transfer_init" placeholder="" value="<?php print $money_transfer_init; ?>" >
+                                                      <span id="money_transfer_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="sales_payment_init" class="col-sm-4 control-label"><?= $this->lang->line('sales_payment'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="sales_payment_init" name="sales_payment_init" placeholder="" value="<?php print $sales_payment_init; ?>" >
+                                                      <span id="sales_payment_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="sales_return_payment_init" class="col-sm-4 control-label"><?= $this->lang->line('sales_return_payment'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="sales_return_payment_init" name="sales_return_payment_init" placeholder="" value="<?php print $sales_return_payment_init; ?>" >
+                                                      <span id="sales_return_payment_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="purchase_payment_init" class="col-sm-4 control-label"><?= $this->lang->line('purchase_payment'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="purchase_payment_init" name="purchase_payment_init" placeholder="" value="<?php print $purchase_payment_init; ?>" >
+                                                      <span id="purchase_payment_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="purchase_return_payment_init" class="col-sm-4 control-label"><?= $this->lang->line('purchase_return_payment'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="purchase_return_payment_init" name="purchase_return_payment_init" placeholder="" value="<?php print $purchase_return_payment_init; ?>" >
+                                                      <span id="purchase_return_payment_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="expense_payment_init" class="col-sm-4 control-label"><?= $this->lang->line('expense_payment'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="expense_payment_init" name="expense_payment_init" placeholder="" value="<?php print $expense_payment_init; ?>" >
+                                                      <span id="expense_payment_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                <div class="form-group">
+                                                   <label for="cust_advance_init" class="col-sm-4 control-label"><?= $this->lang->line('customers_advance_payments'); ?><label class="text-danger">*</label></label>
+                                                   <div class="col-sm-8">
+                                                      <input type="text" class="form-control" id="cust_advance_init" name="cust_advance_init" placeholder="" value="<?php print $cust_advance_init; ?>" >
+                                                      <span id="cust_advance_init_msg" style="display:none" class="text-danger"></span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       </div>
+                                 </div>
+                                 <!--/.col (right) -->
+                              </div>
+                              <!-- /.row -->
+                           </div>
+                           <!-- /.tab-pane -->
+                           <!-- NIN/BVN API Settings Tab -->
+                           <div class="tab-pane" id="tab_nin">
+                              <div class="row">
+                                 <div class="col-md-12">
+                                    <h4 class="text-info"><i class="fa fa-id-card"></i> NIN / BVN Verification API Settings</h4>
+                                    <hr>
+                                    <?php $can_edit_nin = $CI->permissions('nin_settings'); ?>
+                                    <div class="form-group">
+                                       <label for="nin_api_enabled" class="col-sm-3 control-label">Enable NIN API</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="nin_api_enabled" name="nin_api_enabled" <?php if(isset($nin_api_enabled) && $nin_api_enabled==1){ ?> checked <?php }?> <?php if(!$can_edit_nin){ echo 'disabled'; } ?> > Enable Real-time NIN/BVN Verification
+                                             </label>
+                                          </div>
+                                          <?php if(!$can_edit_nin){ ?>
+                                          <input type="hidden" name="nin_api_enabled" value="<?php echo (isset($nin_api_enabled) && $nin_api_enabled==1) ? 1 : 0; ?>">
+                                          <span class="text-muted text-danger"><i class="fa fa-lock"></i> Only users with NIN Settings permission can enable/disable this feature.</span>
+                                          <?php } else { ?>
+                                          <span class="text-muted"><i class="fa fa-unlock"></i> NIN Settings permission required</span>
+                                          <?php } ?>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_cost" class="col-sm-3 control-label">Cost Per Verification <span class="text-danger">*</span></label>
+                                       <div class="col-sm-6">
+                                          <div class="input-group">
+                                             <span class="input-group-addon">NGN</span>
+                                             <input type="number" step="0.01" class="form-control" id="nin_api_cost" name="nin_api_cost" placeholder="50.00" value="<?php echo isset($nin_api_cost) ? $nin_api_cost : '50.00'; ?>" <?php if(!$can_edit_nin){ echo 'readonly'; } ?>>
+                                          </div>
+                                          <?php if(!$can_edit_nin){ ?>
+                                             <span class="text-muted text-danger"><i class="fa fa-lock"></i> Cost is locked. NIN Settings permission required.</span>
+                                          <?php } else { ?>
+                                             <span class="text-muted">Set the cost charged per successful NIN/BVN verification. This is used for billing transparency in the usage log.</span>
+                                          <?php } ?>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_provider" class="col-sm-3 control-label">NIN Provider</label>
+                                       <div class="col-sm-6">
+                                          <select class="form-control" id="nin_provider" name="nin_provider">
+                                             <option value="ninbvnportal" <?php if(isset($nin_provider) && $nin_provider=='ninbvnportal') echo 'selected'; ?>>ninbvnportal.com.ng</option>
+                                             <option value="interswitch" <?php if(isset($nin_provider) && $nin_provider=='interswitch') echo 'selected'; ?>>Interswitch API Marketplace</option>
+                                             <option value="custom" <?php if(isset($nin_provider) && $nin_provider=='custom') echo 'selected'; ?>>Custom API</option>
+                                          </select>
+                                          <span class="text-muted">Select the provider for NIN (11-digit) verification.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="bvn_provider" class="col-sm-3 control-label">BVN Provider</label>
+                                       <div class="col-sm-6">
+                                          <select class="form-control" id="bvn_provider" name="bvn_provider">
+                                             <option value="ninbvnportal" <?php if(isset($bvn_provider) && $bvn_provider=='ninbvnportal') echo 'selected'; ?>>ninbvnportal.com.ng</option>
+                                             <option value="interswitch" <?php if(isset($bvn_provider) && $bvn_provider=='interswitch') echo 'selected'; ?>>Interswitch API Marketplace</option>
+                                             <option value="custom" <?php if(isset($bvn_provider) && $bvn_provider=='custom') echo 'selected'; ?>>Custom API</option>
+                                          </select>
+                                          <span class="text-muted">Select the provider for BVN (10-11 digit) verification.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_url" class="col-sm-3 control-label">Custom API URL</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="nin_api_url" name="nin_api_url" placeholder="https://api.example.com/v1/verify" value="<?php echo isset($nin_api_url) ? $nin_api_url : ''; ?>">
+                                          <span class="text-muted">For Custom API: enter full endpoint URL. For Interswitch: enter base URL (e.g. https://api-marketplace-routing.k8.isw.la) if different from default.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="nin_api_key" class="col-sm-3 control-label">API Token / Key</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="nin_api_key" name="nin_api_key" placeholder="Your API Key or Bearer Token" value="<?php echo isset($nin_api_key) ? $nin_api_key : ''; ?>">
+                                          <span class="text-muted">Used for ninbvnportal (API key) or Custom API (Bearer token). For Interswitch, use Client ID / Secret below.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="interswitch_client_id" class="col-sm-3 control-label">Interswitch Client ID</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="interswitch_client_id" name="interswitch_client_id" placeholder="Interswitch Client ID" value="<?php echo isset($interswitch_client_id) ? $interswitch_client_id : ''; ?>">
+                                          <span class="text-muted">Required when Interswitch is selected as provider. Used to obtain an access token.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="interswitch_client_secret" class="col-sm-3 control-label">Interswitch Client Secret</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="interswitch_client_secret" name="interswitch_client_secret" placeholder="Interswitch Client Secret" value="<?php echo isset($interswitch_client_secret) ? $interswitch_client_secret : ''; ?>">
+                                          <span class="text-muted">Required when Interswitch is selected as provider. Keep this confidential.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <div class="col-sm-6 col-sm-offset-3">
+                                          <div class="alert alert-info">
+                                             <i class="fa fa-info-circle"></i> <strong>Note:</strong> If API is not configured, the system will use demo/mock verification mode for testing. All verification settings are stored per-store. Staff cannot see or change these settings.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <!-- /.tab-pane -->
+                           <?php if($CI->permissions('system_settings')){ ?>
+                           <!-- Session Lock (Idle Timeout + Snooze) Tab -->
+                           <div class="tab-pane" id="tab_session_lock">
+                              <div class="row">
+                                 <div class="col-md-12">
+                                    <h4 class="text-info"><i class="fa fa-clock-o"></i> Inactivity &amp; Screen Lock</h4>
+                                    <hr>
+                                    <div class="form-group">
+                                       <label for="idle_enabled" class="col-sm-3 control-label">Idle Timeout</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="idle_enabled" name="idle_enabled" <?php if($idle_enabled==1){ ?> checked <?php }?>> Warn users when the system has been idle
+                                             </label>
+                                          </div>
+                                          <span class="text-muted">Shows a "System has been idle" dialog before locking or logging out.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_timeout_minutes" class="col-sm-3 control-label">Idle Time (minutes)</label>
+                                       <div class="col-sm-6">
+                                          <input type="number" min="1" max="480" class="form-control" id="idle_timeout_minutes" name="idle_timeout_minutes" value="<?php echo (int)$idle_timeout_minutes; ?>">
+                                          <span class="text-muted">Minutes of no mouse, keyboard or touch activity before the warning appears.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_warning_seconds" class="col-sm-3 control-label">Warning Countdown (seconds)</label>
+                                       <div class="col-sm-6">
+                                          <input type="number" min="10" max="600" class="form-control" id="idle_warning_seconds" name="idle_warning_seconds" value="<?php echo (int)$idle_warning_seconds; ?>">
+                                          <span class="text-muted">How long the "remain logged in?" dialog counts down before taking action.</span>
+                                       </div>
+                                    </div>
+                                    <h4 class="text-info" style="margin-top:30px;"><i class="fa fa-moon-o"></i> Snooze Screen (Campaign Lock)</h4>
+                                    <hr>
+                                    <div class="form-group">
+                                       <label for="snooze_enabled" class="col-sm-3 control-label">Enable Snooze</label>
+                                       <div class="col-sm-6">
+                                          <div class="checkbox icheck">
+                                             <label>
+                                                <input type="checkbox" id="snooze_enabled" name="snooze_enabled" <?php if($snooze_enabled==1){ ?> checked <?php }?>> Freeze the screen with a flyer instead of logging out
+                                             </label>
+                                          </div>
+                                          <span class="text-muted">When the warning expires, the screen blurs and shows your campaign. The user unlocks with their password or PIN.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="snooze_title" class="col-sm-3 control-label">Campaign Title</label>
+                                       <div class="col-sm-6">
+                                          <input type="text" class="form-control" id="snooze_title" name="snooze_title" placeholder="e.g. Weekend Mega Sale — up to 40% off" value="<?php echo htmlspecialchars($snooze_title); ?>">
+                                          <span class="text-muted">Leave empty to show the default MartPoint message.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="snooze_message" class="col-sm-3 control-label">Campaign Message</label>
+                                       <div class="col-sm-6">
+                                          <textarea class="form-control" id="snooze_message" name="snooze_message" rows="3" placeholder="e.g. Ask our team about today's deals when you're back."><?php echo htmlspecialchars($snooze_message); ?></textarea>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <label for="idle_flyer" class="col-sm-3 control-label">Flyer Image</label>
+                                       <div class="col-sm-6">
+                                          <?php if(!empty($snooze_image) && file_exists(FCPATH . $snooze_image)){ ?>
+                                             <div style="margin-bottom:8px;">
+                                                <img src="<?php echo base_url($snooze_image); ?>" alt="Snooze flyer" style="max-height:110px;border-radius:8px;border:1px solid #E2E8F0;">
+                                             </div>
+                                          <?php } ?>
+                                          <input type="file" id="idle_flyer" name="idle_flyer" accept="image/*">
+                                          <span class="text-muted">Optional. Upload a campaign/flyer image (JPG/PNG, max 2MB). Without one, a branded MartPoint card is shown.</span>
+                                       </div>
+                                    </div>
+                                    <div class="form-group">
+                                       <div class="col-sm-6 col-sm-offset-3">
+                                          <div class="alert alert-info">
+                                             <i class="fa fa-info-circle"></i> If <strong>Snooze</strong> is off, users are logged out when the warning countdown ends. Snooze keeps the session alive — the user unlocks with their password or approval PIN.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <!-- /.tab-pane -->
+                           <?php } ?>
+                        </div>
+                        <!-- /.tab-content -->
+                     </div>
+                     <!-- nav-tabs-custom -->
+                     <div class="mp-form-actions" style="margin-top:20px;">
+                        <center>
+                              <?php
+                                 if(isset($q_id)){
+                                      $btn_name="Update";
+                                      $btn_id="update";
+                                      ?>
+                              <input type="hidden" name="q_id" id="q_id" value="<?php echo $q_id;?>"/>
+                              <?php
+                                 }
+                                 else{
+                                     $btn_name="Save";
+                                     $btn_id="save";
+                                 }
+                                 
+                                 ?>
+                              <button type="button" id="<?php echo $btn_id;?>" class="mp-btn-primary" title="Save Data"><?php echo $btn_name;?></button>
+                              <a href="<?=base_url('dashboard');?>" class="mp-btn-secondary">Close</a>
+                        </center>
+                     </div>
+                  </div>
+<?= form_close(); ?>
+</div><!-- /.mp-card-body -->
+</div><!-- /.mp-card -->
+
+      <script type="text/javascript">
+         $(document).submit(function(event) {
+           event.preventDefault();
+           if($("#update").length){
+             $("#update").trigger('click');
+           }
+         });
+      </script>
+      <script src="<?php echo $theme_link; ?>js/store_profile.js"></script>
+      <script src="<?php echo $theme_link; ?>js/store/store.js"></script>
+     
+
+
+<!-- Bootstrap WYSIHTML5 -->
+<script src="<?php echo $theme_link; ?>plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
+
+     
+      <script type="text/javascript">
+         $("#number_to_words").val('<?= $number_to_words;?>').select2();
+
+        <?php if(!empty($currency_placement)) {?>
+         $("#currency_placement").val('<?= $currency_placement;?>').select2();
+       <?php }else{ ?>
+         $("#currency_placement").select2();
+       <?php } ?>
+
+       <?php if(!empty($date_format)) {?>
+         $("#date_format").val('<?= $date_format;?>').select2();
+       <?php }else{ ?>
+         $("#date_format").select2();
+       <?php } ?>
+
+       <?php if(!empty($decimals)) {?>
+         $("#decimals").val('<?= $decimals;?>').select2();
+       <?php }else{ ?>
+         $("#decimals").select2();
+       <?php } ?>
+
+       <?php if(!empty($qty_decimals)) {?>
+         $("#qty_decimals").val('<?= $qty_decimals;?>').select2();
+       <?php }else{ ?>
+         $("#qty_decimals").select2();
+       <?php } ?>
+       
+       <?php if(!empty($time_format)) {?>
+         $("#time_format").val('<?= $time_format;?>').select2();
+       <?php }else{ ?>
+         $("#time_format").select2();
+       <?php } ?>
+
+       <?php if(!empty($sales_invoice_format_id)) {?>
+         $("#sales_invoice_format_id").val('<?= $sales_invoice_format_id;?>').select2();
+       <?php }else{ ?>
+         $("#sales_invoice_format_id").select2();
+       <?php } ?>
+
+       <?php if(!empty($pos_invoice_format_id)) {?>
+         $("#pos_invoice_format_id").val('<?= $pos_invoice_format_id;?>').select2();
+       <?php }else{ ?>
+         $("#pos_invoice_format_id").select2();
+       <?php } ?>
+
+       <?php if($t_and_c_status==1) {?>
+         $("#t_and_c_status_show").attr("checked","checked");
+       <?php }else{ ?>
+         $("#t_and_c_status_hide").attr("checked","checked");
+       <?php } ?>
+
+       <?php if($t_and_c_status_pos==1) {?>
+         $("#t_and_c_status_show_pos").attr("checked","checked");
+       <?php }else{ ?>
+         $("#t_and_c_status_hide_pos").attr("checked","checked");
+       <?php } ?>
+
+      </script>
+      <!-- Make sidebar menu highlighter/selector -->
+      <?php if( isset($q_id) && !empty($q_id) && get_current_store_id()==$q_id){ ?>
+        <script>$(".store_profile-active-li").addClass("active"); $(".store-active-li").addClass("active"); $(".store_profile-active-li").closest(".mp-nav-group").addClass("open");</script>
+      <?php }else{?>
+        <script>$(".store-active-li").addClass("active"); $(".store-active-li").closest(".mp-nav-group").addClass("open");</script>
+      <?php } ?>
+
+      <script>
+        $(function () {
+          //bootstrap WYSIHTML5 - text editor
+         // $("#invoice_terms").wysihtml5()
+        })
+      </script>

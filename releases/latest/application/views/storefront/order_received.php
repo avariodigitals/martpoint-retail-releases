@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Order Confirmed | <?= htmlspecialchars($store->store_name ?? 'Store'); ?></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    <?= $this->theme_engine->cssVariables(); ?>
+    :root { --primary:var(--mp-primary,#3B82F6); --primary-dark:var(--mp-primary-dark,#2563EB); --success:#059669; --success-light:#D1FAE5; --warning:#F59E0B; --danger:#EF4444; --dark:#0F172A; --gray:#64748B; --light-gray:#F1F5F9; --border:#E2E8F0; --white:#fff; --radius:16px; --radius-sm:10px; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:var(--mp-font,'Inter',sans-serif); background:#F8FAFC; color:var(--dark); -webkit-font-smoothing:antialiased; }
+    a { text-decoration:none; color:inherit; }
+    img { max-width:100%; display:block; }
+
+    .sf-header { background:var(--white); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
+    .sf-header-inner { max-width:640px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; gap:12px; }
+    .sf-back { font-size:22px; color:var(--dark); display:flex; align-items:center; }
+    .sf-header-title { font-size:16px; font-weight:700; flex:1; }
+    .sf-header-logo { font-weight:800; font-size:15px; color:var(--dark); }
+
+    .sf-section { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+
+    /* Success hero */
+    .sf-success-hero { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); padding:48px 28px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; }
+    .sf-success-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg, var(--success), #34D399); }
+    .sf-success-icon { width:80px; height:80px; border-radius:50%; background:var(--success-light); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; animation:sfPop .5s ease .15s both; }
+    @keyframes sfPop { 0%{transform:scale(0);} 60%{transform:scale(1.15);} 100%{transform:scale(1);} }
+    .sf-success-icon svg { width:40px; height:40px; color:var(--success); }
+    .sf-success-title { font-size:24px; font-weight:900; color:var(--dark); margin-bottom:8px; }
+    .sf-success-msg { font-size:15px; color:var(--gray); line-height:1.6; margin-bottom:20px; max-width:400px; margin-left:auto; margin-right:auto; }
+    .sf-order-code { display:inline-block; background:#EFF6FF; color:var(--primary-dark); padding:10px 24px; border-radius:var(--radius-sm); font-size:16px; font-weight:800; font-family:monospace; letter-spacing:0.02em; }
+
+    /* Cards */
+    .sf-card { background:var(--white); border-radius:var(--radius-sm); border:1px solid var(--border); padding:20px; margin-bottom:12px; }
+    .sf-card-title { font-size:15px; font-weight:700; margin-bottom:16px; color:var(--dark); display:flex; align-items:center; gap:8px; }
+    .sf-card-title svg { width:18px; height:18px; color:var(--gray); }
+
+    /* Items */
+    .sf-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--light-gray); }
+    .sf-item:last-child { border-bottom:none; }
+    .sf-item-img { width:52px; height:52px; border-radius:10px; object-fit:cover; background:var(--light-gray); flex-shrink:0; overflow:hidden; }
+    .sf-item-info { flex:1; min-width:0; }
+    .sf-item-name { font-size:14px; font-weight:600; margin-bottom:3px; color:var(--dark); }
+    .sf-item-qty { font-size:12px; color:var(--gray); }
+    .sf-item-price { font-size:14px; font-weight:700; color:var(--dark); white-space:nowrap; }
+
+    /* Totals */
+    .sf-totals { margin-top:12px; }
+    .sf-row { display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; }
+    .sf-row.total { font-size:18px; font-weight:800; border-top:1px solid var(--border); padding-top:12px; margin-top:8px; color:var(--dark); }
+    .sf-row .label { color:var(--gray); }
+    .sf-row .value { font-weight:600; color:var(--dark); }
+    .sf-row.total .value { color:var(--primary); }
+
+    /* Info rows */
+    .sf-info-row { display:flex; justify-content:space-between; font-size:13px; padding:8px 0; border-bottom:1px solid var(--light-gray); }
+    .sf-info-row:last-child { border-bottom:none; }
+    .sf-info-row .label { color:var(--gray); }
+    .sf-info-row .value { font-weight:600; text-align:right; max-width:60%; word-break:break-word; color:var(--dark); }
+
+    /* Badges */
+    .sf-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
+    .sf-badge-pending { background:#FEF3C7; color:#92400E; }
+    .sf-badge-paid { background:#D1FAE5; color:#065F46; }
+    .sf-badge-unpaid { background:#FEE2E2; color:#991B1B; }
+    .sf-badge-processing { background:#DBEAFE; color:#1E40AF; }
+
+    /* Actions */
+    .sf-actions { display:flex; gap:10px; margin-top:20px; }
+    .sf-btn { flex:1; padding:15px; border-radius:var(--radius-sm); font-weight:700; border:none; cursor:pointer; font-size:15px; text-align:center; display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .15s, background .2s; }
+    .sf-btn:active { transform:scale(0.98); }
+    .sf-btn-primary { background:var(--primary); color:#fff; }
+    .sf-btn-primary:hover { background:var(--primary-dark); }
+    .sf-btn-secondary { background:var(--white); color:var(--dark); border:1px solid var(--border); }
+    .sf-btn-secondary:hover { background:var(--light-gray); }
+    .sf-btn-whatsapp { background:#25D366; color:#fff; }
+    .sf-btn-whatsapp:hover { background:#1DA851; }
+    .sf-btn svg { width:18px; height:18px; }
+
+    /* Footer */
+    .sf-footer-note { text-align:center; font-size:13px; color:var(--gray); margin-top:24px; padding:20px; line-height:1.6; }
+    .sf-footer-powered { text-align:center; font-size:12px; color:#94A3B8; margin-top:8px; }
+    .sf-footer-powered a { color:#64748B; font-weight:600; }
+
+    /* WhatsApp note */
+    .sf-wa-note { margin-top:16px; padding:14px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:var(--radius-sm); font-size:13px; color:#166534; display:flex; align-items:center; gap:10px; }
+    .sf-wa-note svg { width:20px; height:20px; flex-shrink:0; }
+  </style>
+</head>
+<body>
+
+<div class="sf-header">
+  <div class="sf-header-inner">
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" class="sf-back">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </a>
+    <div class="sf-header-title">Order Confirmed</div>
+    <?php if(!empty($logo_url)): ?>
+    <img src="<?= $logo_url; ?>" style="max-height:28px;max-width:100px;object-fit:contain;" alt="<?= htmlspecialchars($store->store_name ?? 'Store'); ?>">
+    <?php else: ?>
+    <div class="sf-header-logo"><?= htmlspecialchars($store->store_name ?? 'Store'); ?></div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="sf-section">
+
+  <!-- Success Hero -->
+  <div class="sf-success-hero">
+    <div class="sf-success-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <div class="sf-success-title">Thank You, <?= htmlspecialchars($order->customer_name); ?>!</div>
+    <div class="sf-success-msg">
+      Your order has been received and is now being processed.<br>
+      <?php if(!empty($order->customer_email)): ?>A confirmation has been sent to <?= htmlspecialchars($order->customer_email); ?>.<br><?php endif; ?>
+      We'll contact you at <?= htmlspecialchars($order->customer_phone); ?> with updates.
+    </div>
+    <div class="sf-order-code">Order #<?= htmlspecialchars($order->order_code); ?></div>
+
+    <div class="sf-actions" style="margin-top:24px; justify-content:center;">
+      <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/track?code=' . urlencode($order->order_code)); ?>" class="sf-btn sf-btn-secondary" style="max-width:160px;">
+        Track Order
+      </a>
+      <?php
+        $accountUrl = base_url('store/' . ($settings->store_slug ?? '') . '/account');
+        if(!empty($order->customer_phone) && !isset($_COOKIE['customer_token'])){
+          $accountUrl = base_url('store/' . ($settings->store_slug ?? '') . '/verify?phone=' . urlencode(preg_replace('/[^0-9]/', '', $order->customer_phone)));
+        }
+      ?>
+      <a href="<?= $accountUrl; ?>" class="sf-btn sf-btn-primary" style="max-width:160px;">
+        View My Account
+      </a>
+    </div>
+
+    <?php if($order->payment_method === 'whatsapp'): ?>
+    <div class="sf-wa-note">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+      <span>Your order details have been sent to the store on WhatsApp. The store will confirm your order shortly.</span>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <?php if(!empty($event_tickets) || !empty($has_event_line)): ?>
+  <?php
+    $shown = array_slice($event_tickets, 0, 20);
+    $by_date = [];
+    foreach($shown as $tk){ $by_date[$tk['date'] . '|' . $tk['time'] . '|' . $tk['event'] . '|' . $tk['venue']][] = $tk; }
+  ?>
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--primary-dark);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><line x1="13" y1="5" x2="13" y2="19"/></svg>
+      Your Tickets
+    </div>
+    <?php if(empty($shown)): ?>
+      <div style="padding:6px 0;color:var(--text-muted);font-size:14px;">
+        Your ticket codes appear here as soon as payment is confirmed. Show each code at the door.
+      </div>
+    <?php else: ?>
+      <?php foreach($by_date as $key => $group): list($date, $time, $name, $venue) = explode('|', $key, 4); ?>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border,#eee);">
+        <div style="font-weight:600;font-size:14px;"><?= htmlspecialchars($name); ?></div>
+        <div style="font-size:13px;color:var(--text-muted,#666);">
+          <?php if($date): ?><?= date('D, j M Y', strtotime($date)); ?><?php endif; ?>
+          <?php if($time): ?> · <?= date('g:ia', strtotime($time)); ?><?php endif; ?>
+          <?php if($venue): ?> · <?= htmlspecialchars($venue); ?><?php endif; ?>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          <?php foreach($group as $tk): ?>
+            <span style="font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:1px;padding:6px 10px;border:1px dashed var(--primary,#333);border-radius:8px;<?= $tk['status'] === 'redeemed' ? 'opacity:.5;text-decoration:line-through;' : '' ?>"><?= htmlspecialchars($tk['code']); ?></span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+      <?php if(count($event_tickets) > count($shown)): ?>
+        <div style="font-size:13px;color:var(--text-muted,#666);padding-top:8px;"><?= count($event_tickets) - count($shown); ?> more ticket<?= (count($event_tickets) - count($shown)) === 1 ? '' : 's'; ?> for this order.</div>
+      <?php endif; ?>
+      <div style="font-size:13px;color:var(--text-muted,#666);padding-top:8px;">One code admits one guest. Screenshot them or bring this page at the door.</div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php if(!empty($download_links)): ?>
+  <!-- Digital Downloads -->
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--success);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Your Downloads
+    </div>
+    <?php foreach($download_links as $link): ?>
+    <div class="sf-item">
+      <div class="sf-item-info">
+        <div class="sf-item-name"><?= htmlspecialchars($link['name']); ?></div>
+      </div>
+      <a href="<?= $link['url']; ?>" class="sf-btn sf-btn-primary" style="max-width:120px;font-size:13px;padding:10px;">Download</a>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php
+  $hasCourse = false;
+  $hasMembership = false;
+  foreach($items as $item){
+    if($item->item_type === 'course') $hasCourse = true;
+    if($item->item_type === 'membership') $hasMembership = true;
+  }
+  if($hasCourse || $hasMembership):
+  ?>
+  <!-- Courses & Memberships Access -->
+  <div class="sf-card">
+    <div class="sf-card-title" style="color:var(--primary-dark);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422a12.083 12.083 0 0 1 .25 3.865a12.082 12.082 0 0 1-6.45 2.621A12.084 12.084 0 0 1 5.69 14.4L12 14z"/></svg>
+      My Learning & Memberships
+    </div>
+    <div style="font-size:14px;line-height:1.6;color:var(--gray);margin-bottom:16px;">
+      <?php if($order->payment_status === 'paid'): ?>
+        Your order is confirmed. Sign in to your account to start your course and manage your memberships.
+      <?php else: ?>
+        Your payment is being processed. Once confirmed, you'll be able to access your courses and memberships through your account.
+      <?php endif; ?>
+    </div>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/account'); ?>" class="sf-btn sf-btn-primary" style="max-width:180px;font-size:13px;padding:10px;">
+      Go to My Account
+    </a>
+  </div>
+  <?php endif; ?>
+
+  <!-- Order Items -->
+  <div class="sf-card">
+    <div class="sf-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Order Items (<?= count($items); ?>)
+    </div>
+    <?php
+    $orderCurrency = strtoupper((string)($order->transaction_currency ?? $order->base_currency ?? ($store_currency['code'] ?? 'NGN')));
+    $cur = ['NGN'=>'NGN ₦','CAD'=>'CAD $','USD'=>'USD $','EUR'=>'EUR €','GBP'=>'GBP £'][$orderCurrency] ?? $orderCurrency;
+    $placement = 'Left';
+    foreach($items as $item):
+      $lineTotal = number_format($item->transaction_total_price ?? $item->total_price, 2);
+      $unitPrice = number_format($item->transaction_unit_price ?? $item->unit_price, 2);
+      if($placement === 'Left') {
+        $lineTotalStr = $cur . $lineTotal;
+        $unitPriceStr = $cur . $unitPrice;
+      } else {
+        $lineTotalStr = $lineTotal . ' ' . $cur;
+        $unitPriceStr = $unitPrice . ' ' . $cur;
+      }
+    ?>
+    <div class="sf-item">
+      <?php if(!empty($item->item_image) && file_exists($item->item_image)): ?>
+        <img src="<?= base_url($item->item_image); ?>" class="sf-item-img" alt="" loading="lazy">
+      <?php else: ?>
+        <div class="sf-item-img" style="display:flex;align-items:center;justify-content:center;color:#CBD5E1;font-size:18px;">&#128722;</div>
+      <?php endif; ?>
+      <div class="sf-item-info">
+        <div class="sf-item-name"><?= htmlspecialchars($item->item_name); ?></div>
+        <div class="sf-item-qty"><?= $item->qty; ?> x <?= $unitPriceStr; ?></div>
+        <?php if(!empty($item->service_note)): ?>
+          <div class="sf-item-qty" style="margin-top:2px;font-style:italic;"><?= htmlspecialchars($item->service_note); ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="sf-item-price"><?= $lineTotalStr; ?></div>
+    </div>
+    <?php endforeach; ?>
+
+    <div class="sf-totals">
+      <div class="sf-row">
+        <span class="label">Subtotal</span>
+        <span class="value"><?= $cur . number_format($order->transaction_subtotal ?? $order->subtotal, 2); ?></span>
+      </div>
+      <?php if((float)($order->transaction_tax_amount??$order->tax_amount??0)>0): ?><div class="sf-row"><span class="label">Tax</span><span class="value"><?= $cur . number_format($order->transaction_tax_amount??$order->tax_amount, 2); ?><?= ($order->tax_mode_snapshot??'')==='inclusive'?' (included)':''; ?></span></div><?php endif; ?>
+      <div class="sf-row">
+        <span class="label">Delivery Fee</span>
+        <span class="value"><?php
+          if(!empty($order->delivery_quote_pending)) echo 'To be confirmed';
+          elseif($order->delivery_fee > 0) echo $cur . number_format($order->transaction_delivery_fee ?? $order->delivery_fee, 2);
+          else echo 'Free';
+        ?></span>
+      </div>
+      <div class="sf-row total">
+        <span class="label"><?= !empty($order->delivery_quote_pending) ? 'Items Total' : 'Grand Total'; ?></span>
+        <span class="value"><?= $cur . number_format($order->transaction_grand_total ?? $order->grand_total, 2); ?></span>
+      </div>
+      <?php if(!empty($order->delivery_quote_pending)): ?>
+      <div style="font-size:12px;color:var(--gray);background:var(--light-gray);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.5;">
+        The store will confirm the delivery fee for <strong><?= htmlspecialchars($order->shipping_method); ?></strong> when processing your order — it is not included in the total above.
+      </div>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <!-- Order Details -->
+  <div class="sf-card">
+    <div class="sf-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Order Details
+    </div>
+    <div class="sf-info-row">
+      <span class="label"><?= $order->payment_method === 'whatsapp' ? 'Order Channel' : 'Payment Method'; ?></span>
+      <span class="value"><?= $order->payment_method === 'whatsapp' ? 'WhatsApp order' : ucfirst(str_replace('_', ' ', $order->payment_method)); ?></span>
+    </div>
+    <div class="sf-info-row">
+      <span class="label">Payment Status</span>
+      <span class="value">
+        <span class="sf-badge sf-badge-<?= $order->payment_status == 'paid' ? 'paid' : 'unpaid'; ?>"><?= ucfirst($order->payment_status); ?></span>
+      </span>
+    </div>
+    <div class="sf-info-row">
+      <span class="label">Order Status</span>
+      <span class="value">
+        <span class="sf-badge sf-badge-processing"><?= ucfirst($order->order_status); ?></span>
+      </span>
+    </div>
+    <?php if(!empty($order->shipping_method)): ?>
+    <div class="sf-info-row">
+      <span class="label">Shipping</span>
+      <span class="value"><?= htmlspecialchars($order->shipping_method); ?></span>
+    </div>
+    <?php endif; ?>
+    <?php if(!empty($order->service_date)): ?>
+    <div class="sf-info-row">
+      <span class="label">Service Date</span>
+      <span class="value"><?= htmlspecialchars($order->service_date); ?></span>
+    </div>
+    <?php endif; ?>
+    <?php if(!empty($order->service_time)): ?>
+    <div class="sf-info-row">
+      <span class="label">Service Time</span>
+      <span class="value"><?= htmlspecialchars($order->service_time); ?></span>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <!-- Customer Info -->
+  <div class="sf-card">
+    <div class="sf-card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Customer Information
+    </div>
+    <div class="sf-info-row">
+      <span class="label">Name</span>
+      <span class="value"><?= htmlspecialchars($order->customer_name); ?></span>
+    </div>
+    <div class="sf-info-row">
+      <span class="label">Phone</span>
+      <span class="value"><?= htmlspecialchars($order->customer_phone); ?></span>
+    </div>
+    <?php if(!empty($order->customer_email)): ?>
+    <div class="sf-info-row">
+      <span class="label">Email</span>
+      <span class="value"><?= htmlspecialchars($order->customer_email); ?></span>
+    </div>
+    <?php endif; ?>
+    <?php if(!empty($order->customer_address)): ?>
+    <div class="sf-info-row">
+      <span class="label">Address</span>
+      <span class="value"><?= htmlspecialchars($order->customer_address); ?></span>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <!-- Actions -->
+  <div class="sf-actions">
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/track'); ?>" class="sf-btn sf-btn-secondary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Track Order
+    </a>
+    <?php if(!empty($settings->whatsapp_number)): ?>
+    <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number); ?>?text=<?= urlencode('Hello, I just placed order #' . $order->order_code . ' and would like to follow up.'); ?>" target="_blank" class="sf-btn sf-btn-whatsapp">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/></svg>
+      Contact Store
+    </a>
+    <?php endif; ?>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '')); ?>" class="sf-btn sf-btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Continue Shopping
+    </a>
+  </div>
+
+  <div class="sf-footer-note">
+    A confirmation has been sent<?php if(!empty($order->customer_email)): ?> to <?= htmlspecialchars($order->customer_email); ?><?php endif; ?>.<br>
+    If you have any questions, please contact <?= htmlspecialchars($store->store_name ?? 'the store'); ?>.
+  </div>
+  <div class="sf-footer-powered">
+    &copy; <?= date('Y'); ?> <?= htmlspecialchars($store->store_name ?? 'Store'); ?>. All rights reserved. Business operations powered by MartPoint.
+  </div>
+
+</div>
+
+<?php
+  // Paid-conversion tracking — standalone page, so the consent gate and
+  // pixel loaders are self-contained here. purchase fires ONLY when the
+  // order's payment_status is 'paid' (verified server-side), never for
+  // unpaid / pay-on-delivery / WhatsApp orders.
+  $mpNeedConsent = ((int)($settings->require_tracking_consent ?? 1) === 1);
+  $mpConsentKey  = 'mp_track_consent_' . (int)($settings->store_id ?? 0);
+  $mpGaId = trim((string)($settings->google_analytics_id ?? ''));
+  $mpFbId = trim((string)($settings->facebook_pixel_id ?? ''));
+  $mpTtId = trim((string)($settings->tiktok_pixel_id ?? ''));
+  $mpPaid = ($order->payment_status === 'paid');
+?>
+<script>
+(function(){
+  var PAID = <?= $mpPaid ? 'true' : 'false'; ?>;
+  var NEED = <?= $mpNeedConsent ? 'true' : 'false'; ?>;
+  var KEY  = <?= json_encode($mpConsentKey); ?>;
+  var EID  = <?= json_encode('purchase_' . $order->order_code); ?>;
+  var VAL  = <?= (float)($order->transaction_grand_total ?? $order->grand_total); ?>;
+  var TXC  = <?= json_encode($orderCurrency); ?>;
+  var ok = function(){ if(!NEED) return true; try{return localStorage.getItem(KEY)==='yes';}catch(e){return false;} };
+  var fired = function(){ try{return localStorage.getItem('mp_purch_' + EID)==='1';}catch(e){return false;} };
+  var markFired = function(){ try{localStorage.setItem('mp_purch_' + EID,'1');}catch(e){} };
+  if(!PAID || !ok() || fired()) return;
+  markFired();
+  var fire = function(){
+    try{
+      if(window.gtag) gtag('event','purchase',{value:VAL,currency:TXC,transaction_id:<?= json_encode($order->order_code); ?>});
+      if(window.fbq) fbq('track','Purchase',{value:VAL,currency:TXC},{eventID:EID});
+      if(window.ttq) ttq.track('CompletePayment',{value:VAL,currency:TXC,event_id:EID});
+      // Server record — deduped by event_id against the payment-transition record.
+      var b = new URLSearchParams({store_id:<?= (int)$order->store_id; ?>,event:'purchase',event_id:EID,value:VAL,consent:'1',page:window.location.pathname});
+      fetch('<?= base_url('storefront/track_event'); ?>',{method:'POST',body:b.toString(),headers:{'Content-Type':'application/x-www-form-urlencoded'},keepalive:true}).catch(function(){});
+    }catch(e){}
+  };
+  var pending = 0, done = false;
+  var go = function(){ if(done) return; done = true; fire(); };
+  var load = function(src){ pending++; var s=document.createElement('script'); s.async=true; s.onload=function(){ if(--pending<=0) go(); }; s.onerror=function(){ if(--pending<=0) go(); }; s.src=src; document.head.appendChild(s); };
+  <?php if($mpGaId !== ''): ?>
+  load('https://www.googletagmanager.com/gtag/js?id=<?= htmlspecialchars($mpGaId); ?>');
+  window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','<?= htmlspecialchars($mpGaId); ?>');
+  <?php endif; ?>
+  <?php if($mpFbId !== ''): ?>
+  load('https://connect.facebook.net/en_US/fbevents.js');
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];}(window,document,'script');
+  fbq('init','<?= htmlspecialchars($mpFbId); ?>');
+  <?php endif; ?>
+  <?php if($mpTtId !== ''): ?>
+  load('https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=<?= htmlspecialchars($mpTtId); ?>&lib=ttq');
+  window.TiktokAnalyticsObject='ttq';var ttq=window.ttq=window.ttq||[];ttq.methods=['track'];ttq.track=ttq.track||function(){ttq.push(arguments);};ttq._i=ttq._i||{};
+  <?php endif; ?>
+  setTimeout(go, 2500); // fire even if a pixel CDN is slow/blocked
+})();
+</script>
+<?php $this->load->view('themes/shared/legacy_site_links'); ?>
+</body>
+</html>

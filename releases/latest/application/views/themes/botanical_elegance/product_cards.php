@@ -1,0 +1,16 @@
+<?php if(!empty($beProducts) && !empty($sells_products)): ?>
+<section class="be-section be-shell be-product-section" id="<?= htmlspecialchars($beSectionId); ?>"><div class="be-section-bar"><div><div class="be-eyebrow"><?= !empty($beFilters)?$beCopy('featured_eyebrow'):$beCopy('shop_eyebrow'); ?></div><h2><?= htmlspecialchars($beSectionTitle); ?></h2></div><a class="be-textlink" href="<?= base_url('store/'.$settings->store_slug.'/products'); ?>"><?= $beCopy('explore_all'); ?> ↗</a></div>
+<?php if(!empty($beFilters)): ?><div class="be-filterline" role="group" aria-label="Filter products"><button type="button" class="be-chip be-active" data-be-filter="all" aria-pressed="true"><?= $beCopy('shop_all'); ?></button><?php foreach(array_slice($categories ?? [],0,6) as $c): ?><button type="button" class="be-chip" data-be-filter="<?= (int)$c->id; ?>" aria-pressed="false"><?= htmlspecialchars($c->category_name); ?></button><?php endforeach; ?></div><p class="be-filter-status" data-be-filter-status role="status"></p><?php endif; ?>
+<div class="be-products">
+<?php foreach(array_slice($beProducts,0,8) as $p):
+$bePrice=$this->storefront_model->getProductEffectivePrice($p);$beType=$p->product_type ?? 'physical';$beOut=$beType==='physical'&&(float)$p->stock<=0&&empty($settings->allow_backorder);
+$beDetail=base_url('store/'.$settings->store_slug.'/product/'.(int)$p->id);$beImg=!empty($p->item_image)?mp_storefront_image_url($p->item_image):'';
+$beOptions=!empty($p->variant_count)||($p->item_group ?? '')==='Variants'||$beType!=='physical'||!empty($p->service_bit)||!empty($p->requires_quote);
+$bePayload=['id'=>(int)$p->id,'type'=>$beType,'name'=>$p->item_name,'price'=>(float)$bePrice,'image'=>$p->item_image ?? '','stock'=>(float)$p->stock];
+?>
+<article class="be-product" data-be-product data-category="<?= (int)($p->category_id ?? 0); ?>"><div class="be-product-photo"><a href="<?= $beDetail; ?>" aria-label="View <?= htmlspecialchars($p->item_name); ?>"><?php if($beImg): ?><img loading="lazy" decoding="async" src="<?= htmlspecialchars($beImg); ?>" alt="<?= htmlspecialchars($p->item_name); ?>"><?php endif; ?></a>
+<?php if($beOut): ?><span class="be-tag">OUT OF STOCK</span><?php elseif(!empty($p->is_new_arrival)): ?><span class="be-tag">NEW</span><?php endif; ?>
+<?php if(!empty($cart_enabled)): ?><?php if($beOptions): ?><a href="<?= $beDetail; ?>" class="be-quickadd" aria-label="Choose options for <?= htmlspecialchars($p->item_name); ?>">↗</a><?php else: ?><button type="button" class="be-quickadd" data-be-add="<?= htmlspecialchars(json_encode($bePayload,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT),ENT_QUOTES,'UTF-8'); ?>" aria-label="Add <?= htmlspecialchars($p->item_name); ?> to bag" <?= $beOut?'disabled':''; ?>>+</button><?php endif; ?><?php endif; ?></div>
+<div class="be-product-info"><div><h3><a href="<?= $beDetail; ?>"><?= htmlspecialchars($p->item_name); ?></a></h3><p><?= htmlspecialchars($p->category_name ?? ''); ?><?= !empty($p->variant_count)?' · Choose your option':''; ?></p></div><span class="be-price"><?= sf_currency($bePrice,$store_currency ?? null); ?></span></div></article>
+<?php endforeach; ?></div><p class="be-empty" data-be-no-products hidden>No items in this selection. Try another category or browse the full shop.</p></section>
+<?php endif; ?>

@@ -1,0 +1,600 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Stock_adjustment_model extends CI_Model {
+	//Datatable start
+	var $table = 'db_stockadjustment as a';
+	var $column_order = array( 
+								'a.id',
+								'a.adjustment_date',
+								'a.reference_no',
+								'a.created_by',
+								'a.store_id'
+								); //set column field database for datatable orderable
+	var $column_search = array( 
+								'a.id',
+								'a.adjustment_date',
+								'a.reference_no',
+								'a.created_by',
+								'a.store_id'
+								); //set column field database for datatable searchable 
+	var $order = array('a.id' => 'desc'); // default order 
+
+	public function __construct()
+	{
+		parent::__construct();
+	}
+
+	private function _get_datatables_query()
+	{
+		$this->db->select($this->column_order);
+		$this->db->from($this->table);
+		
+		/*If warehouse selected*/
+		$warehouse_id = $this->input->post('warehouse_id');
+		if(!empty($warehouse_id)){
+			$this->db->join('db_warehouse as w','w.id='.$warehouse_id,'left');
+			$this->db->where('a.warehouse_id',$warehouse_id);
+		}
+
+		
+		//if not admin
+	    /*if(!is_admin()){*/
+	      $this->db->where("a.store_id",get_current_store_id());
+	    /*}*/
+		$i = 0;
+	
+		foreach ($this->column_search as $item) // loop column 
+		{
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
+			{
+				
+				
+
+				if($i===0) // first loop
+				{
+					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
+
+					$this->db->like($item, $_POST['search']['value']);
+
+				}
+				else
+				{
+					$this->db->or_like($item, $_POST['search']['value']);
+				}
+
+				
+
+
+				if(count($this->column_search) - 1 == $i) //last loop
+					$this->db->group_end(); //close bracket
+			}
+			$i++;
+		}
+		
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
+		{
+			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+		} 
+		else if(isset($this->order))
+		{
+			$order = $this->order;
+			$this->db->order_by(key($order), $order[key($order)]);
+		}
+	}
+
+	function get_datatables()
+	{
+		$this->_get_datatables_query();
+		if(isset($_POST['length']) && $_POST['length'] != -1)
+		$this->db->limit($_POST['length'], $_POST['start']);
+		$query = $this->db->get();
+		return $query ? $query->result() : array();
+	}
+
+	function count_filtered()
+	{
+		$this->_get_datatables_query();
+		$query = $this->db->get();
+		return $query ? $query->num_rows() : 0;
+	}
+
+	public function count_all()
+	{
+		$this->db->where("store_id",get_current_store_id());
+		$this->db->from($this->table);
+		return $this->db->count_all_results();
+	}
+	//Datatable end
+
+	public function xss_html_filter($input){
+		return $this->security->xss_clean(html_escape($input));
+	}
+
+	//Save Cutomers
+	public function verify_save_and_update(){
+		$command = $this->input->post_get('command', TRUE);
+		$adjustment_date = $this->input->post('adjustment_date', TRUE);
+		$reference_no = $this->input->post('reference_no', TRUE);
+		$adjustment_note = $this->input->post('adjustment_note', TRUE);
+		$rowcount = $this->input->post_get('rowcount', TRUE);
+		$adjustment_id = $this->input->post_get('adjustment_id', TRUE);
+		if ($adjustment_id && $this->db->table_exists('db_garden_production_entries') && $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_garden_production_entries')) return 'Production stock movements are audited and cannot be overwritten.';
+		if ($adjustment_id && $this->db->table_exists('db_service_material_requests')
+			&& $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_service_material_requests')) return 'Service material adjustments are audited and cannot be overwritten.';
+		if ($adjustment_id && $this->db->table_exists('db_garden_stock_events')
+			&& $this->db->where('store_id',get_current_store_id())->where('adjustment_id',(int)$adjustment_id)->count_all_results('db_garden_stock_events')) {
+			return 'Garden loss adjustments are audited and cannot be overwritten.';
+		}
+		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+
+		//command arrives as a URL param from the JS layer; without it nothing would save
+		if(!in_array($command, array('save','update'))){
+			return "Save failed: missing save command — please reload the page and try again.";
+		}
+		if($command=='update' && empty($adjustment_id)){
+			return "Invalid stock adjustment reference.";
+		}
+		if((int)$rowcount < 1){
+			return "Save failed: no item rows were submitted.";
+		}
+
+		// Preflight: older installs may be missing columns added to db.txt later
+		// — a silent schema gap makes every save fail with no visible reason.
+		foreach (array('store_id','warehouse_id','reference_no','adjustment_date','adjustment_note','status') as $col) {
+			if(!$this->db->field_exists($col, 'db_stockadjustment')){
+				return "Stock adjustment failed: your database is missing the column db_stockadjustment.$col — run pending migrations or contact support.";
+			}
+		}
+		foreach (array('adjustment_id','item_id','adjustment_qty','store_id','warehouse_id','status') as $col) {
+			if(!$this->db->field_exists($col, 'db_stockadjustmentitems')){
+				return "Stock adjustment failed: your database is missing the column db_stockadjustmentitems.$col — run pending migrations or contact support.";
+			}
+		}
+
+		// Saving recalculates stock across purchase/sales/return/transfer tables;
+		// a missing column there kills the request mid-transaction (HTTP 500).
+		$recalc_columns = array(
+			'db_items'               => array('service_bit','item_production_mode','stock'),
+			'db_purchaseitems'       => array('received_qty','purchase_qty','base_unit_qty','purchase_status','item_id'),
+			'db_salesitems'          => array('sales_qty','base_unit_qty','sales_status','item_id'),
+			'db_purchaseitemsreturn' => array('return_qty','base_unit_qty','item_id'),
+			'db_salesitemsreturn'    => array('return_qty','base_unit_qty','item_id'),
+			'db_stocktransferitems'  => array('transfer_qty','warehouse_to','warehouse_from','item_id'),
+			'db_warehouseitems'      => array('warehouse_id','item_id','available_qty'),
+		);
+		foreach ($recalc_columns as $tbl => $cols) {
+			foreach ($cols as $col) {
+				if(!$this->db->field_exists($col, $tbl)){
+					return "Stock adjustment failed: your database is missing the column $tbl.$col — run pending migrations or contact support.";
+				}
+			}
+		}
+
+		$this->db->trans_begin();
+		$adjustment_date=system_fromatted_date($adjustment_date);
+
+		// Wastage: a line that names why it left the shelf is written off; a line
+		// that names no reason keeps the screen's original meaning of adding
+		// stock. So an old form, a store with the flag off, or a caller that never
+		// learned about reasons all save exactly as they did before.
+		$has_reason_column = $this->db->field_exists('reason_code', 'db_stockadjustmentitems');
+		$wastage_reasons = mp_get_wastage_reasons();
+
+	    $prev_item_ids = array();
+	    
+	    $store_id = (store_module() && is_admin()) ? $this->input->post('store_id', TRUE) : get_current_store_id();  
+	    $warehouse_id=(warehouse_module() && warehouse_count()>1) ? $this->input->post('warehouse_id', TRUE) : get_store_warehouse_id(); 	
+	    if($command=='save'){//Create purchase code unique if first time entry
+		    
+			
+		    $purchase_entry = array(
+		    				'store_id' 				=> $store_id, 
+		    				'warehouse_id' 				=> $warehouse_id, 
+		    				'reference_no' 				=> $reference_no, 
+		    				'adjustment_date' 			=> $adjustment_date,
+		    				'adjustment_note' 			=> $adjustment_note,
+		    				/*System Info*/
+		    				'created_date' 				=> $CUR_DATE,
+		    				'created_time' 				=> $CUR_TIME,
+		    				'created_by' 				=> $CUR_USERNAME,
+		    				'system_ip' 				=> $SYSTEM_IP,
+		    				'system_name' 				=> $SYSTEM_NAME,
+		    				'status' 					=> 1,
+		    			);
+		    
+		     	
+			$q1 = $this->db->insert('db_stockadjustment', $purchase_entry);
+			$adjustment_id = $this->db->insert_id();
+			if(!$q1 || empty($adjustment_id)){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				return "Save failed: " . (isset($err['message']) && $err['message'] !== '' ? $err['message'] : 'database error');
+			}
+		}
+		else if($command=='update'){	
+			$purchase_entry = array(
+		    				'store_id' 				=> $store_id, 
+		    				'warehouse_id' 				=> $warehouse_id, 
+		    				'reference_no' 				=> $reference_no, 
+		    				'adjustment_date' 			=> $adjustment_date,
+		    				'adjustment_note' 			=> $adjustment_note,
+		    			);
+			
+			
+			$q1 = $this->db->where('id',$adjustment_id)->update('db_stockadjustment', $purchase_entry);
+
+			##############################################START
+			//FIND THE PREVIOUSE ITEM LIST ID'S
+			$prev_item_ids = $this->db->select("item_id")->from("db_stockadjustmentitems")->where("adjustment_id",$adjustment_id)->get()->result_array();
+			##############################################END
+
+			$q11=$this->db->where('adjustment_id', $adjustment_id)->delete('db_stockadjustmentitems');
+			if(!$q11){
+				$this->db->trans_rollback();
+				return "Save failed while replacing adjustment lines.";
+			}
+		}
+		//end
+
+		
+
+		//Import post data from form
+		// The trail has to say what the shelf held before this document moved
+		// it, so the starting figures are taken now — before any line is written.
+		$audit_stock_before = $this->_audit_shelf_snapshot();
+		for($i=1;$i<=$rowcount;$i++){
+		
+			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
+
+				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
+				$adjustment_qty		=$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_3']));
+				$description		=$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+
+				$adjustment_entry = array(
+							'store_id' 				=> $store_id,
+		    				'warehouse_id' 				=> $warehouse_id,
+		    				'adjustment_id' 		=> $adjustment_id,
+		    				'item_id' 			=> $item_id,
+		    				'adjustment_qty' 		=> $adjustment_qty,
+		    				'description' 		=> $description,
+		    				'status'			=> 1,
+		    			);
+
+				if(isset($_REQUEST['tr_reason_'.$i])){
+					$reason = trim((string) $this->xss_html_filter($_REQUEST['tr_reason_'.$i]));
+					if($reason !== ''){
+						if(!isset($wastage_reasons[$reason])){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: that wastage reason is not one of the listed options.';
+						}
+						if(!$has_reason_column){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: this database has not received the wastage reason column yet — run the pending migrations before writing stock out.';
+						}
+						// One control decides the direction, so a typed minus, a
+						// blank reason or a zero can only ever mean one movement.
+						$qty = abs((float) $adjustment_qty);
+						if($qty <= 0){
+							$this->db->trans_rollback();
+							return 'Stock adjustment failed: a write-out needs a quantity above zero on every line.';
+						}
+						$adjustment_entry['adjustment_qty'] = -$qty;
+						$adjustment_entry['reason_code'] = $reason;
+					}
+				}
+				
+				$q2 = $this->db->insert('db_stockadjustmentitems', $adjustment_entry);
+				if(!$q2){
+					$err = $this->db->error();
+					$this->db->trans_rollback();
+					return "Save failed on item line: " . (isset($err['message']) && $err['message'] !== '' ? $err['message'] : 'database error');
+				}
+
+				//UPDATE itemS QUANTITY IN itemS TABLE
+				$this->load->model('pos_model');
+				$q6=$this->pos_model->update_items_quantity($item_id);
+				if(!$q6){
+					$this->db->trans_rollback();
+					return "Save failed while recalculating item stock.";
+				}
+
+				
+			}
+		
+		}//for end
+
+	
+		##############################################START
+		//FIND THE PREVIOUSE ITEM LIST ID'S
+		$curr_item_ids = $this->db->select("item_id")->from("db_stockadjustmentitems")->where("adjustment_id",$adjustment_id)->get()->result_array();
+		$two_array = array_merge($prev_item_ids,$curr_item_ids);
+
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehouse_items($two_array);
+		if(!$q7){
+			$this->db->trans_rollback();
+			return "Save failed while updating warehouse stock.";
+		}
+		##############################################END
+
+		$this->_audit_adjustment($store_id, $adjustment_id, $audit_stock_before, $reference_no);
+		$this->db->trans_commit();
+		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully!');
+		return "success<<<###>>>$adjustment_id";
+		
+	}//verify_save_and_update() function end
+
+	/** Shelf figures for every product the posted document is about to touch. */
+	private function _audit_shelf_snapshot(){
+		$rowcount = (int)($this->input->post_get('rowcount', TRUE) ?: 0);
+		$seen = array();
+		for($i = 1; $i <= $rowcount; $i++){
+			if(empty($_REQUEST['tr_item_id_'.$i])) continue;
+			$item_id = (int)$_REQUEST['tr_item_id_'.$i];
+			if($item_id <= 0 || isset($seen[$item_id])) continue;
+			$row = $this->db->select('stock')->where('id', $item_id)->limit(1)->get('db_items')->row();
+			$seen[$item_id] = (float)($row->stock ?? 0);
+		}
+		return $seen;
+	}
+
+	/**
+	 * Record the document as the shelf saw it. The lines are read back from
+	 * db_stockadjustmentitems and the after-figures from db_items, so the trail
+	 * reports the movement that landed rather than the one the form intended.
+	 */
+	private function _audit_adjustment($store_id, $adjustment_id, array $before, $reference_no){
+		if(!$adjustment_id || !function_exists('mp_audit_log')) return;
+		try {
+			$rows = $this->db->where('adjustment_id', (int)$adjustment_id)->get('db_stockadjustmentitems')->result_array();
+			if(!$rows) return;
+			$capture = mp_audit_capture();
+			if (!$capture) return;
+			$lines = array();
+			$reasons = array();
+			$written_out = 0.0;
+			$added = 0.0;
+			$has_reason = $this->db->field_exists('reason_code', 'db_stockadjustmentitems');
+			foreach($rows as $row){
+				$delta = (float)$row['adjustment_qty'];
+				if(abs($delta) < 0.0000001) continue;
+				if($delta < 0){ $written_out += abs($delta); } else { $added += $delta; }
+				$name = $capture->item_name((int)$row['item_id']);
+				if($name === '') continue;
+				$item_id = (int)$row['item_id'];
+				$lines[] = array(
+					'item' => $name,
+					'from' => isset($before[$item_id]) ? $before[$item_id] : null,
+					'to'   => $capture->shelf_qty($item_id),
+				);
+				if($has_reason && !empty($row['reason_code'])){
+					$all = mp_get_wastage_reasons();
+					$reasons[isset($all[$row['reason_code']]) ? $all[$row['reason_code']] : $row['reason_code']] = true;
+				}
+			}
+			if(!$lines) return;
+			$action = ($written_out > 0 && $added > 0) ? 'stock_adjust' : ($written_out > 0 ? 'stock_out' : 'stock_in');
+			$note = $written_out > 0
+				? 'Wrote off ' . rtrim(rtrim(number_format($written_out, 4, '.', ''), '0'), '.') . ' unit(s) of stock'
+				: 'Counted in ' . rtrim(rtrim(number_format($added, 4, '.', ''), '0'), '.') . ' unit(s) of stock';
+			if($reasons) $note .= ' — ' . implode(', ', array_keys($reasons));
+			$capture->stockMoved($store_id, 'inventory', $action, (int)$adjustment_id,
+				((string)$reference_no !== '' ? 'Adjustment ' . $reference_no : 'Stock adjustment'), $lines, $note);
+		} catch (Throwable $e) {
+			log_message('error', 'Stock adjustment audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+
+
+
+	public function delete_stock_adjustment($ids){
+		$parsed_ids = array_filter(array_map('intval',explode(',',(string)$ids)));
+		if (!$parsed_ids) return 'Invalid stock adjustment reference.';
+		$ids = implode(',',$parsed_ids);
+		if ($this->db->where('store_id',get_current_store_id())->where_in('id',$parsed_ids)->count_all_results('db_stockadjustment')!==count(array_unique($parsed_ids))) return 'Stock adjustment not found for this store.';
+		if ($this->db->table_exists('db_garden_production_entries') && $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_garden_production_entries')) return 'Production stock movements are audited and cannot be deleted.';
+		if ($this->db->table_exists('db_service_material_requests')
+			&& $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_service_material_requests')) return 'Service material adjustments are audited and cannot be deleted.';
+		if ($this->db->table_exists('db_garden_stock_events')
+			&& $this->db->where('store_id',get_current_store_id())->where_in('adjustment_id',$parsed_ids)->count_all_results('db_garden_stock_events')) {
+			return 'Garden loss adjustments are audited and cannot be deleted.';
+		}
+      	$this->db->trans_begin();
+
+      	##############################################START
+		//FIND THE PREVIOUSE ITEM LIST ID'S
+		$prev_item_ids = $this->db->select("item_id")->from("db_stockadjustmentitems")->where("adjustment_id in ($ids)")->where("store_id",get_current_store_id())->get()->result_array();
+		##############################################END
+
+		#----------------------------------
+		$this->db->where("id in ($ids)");
+		$this->db->where("store_id",get_current_store_id());
+
+		$q3=$this->db->delete("db_stockadjustment");
+		#----------------------------------
+		#----------------------------------
+		$this->db->where("adjustment_id in ($ids)")->where("store_id",get_current_store_id());
+
+		$q7=$this->db->delete("db_stockadjustmentitems");
+		#----------------------------------
+
+		$affected_items=array_values(array_unique(array_column($prev_item_ids,'item_id')));
+		$q6=$this->db->select('id')->where('store_id',get_current_store_id())->where_in('id',$affected_items ?: [0])->get('db_items');
+		if($q6->num_rows()>0){
+			$this->load->model('pos_model');				
+			foreach ($q6->result() as $res6) {
+				$q6=$this->pos_model->update_items_quantity($res6->id);
+				if(!$q6){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+			}
+		}
+
+		##############################################START
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehouse_items($prev_item_ids);
+		if(!$q7 || $this->db->trans_status()===false){
+			$this->db->trans_rollback();
+			return "failed";
+		}
+		##############################################END
+		
+		
+		if($q3!=1)
+		{
+			$this->db->trans_rollback();
+		    return "failed";
+		}
+		else{
+			$this->db->trans_commit();
+		        return "success";
+		}
+	}
+	
+	
+	
+	public function get_items_info($rowcount,$item_id){
+		$res1=$this->db->select('*')->from('db_items')->where("id=$item_id")->get()->row();
+		
+		$info = array(
+							'item_id' 					=> $res1->id, 
+							'description' 				=> $res1->description, 
+							'item_name' 				=> $res1->item_name,
+							'item_adjustment_qty' 		=> 1, 
+							'service_bit' 				=> $res1->service_bit, 
+						);
+
+		$this->return_row_with_data($rowcount,$info);
+	}
+
+	/* For Stock_adjustment Items List Retrieve*/
+	public function return_stock_adjustment_list($adjustment_id){
+		$q1=$this->db->select('*')->from('db_stockadjustmentitems')->where("adjustment_id=".(int)$adjustment_id)->get();
+		$rowcount =1;
+		$result = '';
+		if(!$q1){ return $result; }
+		foreach ($q1->result() as $res1) {
+			$q2=$this->db->query("select * from db_items where id=".(int)$res1->item_id);
+			$res2 = $q2 ? $q2->row() : null;
+			
+			$info = array(
+							'item_id' 					=> $res1->item_id, 
+							'description' 				=> $res1->description, 
+							'item_name' 				=> $res2 ? $res2->item_name : '(deleted item)',
+							'item_adjustment_qty' 		=> $res1->adjustment_qty, 
+							'service_bit' 				=> $res2 ? $res2->service_bit : 0,
+							'reason_code' 				=> property_exists($res1, 'reason_code') ? $res1->reason_code : '',
+						);
+
+			$result = $this->return_row_with_data($rowcount++,$info);
+		}
+		return $result;
+	}
+
+	/**
+	 * What was written off, grouped by the reason it was written off for.
+	 *
+	 * Quantities come back positive because a loss is being counted, not a
+	 * movement replayed. Lines with no code are deliberately left out of the
+	 * breakdown but shown as their own row, so a store migrating into reasons
+	 * can see how much of its history is still unexplained instead of having it
+	 * quietly vanish.
+	 */
+	public function wastage_by_reason($store_id, $from = null, $to = null, $warehouse_id = null){
+		$rows = array();
+		if(!$this->db->table_exists('db_stockadjustmentitems')
+			|| !$this->db->field_exists('reason_code', 'db_stockadjustmentitems')){
+			return $rows;
+		}
+		// "lines" is a MySQL reserved word, so the count gets a name the server
+		// will accept; the array key the views read stays plain English.
+		$this->db->select("COALESCE(reason_code,'') AS reason_code, COUNT(*) AS slip_lines, "
+			. "COALESCE(SUM(ABS(i.adjustment_qty)),0) AS qty", FALSE);
+		$this->db->from('db_stockadjustmentitems i');
+		$this->db->join('db_stockadjustment a', 'a.id = i.adjustment_id', 'inner');
+		$this->db->where('i.store_id', (int) $store_id);
+		$this->db->where('i.status', 1);
+		$this->db->where('i.adjustment_qty <', 0);
+		if($warehouse_id !== null && $warehouse_id !== ''){
+			$this->db->where('i.warehouse_id', (int) $warehouse_id);
+		}
+		if($from) $this->db->where('a.adjustment_date >=', $from);
+		if($to)   $this->db->where('a.adjustment_date <=', $to);
+		$this->db->group_by("COALESCE(reason_code,'')");
+		$query = $this->db->get();
+		foreach($query ? $query->result_array() : array() as $row){
+			$rows[] = array(
+				'reason' => mp_wastage_reason_label($row['reason_code']),
+				'lines'  => (int) $row['slip_lines'],
+				'qty'    => (float) $row['qty'],
+			);
+		}
+		// Biggest loss first: the reason worth acting on is the one at the top.
+		usort($rows, function($x, $y){ return $y['qty'] <=> $x['qty']; });
+		return $rows;
+	}
+
+	public function return_row_with_data($rowcount,$info){
+		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
+		$stock = isset($info['stock']) ? $info['stock'] : '';
+		$available_qty = isset($info['available_qty']) ? $info['available_qty'] : '';
+		$item_adjustment_qty = isset($info['item_adjustment_qty']) ? $info['item_adjustment_qty'] : 1;
+		$description = isset($info['description']) ? $info['description'] : '';
+		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
+		$reason_code = isset($info['reason_code']) ? $info['reason_code'] : '';
+		$wastage_reasons = mp_get_wastage_reasons();
+		
+		
+	
+		?>
+            <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
+               <td id="td_<?=$rowcount;?>_1">
+                  <label class='form-control' style='height:auto;' data-toggle="tooltip" title='Edit ?' >
+                  <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_purchase_item_modal(<?=$rowcount;?>)" title=""><?=$item_name;?></a> 
+                  		<i onclick="show_purchase_item_modal(<?=$rowcount;?>)" class="fa fa-edit pointer"></i>
+                  	</label>
+               </td>
+               <!-- Qty -->
+               <td id="td_<?=$rowcount;?>_3">
+                  <div class="input-group ">
+                     <span class="input-group-btn">
+                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>
+                     <input typ="text" value="<?=format_qty($item_adjustment_qty);?>" class="form-control no-padding text-center" onkeyup="final_total()" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
+                     <span class="input-group-btn">
+                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span>
+                  </div>
+               </td>
+              
+
+               <!-- Reason the stock left the shelf -->
+               <?php if(mp_feature_enabled('wastage_reasons')): ?>
+               <td id="td_<?=$rowcount;?>_4">
+                  <select class="form-control no-padding" id="tr_reason_<?=$rowcount;?>" name="tr_reason_<?=$rowcount;?>" data-reason-row="<?=$rowcount;?>">
+                     <option value="">Added to stock</option>
+                     <?php foreach($wastage_reasons as $code => $reason_label): ?>
+                     <option value="<?=$code;?>" <?=($reason_code === $code) ? 'selected' : ''; ?>><?=$reason_label;?></option>
+                     <?php endforeach; ?>
+                  </select>
+               </td>
+               <?php endif; ?>
+
+               <!-- ADD button -->
+               <td id="td_<?=$rowcount;?>_16" style="text-align: center;">
+                  <a class=" fa fa-fw fa-minus-square text-red" style="cursor: pointer;font-size: 34px;" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"></a>
+               </td>
+               
+               <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+
+               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=$description;?>">
+               <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
+               
+            </tr>
+		<?php
+
+	}
+
+}

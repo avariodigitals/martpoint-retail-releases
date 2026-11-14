@@ -1,0 +1,243 @@
+<?php $this->load->view('customers/desktop/_styles'); ?>
+<?php $CI =& get_instance(); ?>
+<?php
+$store_id = get_current_store_id();
+$profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store_id) : [];
+$showMembershipStatus = (($profile['industry_type'] ?? '') === 'supplements_wellness')
+  && mp_feature_enabled('memberships') && $CI->db->table_exists('db_customer_memberships');
+$total_customers = $CI->db->where('store_id', $store_id)->count_all_results('db_customers');
+$active_customers = $CI->db->where('store_id', $store_id)->where('status', 1)->count_all_results('db_customers');
+$inactive_customers = $CI->db->where('store_id', $store_id)->where('status', 0)->count_all_results('db_customers');
+$ob_paid_row = $CI->db->select('COALESCE(SUM(payment),0) as payment', false)
+  ->where('store_id', $store_id)
+  ->where('short_code', 'OPENING BALANCE PAID')
+  ->get('db_salespayments')->row();
+$ob_paid = $ob_paid_row ? $ob_paid_row->payment : 0;
+
+$outstanding_row = $CI->db->query("
+  SELECT COALESCE(SUM(
+    COALESCE(opening_balance, 0)
+    + COALESCE(sales_due, 0)
+    - COALESCE(sales_return_due, 0)
+  ), 0) as total
+  FROM db_customers
+  WHERE store_id = ?
+", [$store_id])->row();
+$total_outstanding = $outstanding_row ? ($outstanding_row->total - $ob_paid) : 0;
+?>
+
+<div class="mp-page-head">
+  <div>
+    <h2><?= htmlspecialchars($page_title); ?></h2>
+    <div class="mp-page-sub">View/Search <?= mp_label('customer'); ?>s</div>
+  </div>
+</div>
+
+<div class="mp-quick-actions">
+  <?php if ($CI->permissions('customers_add')): ?>
+    <a href="<?= base_url('customers/add'); ?>" class="mp-qa-btn green"><i class="fa fa-plus"></i> New <?= mp_label('customer'); ?></a>
+  <?php endif; ?>
+  <?php if ($CI->permissions('import_customers')): ?>
+    <a href="<?= base_url('import/customers'); ?>" class="mp-qa-btn orange"><i class="fa fa-arrow-circle-o-down"></i> Import Customers</a>
+  <?php endif; ?>
+  <?php if ($CI->permissions('export_customers')): ?>
+    <a href="<?= base_url('customers/export_csv'); ?>" class="mp-qa-btn blue"><i class="fa fa-download"></i> Export Customers</a>
+  <?php endif; ?>
+  <?php if (mp_feature_enabled('fashion_size_requests') && $CI->permissions('customers_edit')): ?>
+    <form method="post" action="<?= base_url('fashion_measurements/create_request'); ?>" style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;background:#fff;border:1px solid var(--mp-border);border-radius:10px;padding:7px 10px;">
+      <input type="hidden" name="<?= $CI->security->get_csrf_token_name(); ?>" value="<?= $CI->security->get_csrf_hash(); ?>">
+      <span style="font-size:12px;font-weight:700">New remote size request</span><label style="margin:0;font-size:12px"><input type="radio" name="size_standard" value="UK" checked> UK</label><label style="margin:0;font-size:12px"><input type="radio" name="size_standard" value="US"> US</label><label style="margin:0;font-size:12px"><input type="radio" name="unit" value="cm" checked> cm</label><label style="margin:0;font-size:12px"><input type="radio" name="unit" value="in"> in</label><button class="mp-qa-btn blue" type="submit">Create link</button>
+    </form>
+  <?php endif; ?>
+</div>
+<?php $sizeRequestLink=$CI->session->flashdata('size_request_link'); if($sizeRequestLink): ?><div class="mp-card" style="padding:14px;margin-bottom:14px"><strong>Size request link is ready</strong><p class="text-muted" style="margin:5px 0">Send this private link to your client. They will enter their name and phone before submitting.</p><input class="form-control" readonly value="<?= htmlspecialchars($sizeRequestLink); ?>" onclick="this.select();document.execCommand('copy');"></div><?php endif; ?>
+
+<div class="mp-kpi-grid">
+  <div class="mp-kpi-card summary">
+    <div class="mp-kpi-icon"><i class="fa fa-users"></i></div>
+    <div class="mp-kpi-label">Total Customers</div>
+    <div class="mp-kpi-value"><?= number_format($total_customers); ?></div>
+  </div>
+  <div class="mp-kpi-card sales">
+    <div class="mp-kpi-icon"><i class="fa fa-check-circle"></i></div>
+    <div class="mp-kpi-label">Active</div>
+    <div class="mp-kpi-value"><?= number_format($active_customers); ?></div>
+  </div>
+  <div class="mp-kpi-card stock">
+    <div class="mp-kpi-icon"><i class="fa fa-pause-circle"></i></div>
+    <div class="mp-kpi-label">Inactive</div>
+    <div class="mp-kpi-value"><?= number_format($inactive_customers); ?></div>
+  </div>
+  <div class="mp-kpi-card debt">
+    <div class="mp-kpi-icon"><i class="fa fa-money"></i></div>
+    <div class="mp-kpi-label">Total Outstanding</div>
+    <div class="mp-kpi-value"><?= store_number_format($total_outstanding); ?></div>
+  </div>
+</div>
+
+<?= form_open('#', array('class' => '', 'id' => 'table_form')); ?>
+<input type="hidden" id="base_url" value="<?= $base_url; ?>">
+
+<div class="mp-card box">
+  <div class="mp-card-head" style="flex-wrap:wrap;gap:12px;">
+    <h3><?= mp_label('customer'); ?> List</h3>
+    <?php if($showMembershipStatus): ?>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-weight:600;">
+      Membership status
+      <select id="membership_status_filter" class="form-control" style="width:auto;min-width:190px;">
+        <option value="">All customers</option>
+        <option value="active">Active members</option>
+        <option value="none">No active membership</option>
+      </select>
+    </label>
+    <?php endif; ?>
+    <label class="checkbox" style="margin:0;">
+      <input type="checkbox" name="show_account_receivable" id="show_account_receivable"> Show account receivable only
+    </label>
+  </div>
+  <div class="mp-card-body" style="padding:0;">
+    <table id="example2" class="table mp-dt-table" width="100%">
+      <thead>
+        <tr>
+          <th class="text-center"><input type="checkbox" class="group_check checkbox"></th>
+          <th><?= mp_label('customer'); ?> ID</th>
+          <th><?= mp_label('customer'); ?> Name</th>
+          <th><?= $this->lang->line('mobile'); ?></th>
+          <th><?= $this->lang->line('email'); ?></th>
+          <?php if($showMembershipStatus): ?><th>Membership</th><?php endif; ?>
+          <th><?= $this->lang->line('location'); ?></th>
+          <th><?= $this->lang->line('credit_limit'); ?></th>
+          <th><?= $this->lang->line('previous_due'); ?></th>
+          <th><?= $this->lang->line('sales_return_due'); ?>(+)</th>
+          <th><?= $this->lang->line('advance'); ?></th>
+          <th>Points</th>
+          <th>Tier</th>
+          <th>Store Credit</th>
+          <th>Gift Card</th>
+          <th><?= $this->lang->line('status'); ?></th>
+          <th><?= $this->lang->line('action'); ?></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr>
+          <?php for($footerColumn=0; $footerColumn<($showMembershipStatus ? 17 : 16); $footerColumn++): ?>
+            <?php if($footerColumn === ($showMembershipStatus ? 7 : 6)): ?>
+              <th style="text-align:right">Total</th>
+            <?php else: ?>
+              <th></th>
+            <?php endif; ?>
+          <?php endfor; ?>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="pay_now_modal"></div>
+<div class="pay_return_due_modal"></div>
+<div class="bulk_payment_list_modal"></div>
+
+<?= form_close(); ?>
+
+<script src="<?= $theme_link; ?>js/customers.js"></script>
+<script type="text/javascript">
+function load_datatable(show_account_receivable){
+  if(typeof show_account_receivable === 'undefined') show_account_receivable = 'unchecked';
+
+  var table = $('#example2').DataTable({
+    "aLengthMenu": [[10, 25, 50, 100, 500], [10, 25, 50, 100, 500]],
+    dom: '<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr><"pull-right margin-left-10 "B>>>t<"row mp-dt-footer"<"col-sm-5"i><"col-sm-7"p>>',
+    buttons: {
+      buttons: [
+        {
+          className: 'btn bg-red color-palette btn-flat hidden delete_btn pull-left',
+          text: 'Delete',
+          action: function (e, dt, node, config) {
+            multi_delete();
+          }
+        },
+        { extend: 'copy', className: 'btn bg-teal color-palette btn-flat', footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } },
+        { extend: 'excel', className: 'btn bg-teal color-palette btn-flat', footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } },
+        { extend: 'pdf', className: 'btn bg-teal color-palette btn-flat', footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } },
+        { extend: 'print', className: 'btn bg-teal color-palette btn-flat', footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } },
+        { extend: 'csv', className: 'btn bg-teal color-palette btn-flat', footer: true, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } },
+        { extend: 'colvis', className: 'btn bg-teal color-palette btn-flat', footer: true, text: 'Columns' }
+      ]
+    },
+    "processing": true,
+    "serverSide": true,
+    "order": [],
+    "responsive": true,
+    language: {
+      processing: '<span style="display:inline-flex;align-items:center;gap:8px;color:inherit;"><i class="fa fa-spinner fa-spin"></i> Loading...</span>'
+    },
+    "ajax": {
+      "url": "<?= base_url('customers/ajax_list'); ?>",
+      "type": "POST",
+      "data": {
+        show_account_receivable: show_account_receivable,
+        membership_status: $('#membership_status_filter').val() || ''
+      },
+      complete: function (data) {
+        $('.column_checkbox').iCheck({
+          checkboxClass: 'icheckbox_square-orange',
+          radioClass: 'iradio_square-orange',
+          increaseArea: '10%'
+        });
+        call_code();
+      }
+    },
+    "columnDefs": [
+      {
+        "targets": [0, <?= $showMembershipStatus ? 16 : 15; ?>],
+        "orderable": false
+      },
+      {
+        "targets": [0],
+        "className": "text-center"
+      }
+    ],
+    "footerCallback": function (row, data, start, end, display) {
+      var api = this.api(), data;
+      var intVal = function (i) {
+        return typeof i === 'string' ?
+          i.replace(/[\$,]/g, '') * 1 :
+          typeof i === 'number' ? i : 0;
+      };
+      var previous_total = api
+        .column(<?= $showMembershipStatus ? 8 : 7; ?>, { page: 'none' })
+        .data()
+        .reduce(function (a, b) { return intVal(a) + intVal(b); }, 0);
+      var return_due_total = api
+        .column(<?= $showMembershipStatus ? 9 : 8; ?>, { page: 'none' })
+        .data()
+        .reduce(function (a, b) { return intVal(a) + intVal(b); }, 0);
+      $(api.column(<?= $showMembershipStatus ? 8 : 7; ?>).footer()).html(to_Fixed(previous_total));
+      $(api.column(<?= $showMembershipStatus ? 9 : 8; ?>).footer()).html(to_Fixed(return_due_total));
+    }
+  });
+  new $.fn.dataTable.FixedHeader(table);
+}
+
+$(document).ready(function() {
+  load_datatable();
+});
+
+$('#show_account_receivable').on('ifChanged change', function(event) {
+  $('#example2').DataTable().destroy();
+  if (event.target.checked) {
+    load_datatable('checked');
+  } else {
+    load_datatable();
+  }
+});
+$('#membership_status_filter').on('change', function() {
+  if($.fn.DataTable.isDataTable('#example2')) $('#example2').DataTable().ajax.reload();
+});
+</script>
+<script>
+  $('.mp-nav-item').removeClass('active');
+  $('.customers_list-active-li').addClass('active');
+  $('.customers_list-active-li').closest('.mp-nav-group').addClass('open');
+</script>

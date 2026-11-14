@@ -1,0 +1,71 @@
+-- ============================================================================
+-- MartPoint 4.0.9.114 — printing rail, POS entry and custody visibility
+--
+-- No schema change. Carries the release forward and records the work.
+--
+-- 1. MENUS RESTORED (mp_sidebar.php)
+--
+--    .112 hid the shared business groups for a printing store via a
+--    $hide_retail flag. That was wrong. A print shop's own feature set
+--    includes accounts, warehouse, online_store, promotions, custom_orders,
+--    leads, staff assignment and delivery scheduling — so hiding those groups
+--    removed Promotions, Catalog, Finance, Marketing, Reports, Operations,
+--    Purchases and Clients. Menus the business actually uses.
+--
+--    Printing now ADDS its own groups (Print Shop, Machine Floor, Quotations,
+--    Insights) and reorders the top of the rail. It does not subtract the
+--    shared ones. The $hide_retail flag is gone so the mistake cannot be
+--    repeated by guarding a future group with it.
+--
+-- 2. LEADS HUB (mp_sidebar.php)
+--
+--    For a printing store the Online Store group is labelled "Leads Hub".
+--    Screens are unchanged; the group is named for what it is on that rail —
+--    where enquiries arrive and become quotes. Other industries keep
+--    "Online Store".
+--
+-- 3. STAGE REPORT (mp_sidebar.php)
+--
+--    A "Stage Report" link pointed at printing/stage_report, which is a
+--    POST-only WRITE endpoint that records a stage result. Browsing to it
+--    returned {"success":false,"message":"Job or stage not found."}. Stage
+--    reporting — turnaround and bottleneck — is a panel inside Costing &
+--    Margin (views/printing/reports.php), so the link is removed rather than
+--    redirected. A write endpoint does not belong in a navigation menu.
+--
+-- 4. POS FOR A PRINT SHOP (Pos.php)
+--
+--    /pos is built around a product catalogue: scan an item, add to cart, pay.
+--    A print shop cannot work that way — every job is priced from a quotation,
+--    so there is nothing meaningful to add to a cart. /pos now redirects a
+--    printing store to /printing/job (the new-job builder), which already
+--    opens a blank job. ?classic=1 still reaches the till for counter sales of
+--    stocked material.
+--
+-- 5. CUSTOMER MATERIALS — WHAT CAME IN, WHAT REMAINS (custody views)
+--
+--    The screen previously read received_qty / issued_qty / balance_qty —
+--    columns that do not exist on db_print_customer_materials. Every cell
+--    rendered as "-", so the screen answered nothing. It now reads the real
+--    columns and splits a receipt across the physical states the table
+--    already tracks: qty_custody, qty_in_production, qty_finished,
+--    qty_damaged, qty_returned, qty_collected_finished, qty_consumed.
+--
+--    Columns are now: Brought in · Where it is now · Remaining — the question
+--    that actually gets asked ("where is my stock?") rather than a single
+--    opaque balance.
+--
+--    receive_customer_material() also expects material_name + qty_received;
+--    the controller was sending item + qty, so nothing would ever have saved.
+--    Verified end to end through the real UI: a 120-sheet receipt was recorded
+--    and rendered as "120 Brought in / 120 In our custody / 120 Remaining".
+--
+-- NOTE ON A FALSE ALARM, recorded so it is not re-investigated: the model
+-- rejects a receipt with "Could not record the receipt" when get_current_store_id()
+-- is null, which is what happens in a CLI harness with no session. That is a
+-- harness artefact, not a product bug — the same call from a real request
+-- succeeds. When testing this path, drive it through a request, not php -r.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

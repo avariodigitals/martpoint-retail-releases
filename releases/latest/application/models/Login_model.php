@@ -1,0 +1,338 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+/**
+ * Author: Rapheal Ogundiran - Avario
+ * Date: 2019 - 2026
+ */
+class Login_model extends CI_Model
+{
+	private const LEGACY_SEEDED_STORE_ADMIN_PASSWORD_HASH = '2e761dd929bb7983094d69c7966ec2ad';
+
+	
+	function __construct()
+	{
+		parent::__construct();
+		$this->load->helper('saas');
+	}
+
+	/**
+	 * Correct the legacy owner assignment that used global role id 2 (Store
+	 * Admin). Only the user explicitly linked by db_store.user_id is remapped,
+	 * and only to the Business Owner role belonging to that same store.
+	 */
+	private function _ensure_business_owner_role($user){
+		$store_id = (int)($user->store_id ?? 0);
+		$user_id = (int)($user->id ?? 0);
+		if($store_id <= 1 || $user_id <= 0 || !$this->db->table_exists('db_store')
+			|| !$this->db->field_exists('user_id', 'db_store')){
+			return;
+		}
+
+		$store = $this->db->select('user_id')->where('id', $store_id)->limit(1)->get('db_store')->row();
+		if(!$store || (int)$store->user_id !== $user_id){
+			return;
+		}
+		$current_role_name = strtoupper(trim((string)($user->role_name ?? '')));
+		if((int)$user->role_id !== (int)store_admin_id() && $current_role_name !== 'STORE ADMIN'){
+			// Do not overwrite an owner's deliberate custom role assignment.
+			return;
+		}
+
+		// Ensure the standard store-scoped role exists on older deployments.
+		$this->load->model('default_data_model', 'owner_role_defaults');
+		$this->owner_role_defaults->create_default_roles($store_id);
+		$role = $this->db->select('id, role_name')->where('store_id', $store_id)
+			->where('UPPER(role_name)', 'BUSINESS OWNER')->where('status', 1)
+			->limit(1)->get('db_roles')->row();
+		if(!$role){
+			log_message('error', 'Owner role repair could not find Business Owner role for store '.$store_id);
+			return;
+		}
+
+		$update = array();
+		if((int)$user->role_id !== (int)$role->id){
+			$update['role_id'] = (int)$role->id;
+		}
+		if($this->db->field_exists('role_name', 'db_users')
+			&& trim((string)($user->role_name ?? '')) !== trim((string)$role->role_name)){
+			$update['role_name'] = $role->role_name;
+		}
+		if(!empty($update)){
+			$updated = $this->db->where('id', $user_id)->where('store_id', $store_id)->update('db_users', $update);
+			if(!$updated){
+				log_message('error', 'Owner role repair failed to update user '.$user_id.' in store '.$store_id);
+				return;
+			}
+		}
+		$user->role_id = (int)$role->id;
+		$user->role_name = $role->role_name;
+	}
+
+	public function verify_credentials($email,$password)
+	{
+		// Brute-force protection
+		$attempts = $this->session->userdata('login_attempts') ?: 0;
+		$last_attempt = $this->session->userdata('login_last_attempt') ?: 0;
+		if($attempts >= 5 && (time() - $last_attempt) < 900){
+			$this->session->set_flashdata('failed', 'Too many failed attempts. Please try again after 15 minutes.');
+			redirect('login');
+			return;
+		}
+
+		//Filtering XSS and html escape from user inputs 
+		$email=$this->security->xss_clean(html_escape($email));
+		$password=$this->security->xss_clean(html_escape($password));
+
+
+		$this->db->select("a.email,a.store_id,a.id,a.username,a.first_name,a.last_name,a.role_id,b.role_name,a.status,a.password");
+		$this->db->from("db_users a");
+		$this->db->from("db_roles b");
+		$this->db->where("b.id=a.role_id");
+		$this->db->group_start();
+		$this->db->where('a.email', $email);
+		$this->db->or_where('a.username', $email);
+		$this->db->group_end();
+		$query = $this->db->get();
+		if($query->num_rows()==1){
+			$user = $query->row();
+			// Store 1 is the vendor/Central account namespace. Never allow its
+			// seeded master account to authenticate on customer installations.
+			if((int)$user->store_id <= 1 && !mp_is_central()){
+				$this->session->set_flashdata('failed', 'Invalid Email or Password!');
+				redirect('login');
+				return;
+			}
+			if(!mp_is_central()
+				&& hash_equals(self::LEGACY_SEEDED_STORE_ADMIN_PASSWORD_HASH, strtolower((string)$user->password))){
+				$this->session->set_flashdata('failed', 'This account still has the insecure installer password. Reset it or contact your administrator.');
+				redirect('login');
+				return;
+			}
+			$password_valid = false;
+			if(password_verify($password, $user->password)){
+				$password_valid = true;
+			}
+			else if($user->password === md5($password)){
+				$password_valid = true;
+				// Rehash from MD5 to bcrypt
+				$this->db->where('id', $user->id);
+				$this->db->update('db_users', ['password' => password_hash($password, PASSWORD_BCRYPT)]);
+			}
+			if(!$password_valid){
+				$this->session->set_flashdata('failed', 'Invalid Email or Password!');
+				redirect('login');
+				return;
+			}
+
+			$store_rec = get_store_details($query->row()->store_id);
+			//STORE ACTIVE OR NOT
+			if(!$store_rec->status){
+				$this->session->set_flashdata('failed', 'Your Store Temporarily Inactive!');
+				redirect('login');exit;
+			}
+			//USER ACTIVE OR NOT
+			if(!$query->row()->status){
+				$this->session->set_flashdata('failed', 'Your account is temporarily inactive!');
+				redirect('login');exit;
+			}
+
+			// The linked merchant owner is a Business Owner, never the global
+			// Store Admin. This also repairs existing installations at next login.
+			$this->_ensure_business_owner_role($user);
+			//SUBSCRIPTION EXPIRED OR SUSPENDED
+			if($this->db->table_exists('db_subscription_license')){
+				$this->load->model('subscription_license_model','license');
+				$sub = $this->license->get_status($query->row()->store_id);
+				if($sub['status'] === 'EXPIRED' || $sub['status'] === 'SUSPENDED'){
+					$this->session->set_flashdata('failed', 'Account access restricted. Please contact the administrator.');
+					redirect('login');exit;
+				}
+			}
+
+			$display_name = trim($query->row()->first_name . ' ' . $query->row()->last_name);
+			if(empty($display_name)) $display_name = $query->row()->username;
+
+			$logdata = array(
+							'inv_username'  => $query->row()->username,
+							'user_lname'  => $query->row()->last_name,
+							'first_name'  => $query->row()->first_name,
+							'display_name' => $display_name,
+				        	 'inv_userid'  => $query->row()->id,
+				        	 'logged_in' => TRUE,
+						 'role_id' => $user->role_id,
+						 'role_name' => trim($user->role_name),
+				        	 'store_id' => trim($query->row()->store_id),
+				        	 'email' => trim($query->row()->email),
+				        	);
+			$this->session->set_userdata($logdata);
+
+			// Re-seed any missing default permissions for standard roles
+			// (fixes roles created before new permissions were added)
+			try {
+				$this->load->model('default_data_model','default_data');
+				$this->default_data->reseed_missing_permissions($query->row()->store_id);
+			} catch (Exception $e) {
+				log_message('error', 'Login: reseed_missing_permissions failed: ' . $e->getMessage());
+			}
+
+			// Check subscription license activation
+			$needs_activation = false;
+			if($this->db->table_exists('db_subscription_license')){
+				$this->load->model('subscription_license_model','license');
+				$needs_activation = $this->license->needs_activation($query->row()->store_id);
+			}
+			if($needs_activation){
+				if(is_store_admin() || permissions('license_management') || $user->id == 1){
+					// Admin/Owner can still use the store; SAAS activation is available from Settings → License
+					$this->session->set_flashdata('warning', 'Please activate your MartPoint Retail subscription from Settings → License.');
+				} else {
+					// Normal users blocked
+					$this->session->unset_userdata(array_keys($logdata));
+					$this->session->set_flashdata('failed', 'MartPoint Retail has not been activated. Please contact your provider.');
+					redirect('login');exit;
+				}
+			}
+
+			// Client retention tracks merchant users, not support/admin maintenance logins.
+            try {$this->load->library('Usage_reporter');if(!$this->usage_reporter->isAdministrativeUser())$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
+            $this->session->set_userdata('login_attempts', 0);
+			$this->session->set_userdata('welcome_alert', 'Welcome '.ucfirst($display_name)." !");
+			if(function_exists('mp_audit_log')){
+				mp_audit_log('auth', 'login', $query->row()->username, 'User logged in');
+			}
+			// Mobile users go to the mobile app first
+			if(is_mobile()){
+				if(stripos(trim($user->role_name), 'cashier') !== false){
+					redirect(base_url().'mobile/pos');
+				}
+				redirect(base_url().'mobile');
+			}
+			// Redirect cashier-role users straight to POS on desktop
+			if(stripos(trim($user->role_name), 'cashier') !== false){
+				redirect(base_url().'pos');
+			}
+			redirect(base_url().'dashboard');
+		}
+		else{
+			$attempts = ($this->session->userdata('login_attempts') ?: 0) + 1;
+			$this->session->set_userdata('login_attempts', $attempts);
+			$this->session->set_userdata('login_last_attempt', time());
+			$this->session->set_flashdata('failed', 'Invalid Email or Password!');
+			redirect('login');
+		}		
+	}
+	public function verify_email_send_otp($email)
+	{
+		
+		//Filtering XSS and html escape from user inputs 
+		$to=$this->security->xss_clean(html_escape($email));
+				
+		$this->db->where('email', $email);
+		$this->db->where('status', 1);
+		$query = $this->db->get('db_users');
+
+		if($query->num_rows() == 0){
+			$this->session->set_flashdata('failed', 'This Email ID not Exist in Our Records!');
+			return false;
+		}
+
+			$store_id = $query->row()->store_id;
+
+			$q1 = $this->db->where('id', $store_id)->get('db_store');
+			
+			$otp=rand(100000,999999);
+
+			$store_name = $q1->row()->store_name;
+
+			$this->load->model("email_service");
+			$this->email_service->setStoreId($store_id);
+			$result = $this->email_service->sendTemplate(
+				'password_reset_otp',
+				$to,
+				[
+					'user_name' => $to,
+					'otp_code' => $otp,
+					'otp_expiry_minutes' => '15',
+					'store_name' => $store_name,
+				],
+				['related_module' => 'password_reset', 'related_record_id' => $to]
+			);
+			$response = $result['success'];
+
+			if($response){
+				$this->session->set_flashdata('success', 'OTP has been sent to your email ID! (Check Inbox/Spam Box)');
+				$otpdata = array('email'  => $to,'otp'  => $otp );
+				$this->session->set_userdata($otpdata);
+				return true;
+			}
+			else{
+				$this->session->set_flashdata('error', $response);
+				return false;
+			}
+		
+			
+	}
+	public function verify_otp($otp, $email)
+	{
+		//Filtering XSS and html escape from user inputs
+		$otp=$this->security->xss_clean(html_escape($otp));
+		$email=$this->security->xss_clean(html_escape($email));
+		if($this->session->userdata('email')==$email){ redirect(base_url().'logout','refresh');	}
+
+		$this->db->select('a.email,a.store_id,a.id,a.username,a.first_name,a.last_name,a.role_id,b.role_name,a.status');
+		$this->db->from('db_users a');
+		$this->db->join('db_roles b', 'b.id = a.role_id');
+		$this->db->where('a.email', $email);
+		$this->db->where('a.status', 1);
+		$query = $this->db->get();
+		if($query->num_rows()==1){
+			$user = $query->row();
+			$this->_ensure_business_owner_role($user);
+
+			$display_name = trim($user->first_name . ' ' . $user->last_name);
+			if(empty($display_name)) $display_name = $user->username;
+
+			$logdata = array(
+							'inv_username'  => $user->username,
+							'user_lname'  => $user->last_name,
+							'first_name'  => $user->first_name,
+							'display_name' => $display_name,
+				         	'inv_userid'  => $user->id,
+				        	 'logged_in' => TRUE,
+				         	'role_id' => $user->role_id,
+				         	'role_name' => trim($user->role_name),
+				         	'store_id' => trim($user->store_id),
+				        	);
+			$this->session->set_userdata($logdata);
+            try {$this->load->library('Usage_reporter');if(!$this->usage_reporter->isAdministrativeUser())$this->usage_reporter->recordLogin(base_url());}catch(Throwable $e){}
+			return true;
+		}
+		else{
+			return false;
+		}		
+	}
+	public function change_password($password,$email){
+			$this->db->where('email', $email);
+			$this->db->where('status', 1);
+			$query = $this->db->get('db_users');
+			if($query->num_rows()==1){
+				/*if($query->row()->username == 'admin'){
+					echo "Restricted Admin Password Change";exit();
+				}*/
+				$password = password_hash($password, PASSWORD_BCRYPT);
+				$this->db->where('email', $email);
+				$q1 = $this->db->update('db_users', ['password' => $password]);
+				if ($q1){
+
+				        return true;
+				}
+				else{
+				        return false;
+				}
+			}
+			else{
+				return false;
+				}
+
+		}
+}

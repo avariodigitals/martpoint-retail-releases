@@ -1,0 +1,3471 @@
+<?php
+  function demo_app(){
+    return false;
+  }
+  function app_version(){
+    return '4.0.9.277';
+  }
+
+  /** Read settings without consuming a query another screen is building. */
+  function mp_read_db(){
+    $CI =& get_instance();
+    $reader = clone $CI->db;
+    $reader->stop_cache();
+    $reader->flush_cache();
+    $reader->reset_query();
+    return $reader;
+  }
+  function required_php_version(){
+    return 7.4;
+  }
+  function is_valid_date($date){
+    return !empty($date) && substr($date, 0, 4) !== '0000';
+  }
+
+  function string_to_number($number=0)
+  {
+    return str_replace(",", "", $number);
+  }
+  function app_token(){
+    // Legacy callers may still use this helper. Keep any live token in local
+    // configuration; never ship a shared credential in the application code.
+    $CI =& get_instance();
+    return trim((string) $CI->config->item('app_token'));
+  }
+
+  function smtp(){
+    if(special_access()){
+      return true;//true or false to activate
+    }
+  }
+
+  function app_front_tag_line(){
+    $site_rec = get_site_details();
+    return '<div class="col-xl-8 col-lg-7 col-md-12 bg" style="background-color: #001cb0">
+                <div class="info">
+                    <h1>'.$site_rec->site_name.'</h1>
+                    <p>POS, Inventory, Accounting, Multi Warehouses, Multi User</p>
+                </div>
+            </div>';
+  }
+  function store_demo_logo(){
+    return 'uploads/site/default.png';
+  }
+
+  /** Whether the current business uses the pharmacy dispensing workflow. */
+  if(!function_exists('mp_is_pharmacy_business')){
+    function mp_is_pharmacy_business($store_id=null){
+      if(!function_exists('mp_get_store_profile')) return false;
+      $profile = mp_get_store_profile($store_id);
+      return in_array(($profile['industry_type'] ?? ''), array('pharmacy', 'medical_store', 'healthcare'), true);
+    }
+  }
+
+  /**
+   * Keep pharmacy dosage and counselling on the invoice. Other industries
+   * retain the existing clean receipt behaviour and have dosage directions
+   * removed if legacy notes contain them.
+   */
+  if(!function_exists('mp_invoice_note_without_dosage')){
+    function mp_invoice_note_without_dosage($note, $store_id=null){
+      $note = trim((string)$note);
+      if($note === ''){ return ''; }
+      if(mp_is_pharmacy_business($store_id)) return $note;
+      $note = preg_replace(
+        '/(?:^|\R)Dosage\s*\/\s*directions\s*:\s*.*?(?=\R(?:Assessment|Counselling|Allergies\s*\/\s*cautions)\s*:|\z)/isu',
+        '',
+        $note
+      );
+      $note = preg_replace("/\R{3,}/", "\n\n", (string)$note);
+      return trim((string)$note);
+    }
+  }
+
+  if(!function_exists('mp_invoice_note_label')){
+    function mp_invoice_note_label($store_id=null){
+      return mp_is_pharmacy_business($store_id) ? 'Pharmacy dosage & guidance' : 'Note';
+    }
+  }
+  function get_site_logo(){
+    $CI =& get_instance();
+    $logo = $CI->db->query("select logo from db_sitesettings")->row()->logo ?? '';
+    // Strip leading slash so base_url() doesn't create double slashes
+    $logo = ltrim($logo, '/');
+    if(empty($logo) || !file_exists(FCPATH . $logo)){
+      return 'uploads/site/default.png';
+    }
+    return $logo;
+  }
+  function sql_mode(){
+    $CI =& get_instance();
+    $q1 = $CI->db->query("SELECT @@sql_mode AS sql_mode")->row();
+    return $q1->sql_mode;
+  }
+  function is_sql_full_group_by_enabled(){
+    $sql_mode = sql_mode();
+    $sql_mode = strtoupper($sql_mode);
+
+    $mode = 'ONLY_FULL_GROUP_BY';
+    return (strpos($sql_mode, $mode) !== false) ? show_sql_mode_page() : false;
+  }
+
+  function show_sql_mode_page(){
+    $CI =& get_instance();
+    // Silently attempt to disable ONLY_FULL_GROUP_BY without blocking the user
+    @$CI->db->query("SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
+    return true;
+  }
+  
+  function decimals(){
+    $CI =& get_instance();
+    return $CI->session->userdata('decimals');
+  }
+
+  function store_number_format($value=0,$comma=true){
+    $value = floatval($value ?? 0);
+    $decimals = (int)(decimals() ?? 0);
+    return ($comma) ? number_format($value,$decimals) : number_format($value,$decimals,".","");
+  }
+
+  function parse_amount($value=''){
+    $value = trim($value ?? '');
+    if($value==='' || $value===null) return 0;
+    $value = preg_replace('/[^0-9.\-]/', '', $value);
+    return floatval($value);
+  }
+
+  /** Canonical plain text for labels; output escaping remains a view concern. */
+  function mp_catalogue_name($value){
+    $text=trim((string)$value);
+    for($i=0;$i<3;$i++){
+      $decoded=html_entity_decode($text,ENT_QUOTES|ENT_HTML5,'UTF-8');
+      if($decoded===$text)break;
+      $text=$decoded;
+    }
+    return trim($text);
+  }
+
+  function mp_document_description($value){
+    $text=mp_catalogue_name($value);
+    if($text==='')return '';
+    return '<details class="mp-line-description"><summary>Product description</summary><div class="mp-description-body">'.nl2br(htmlspecialchars($text,ENT_QUOTES,'UTF-8')).'</div></details>';
+  }
+
+  /**
+   * Recognise the specific historical comma-to-number truncation. Display only:
+   * this never edits payments, balances or the persisted accounting ledger.
+   */
+  function mp_document_line_amount($line,$quantityField='sales_qty',&$legacyMismatch=null){
+    $stored=(float)($line->total_cost ?? 0);
+    $qty=(float)($line->$quantityField ?? 0);
+    $unit=(float)($line->unit_total_cost ?? 0);
+    $expected=round($qty*$unit,4);
+    if($qty>0 && $unit>=0 && is_finite($expected) && $expected>=1000){
+      $prefix=(float)strtok(number_format($expected,2,'.',','),',');
+      if(abs($stored-$prefix)<0.00005 && abs($stored-$expected)>0.005){
+        $legacyMismatch=true;return $expected;
+      }
+    }
+    return $stored;
+  }
+
+  function mp_dashboard_detail_link($metric,$mobile=false,$dates=array()){
+    $ci =& get_instance();
+    $routes=array(
+      'sales'=>array(array('sales_report',$mobile?'mobile/report/sales':'reports/sales'),array('sales_view',$mobile?'mobile/sales_list':'sales')),
+      'profit'=>array(array('profit_report',$mobile?'mobile/report/profit_loss':'reports/profit_loss')),
+      'expense'=>array(array('expense_report',$mobile?'mobile/report/expense':'reports/expense'),array('expense_view',$mobile?'mobile/finance/expenses':'expense')),
+      'cash'=>array(array('accounts_view',$mobile?'mobile/finance/accounts':'accounts/cash_ledger')),
+      'debt'=>array(array('receivables_aging_report',$mobile?'mobile/report/receivables_aging':'reports/receivables_aging'),array('customers_view',$mobile?'mobile/due':'customers')),
+      'stock'=>array(array('reorder_suggestion_report',$mobile?'mobile/report/reorder_suggestion':'reports/reorder_suggestion'),array('stock_report',$mobile?'mobile/report/stock':'reports/stock')),
+      'invoices'=>array(array('sales_view',$mobile?'mobile/sales_list':'sales')),
+      'customers'=>array(array('customers_view',$mobile?'mobile/customers':'customers')),
+    );
+    foreach($routes[$metric] ?? array() as $route){
+      if(!$ci->permissions($route[0]))continue;
+      $query=array();
+      if(in_array($metric,array('sales','profit','expense','invoices'),true))foreach(array('from','to') as $key){
+        $value=$dates[$key] ?? '';
+        if(preg_match('/^\d{4}-\d{2}-\d{2}$/D',$value))$query[$key.'_date']=$value;
+      }
+      return base_url($route[1]).($query?'?'.http_build_query($query):'');
+    }
+    return '';
+  }
+
+  function mp_dashboard_report_date($key,$fallback=null){
+    $ci =& get_instance();$value=$ci->input->get($key);
+    if(is_string($value) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D',$value,$m) && checkdate((int)$m[2],(int)$m[3],(int)$m[1]))return $value;
+    return $fallback ?: date('Y-m-d');
+  }
+
+  function qty_decimal(){
+    $CI =& get_instance();
+    return $CI->session->userdata('qty_decimals');
+  }
+
+  function format_qty($value){
+    return number_format($value,qty_decimal(),".","");
+  }
+
+  function system_fromatted_date($date=''){
+  $CI =& get_instance();
+    if ($CI->session->userdata('view_date')=='dd/mm/yyyy') {
+      return date('Y-m-d',strtotime(str_replace('/', '-', $date)));
+    }
+    elseif($CI->session->userdata('view_date')=='mm/dd/yyyy'){
+      return date("Y-m-d",strtotime($date));
+    }
+    else{
+      return date("Y-m-d",strtotime($date));
+    }
+  }
+	function show_date($date=''){
+	$CI =& get_instance();
+    if ($CI->session->userdata('view_date')=='dd/mm/yyyy') {
+      return date('d/m/Y',strtotime(str_replace('/', '-', $date)));
+    }
+    elseif($CI->session->userdata('view_date')=='mm/dd/yyyy'){
+      return date("m/d/Y",strtotime($date));
+    }
+    else{
+      return date("d-m-Y",strtotime($date));
+    }
+  }
+  function show_time($time=''){
+    if(empty($time)){
+      return $time;
+    }
+    $CI =& get_instance();
+    if($CI->session->userdata('view_time')=='24') {
+      return date('h:i',strtotime($time));
+    }
+    else{
+      return date('h:i a',strtotime($time));
+    }
+  }
+
+  function return_item_image_thumb($path=''){
+    $thumb = str_replace(".", "_thumb.", $path);
+    return (file_exists($thumb) && is_file($thumb)) ? $thumb : $path;
+  }
+
+  function mp_storefront_image_url($path='', $use_thumb = true){
+    if(empty($path)) return base_url('theme/images/no_image.png');
+    if(preg_match('#^https?://#i', (string)$path)) return $path;
+    $thumb = return_item_image_thumb($path);
+    if($use_thumb && file_exists($thumb) && is_file($thumb)){
+      return base_url($thumb);
+    }
+    return base_url($path);
+  }
+
+  /*Find the change return show in pos or not*/
+  function change_return_status(){
+    return mp_get_store_receipt_setting(get_current_store_id(), 'change_return', 0);
+  }
+
+  function get_change_return_amount($sales_id){
+    $CI =& get_instance();
+    return $CI->db->select('coalesce(sum(change_return),0) as change_return_amount')->where('sales_id',$sales_id)->get('db_salespayments')->row()->change_return_amount;
+  }
+
+  function get_invoice_format_id(){
+    return mp_get_store_receipt_setting(get_current_store_id(), 'sales_invoice_format_id', 3);
+  }
+  function get_pos_invoice_format_id(){
+    return mp_get_store_receipt_setting(get_current_store_id(), 'pos_invoice_format_id', 1);
+  }
+  function is_enabled_round_off(){
+    $round_off = mp_get_store_receipt_setting(get_current_store_id(), 'round_off', 0);
+    if($round_off==1){
+      return true;
+    }
+    return false;
+  }
+  function numberTowords($num)
+  {
+    $CI =& get_instance();
+          $ones = array(
+          '0'=> $CI->lang->line('Zero'),
+          '1'=> $CI->lang->line('One'),
+          '2'=> $CI->lang->line('Two') ,
+          '3'=> $CI->lang->line('Three') ,
+          '4'=> $CI->lang->line('Four') ,
+          '5'=> $CI->lang->line('Five') ,
+          '6'=> $CI->lang->line('Six') ,
+          '7'=> $CI->lang->line('Seven') ,
+          '8'=> $CI->lang->line('Eight') ,
+          '9'=> $CI->lang->line('Nine') ,
+          '10'=> $CI->lang->line('Ten') ,
+          '11'=> $CI->lang->line('Eleven') ,
+          '12'=> $CI->lang->line('Twelve') ,
+          '13'=> $CI->lang->line('Thirteen') ,
+          '14'=> $CI->lang->line('Fouteen') ,
+          '15'=> $CI->lang->line('Fifteen') ,
+          '16'=> $CI->lang->line('Sixteen') ,
+          '17'=> $CI->lang->line('Seventeen') ,
+          '18'=> $CI->lang->line('Eighteen') ,
+          '19'=> $CI->lang->line('Nineteen') ,
+          "014" => "FOURTEEN"
+          );
+          $tens = array( 
+          '0'=> $CI->lang->line('Zero'),
+          '1'=> $CI->lang->line('Ten') ,
+          '2'=> $CI->lang->line('Twenty') ,
+          '3'=> $CI->lang->line('Thirty') ,
+          '4'=> $CI->lang->line('Fourty') ,
+          '5'=> $CI->lang->line('Fifty') ,
+          '6'=> $CI->lang->line('Sixty') ,
+          '7'=> $CI->lang->line('Seventy') ,
+          '8'=> $CI->lang->line('Eighty') ,
+          '9'=> $CI->lang->line('Ninty') ,
+          ); 
+          $hundreds = array( 
+          $CI->lang->line('Hundred'),
+          $CI->lang->line('Thousand') ,
+          $CI->lang->line('Million') ,
+          $CI->lang->line('Billion') ,
+          $CI->lang->line('Trillion') ,
+          $CI->lang->line('Quadrillion') ,
+          ); /*limit t quadrillion */
+
+            $num = number_format($num,2,".",","); 
+            $num_arr = explode(".",$num); 
+            $wholenum = $num_arr[0]; 
+            $decnum = $num_arr[1]; 
+            $whole_arr = array_reverse(explode(",",$wholenum)); 
+            krsort($whole_arr,1); 
+            $rettxt = ""; 
+
+  foreach($whole_arr as $key => $i){
+    
+          while(substr($i,0,1)=="0")
+              $i=substr($i,1,5);
+         
+                if($i < 20){  
+                  if(isset($ones[$i])){
+                    $rettxt .= $ones[$i]; 
+                  }
+                  }elseif($i < 100){ 
+                    if(substr($i,0,1)!="0")  $rettxt .= $tens[substr($i,0,1)]; 
+                    if(substr($i,1,1)!="0") $rettxt .= " ".$ones[substr($i,1,1)]; 
+                  }else{ 
+                    if(substr($i,0,1)!="0") $rettxt .= $ones[substr($i,0,1)]." ".$hundreds[0]; 
+                    if(substr($i,1,1)!="0")$rettxt .= " ".$tens[substr($i,1,1)]; 
+                    if(substr($i,2,1)!="0")$rettxt .= " ".$ones[substr($i,2,1)]; 
+                  } 
+                  if($key > 0){ 
+                    $rettxt .= " ".$hundreds[$key]." "; 
+                  }
+  }//foreach
+
+      if($decnum > 0){
+            $rettxt .= " and ";
+          if($decnum < 20){
+            $rettxt .= $ones[$decnum];
+          }elseif($decnum < 100){
+            $rettxt .= $tens[substr($decnum,0,1)];
+            $rettxt .= " ".$ones[substr($decnum,1,1)];
+          }
+      }
+      return $rettxt;
+  }//function end
+
+  /******************************************/
+  function convert_number($number) 
+    {
+        if (($number < 0) || ($number > 999999999)) 
+        {
+            throw new Exception("Number is out of range");
+        }
+        $giga = floor($number / 1000000);
+        // Millions (giga)
+        $number -= $giga * 1000000;
+        $kilo = floor($number / 1000);
+        // Thousands (kilo)
+        $number -= $kilo * 1000;
+        $hecto = floor($number / 100);
+        // Hundreds (hecto)
+        $number -= $hecto * 100;
+        $deca = floor($number / 10);
+        // Tens (deca)
+        $n = $number % 10;
+        // Ones
+        $result = "";
+        if ($giga) 
+        {
+            $result .= convert_number($giga) .  " Million";
+        }
+        if ($kilo) 
+        {
+            $result .= (empty($result) ? "" : " ") .convert_number($kilo) . " Thousand";
+        }
+        if ($hecto) 
+        {
+            $result .= (empty($result) ? "" : " ") .convert_number($hecto) . " Hundred";
+        }
+        $ones = array("", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eightteen", "Nineteen");
+        $tens = array("", "", "Twenty", "Thirty", "Fourty", "Fifty", "Sixty", "Seventy", "Eigthy", "Ninety");
+        if ($deca || $n) {
+            if (!empty($result)) 
+            {
+                $result .= " and ";
+            }
+            if ($deca < 2) 
+            {
+                $result .= $ones[$deca * 10 + $n];
+            } else {
+                $result .= $tens[$deca];
+                if ($n) 
+                {
+                    $result .= "-" . $ones[$n];
+                }
+            }
+        }
+        if (empty($result)) 
+        {
+            $result = "zero";
+        }
+        return $result;
+    }
+  /******************************************/
+
+  function naira_to_words($no){
+    $fig = number_format($no, 2, '.', '');
+    $parts = explode('.', $fig);
+    $number = (int)$parts[0];
+    $decimal = (int)$parts[1];
+    $words = ucfirst(convert_number($number));
+    if($decimal > 0){
+      return $words . ' Naira and ' . ucfirst(convert_number($decimal)) . ' Kobo';
+    }
+    return $words . ' Naira';
+  }
+
+  /******************************************/
+
+  function no_to_words($no){ 
+
+    $CI =& get_instance();
+
+    $store_details = get_store_details();
+    $number_to_words_format = ($store_details && isset($store_details->number_to_words)) ? $store_details->number_to_words : '';
+    
+
+
+    
+
+    $currency_code = strtoupper(html_entity_decode($CI->session->userdata('CURRENCY_CODE') ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $currency_symbol = strtoupper(html_entity_decode($CI->session->userdata('currency') ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+    $is_naira = ($number_to_words_format=='Nigerian')
+                || $currency_code === 'NGN'
+                || $currency_code === '₦'
+                || $currency_symbol === 'NGN'
+                || $currency_symbol === '₦'
+                || strpos($currency_symbol,'NAIRA') !== false
+                || $currency_code === 'N';
+
+    // Also detect via the store's currency name (covers cases where
+    // currency_code is NULL in the db_currency table)
+    if(!$is_naira && $store_details && isset($store_details->currency_id)){
+        $cur = $CI->db->select('currency_name,currency_code')->where('id',$store_details->currency_id)->get('db_currency')->row();
+        if($cur){
+            $name_upper = strtoupper($cur->currency_name ?? '');
+            $code_upper = strtoupper($cur->currency_code ?? '');
+            if(strpos($name_upper,'NAIRA') !== false
+               || $code_upper === 'NGN'
+               || $code_upper === '₦'){
+                $is_naira = true;
+            }
+        }
+    }
+
+    if($is_naira){
+      return naira_to_words($no);
+    }
+
+    return foreign_currency($no,$currency_code);
+
+
+     $words = array('0'=> '' ,
+                    '1'=> $CI->lang->line('One'),
+                    '2'=> $CI->lang->line('Two') ,
+                    '3'=> $CI->lang->line('Three') ,
+                    '4'=> $CI->lang->line('Four') ,
+                    '5'=> $CI->lang->line('Five') ,
+                    '6'=> $CI->lang->line('Six') ,
+                    '7'=> $CI->lang->line('Seven') ,
+                    '8'=> $CI->lang->line('Eight') ,
+                    '9'=> $CI->lang->line('Nine') ,
+                    '10'=> $CI->lang->line('Ten') ,
+                    '11'=> $CI->lang->line('Eleven') ,
+                    '12'=> $CI->lang->line('Twelve') ,
+                    '13'=> $CI->lang->line('Thirteen') ,
+                    '14'=> $CI->lang->line('Fourteen') ,
+                    '15'=> $CI->lang->line('Fifteen') ,
+                    '16'=> $CI->lang->line('Sixteen') ,
+                    '17'=> $CI->lang->line('Seventeen') ,
+                    '18'=> $CI->lang->line('Eighteen') ,
+                    '19'=> $CI->lang->line('Nineteen') ,
+                    '20'=> $CI->lang->line('Twenty') ,
+                    '30'=> $CI->lang->line('Thirty') ,
+                    '40'=> $CI->lang->line('Fourty') ,
+                    '50'=> $CI->lang->line('Fifty') ,
+                    '60'=> $CI->lang->line('Sixty') ,
+                    '70'=> $CI->lang->line('Seventy') ,
+                    '80'=> $CI->lang->line('Eighty') ,
+                    '90'=> $CI->lang->line('Ninty') ,
+                    '100'=> $CI->lang->line('Hundred &') ,
+                    '1000'=> $CI->lang->line('Thousand') ,
+                    '100000'=> $CI->lang->line('Lakh') ,
+                    '10000000'=> $CI->lang->line('Crore') ,
+                  );
+      if($no == 0)
+        return ' ';
+      else {
+      $novalue='';
+      $highno=$no;
+      $remainno=0;
+      $value=100;
+      $value1=1000;       
+          while($no>=100)    {
+            if(($value <= $no) &&($no  < $value1))    {
+            $novalue=$words["$value"];
+            $highno = (int)($no/$value);
+            $remainno = $no % $value;
+            break;
+            }
+            $value= $value1;
+            $value1 = $value * 100;
+          }       
+          if(array_key_exists("$highno",$words))
+            return $words["$highno"]." ".$novalue." ".no_to_words($remainno);
+          else {
+           $unit=$highno%10;
+           $ten =(int)($highno/10)*10;            
+           return $words["$ten"]." ".$words["$unit"]." ".$novalue." ".no_to_words($remainno);
+           }
+      }
+  }
+
+ 
+  function get_current_store_id(){
+    $CI =& get_instance();
+    return $CI->session->userdata('store_id');
+  }
+
+  function get_customer_store_id($customer_id){
+    $CI =& get_instance();
+    return $CI->db->select('store_id')->from('db_customers')->where('id',$customer_id)->get()->row()->store_id;
+  }
+  function get_customer_details($customer_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_customers')->where('id',$customer_id)->get()->row();
+  }
+  function get_shipping_address_details($id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_shippingaddress')->where('id',$id)->get()->row();
+  }
+  function get_supplier_details($supplier_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_suppliers')->where('id',$supplier_id)->get()->row();
+  }
+  function get_supplier_store_id($supplier_id){
+    $CI =& get_instance();
+    return $CI->db->select('store_id')->from('db_suppliers')->where('id',$supplier_id)->get()->row()->store_id;
+  }
+
+  function get_count_id($table,$store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    return $CI->db->select('(coalesce(max(count_id),0)+1) as count_id')->where('store_id',$store_id)->get($table)->row()->count_id;
+  }
+
+  //Manuall count continue
+  function get_last_count_id($table,$store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    //$CI->db->select('(coalesce(max(count_id),0)+1) as count_id')->where('store_id',$store_id)->order_by('id','desc')->limit(1)->from($table);
+    $query1 =$CI->db->select('count_id')->where('store_id',$store_id)->order_by('id','desc')->limit(1)->from($table);
+    
+    $query1 = $query1->get();
+    $count_id = ($query1->num_rows()==0) ? 0 : $query1->row()->count_id;
+    $count_id +=1;
+    return $count_id;
+  }
+
+  /*Warehouse*/
+  function warehouse_count(){
+    $CI =& get_instance();
+    return $CI->db->select('count(*) as warehouse_count')->where('store_id',get_current_store_id())->where('status',1)->get('db_warehouse')->row()->warehouse_count;
+  }
+  function get_store_warehouse_id(){
+    $CI =& get_instance();
+    $store_id = get_current_store_id();
+    // 1. Try System warehouse
+    $row = $CI->db->select('id')->where('store_id',$store_id)->where('warehouse_type','System')->where('status',1)->get('db_warehouse')->row();
+    if($row && $row->id) return $row->id;
+    // 2. Fall back to any active warehouse for this store
+    $row = $CI->db->select('id')->where('store_id',$store_id)->where('status',1)->order_by('id','asc')->limit(1)->get('db_warehouse')->row();
+    if($row && $row->id) return $row->id;
+    // 3. Fall back to any warehouse for this store (even inactive)
+    $row = $CI->db->select('id')->where('store_id',$store_id)->order_by('id','asc')->limit(1)->get('db_warehouse')->row();
+    if($row && $row->id) return $row->id;
+    // 4. No warehouse at all — return null so callers can handle it
+    log_message('error', "get_store_warehouse_id: No warehouse found for store_id=$store_id");
+    return null;
+  }
+
+  /**
+   * Return the operational POS warehouse for the current store.
+   *
+   * Most businesses intentionally use the System warehouse as their POS
+   * default. Pharmacy and Supplements & Wellness stores use named, stock-
+   * holding branches for store and online fulfilment. Keep the legacy helper
+   * unchanged for other industries and avoid selecting partner/pickup hubs.
+   */
+  function get_pos_default_warehouse_id($store_id=''){
+    $CI =& get_instance();
+    $store_id = !empty($store_id) ? (int)$store_id : (int)get_current_store_id();
+
+    $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile($store_id) : array();
+    $industry = strtolower(trim((string)($profile['industry_type'] ?? '')));
+    if (in_array($industry, array('pharmacy', 'medical_store', 'healthcare', 'supplements_wellness'), true)
+      && $CI->db->table_exists('db_warehouse')) {
+      $query = $CI->db->select('id')
+        ->where('store_id', $store_id)
+        ->where('status', 1);
+      if ($CI->db->field_exists('branch_type', 'db_warehouse')) {
+        $query->where('branch_type', 'branch');
+      }
+      if ($CI->db->field_exists('warehouse_type', 'db_warehouse')) {
+        $query->where('warehouse_type !=', 'System');
+      }
+      $row = $query->order_by('id', 'asc')->limit(1)->get('db_warehouse')->row();
+      if ($row && !empty($row->id)) return (int)$row->id;
+    }
+
+    return (int)get_store_warehouse_id();
+  }
+
+  /**
+   * Warehouses the current operator may use for a sale.
+   *
+   * NULL means consolidated access for a store administrator. Everyone else
+   * is limited to their explicit assignments plus their session default. The
+   * caller still has to validate that the requested id belongs to the current
+   * store; this helper only answers the user-scope part.
+   */
+  function mp_allowed_warehouse_ids($store_id = ''){
+    $CI =& get_instance();
+    $store_id = !empty($store_id) ? (int)$store_id : (int)get_current_store_id();
+    $ownIds = mp_pharmacy_standard($store_id) ? mp_pharmacy_own_warehouse_ids($store_id) : null;
+    if(is_store_admin() || (int)$CI->session->userdata('role_id') === 1) return $ownIds;
+
+    $ids = [];
+    $user_id = (int)($CI->session->userdata('inv_userid') ?: get_current_user_id());
+    if($user_id > 0 && $CI->db->table_exists('db_userswarehouses')){
+      foreach($CI->db->select('uw.warehouse_id')
+        ->from('db_userswarehouses uw')
+        ->join('db_warehouse w', 'w.id = uw.warehouse_id AND w.store_id = '.(int)$store_id.' AND w.status = 1', 'inner')
+        ->where('uw.user_id', $user_id)->get()->result() as $row){
+        $ids[] = (int)$row->warehouse_id;
+      }
+    }
+    $default = (int)$CI->session->userdata('default_warehouse_id');
+    if($default > 0 && !in_array($default, $ids, true)
+      && $CI->db->table_exists('db_warehouse')
+      && $CI->db->where('id', $default)->where('store_id', $store_id)->where('status', 1)->count_all_results('db_warehouse')){
+      $ids[] = $default;
+    }
+    if(empty($ids)){
+      $fallback = (int)get_pos_default_warehouse_id($store_id);
+      if($fallback > 0) $ids[] = $fallback;
+    }
+    if ($ownIds !== null) $ids = array_intersect($ids, $ownIds);
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
+  }
+  /*end*/
+  function get_only_init_code($value,$store_id=''){
+    return get_init_code($value,null,$only_code_flag=true);
+  }
+
+  function get_init_code($value,$store_id='',$only_code_flag=false){
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+
+    // Init-code prefixes live in db_store_inventory_settings after the
+    // db_store modularization; mp_get_store_inventory_setting falls back
+    // to the legacy db_store column when the modular row is absent.
+    $init_map = array(
+      'category'                => 'category_init',
+      'item'                    => 'item_init',
+      'supplier'                => 'supplier_init',
+      'purchase'                => 'purchase_init',
+      'purchase_return'         => 'purchase_return_init',
+      'customer'                => 'customer_init',
+      'sales'                   => 'sales_init',
+      'sales_return'            => 'sales_return_init',
+      'expense'                 => 'expense_init',
+      'accounts'                => 'accounts_init',
+      'quotation'               => 'quotation_init',
+      'money_transfer'          => 'money_transfer_init',
+      'sales_payment'           => 'sales_payment_init',
+      'sales_return_payment'    => 'sales_return_payment_init',
+      'purchase_payment'        => 'purchase_payment_init',
+      'purchase_return_payment' => 'purchase_return_payment_init',
+      'expense_payment'         => 'expense_payment_init',
+      'custadvance'             => 'cust_advance_init',
+    );
+    if(!isset($init_map[$value])){
+      return '';
+    }
+    $init = mp_get_store_inventory_setting($store_id, $init_map[$value], '');
+    if($value=='category'){
+      $maxid=get_count_id('db_category');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+
+    if($value=='item'){
+      $maxid=get_count_id('db_items');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='supplier'){
+      $maxid=get_count_id('db_suppliers');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='purchase'){
+      $maxid=get_count_id('db_purchase');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='purchase_return'){
+      $maxid=get_count_id('db_purchasereturn');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='customer'){
+      $maxid=get_count_id('db_customers');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='sales'){
+      $maxid=get_count_id('db_sales');
+      return ($only_code_flag) ? $init : $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='sales_return'){
+      $maxid=get_count_id('db_salesreturn');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='expense'){
+      $maxid=get_count_id('db_expense');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='accounts'){
+      $maxid=get_count_id('ac_accounts');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+   /* if($value=='journal'){
+      $maxid=get_count_id('ac_journal');
+      //return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+      return str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }*/
+    if($value=='quotation'){
+      $maxid=get_count_id('db_quotation');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='money_transfer'){
+      $maxid=get_count_id('ac_moneytransfer');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='sales_payment'){
+      $maxid=get_count_id('db_salespayments');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='sales_return_payment'){
+      $maxid=get_count_id('db_salespaymentsreturn');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='purchase_payment'){
+      $maxid=get_count_id('db_purchasepayments');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='purchase_return_payment'){
+      $maxid=get_count_id('db_purchasepaymentsreturn');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='expense_payment'){
+      $maxid=get_count_id('db_expense');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+    if($value=='custadvance'){
+      $maxid=get_count_id('db_custadvance');
+      return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
+    }
+  }
+  function get_store_name($id=''){
+    $CI =& get_instance();
+    if(empty($id)){
+      $id=get_current_store_id();
+    }
+    $q1 = $CI->db->select('store_name')->where('id',$id)->get('db_store');
+    if($q1->num_rows()>0){
+      return $q1->row()->store_name;
+    }
+    else{
+      return null;
+    }
+  }
+  function get_role_name(){
+      $CI =& get_instance();
+      return $CI->session->userdata('role_name');
+  }
+  function store_admin_id(){
+    return 2;
+  }
+
+  /**
+   * Tenant role names that carry the Business Owner permission profile.
+   *
+   * Roles are store-scoped — db_roles.store_id says which store a role belongs
+   * to (role 2 'Store Admin' belongs to store 1). store_admin_id() is a
+   * hard-coded legacy id, so on a store that was never given role 2 — e.g. a
+   * clinic provisioned with its own role set — Business Owner is still a
+   * tenant role, not a Store Admin alias. Its rights come from the permissions
+   * assigned to that role, and it remains a normal billable tenant user.
+   */
+  function store_owner_role_names(){
+    // Keep Store Admin separate: it is an install/admin role, not the
+    // merchant's Business Owner role.
+    return array('BUSINESS OWNER', 'STORE OWNER', 'OWNER');
+  }
+
+  /** Resolve Store Admin by its actual role record, never by number alone. */
+  function store_admin_role_ids($store_id = null){
+    $ids = array();
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int)$store_id;
+    if($store_id <= 0 || !$CI->db->table_exists('db_roles')){
+      return $ids;
+    }
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles
+       WHERE (store_id = ? OR id = ?) AND UPPER(TRIM(role_name)) = 'STORE ADMIN'",
+      array($store_id, (int)store_admin_id())
+    );
+    if($query){
+      foreach($query->result() as $row){ $ids[] = (int)$row->id; }
+    }
+    return array_values(array_unique($ids));
+  }
+
+  /**
+   * Role IDs that carry owner authority for a store (matched by name).
+   * Returns an empty array when the store is unknown, so an unresolved store
+   * never grants anything.
+   */
+  function store_owner_role_ids($store_id = null){
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int) $store_id;
+    if($store_id <= 0){
+      return array();
+    }
+
+    $names = array();
+    foreach(store_owner_role_names() as $name){
+      $names[] = "'".$CI->db->escape_str(strtoupper($name))."'";
+    }
+
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles
+        WHERE store_id = ".$store_id."
+          AND UPPER(role_name) IN (".implode(',', $names).")"
+    );
+    if(!$query){
+      return array();
+    }
+
+    $ids = array();
+    foreach($query->result() as $row){
+      $ids[] = (int) $row->id;
+    }
+    return $ids;
+  }
+
+  /**
+   * User IDs that belong to the store-owner account(s).
+   *
+   * This is an account-identity lookup only. Do not infer owner identity from
+   * the Business Owner role: that is an assignable, billable permission role.
+   */
+  function store_owner_user_ids($store_id = null){
+    $CI =& get_instance();
+    if($store_id === null || $store_id === ''){
+      $store_id = $CI->session->userdata('store_id');
+    }
+    $store_id = (int) $store_id;
+    if($store_id <= 0){
+      return array();
+    }
+
+    $ids = array();
+    // Use isolated parameterized queries here. This helper is frequently
+    // called while another Query Builder statement is being assembled; using
+    // the shared builder would leak its SELECT/FROM/WHERE state into these
+    // owner lookups and can turn a normal page into a 500.
+    // Never call row() on a failed query here: this helper is used while the
+    // POS shell is being rendered, so a missing legacy column must not turn a
+    // normal page into a site-wide 500.
+    $store = null;
+    if($CI->db->table_exists('db_store') && $CI->db->field_exists('user_id', 'db_store')){
+      $storeQuery = $CI->db->query(
+        'SELECT user_id FROM db_store WHERE id = ? LIMIT 1',
+        array($store_id)
+      );
+      $store = $storeQuery ? $storeQuery->row() : null;
+    }
+    if($store && !empty($store->user_id)){
+      $ids[] = (int) $store->user_id;
+    }
+
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
+  }
+
+  /**
+   * User IDs omitted from operational staff pickers (cashier, attendance,
+   * salesperson). This is identity-based and is deliberately NOT used by
+   * license seat counting: Business Owner is a normal, billable role.
+   */
+  function get_excluded_user_ids($store_id = ''){
+    $store_id = (!empty($store_id)) ? (int)$store_id : (int)get_current_store_id();
+    $ids = array(1);
+    $ids = array_merge($ids, store_owner_user_ids($store_id));
+    return array_values(array_unique(array_filter($ids, function($id){ return (int)$id > 0; })));
+  }
+
+  /** True only for the install-level/tenant Store Admin system role. */
+  function is_store_admin(){
+    $CI =& get_instance();
+
+    $role_id = (int) $CI->session->userdata('role_id');
+    if(empty($role_id)){
+      return false;
+    }
+
+    $store_id = (int) $CI->session->userdata('store_id');
+    return in_array($role_id, store_admin_role_ids($store_id), true);
+  }
+
+  /** True only for the store-scoped merchant Business Owner role. */
+  function is_business_owner(){
+    $CI =& get_instance();
+    $role_id = (int)$CI->session->userdata('role_id');
+    $store_id = (int)$CI->session->userdata('store_id');
+    return $role_id > 0 && in_array($role_id, store_owner_role_ids($store_id), true);
+  }
+  function is_admin(){
+    if(strtoupper(get_role_name())==strtoupper('admin')){
+      return true;
+    }
+    return false;
+  }
+  function is_user(){
+    return (!is_admin() && !is_store_admin());
+  }
+  function is_cashier(){
+    $role_name = trim(get_role_name() ?: '');
+    return (stripos($role_name, 'cashier') !== false);
+  }
+  function set_status_of_table($col_id,$status,$table){
+    $CI =& get_instance();
+    $CI->db->where("id",$col_id);
+    //if not admin
+    if(!is_admin()){
+      $CI->db->where("store_id",get_current_store_id());
+    }
+    $CI->db->set("status",$status);
+    $query1=$CI->db->update($table);
+        if ($query1){
+            return true;
+        }
+        return false;
+  }
+
+  function get_walk_in_customer_name(){
+    return 'Walk-in customer';
+  }
+
+  function is_walk_in_customer($customer_id){
+    if(empty($customer_id)) return false;
+    $CI =& get_instance();
+    $row = $CI->db->select('customer_name,delete_bit')
+                   ->where('id',$customer_id)
+                   ->get('db_customers')
+                   ->row();
+    if(!$row) return false;
+    return ($row->customer_name === get_walk_in_customer_name() || $row->delete_bit == 1);
+  }
+
+  function get_walk_in_customer_id($store_id = null){
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    $row = $CI->db->select('id')
+                  ->where('store_id',$store_id)
+                  ->where('customer_name',get_walk_in_customer_name())
+                  ->get('db_customers')
+                  ->row();
+    return $row ? $row->id : null;
+  }
+
+  function get_payment_modes_select_list($store_id = null, $selected_code = ''){
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    $CI->load->model('payment_modes_model');
+    $modes = $CI->payment_modes_model->get_enabled_modes($store_id);
+    // A store created before payment modes existed may have none seeded —
+    // seed the defaults so the dropdown is never empty.
+    if(empty($modes) && $CI->db->table_exists('db_payment_modes')){
+      $CI->payment_modes_model->seed_defaults($store_id);
+      $modes = $CI->payment_modes_model->get_enabled_modes($store_id);
+    }
+    $html = '';
+    foreach($modes as $mode){
+      $selected = ($selected_code == $mode->code) ? 'selected' : '';
+      $html .= "<option value='".$mode->code."' data-requires-reference='".$mode->requires_reference."' data-requires-confirmation='".$mode->requires_confirmation."' data-affects-cash='".$mode->affects_cash_in_hand."' " . $selected . ">" . $mode->name . "</option>";
+    }
+    return $html;
+  }
+
+  function get_default_payment_mode_code($store_id = null){
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    $CI->load->model('payment_modes_model');
+    $mode = $CI->payment_modes_model->get_default_mode($store_id);
+    return $mode ? $mode->code : 'cash';
+  }
+
+  function get_payment_mode_by_code($code, $store_id = null){
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    $CI->load->model('payment_modes_model');
+    return $CI->payment_modes_model->get_mode_by_code($code, $store_id);
+  }
+
+  /**
+   * Display label for a stored payment_type value. Returns the Payment Mode
+   * name when the value matches a configured mode code (case-insensitive),
+   * otherwise converts stored machine codes like 'bank_transfer' into a
+   * readable label while preserving legacy values like 'Bank Transfer'.
+   */
+  function payment_mode_label($stored, $store_id = null){
+    static $cache = array();
+    $stored = trim((string)$stored);
+    if($stored === ''){ return '—'; }
+    $CI =& get_instance();
+    if(empty($store_id)){ $store_id = get_current_store_id(); }
+    $cacheKey = (string)$store_id . '|' . strtolower($stored);
+    if(array_key_exists($cacheKey, $cache)){ return $cache[$cacheKey]; }
+    if($CI->db->table_exists('db_payment_modes')){
+      $mode = $CI->db->select('name')
+                     ->where('store_id', $store_id)
+                     ->where('LOWER(code)', strtolower($stored))
+                     ->get('db_payment_modes')->row();
+      if($mode){ return $cache[$cacheKey] = $mode->name; }
+    }
+    return $cache[$cacheKey] = (function_exists('mp_code_label') ? mp_code_label($stored) : ucfirst(strtolower(str_replace('_', ' ', $stored))));
+  }
+
+  function get_warehouse_name($id){
+    $CI =& get_instance();
+    if(empty($id)){ return ''; }
+    $row = $CI->db->select('warehouse_name')->where('id',$id)->get('db_warehouse');
+    $row = $row ? $row->row() : null;
+    return $row ? $row->warehouse_name : '';
+  }
+  function get_total_qty_of_warehouse_item($item_id,$warehouse_id='',$store_id=''){
+    if(empty($warehouse_id)){
+      $warehouse_id= get_store_warehouse_id();
+    }
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    $CI =& get_instance();
+    /*Sum purchase quantity of purchase entry*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
+                              db_purchaseitems AS a,
+                              db_purchase AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`purchase_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id and b.purchase_status IN ('Received','Partially Received')");
+    if(!$q){ return false; }
+    $purchase_qty=$q->row()->purchase_qty;
+
+
+    /*Sum purchase quantity of purchase entry*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM 
+                              db_purchaseitemsreturn AS a,
+                              db_purchasereturn AS b
+                              WHERE 
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND 
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $purchase_return_qty=$q->row()->purchase_return_qty;
+
+    /*Sum sales quantity of sales entry*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM 
+                              db_salesitems AS a,
+                              db_sales AS b
+                              WHERE 
+                              a.`item_id`=$item_id AND a.`sales_id`=b.id AND 
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $sales_qty=$q->row()->sales_qty;
+
+    /*Sum sales return quantity of invoice*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM 
+                              db_salesitemsreturn AS a,
+                              db_salesreturn AS b
+                              WHERE 
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND 
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id");
+    if(!$q){ return false; }
+    $sales_return_qty=$q->row()->sales_return_qty;
+
+
+    $adjustmentSql = "SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
+                              FROM db_stockadjustmentitems a
+                              JOIN db_stockadjustment h ON h.id=a.adjustment_id";
+    $adjustmentWhere = " WHERE a.store_id=".(int)$store_id." AND a.warehouse_id=".(int)$warehouse_id." AND a.item_id=".(int)$item_id;
+    if($CI->db->table_exists('db_online_orders') && $CI->db->field_exists('sales_id','db_online_orders')){
+      $adjustmentSql .= " LEFT JOIN db_online_orders oo ON oo.store_id=h.store_id AND h.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+      $adjustmentWhere .= " AND (h.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR COALESCE(oo.sales_id,0)=0)";
+    }
+    $q = $CI->db->query($adjustmentSql.$adjustmentWhere);
+    if(!$q){ return false; }
+    $stock_entry_qty=$q->row()->adjustment_qty;
+    /*Add Stock Transfer*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END),0) AS stocktransfer_qty FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS h ON h.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_to=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND h.receipt_status NOT IN ('In Transit','Awaiting Approval')");
+    if(!$q){ return false; }
+    $stocktransfer_qty_add=$q->row()->stocktransfer_qty;
+    /*Deduct Stock from warerhouse*/
+    $q = $CI->db->query("SELECT COALESCE(SUM(transfer_qty),0) AS stocktransfer_qty FROM db_stocktransferitems 
+                              WHERE 
+                              store_id=$store_id AND 
+                              warehouse_from=$warehouse_id AND
+                              item_id=$item_id");
+    if(!$q){ return false; }
+    $stocktransfer_qty_deduct=$q->row()->stocktransfer_qty;
+    
+    return ($stock_entry_qty + $purchase_qty + $stocktransfer_qty_add - $stocktransfer_qty_deduct + $sales_return_qty - $purchase_return_qty)-$sales_qty;
+  }
+
+  /**
+   * Calculate warehouse item quantity as of a specific date.
+   * Rebuilds stock from transaction history up to and including the given date.
+   * @param string $as_of_date SQL date Y-m-d
+   */
+  function get_total_qty_of_warehouse_item_as_of_date($item_id,$warehouse_id='',$store_id='',$as_of_date=''){
+    if(empty($warehouse_id)){
+      $warehouse_id= get_store_warehouse_id();
+    }
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    if(empty($as_of_date)){
+      return get_total_qty_of_warehouse_item($item_id,$warehouse_id,$store_id);
+    }
+    $CI =& get_instance();
+    $as_of_date = $CI->db->escape_str($as_of_date);
+
+    $purchase_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.purchase_qty END)), 0) AS purchase_qty FROM
+                              db_purchaseitems AS a,
+                              db_purchase AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`purchase_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.purchase_status IN ('Received','Partially Received')
+                              AND b.purchase_date <= '$as_of_date'")->row()->purchase_qty;
+
+    $purchase_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS purchase_return_qty FROM
+                              db_purchaseitemsreturn AS a,
+                              db_purchasereturn AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
+                              AND b.return_date <= '$as_of_date'")->row()->purchase_return_qty;
+
+    $sales_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.sales_qty)), 0) AS sales_qty FROM
+                              db_salesitems AS a,
+                              db_sales AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`sales_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id AND b.sales_status='Final'
+                              AND b.sales_date <= '$as_of_date'")->row()->sales_qty;
+
+    $sales_return_qty=$CI->db->query("SELECT COALESCE(SUM(COALESCE(a.base_unit_qty, a.return_qty)), 0) AS sales_return_qty FROM
+                              db_salesitemsreturn AS a,
+                              db_salesreturn AS b
+                              WHERE
+                              a.`item_id`=$item_id AND a.`return_id`=b.id AND
+                              b.`store_id`=$store_id AND b.`warehouse_id`=$warehouse_id
+                              AND b.return_date <= '$as_of_date'")->row()->sales_return_qty;
+
+    $adjustmentSql = "SELECT COALESCE(SUM(a.adjustment_qty),0) AS adjustment_qty
+                              FROM db_stockadjustmentitems AS a
+                              JOIN db_stockadjustment AS b ON b.id = a.adjustment_id";
+    $adjustmentWhere = " WHERE a.store_id=".(int)$store_id." AND a.warehouse_id=".(int)$warehouse_id
+                              ." AND a.item_id=".(int)$item_id." AND b.adjustment_date <= '$as_of_date'";
+    if($CI->db->table_exists('db_online_orders') && $CI->db->field_exists('sales_id','db_online_orders')){
+      $adjustmentSql .= " LEFT JOIN db_online_orders oo ON oo.store_id=b.store_id AND b.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+      $adjustmentSql .= " LEFT JOIN db_sales os ON os.id=oo.sales_id AND os.store_id=oo.store_id";
+      $adjustmentWhere .= " AND (b.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR oo.sales_id IS NULL OR os.id IS NULL OR os.sales_date IS NULL OR os.sales_date > '$as_of_date')";
+    }
+    $stock_entry_qty=$CI->db->query($adjustmentSql.$adjustmentWhere)->row()->adjustment_qty;
+
+    $stocktransfer_qty_add=$CI->db->query("SELECT COALESCE(SUM(CASE WHEN a.received_qty IS NOT NULL THEN a.received_qty ELSE a.transfer_qty END),0) AS stocktransfer_qty
+                              FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS b ON b.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_to=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND b.receipt_status NOT IN ('In Transit','Awaiting Approval')
+                              AND b.transfer_date <= '$as_of_date'")->row()->stocktransfer_qty;
+
+    $stocktransfer_qty_deduct=$CI->db->query("SELECT COALESCE(SUM(a.transfer_qty),0) AS stocktransfer_qty
+                              FROM db_stocktransferitems AS a
+                              JOIN db_stocktransfer AS b ON b.id = a.stocktransfer_id
+                              WHERE
+                              a.store_id=$store_id AND
+                              a.warehouse_from=$warehouse_id AND
+                              a.item_id=$item_id
+                              AND b.transfer_date <= '$as_of_date'")->row()->stocktransfer_qty;
+
+    return ($stock_entry_qty + $purchase_qty + $stocktransfer_qty_add - $stocktransfer_qty_deduct + $sales_return_qty - $purchase_return_qty)-$sales_qty;
+  }
+
+  function get_total_qty_of_item_as_of_date($item_id,$store_id='',$as_of_date=''){
+    $CI =& get_instance();
+    if(empty($store_id)){
+      $store_id = get_current_store_id();
+    }
+    $total = 0;
+    $q1 = $CI->db->where('store_id',$store_id)->get('db_warehouse');
+    foreach($q1->result() as $w){
+      $total += get_total_qty_of_warehouse_item_as_of_date($item_id,$w->id,$store_id,$as_of_date);
+    }
+    return $total;
+  }
+
+  function update_warehousewise_items_qty($item_id,$warehouse_id,$store_id){
+    $CI =& get_instance();
+    //If item id exist
+      $CI->db->where("store_id",$store_id)->where("warehouse_id",$warehouse_id)->where('item_id',$item_id)->delete("db_warehouseitems");
+      $available_qty = get_total_qty_of_warehouse_item($item_id,$warehouse_id,$store_id);
+      if($available_qty === false){
+        return false;
+      }
+      if($available_qty>0){
+        $info=array(  'store_id'      =>  $store_id,
+                      'warehouse_id'  =>  $warehouse_id,
+                      'item_id'       =>  $item_id,
+                      'available_qty' =>  $available_qty,
+         );
+        $q1 = $CI->db->insert('db_warehouseitems', $info);
+        if(!$q1){
+          return false;
+        }
+      }      
+    return true;
+  }
+
+  function update_warehousewise_items_qty_by_store($store_id='',$item_ids=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+      $q3=$CI->db->select("id")->where("store_id",$store_id)->get("db_warehouse");
+      foreach($q3->result() as $res3) {
+        $warehouse_id = $res3->id;
+        if(!empty($item_ids)){
+          $CI->db->where("id in ($item_ids)");
+        }
+        $CI->db->where("service_bit!=1");
+        $q1=$CI->db->select("id")->where('store_id',$store_id)->get("db_items");  
+        foreach($q1->result() as $res1) {
+            $q1 = update_warehousewise_items_qty($res1->id,$warehouse_id,$store_id);
+            if(!$q1){
+              return false;
+            }
+        }//items foreach
+      }//Warehouse foreach
+    return true;
+  }
+
+  function get_in_comma_delimited($two_array){
+    if(!is_array($two_array)){
+      $two_array = array(array($two_array));
+    }
+    $unique_array = array_unique($two_array,SORT_REGULAR);
+
+    $tmpArr = array();
+    foreach ($unique_array as $sub) {
+      $tmpArr[] = implode(',', $sub);
+    }
+    $item_ids = implode(',', $tmpArr);
+    return $item_ids;
+  }
+
+   function update_warehouse_items($two_array){
+  
+    $item_ids = get_in_comma_delimited($two_array);
+
+    /*Update items in all warehouses of the item*/
+    $q7=update_warehousewise_items_qty_by_store(null,$item_ids);
+    if(!$q7){
+      return false;
+    }
+    return true;
+  }
+
+
+  function total_items_of_warehouse($warehouse_id,$store_id=''){
+    $CI =& get_instance();
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    
+    return $CI->db->select("count(*) as total_items")->where("warehouse_id",$warehouse_id)->where("store_id",$store_id)->get("db_warehouseitems")->row()->total_items;
+  }
+  function total_available_qty_items_of_warehouse($warehouse_id='',$store_id='',$item_id=''){
+    $CI =& get_instance();
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    if(!empty($item_id)){
+      $CI->db->where("item_id",$item_id);
+    }
+    if(!empty($warehouse_id)){
+      $CI->db->where("warehouse_id in ($warehouse_id)");
+    }
+    $CI->db->select("COALESCE(sum(available_qty),0) as available_qty")->where("store_id",$store_id)->from("db_warehouseitems");
+    //echo $CI->db->get_compiled_select();exit;
+    $row = $CI->db->get()->row();
+    return ($row) ? $row->available_qty : 0;
+  }
+  function total_worth_of_warehouse_items($warehouse_id,$store_id=''){
+    $CI =& get_instance();
+    if(empty($store_id)){
+      $store_id= get_current_store_id();
+    }
+    $CI->db->select("COALESCE(sum(available_qty),0) as available_qty,item_id")->where("warehouse_id",$warehouse_id)->where("store_id",$store_id)->from("db_warehouseitems")->group_by("item_id");
+    $q1 = $CI->db->get();
+    $tot_sales_price=0;
+      foreach ($q1->result() as $res1) {
+        $item_price = $CI->db->select("coalesce((sales_price),0) as sales_price")->where("id",$res1->item_id)->get("db_items")->row()->sales_price;
+        $tot_sales_price+=$item_price*$res1->available_qty;
+      }
+    return $tot_sales_price;
+  }
+
+  function get_total_stocktranfer_items($stocktransfer_id){
+    $CI =& get_instance();
+    return $CI->db->select("count(item_id) as tot_items")->where("store_id",get_current_store_id())->where("stocktransfer_id",$stocktransfer_id)->get("db_stocktransferitems")->row()->tot_items;
+  }
+  function get_total_stocktranfer_items_qty($stocktransfer_id){
+    $CI =& get_instance();
+    return $CI->db->select("coalesce(sum(transfer_qty),0) as transfer_qty")->where("store_id",get_current_store_id())->where("stocktransfer_id",$stocktransfer_id)->get("db_stocktransferitems")->row()->transfer_qty;
+  }
+
+  function get_current_user_id(){
+    $CI =& get_instance();
+    return $CI->session->userdata('inv_userid');
+  }
+
+  function get_paid_cob($customer_id){//Customer Opening Balance Paid Total
+    $CI =& get_instance();
+    return $CI->db->select("coalesce(sum(payment),0) as payment")
+            ->where("store_id",get_current_store_id())
+            ->where("customer_id",$customer_id)
+            ->where("short_code","OPENING BALANCE PAID")
+            ->get("db_salespayments")->row()->payment;
+  }
+  function get_paid_sob($supplier_id){//supplier Opening Balance Paid Total
+    $CI =& get_instance();
+    return $CI->db->select("coalesce(sum(payment),0) as payment")
+            ->where("store_id",get_current_store_id())
+            ->where("supplier_id",$supplier_id)
+            ->where("short_code","OPENING BALANCE PAID")
+            ->get("db_purchasepayments")->row()->payment;
+  }
+  function get_account_name($id){
+    if(empty($id)) {return "";}
+    $CI =& get_instance();
+    return $CI->db->select("account_name")->where("store_id",get_current_store_id())->where("id",$id)->get("ac_accounts")->row()->account_name;
+  }
+  function get_seller_points($item_id){
+    $CI =& get_instance();
+    return $CI->db->select("seller_points")->where("id",$item_id)->get("db_items")->row()->seller_points;
+  }
+  function get_item_name($item_id){
+    $CI =& get_instance();
+    return $CI->db->select("item_name")->where("id",$item_id)->get("db_items")->row()->item_name;
+  }
+  function get_current_store_language(){
+    $CI =& get_instance();
+    return $CI->db->select("language_id")->where("id",get_current_store_id())->get("db_store")->row()->language_id;
+  }
+
+  function get_price_level_price($customer_id,$price,$wholesale=null){
+    if (function_exists('mp_customer_price')) return mp_customer_price($customer_id,$price,$wholesale);
+    $CI =& get_instance();
+    if(empty($customer_id)){
+      return $price;
+    }
+    $q1=$CI->db->select("price_level_type,price_level")->where("store_id",get_current_store_id())->where("id",$customer_id)->get("db_customers")->row();
+    if($q1 && $q1->price_level!=0){
+      return ($q1->price_level_type=='Increase') ? $price + ($price*$q1->price_level)/100 : $price - ($price*$q1->price_level)/100;
+    }
+    else{
+      return $price;
+    }
+  }
+  /*Customer Calculate Opening Balance of the invoice, before and after*/
+  function calculate_ob_of_customer($sales_id,$customer_id){
+    /*
+    Note: Run this Function after customer and sales record updates
+    */
+
+    /*$CI =& get_instance();
+    //Sales grand total & paid amount
+    $CI->db->select("coalesce(sum(grand_total)) as grand_total, coalesce(sum(paid_amount)) as paid_amount");
+    $CI->db->from("db_sales");
+    $CI->db->where("id",$sales_id);
+    $q1 = $CI->db->get()->row(); 
+    $grand_total = $q1->grand_total;
+    $paid_amount = $q1->paid_amount;
+    
+    //Pending invoice payment + Opening balance
+    $CI->db->select("coalesce(sum(sales_due),0)+coalesce(sum(opening_balance),0) as tot");
+    $CI->db->from("db_customers");
+    $CI->db->where("id",$customer_id);
+    $invoice_ob = $CI->db->get()->row()->tot; //Current
+    
+    //Update Sales invoice
+    $customer_previous_due = $invoice_ob - ($grand_total - $paid_amount); //Previous
+    $CI->db->set("customer_previous_due",$customer_previous_due);
+    $CI->db->set("customer_total_due",$invoice_ob);
+    $CI->db->where("id",$sales_id);
+    $q3 = $CI->db->update("db_sales");
+    if(!$q3){
+      return false;
+    }
+    return true;*/
+  }
+  
+  function getDefaultWarehouseId($user_id=''){
+
+    $CI =& get_instance();
+
+    $user_id = (!empty($user_id)) ? $user_id : $CI->session->userdata('inv_userid');
+
+    $query4 = $CI->db->select("default_warehouse_id")
+              ->where("id",$user_id)
+              ->from("db_users")
+              ->get();
+      
+    if($query4->num_rows()>0){
+      return $query4->row()->default_warehouse_id;
+    }
+    else{
+      return "No User Found";
+    }
+
+  }
+
+  function getArrayOfWarehouseIds(){
+    $CI =& get_instance();
+    //Find the previllaged wareshouses to the user
+    $CI->db->select("warehouse_id")->where("user_id",get_current_user_id())->from("db_userswarehouses");
+    $q3 = $CI->db->get();
+    $privileged_warehouses = array();
+    foreach ($q3->result() as $res3) {
+      $privileged_warehouses[] = $res3->warehouse_id;
+    }
+    return $privileged_warehouses;
+  }
+
+  // Alias for getArrayOfWarehouseIds (branch = warehouse in this app)
+  function getArrayOfBranchIds(){
+    return getArrayOfWarehouseIds();
+  }
+
+  function get_privileged_warehouses_ids(){
+    $ids = getArrayOfWarehouseIds();
+    $privileged_warehouses = implode(',', $ids);
+    return !empty($privileged_warehouses) ? $privileged_warehouses : '0';
+  }
+
+   function calculate_inclusive($amount,$tax){
+    $tot = ($amount/(($tax/100)+1)/10);
+    return number_format($tot,2,".","");
+  }
+  function calculate_exclusive($amount,$tax){
+    $tot = (($amount*$tax)/(100));
+    return number_format($tot,2,".","");
+  }
+
+  function original_cost($amount,$tax_per,$tax_type='Exclusive'){
+    if($tax_type =='Exclusive'){
+      return $amount+($amount * ( $tax_per/100 ) );
+    }
+    else{
+      return $amount/(1+($tax_per/100));
+    }
+  }
+  
+  //08-09-2020
+  function get_profile_picture(){
+    $CI =& get_instance();
+    $row = $CI->db->select('profile_picture')->where("id",$CI->session->userdata('inv_userid'))->get('db_users')->row();
+    $profile_picture = $row ? $row->profile_picture : '';
+    if(!empty($profile_picture)){
+      $profile_picture = base_url($profile_picture);
+    }
+    else{
+      // Shared default avatar used across desktop + mobile (see uploads/users/avatar.png).
+      $profile_picture = base_url("uploads/users/avatar.png");
+    }
+    return $profile_picture;
+  }
+
+  /**
+   * Return the signed-in user's first name for friendly UI greetings.
+   *
+   * Resolve from the database first so a profile edit is reflected on the
+   * next render even if an older session was created before first_name was
+   * populated. The session remains the fallback for installations where the
+   * user row cannot be read.
+   */
+  if (!function_exists('mp_current_user_first_name')) {
+    function mp_current_user_first_name($fallback = 'User'){
+      $CI =& get_instance();
+      $name = trim((string)$CI->session->userdata('first_name'));
+      $userId = (int)$CI->session->userdata('inv_userid');
+      if($userId > 0 && $CI->db->field_exists('first_name', 'db_users')){
+        $row = $CI->db->select('first_name,last_name,username')->where('id', $userId)->limit(1)->get('db_users')->row();
+        if($row){
+          $name = trim((string)$row->first_name);
+          if($name === '') $name = trim((string)$row->last_name);
+          if($name === '' && !empty($row->username)) $name = trim((string)$row->username);
+        }
+      }
+      if($name === ''){
+        $display = trim((string)$CI->session->userdata('display_name'));
+        if($display !== '') $name = preg_split('/\s+/', $display)[0];
+      }
+      return $name !== '' ? $name : $fallback;
+    }
+  }
+
+  /** Saved personal name, never a role label from an older login session. */
+  function mp_current_user_full_name($fallback = 'User'){
+    $CI =& get_instance();
+    $row = $CI->db->select('first_name,last_name,username')
+      ->where('id',(int)$CI->session->userdata('inv_userid'))
+      ->where('store_id',(int)get_current_store_id())->where('status',1)
+      ->limit(1)->get('db_users')->row();
+    if($row){
+      $name = trim(trim((string)$row->first_name).' '.trim((string)$row->last_name));
+      if($name !== '') return $name;
+      if(trim((string)$row->username) !== '') return trim((string)$row->username);
+    }
+    return $fallback;
+  }
+
+  function get_sales_id_of_quotation($quotation_id){
+    $CI =& get_instance();
+    return $CI->db->select('id')->where('quotation_id',$quotation_id)->get('db_sales')->row()->id;
+  }
+  function get_quotation_details($quotation_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->where('id',$quotation_id)->get('db_quotation')->row();
+  }
+  function get_sales_code($sales_id){
+    $CI =& get_instance();
+    return $CI->db->select('sales_code')->where('id',$sales_id)->get('db_sales')->row()->sales_code;
+  }
+  function get_sales_details($sales_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_sales')->where('id',$sales_id)->get()->row();
+  }
+  function get_state_details($state_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_states')->where('id',$state_id)->get()->row();
+  }
+  function get_country_details($country_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_country')->where('id',$country_id)->get()->row();
+  }
+  function get_tax_details($tax_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_tax')->where('id',$tax_id)->get()->row();
+  }
+  // Tax is optional on catalogue and saved document lines. Always provide
+  // numeric zero values so untaxed items can be rendered and recalculated.
+  function get_document_item_tax($tax_id){
+    $CI =& get_instance();
+    $tax = (int)$tax_id > 0
+      ? $CI->db->where('id',(int)$tax_id)->where('store_id',get_current_store_id())->get('db_tax')->row()
+      : null;
+    return $tax ?: (object)array('id'=>0, 'tax'=>0, 'tax_name'=>'No Tax');
+  }
+  function is_it_belong_to_store($table,$rec_id){
+    $CI =& get_instance();
+    $store_id = get_current_store_id();
+    $q = $CI->db->select('count(*) as tot_rec')->where('id',$rec_id)->where('store_id',$store_id)->get($table);
+    $row = $q ? $q->row() : null;
+    return $row ? (int)$row->tot_rec : 0;
+  }
+  function get_coupon_master_details($id){
+    $CI =& get_instance();
+    return $CI->db->select("*")
+            ->from("db_coupons")
+            ->where('store_id',get_current_store_id())
+            ->where("id=",$id)->get()->row();
+  }
+  function get_customer_coupon_details($id){
+    $CI =& get_instance();
+    return $CI->db->select("*")
+            ->from("db_customer_coupons")
+            ->where('store_id',get_current_store_id())
+            ->where("id=",$id)->get()->row();
+  }
+  function get_customer_coupon_details_by_coupon_code($code){
+    $CI =& get_instance();
+    return $CI->db->select("*")
+            ->where('store_id',get_current_store_id())
+            ->where("upper(code)",strtoupper($code))
+            ->from("db_customer_coupons")->get();
+  }
+  function get_item_details($item_id){
+    $CI =& get_instance();
+    return $CI->db->select("*")
+            ->from("db_items")
+            ->where('store_id',get_current_store_id())
+            ->where("id=",$item_id)->get()->row();
+  }
+
+  /** Calculate effective unit price for stepped weight pricing. */
+  function mp_weight_pricing_unit_price($item, $qty, $unit_price, $line_count = null){
+    if(!$item || empty($item->weight_pricing_enabled)) return (float)$unit_price;
+    $qty = (float)$qty; $unit_price = (float)$unit_price;
+    $included = (float)($item->weight_pricing_base_kg ?? 0);
+    $increment = (float)($item->weight_pricing_increment_kg ?? 0);
+    $charge = (float)($item->weight_pricing_increment_charge ?? 0);
+    if($qty <= 0 || $included <= 0 || $increment <= 0 || $charge < 0) return $unit_price;
+    $scale_mode = function_exists('mp_get_store_pos_setting')
+      ? strtolower((string)mp_get_store_pos_setting(get_current_store_id(), 'weight_scale_mode', 'analog'))
+      : 'analog';
+    if(!in_array($scale_mode, array('digital', 'analog', 'hybrid'), true)) $scale_mode = 'hybrid';
+    if($scale_mode === 'digital') {
+      // Digital scales provide an exact measured quantity: price proportionally
+      // against the configured base-kg price without analogue line charges.
+      return ($unit_price / $included);
+    }
+    // Analogue mode charges kg blocks plus line increments. Hybrid mode treats
+    // the exact measured kg as the proportional base and adds optional lines.
+    if($line_count !== null && is_numeric($line_count)) {
+      $steps = max(0, (int)$line_count);
+      $whole_units = max(0, $qty - ($steps * $increment)) / $included;
+    } else {
+      $whole_units = (int)floor(($qty / $included) + 0.00000001);
+      $remainder = max(0, $qty - ($whole_units * $included));
+      $steps = $remainder > 0 ? (int)ceil(round($remainder / $increment, 8)) : 0;
+    }
+    return (($whole_units * $unit_price) + ($steps * $charge)) / $qty;
+  }
+  function get_brand_details($brand_id){
+    $CI =& get_instance();
+    return $CI->db->select("*")
+            ->from("db_brands")
+            ->where('store_id',get_current_store_id())
+            ->where("id=",$brand_id)->get()->row();
+  }
+
+  function get_country($country_id=''){
+    $CI =& get_instance();
+    if(trim($country_id) == '') { return null; }
+    $Q1 = $CI->db->select("*")
+            ->from("db_country")
+            ->where("id=",$country_id)->get();
+    if($Q1->num_rows()>0){
+      return $Q1->row()->country;
+    }
+    return null;
+  }
+
+  function get_state($state_id=''){
+    $CI =& get_instance();
+    if(trim($state_id) == '') { return null; }
+    $Q1 = $CI->db->select("*")
+            ->from("db_states")
+            ->where("id=",$state_id)->get();
+    if($Q1->num_rows()>0){
+      return $Q1->row()->country;
+    }
+    return null;
+  }
+  function get_sales_payment_details($id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->from('db_salespayments')->where('id',$id)->get()->row();
+  }
+  function permissions($permissions=''){
+    $CI =& get_instance();
+    // Platform Admin accounts and recognized tenant Admin roles receive full
+    // workspace permissions. Business Owner and staff remain grant-based.
+    if($CI->session->userdata('inv_userid')==1 || $CI->session->userdata('inv_userid')==2){
+      return true;
+    }
+    if((function_exists('is_admin') && is_admin()) || (function_exists('is_store_admin') && is_store_admin())){
+      return true;
+    }
+    $role_id = $CI->session->userdata('role_id');
+    if(empty($role_id)){
+      return false;
+    }
+    $tot=$CI->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$CI->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
+    // Duplicate legacy grants must not turn an allowed permission into a denial.
+    if($tot>0){
+      return true;
+    }
+     return false;
+  }
+
+  function get_sales_tax_total($sales_id){
+    $CI =& get_instance();
+    return $CI->db->select("coalesce(sum(tax_amt),0) as tax_total")
+            ->where("store_id",get_current_store_id())
+            ->where("sales_id",$sales_id)
+            ->get("db_salesitems")->row()->tax_total;
+  }
+
+
+  function get_current_subcription_id($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+
+    
+    $subscription_id = $CI->db->select('current_subscriptionlist_id as subscription')->where('id',$store_id)->get('db_store')->row()->subscription;
+
+    if(!$subscription_id){
+      return false;
+    }
+    return $subscription_id;
+  }
+  function get_subscription_rec($sub_id){
+    $CI =& get_instance();
+    if(!$CI->db->table_exists('db_subscription_license')){
+      return null;
+    }
+    $rec = $CI->db->where('id',$sub_id)->get('db_subscription_license')->row();
+    if(!$rec){
+      return null;
+    }
+    // Legacy alias compatibility for views and package validators
+    $rec->subscription_date = $rec->subscription_start_date ?? null;
+    $rec->expire_date       = $rec->subscription_end_date ?? null;
+    $rec->max_users         = $rec->user_limit ?? 3;
+    $rec->max_warehouses    = $rec->branch_limit ?? -1;
+    $rec->max_items         = $rec->product_limit ?? -1;
+    $rec->max_invoices      = $rec->invoice_limit ?? -1;
+    return $rec;
+  }
+
+  function get_package_details($package_id){
+    $CI =& get_instance();
+    return $CI->db->select('*')->where('id',$package_id)->get('db_package')->row();
+  }
+
+  /* ================= LICENSE KEY HELPERS ================= */
+
+  function generate_license_key($data){
+    // Encode subscription data into a license key
+    // Format: MP-{base64(json)}-{crc32}
+    $domain = $_SERVER['HTTP_HOST'] ?? '';
+    $payload = json_encode([
+      'p' => $data['plan_name'] ?? 'Basic',
+      's' => $data['subscription_start_date'] ?? date('Y-m-d'),
+      'e' => $data['subscription_end_date'] ?? date('Y-m-d'),
+      'b' => (int) ($data['branch_limit'] ?? 1),
+      'u' => (int) ($data['user_limit'] ?? 3),
+      'pr' => (int) ($data['product_limit'] ?? 500),
+      'sk' => (int) ($data['sku_limit'] ?? 10000),
+      'op' => (int) ($data['online_product_limit'] ?? 500),
+      'sv' => (int) ($data['service_limit'] ?? 100),
+      'm' => (int) ($data['media_storage_limit_mb'] ?? 2048),
+      'sf' => (int) ($data['storefront_limit'] ?? 1),
+      'cd' => (int) ($data['custom_domain_limit'] ?? 1),
+      'w' => $data['whatsapp_number'] ?? '',
+      'r' => $data['renewal_amount'] ?? '',
+      'c' => $data['client_name'] ?? '',
+      'd' => $domain, // domain-locked
+      't' => time() // timestamp to make each key unique
+    ]);
+    $b64 = rtrim(strtr(base64_encode($payload), '+/', '-_'), '=');
+    $crc = substr(dechex(crc32($b64)), 0, 6);
+    return 'MP-' . $b64 . '-' . strtoupper($crc);
+  }
+
+  function decode_license_key($key){
+    if(empty($key) || strpos($key, 'MP-') !== 0){
+      return false;
+    }
+    $parts = explode('-', $key);
+    if(count($parts) !== 3){
+      return false;
+    }
+    $b64 = $parts[1];
+    $crc = strtolower($parts[2]);
+    $expected = substr(dechex(crc32($b64)), 0, 6);
+    if(strtolower($expected) !== $crc){
+      return false;
+    }
+    $b64 = strtr($b64, '-_', '+/');
+    $payload = base64_decode($b64 . str_repeat('=', (4 - strlen($b64) % 4) % 4));
+    if(!$payload){
+      return false;
+    }
+    $data = json_decode($payload, true);
+    if(!$data){
+      return false;
+    }
+    return [
+      'plan_name'             => $data['p'] ?? 'Basic',
+      'subscription_start_date'=> $data['s'] ?? date('Y-m-d'),
+      'subscription_end_date' => $data['e'] ?? date('Y-m-d'),
+      'branch_limit'          => (int) ($data['b'] ?? 1),
+      'user_limit'            => (int) ($data['u'] ?? 3),
+      'product_limit'         => (int) ($data['pr'] ?? 500),
+      'sku_limit'             => (int) ($data['sk'] ?? 10000),
+      'online_product_limit'  => (int) ($data['op'] ?? 500),
+      'service_limit'         => (int) ($data['sv'] ?? 100),
+      'media_storage_limit_mb'=> (int) ($data['m'] ?? 2048),
+      'storefront_limit'      => (int) ($data['sf'] ?? 1),
+      'custom_domain_limit'   => (int) ($data['cd'] ?? 1),
+      'whatsapp_number'       => $data['w'] ?? '',
+      'renewal_amount'        => $data['r'] ?? '',
+      'client_name'           => $data['c'] ?? '',
+      'domain'                => $data['d'] ?? '',
+    ];
+  }
+
+  function validate_license_key($key){
+    return decode_license_key($key) !== false;
+  }
+
+  function validate_license_domain($key){
+    $decoded = decode_license_key($key);
+    if($decoded === false) return false;
+    $currentDomain = $_SERVER['HTTP_HOST'] ?? '';
+    if(empty($decoded['domain'])) return true; // legacy keys without domain
+    return $decoded['domain'] === $currentDomain;
+  }
+
+  function get_branch_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $total = $CI->db->where('store_id',$store_id)->where('status',1)->count_all_results('db_warehouse');
+    return (int) $total;
+  }
+
+  function get_user_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Only platform/admin and implementation accounts are non-billable.
+    // Business Owner is a tenant role with explicit permissions, not Store
+    // Admin; it consumes a normal licensed user seat, including the account
+    // linked from db_store.user_id.
+    $excluded_role_ids = get_excluded_staff_roles($store_id);
+    $role_sql = implode(',', array_map('intval', $excluded_role_ids ?: array(0)));
+    // Keep licence usage independent of any active Query Builder statement.
+    $query = $CI->db->query(
+      "SELECT COUNT(*) AS total FROM db_users
+       WHERE store_id = ? AND status = 1
+         AND role_id NOT IN ($role_sql)",
+      array($store_id)
+    );
+    return $query ? (int)$query->row()->total : 0;
+  }
+
+  /** Count billable active users across every store for central dashboards. */
+  function get_user_usage_all_stores(){
+    $CI =& get_instance();
+    $total = 0;
+    $stores = $CI->db->query('SELECT id FROM db_store')->result();
+    foreach($stores as $store){
+      $total += get_user_usage((int)$store->id);
+    }
+    return (int)$total;
+  }
+
+  /**
+   * Role IDs excluded from staff pickers and license seats:
+   * platform Admin, system Store Admin and Partner implementation accounts.
+   * Business Owner is deliberately absent: it is a billable tenant role.
+   */
+  function get_excluded_staff_roles($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $excluded = array_merge(array(1), store_admin_role_ids($store_id));
+    // Keep this lookup isolated as callers often invoke it inside a Query
+    // Builder chain. Resetting the shared builder here drops the caller's
+    // store/status filters; leaving it shared contaminates the lookup.
+    $query = $CI->db->query(
+      "SELECT id FROM db_roles WHERE store_id = ? AND UPPER(role_name) = 'PARTNER'",
+      array($store_id)
+    );
+    $partner_roles = ($query) ? $query->result() : array();
+    foreach($partner_roles as $pr){
+      $pid = (int)$pr->id;
+      if(!in_array($pid, $excluded)){
+        $excluded[] = $pid;
+      }
+    }
+    return $excluded;
+  }
+
+  function get_product_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Count top-level products only (single items + variant parents).
+    // Variant child rows (child_bit=1) are excluded so a variant product
+    // with N variants counts as 1 product, not 1+N.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where('(child_bit = 0 OR child_bit IS NULL)', null, false)
+                     ->count_all_results('db_items');
+    return (int) $total;
+  }
+
+  function get_sku_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Count sellable/stockable units only:
+    //   - Single items (child_bit=0, item_group != 'Variants')
+    //   - Variant children (child_bit=1)
+    // Variant parent rows are excluded — they are just containers, not
+    // sellable units. The product_limit already counts the parent as 1
+    // product, so the SKU limit only counts the actual sellable variants.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where("NOT (child_bit = 0 AND item_group = 'Variants')", null, false)
+                     ->count_all_results('db_items');
+    return (int) $total;
+  }
+
+  function get_service_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $total = $CI->db->where('store_id',$store_id)->where('status',1)->count_all_results('db_services');
+    return (int) $total;
+  }
+
+  function get_online_product_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    // Count products actually visible on the public storefront.
+    // The storefront only shows Single items (item_group IS NULL OR 'Single'),
+    // so the quota must match that criteria — variant parents are containers
+    // that are never displayed directly and should NOT consume a slot.
+    $total = $CI->db->where('store_id',$store_id)
+                     ->where('status',1)
+                     ->where('publish_online',1)
+                     ->where('service_bit',0)
+                     ->where('(not_for_sale IS NULL OR not_for_sale = 0)', null, false)
+                     ->where("(item_group IS NULL OR item_group='Single')", null, false)
+                     ->count_all_results('db_items');
+    return (int) $total;
+  }
+
+  function get_media_storage_usage_mb($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $uploadPath = FCPATH . 'uploads/';
+    if(!is_dir($uploadPath)) return 0;
+    $size = 0;
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($uploadPath, RecursiveDirectoryIterator::SKIP_DOTS));
+    foreach($iterator as $file){
+      if($file->isFile()){
+        $size += $file->getSize();
+      }
+    }
+    return round($size / 1024 / 1024, 2);
+  }
+
+  function get_storefront_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $settings = $CI->db->where('store_id',$store_id)->get('db_storefront_settings')->row();
+    return ($settings && !empty($settings->store_slug)) ? 1 : 0;
+  }
+
+  function get_custom_domain_usage($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $total = $CI->db->where('store_id',$store_id)->where("connection_status != 'deleted'")->count_all_results('db_storefront_domains');
+    return (int) $total;
+  }
+
+  /**
+   * Gather all license/subscription status + quota usage data in one call.
+   * Used by the desktop and mobile dashboard "License & Usage" cards.
+   *
+   * Returns an array with:
+   *   'status'        => ACTIVE|EXPIRED|SUSPENDED|EXPIRING_SOON|NOT_ACTIVATED
+   *   'days_left'     => int
+   *   'end_date'      => string|null
+   *   'plan_name'     => string
+   *   'license_code'  => string|null
+   *   'quotas'        => [ ['key','label','used','limit','pct','unit'], ... ]
+   *   'has_license'   => bool
+   */
+  function mp_get_license_usage_summary($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+
+    $result = [
+      'status'        => 'NOT_ACTIVATED',
+      'days_left'     => 0,
+      'end_date'      => null,
+      'plan_name'     => '',
+      'license_code'  => null,
+      'has_license'   => false,
+      'quotas'        => [],
+    ];
+
+    if(!$CI->db->table_exists('db_subscription_license')){
+      return $result;
+    }
+
+    $CI->load->model('subscription_license_model','mp_lic_summary');
+    $status = $CI->mp_lic_summary->get_status($store_id);
+    $result['status']      = $status['status'];
+    $result['days_left']   = $status['days_left'] ?? 0;
+    $result['end_date']    = $status['end_date'] ?? null;
+    $result['plan_name']   = $status['plan'] ?? '';
+
+    $rec = $CI->mp_lic_summary->get_by_store($store_id);
+    if($rec){
+      $result['license_code'] = $rec->license_code ?? null;
+      $result['plan_name']    = $result['plan_name'] ?: ($rec->plan_name ?? '');
+      $result['has_license']  = !empty($rec->license_code);
+    }
+
+    // Build quota list — each entry: key, label, used, limit, pct, unit
+    //
+    // Labels follow the business type. The LIMITS are unchanged and enforced
+    // exactly as before — only the noun changes, so a print shop does not read
+    // "Products / Variants / Online Store" for three things it calls materials.
+    //
+    // This is the DASHBOARD copy of the same figures; the licence screen has its
+    // own labels. Both were hard-coded retail, and fixing only the licence
+    // screen left the dashboard still saying "Products" — which is why the
+    // labels live in one place per screen rather than being patched one at a
+    // time.
+    $lic_ind = function_exists('mp_get_store_profile')
+      ? ((mp_get_store_profile($store_id ?: null)['industry_type'] ?? '') ?: '')
+      : '';
+    $lic_is_print = ($lic_ind === 'printing');
+    $lic_is_plant = ($lic_ind === 'oil_processing_plant');
+    $lic_is_physio = ($lic_ind === 'physiotherapy_rehabilitation');
+
+    $quota_defs = [
+      ['key'=>'user_limit',             'label'=>'Users',         'usage_fn'=>'get_user_usage',              'unit'=>''],
+      ['key'=>'product_limit',          'label'=>$lic_is_print ? 'Materials' : ($lic_is_plant ? 'Materials & products' : ($lic_is_physio ? 'Supplies & equipment' : 'Products')), 'usage_fn'=>'get_product_usage', 'unit'=>''],
+      ['key'=>'sku_limit',              'label'=>$lic_is_print ? 'Material variants' : (($lic_is_plant || $lic_is_physio) ? 'Item variants' : 'Variants'), 'usage_fn'=>'get_sku_usage', 'unit'=>''],
+      ['key'=>'online_product_limit',   'label'=>$lic_is_print ? 'Catalogue items' : (($lic_is_plant || $lic_is_physio) ? 'Online listings' : 'Online Store'), 'usage_fn'=>'get_online_product_usage', 'unit'=>''],
+      ['key'=>'media_storage_limit_mb', 'label'=>'Media Storage', 'usage_fn'=>'get_media_storage_usage_mb',  'unit'=>'MB'],
+    ];
+
+    foreach($quota_defs as $qd){
+      $limit = get_subscription_limit($qd['key'], $store_id);
+      $used  = call_user_func($qd['usage_fn'], $store_id);
+      $pct   = ($limit > 0) ? round(($used / $limit) * 100, 1) : 0;
+      $result['quotas'][] = [
+        'key'   => $qd['key'],
+        'label' => $qd['label'],
+        'used'  => $used,
+        'limit' => $limit,
+        'pct'   => $pct,
+        'unit'  => $qd['unit'],
+      ];
+    }
+
+    return $result;
+  }
+
+  function get_subscription_limit($field='branch_limit', $store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    if(!$CI->db->table_exists('db_subscription_license')){ return 0; }
+    $rec = $CI->db->where('store_id',$store_id)->get('db_subscription_license')->row();
+    if(!$rec || empty($rec->license_code)){ return 0; }
+    $override_field = 'override_' . $field;
+    if(property_exists($rec, $override_field) && $rec->{$override_field} !== null && $rec->{$override_field} > 0){
+      if(!empty($rec->override_expiry) && $rec->override_expiry < date('Y-m-d')){
+        return (int) ($rec->{$field} ?? 0);
+      }
+      return (int) $rec->{$override_field};
+    }
+    return (int) ($rec->{$field} ?? 0);
+  }
+
+  function get_subscription_limit_pct($field='branch_limit', $store_id=''){
+    $limit = get_subscription_limit($field, $store_id);
+    if($limit <= 0) return ['pct'=>0, 'used'=>0, 'limit'=>0];
+    $used = 0;
+    switch($field){
+      case 'branch_limit': $used = get_branch_usage($store_id); break;
+      case 'user_limit': $used = get_user_usage($store_id); break;
+      case 'product_limit': $used = get_product_usage($store_id); break;
+      case 'sku_limit': $used = get_sku_usage($store_id); break;
+      case 'online_product_limit': $used = get_online_product_usage($store_id); break;
+      case 'service_limit': $used = get_service_usage($store_id); break;
+      case 'media_storage_limit_mb': $used = get_media_storage_usage_mb($store_id); break;
+      default: $used = 0;
+    }
+    return ['pct'=> round(($used / $limit) * 100, 1), 'used'=>$used, 'limit'=>$limit];
+  }
+
+  function check_subscription_limit($field='branch_limit', $store_id=''){
+    $info = get_subscription_limit_pct($field, $store_id);
+    if($info['limit'] <= 0) return true;
+    $labels = [
+      'branch_limit' => 'Branch',
+      'user_limit' => 'User',
+      'product_limit' => 'Product',
+      'sku_limit' => 'SKU',
+      'online_product_limit' => 'Online Product',
+      'service_limit' => 'Service',
+      'media_storage_limit_mb' => 'Media Storage',
+    ];
+    $label = $labels[$field] ?? ucfirst(str_replace('_limit', '', $field));
+    if($info['pct'] >= 100){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "You have reached your " . $label . " limit" . $plan . ". Please contact MartPoint support to upgrade your plan or increase your limit.";
+    }
+    return true;
+  }
+
+  function check_media_storage_limit($store_id=''){
+    return check_subscription_limit('media_storage_limit_mb', $store_id);
+  }
+
+  /**
+   * Check whether adding $new_sku_count new SKU rows would exceed the store's
+   * sku_limit. Unlike check_subscription_limit (which only blocks at 100%),
+   * this accounts for the additional SKUs the current operation will create so
+   * a save that would push the total over the limit is rejected before insert.
+   *
+   * @param int $new_sku_count  Number of new db_items rows this operation adds
+   * @param string $store_id
+   * @return true|string  true if allowed, error message string if blocked
+   */
+  function check_sku_limit($new_sku_count=1, $store_id=''){
+    $limit = get_subscription_limit('sku_limit', $store_id);
+    if($limit <= 0) return true;
+    $used = get_sku_usage($store_id);
+    $projected = $used + (int)$new_sku_count;
+    if($projected > $limit){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "Adding " . (int)$new_sku_count . " SKU(s) would bring the total to " . $projected . " (limit: " . $limit . ")" . $plan . ". Please contact MartPoint support to upgrade your plan or increase your limit.";
+    }
+    return true;
+  }
+
+  /**
+   * Check whether publishing another product to the online store would
+   * exceed the store's online_product_limit.
+   *
+   * @param int $new_count  Number of products about to go online (default 1)
+   * @param string $store_id
+   * @return true|string  true if allowed, error message string if blocked
+   */
+  function check_online_product_limit($new_count=1, $store_id=''){
+    $limit = get_subscription_limit('online_product_limit', $store_id);
+    if($limit <= 0) return true;
+    $used = get_online_product_usage($store_id);
+    $projected = $used + (int)$new_count;
+    if($projected > $limit){
+      $plan = '';
+      $CI =& get_instance();
+      if($CI->db->table_exists('db_subscription_license')){
+        $rec = $CI->db->where('store_id', (!empty($store_id)) ? $store_id : get_current_store_id())->get('db_subscription_license')->row();
+        if($rec){ $plan = ' on the ' . ($rec->plan_name ?: 'current') . ' plan'; }
+      }
+      return "Publishing this product would bring the online store total to " . $projected . " (limit: " . $limit . ")" . $plan . ". Remove some products from the online store first, or contact MartPoint support to upgrade your plan.";
+    }
+    return true;
+  }
+
+  function log_license_override($store_id, $field, $original, $override, $reason, $expiry){
+    $CI =& get_instance();
+    if(!$CI->db->table_exists('db_license_limit_overrides')) return false;
+    return $CI->db->insert('db_license_limit_overrides', [
+      'store_id' => $store_id,
+      'field_name' => $field,
+      'original_limit' => $original,
+      'override_limit' => $override,
+      'override_enabled' => 1,
+      'override_reason' => $reason,
+      'override_expiry' => $expiry,
+      'overridden_by' => $CI->session->userdata('inv_username') ?? 'system',
+      'overridden_at' => date('Y-m-d H:i:s'),
+      'created_date' => date('Y-m-d'),
+      'created_time' => date('H:i:s'),
+    ]);
+  }
+
+  function get_tot_table_rec($table,$store_id=''){
+    $CI =& get_instance();
+    //Subscription details
+    $subscription_id = get_current_subcription_id($store_id);
+
+    $subscribed_on = get_subscription_rec($subscription_id)->subscription_date;
+
+    //Query
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    $CI->db->select('count(*) as count_id');
+    $CI->db->where('store_id',$store_id);
+    $CI->db->where('created_date>=',$subscribed_on);
+    $CI->db->where('store_id',$store_id);
+    return $CI->db->get($table)->row()->count_id;
+  }
+
+  function validate_subscription(){
+    if(is_admin()){
+      return true;
+    }
+    if(!store_module()){
+      return true;
+    }
+    $subscription_id = get_current_subcription_id();
+    if(empty($subscription_id)){
+      echo "This store don't have any subscrtions!!";exit;
+    }
+
+    $subscription_rec = get_subscription_rec($subscription_id);
+    if(!$subscription_rec){
+      echo "Store Subscription record not found!";exit;
+    }
+    $expire_date = $subscription_rec->expire_date;
+    if($expire_date<date('Y-m-d')){
+      echo "Store Subscription expired!!";exit;
+    }
+    return true;
+
+  }
+  function validate_package_offers($column,$table_name,$store_id=''){
+
+    if(!store_module()){
+      return true;
+    }
+    if(empty($column)){
+      echo "Missing!! Package Validation";exit;
+    }
+
+    validate_subscription();
+    
+    $CI =& get_instance();
+
+    $sub_id = get_current_subcription_id($store_id);
+
+    if(!$sub_id && !is_admin() ){
+      echo $CI->lang->line('subscription_msg_1');exit;
+    }
+    else{
+
+      $get_subscription_rec = get_subscription_rec($sub_id);
+      if(!$get_subscription_rec){
+        echo $CI->lang->line('subscription_msg_1');exit;
+      }
+      //echo "<pre>";print_r($get_subscription_rec);exit;
+
+      if($column=='max_invoices'){
+
+        if($get_subscription_rec->max_invoices != -1){
+
+          if(get_tot_table_rec($table_name,$store_id) >= $get_subscription_rec->max_invoices){
+            echo $CI->lang->line('max_invoices_used');exit;
+          } 
+
+        }
+        
+      }
+      if($column=='max_items'){
+
+        if($get_subscription_rec->max_items != -1){
+
+          if(get_tot_table_rec($table_name,$store_id) >= $get_subscription_rec->max_items){
+            echo $CI->lang->line('max_items_used');exit;
+          }  
+
+        }
+      }
+      if($column=='max_warehouses'){
+        if($get_subscription_rec->max_warehouses != -1){
+
+          if(get_tot_table_rec($table_name,$store_id) >= $get_subscription_rec->max_warehouses){
+            echo $CI->lang->line('max_warehouses_used');exit;
+          }  
+
+        }
+      }
+      if($column=='max_users'){
+        if($get_subscription_rec->max_users != -1){
+          // The store owner/admin account is an operationally exempt account;
+          // use the same billable-seat calculation shown in the licence UI.
+          $used_users = ($table_name === 'db_users')
+            ? get_user_usage($store_id)
+            : get_tot_table_rec($table_name,$store_id);
+          if($used_users >= $get_subscription_rec->max_users){
+            echo $CI->lang->line('max_users_used');exit;
+          }  
+          
+        }
+      }
+      
+    }
+  }
+
+  function autosynch_sales_code(){
+      $init_code=get_only_init_code('sales');
+      $count_id=get_last_count_id('db_sales');
+
+      while (is_sales_code_exit($init_code.$count_id)) {
+        $count_id++;
+      }
+
+      return $count_id;
+  }
+
+  function is_sales_code_exit($sale_code){
+
+    //echo "<br>sale_code==>".$sale_code;
+    $CI =& get_instance();
+
+    $CI->db->where("upper(sales_code)",strtoupper($sale_code));
+
+    $CI->db->where('store_id',get_current_store_id());
+    
+    $CI->db->from('db_sales');
+
+    //echo $CI->db->get_compiled_select();exit;
+
+    $count = $CI->db->count_all_results();
+
+    return ($count>0) ? true : false;
+
+  }
+
+  function date_difference($start_date,$end_date){
+    // Declare two dates 
+    $start_date = strtotime(date("Y-m-d",strtotime($start_date))); 
+    $end_date = strtotime(date("Y-m-d",strtotime($end_date)));   
+    // Get the difference and divide into  
+    // total no. seconds 60/60/24 to get  
+    // number of days 
+    return ($end_date - $start_date)/60/60/24; 
+  }
+
+
+  function strip_tags_content($text) {
+
+    return preg_replace('@<(\w+)\b.*?>.*?</\1>@si', '', $text);
+    
+ }
+
+  function get_invoice_terms(){
+    $invoice_terms = (get_store_details()->invoice_terms);
+    return strip_tags_content($invoice_terms);
+  }
+
+  function get_invoice_terms_for_pos(){
+    $invoice_terms = mp_get_store_receipt_setting(get_current_store_id(), 'invoice_terms', get_store_details()->invoice_terms);
+    $invoice_terms = html_entity_decode($invoice_terms);
+    $invoice_terms = str_replace("<br>","##n##",$invoice_terms);
+    $invoice_terms = str_replace("<br />","##n##",$invoice_terms);
+    $invoice_terms = strip_tags($invoice_terms);
+    $invoice_terms = str_replace("##n##","\n",$invoice_terms);
+    return $invoice_terms;
+  }
+
+  function get_site_details(){
+    $CI =& get_instance();
+    return $CI->db->select('*')->where('id',1)->get('db_sitesettings')->row();
+  }
+
+  function get_store_details($store_id=''){
+    $CI =& get_instance();
+    $store_id = (!empty($store_id)) ? $store_id : get_current_store_id();
+    return $CI->db->select('*')->where('id',$store_id)->get('db_store')->row();
+  }
+
+  function get_super_admin_bank_details($store_id=''){
+    $CI =& get_instance();
+    return $CI->db->select('*')->where('id',1)->get('db_bankdetails')->row();
+  }
+
+  function get_user_details($user_id=''){
+    $CI =& get_instance();
+    $user_id = (!empty($user_id)) ? $user_id : get_current_user_id();
+    return $CI->db->select('*')->where('id',$user_id)->get('db_users')->row();
+  }
+
+  function check_credit_limit_with_invoice($customer_id,$sales_id){
+    // Credit limit is now a WARNING only, not a hard block.
+    // A customer must never be stopped from buying — their debt is their debt.
+    // Blocking them just sends them to a competitor.
+    // The sale always proceeds; the cashier can see the balance and decide.
+    return true;
+  }
+
+  /**
+   * Which industries require customer acceptance before a quotation can be
+   * converted to an invoice. Building Materials is quote-first; retail keeps
+   * its existing, quicker counter workflow.
+   */
+  function mp_quote_acceptance_required($store_id = null){
+    if (!function_exists('mp_get_store_profile')) return false;
+    $store_id = $store_id ?: get_current_store_id();
+    $profile = mp_get_store_profile($store_id);
+    return (($profile['industry_type'] ?? '') === 'building_materials');
+  }
+
+  /**
+   * Private storefront files live outside the web root. Apache .htaccess is
+   * not portable (nginx serves static files without reading it), so path
+   * protection cannot depend on it. MP_PRIVATE_STORAGE may point at a mounted
+   * secret volume; otherwise a sibling directory of the app root is used.
+   */
+  function mp_private_storage_root($create = true){
+    $configured = trim((string) getenv('MP_PRIVATE_STORAGE'));
+    if ($configured !== '') {
+      $root = rtrim(str_replace('\\', '/', $configured), '/');
+    } else {
+      $appRoot = rtrim(str_replace('\\', '/', FCPATH), '/');
+      $root = dirname($appRoot) . '/martpoint-private/' . basename($appRoot);
+    }
+    if ($create && !is_dir($root)) {
+      @mkdir($root, 0700, true);
+    }
+    return $root;
+  }
+
+  /**
+   * Resolve a stored relative path against the private root. Legacy files
+   * still under uploads/private are moved on first access, so existing
+   * documents keep working after deployment without a destructive migration.
+   */
+  function mp_private_storage_path($storedPath, $mustExist = false){
+    $relative = ltrim(str_replace('\\', '/', trim((string) $storedPath)), '/');
+    if ($relative === '' || preg_match('~(^|/)\.\.(/|$)~', $relative)) return null;
+    $root = mp_private_storage_root(!$mustExist);
+    $target = rtrim($root, '/') . '/' . $relative;
+    // Uploaded HTML themes resolve to a directory of templates, so a "must
+    // exist" check has to accept one, not only a single file.
+    if (is_file($target) || is_dir($target)) return $target;
+    $legacy = rtrim(str_replace('\\', '/', FCPATH), '/') . '/' . $relative;
+    if (is_file($legacy)) {
+      $dir = dirname($target);
+      if (!is_dir($dir)) @mkdir($dir, 0700, true);
+      if (@rename($legacy, $target)) return $target;
+      // Do not fall back to serving a file from the public web root. A broken
+      // deployment must fail the download, then run the migration helper.
+      if (function_exists('log_message')) log_message('error', 'Private storage migration failed for ' . $relative . '. Move uploads/private outside the web root.');
+      return null;
+    }
+    return $mustExist ? null : $target;
+  }
+
+  /** Move every legacy uploads/private file into the private root. */
+  function mp_private_storage_migrate_legacy(){
+    $legacyRoot = rtrim(str_replace('\\', '/', FCPATH), '/') . '/uploads/private';
+    if (!is_dir($legacyRoot)) return 0;
+    $moved = 0;
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($legacyRoot, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $file) {
+      if (!$file->isFile() || $file->getFilename() === '.htaccess') continue;
+      $relative = 'uploads/private/' . ltrim(str_replace('\\', '/', substr($file->getPathname(), strlen($legacyRoot))), '/');
+      $target = mp_private_storage_path($relative, false);
+      if ($target && is_file($target) && strpos($target, rtrim(mp_private_storage_root(false), '/') . '/') === 0) $moved++;
+    }
+    return $moved;
+  }
+
+  function xss_html_filter($input){
+        $CI =& get_instance();
+        return $CI->security->xss_clean(html_escape($input));
+    }
+  function kmb($n, $precision = 2) {
+      if ($n < 900) {
+        // Default
+         $n_format = number_format($n);
+        } else if ($n < 900000) {
+        // Thausand
+        $n_format = number_format($n / 1000, $precision). 'K';
+        } else if ($n < 900000000) {
+        // Million
+        $n_format = number_format($n / 1000000, $precision). 'M';
+        } else if ($n < 900000000000) {
+        // Billion
+        $n_format = number_format($n / 1000000000, $precision). 'B';
+        } else {
+        // Trillion
+        $n_format = number_format($n / 1000000000000, $precision). 'T';
+    }
+    return $n_format;
+  }
+
+  #----------------------------------------------------------------
+  //Show only last 4 digits
+  function getTruncatedCCNumber($ccNum){
+        return str_replace(range(0,9), "*", substr($ccNum, 0, -4)) .  substr($ccNum, -4);
+  }
+
+  #----------------------------------------------------------------
+  function cheque_name(){
+    return "Cheque";
+  }
+  function cash_name(){
+    return "Cash";
+  }
+  #----------------------------------------------------------------
+
+  function gst_number(){
+    return true;
+  }
+  function vat_number(){
+    return true;
+  }
+  function pan_number(){
+    return true;
+  }
+  
+  /*Module*/
+  
+  function warehouse_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('warehouse');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
+    return true;//true or false
+  }
+  function accounts_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('accounts');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
+    return true;//true or false
+  } 
+  function service_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('service_workflow');
+        if ($flag !== null) {
+            return $flag;
+        }
+    }
+    return true;
+  }
+  // Legacy name kept — 'bundles' was the old flag key for item variants.
+  function bundles_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('item_variants');
+        if ($flag === null) { $flag = mp_feature_flag_raw('bundles'); }
+        if ($flag !== null) { return $flag; }
+    }
+    if (function_exists('mp_feature_enabled')) {
+        return mp_feature_enabled('item_variants');
+    }
+    return true;
+  }
+  function batch_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('batch_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return true;
+  }
+  function serial_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('serial_number_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function imei_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('imei_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function warranty_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('warranty_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function appointments_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('appointments');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function custom_orders_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('custom_orders');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function packages_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('packages');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function memberships_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('memberships');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function kitchen_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('kitchen_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function table_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('table_management');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function laundry_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('laundry_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function treatment_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('treatment_notes');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function staff_assignment_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('staff_assignment');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function staff_commission_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('staff_commission');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function production_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('production_workflow');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function recipe_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('recipe_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+
+  // ========== Unit Hierarchy Conversion Helpers ==========
+  /**
+   * Get all child units (descendants) of a given unit from db_units hierarchy.
+   * Returns array of objects with unit_name, conversion_factor (cumulative).
+   */
+  function get_unit_descendants($unit_id, $store_id = null) {
+    $CI =& get_instance();
+    if (!$store_id) $store_id = get_current_store_id();
+    $all = $CI->db->where('store_id', $store_id)->where('status', 1)->get('db_units')->result();
+    $by_parent = [];
+    foreach ($all as $u) {
+      if ($u->parent_unit_id) {
+        $by_parent[$u->parent_unit_id][] = $u;
+      }
+    }
+    $results = [];
+    $stack = [['id' => $unit_id, 'cumulative' => 1]];
+    while (!empty($stack)) {
+      $current = array_pop($stack);
+      $children = $by_parent[$current['id']] ?? [];
+      foreach ($children as $child) {
+        $cum = $current['cumulative'] * (float)$child->conversion_factor;
+        $results[] = (object)[
+          'id' => $child->id,
+          'unit_name' => $child->unit_name,
+          'equivalent_qty' => $cum,
+          'parent_unit_id' => $child->parent_unit_id,
+        ];
+        $stack[] = ['id' => $child->id, 'cumulative' => $cum];
+      }
+    }
+    return $results;
+  }
+
+  /**
+   * All units in the same family tree as $unit_id (ancestors AND descendants,
+   * e.g. Litre + Millilitre + fl oz, or Kilogram + Gram), each with
+   * equivalent_qty = how many of that unit fit in ONE base unit.
+   * Used by recipe ingredient rows so a gram- or ml-stocked item can still be
+   * measured in any related unit.
+   */
+  function get_unit_family($unit_id, $store_id = null) {
+    $CI =& get_instance();
+    if (!$store_id) $store_id = get_current_store_id();
+    $all = $CI->db->where('store_id', $store_id)->where('status', 1)->get('db_units')->result();
+    $by_id = []; $by_parent = [];
+    foreach ($all as $u) {
+      $by_id[$u->id] = $u;
+      if ($u->parent_unit_id) $by_parent[$u->parent_unit_id][] = $u;
+    }
+    if (empty($by_id[$unit_id])) return [];
+
+    // Walk to the root of this unit's tree
+    $root = $by_id[$unit_id];
+    $guard = 0;
+    while ($root->parent_unit_id && isset($by_id[$root->parent_unit_id]) && $guard++ < 50) {
+      $root = $by_id[$root->parent_unit_id];
+    }
+
+    // units-per-root for every node in the tree (1 L = 1000 ml; 1 KG = 1000 g)
+    $per_root = [$root->id => 1.0];
+    $stack = [$root->id];
+    while (!empty($stack)) {
+      $pid = array_pop($stack);
+      foreach ($by_parent[$pid] ?? [] as $child) {
+        $per_root[$child->id] = $per_root[$pid] * (float)$child->conversion_factor;
+        $stack[] = $child->id;
+      }
+    }
+
+    $base_per_root = $per_root[$unit_id] ?? 1;
+    $results = [];
+    foreach ($per_root as $id => $upr) {
+      if ($id == $unit_id || !isset($by_id[$id]) || $upr <= 0) continue;
+      $results[] = (object)[
+        'id'             => $id,
+        'unit_name'      => $by_id[$id]->unit_name,
+        'equivalent_qty' => $upr / $base_per_root,
+        'parent_unit_id' => $by_id[$id]->parent_unit_id,
+      ];
+    }
+    return $results;
+  }
+
+  /**
+   * Convert cost from base unit to a target child unit.
+   * Returns cost per target unit = base_cost / equivalent_qty.
+   */
+  function convert_unit_cost($base_cost, $base_unit_id, $target_unit_name, $store_id = null) {
+    $descendants = get_unit_descendants($base_unit_id, $store_id);
+    foreach ($descendants as $d) {
+      if ($d->unit_name === $target_unit_name && $d->equivalent_qty > 0) {
+        return $base_cost / $d->equivalent_qty;
+      }
+    }
+    return $base_cost; // no conversion found
+  }
+  // ========== End Unit Helpers ==========
+
+  function customer_notes_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('customer_notes');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function price_catalog_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('price_catalogue');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function public_catalog_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('public_catalogue');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function manager_approvals_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('manager_approvals');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function flexpay_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('payplan');
+        if ($flag !== null) { return $flag; }
+        // Backward compat
+        $flag = mp_feature_flag_raw('flexpay');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function qr_ordering_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('qr_ordering');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function delivery_scheduling_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('delivery_scheduling');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function multi_unit_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('multi_unit_inventory');
+        if ($flag !== null) { return $flag; }
+    }
+    return true;
+  }
+  function expiry_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('expiry_tracking');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function loyalty_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('loyalty');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function gift_cards_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('gift_cards');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function store_credit_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('store_credit');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+  function online_store_module(){
+    if (function_exists('mp_feature_flag_raw')) {
+        $flag = mp_feature_flag_raw('online_store');
+        if ($flag !== null) { return $flag; }
+    }
+    return false;
+  }
+
+  /**
+   * Format a phone number for WhatsApp (international digits, no + or 0 prefix).
+   * @param string $phone raw phone/mobile string
+   * @return string
+   */
+  function mp_format_whatsapp_phone($phone=''){
+    $phone = preg_replace('/[^0-9]/', '', $phone);
+    if(empty($phone)) return '';
+    if(strpos($phone, '00') === 0) $phone = substr($phone, 2);
+    if(strpos($phone, '0') === 0 && strlen($phone) == 11){
+      $phone = '234' . substr($phone, 1);
+    }
+    return $phone;
+  }
+
+  /**
+   * Generate WhatsApp share URL for invoices/receipts
+   * @param string $type  'sales' or 'purchase'
+   * @param int    $id    Invoice ID
+   * @param string $phone Optional phone number (international format preferred)
+   * @return array ['url'=>..., 'phone'=>..., 'message'=>...]
+   */
+  function get_pdf_token($type='sales', $id=0, $code=''){
+    return substr(md5($type . $id . $code . 'martpoint_pdf_secret_2024'), 0, 10);
+  }
+
+  function get_whatsapp_share_url($type='sales', $id=0, $phone=''){
+    $CI =& get_instance();
+    $base_url = base_url();
+    $store_name = ($CI->session->userdata('store_name')) ? $CI->session->userdata('store_name') : 'MartPoint';
+
+    if($type=='sales'){
+      $invoice = $CI->db->select('s.sales_code, s.grand_total, c.customer_name, c.mobile')
+                         ->from('db_sales s')
+                         ->join('db_customers c','c.id=s.customer_id','left')
+                         ->where('s.id',$id)
+                         ->get()->row();
+      if(!$invoice) return array('url'=>'','phone'=>'','message'=>'');
+      $code = $invoice->sales_code;
+      $amount = store_number_format($invoice->grand_total);
+      $contact = $invoice->customer_name;
+      if(empty($phone)) $phone = isset($invoice->mobile) ? $invoice->mobile : '';
+      $token = get_pdf_token('sales', $id, $code);
+      $expiry = time() + (30 * 86400);
+      $pdf_url = $base_url.'publicpdf/sales/'.$id.'?t='.$token.'&e='.$expiry;
+    }
+    else if($type=='purchase'){
+      $invoice = $CI->db->select('p.purchase_code, p.grand_total, s.supplier_name, s.mobile')
+                         ->from('db_purchase p')
+                         ->join('db_suppliers s','s.id=p.supplier_id','left')
+                         ->where('p.id',$id)
+                         ->get()->row();
+      if(!$invoice) return array('url'=>'','phone'=>'','message'=>'');
+      $code = $invoice->purchase_code;
+      $amount = store_number_format($invoice->grand_total);
+      $contact = $invoice->supplier_name;
+      if(empty($phone)) $phone = isset($invoice->mobile) ? $invoice->mobile : '';
+      $token = get_pdf_token('purchase', $id, $code);
+      $expiry = time() + (30 * 86400);
+      $pdf_url = $base_url.'publicpdf/purchase/'.$id.'?t='.$token.'&e='.$expiry;
+    }
+    else {
+      return array('url'=>'','phone'=>'','message'=>'');
+    }
+
+    $phone = mp_format_whatsapp_phone($phone);
+
+    $currency = strtoupper($CI->session->userdata('CURRENCY_CODE') ?? '');
+    $currency_part = !empty($currency) ? $currency . ' ' : '';
+    $msg  = '*' . $store_name . "*\n";
+    $msg .= ($type=='sales' ? 'Receipt' : 'Invoice') . ': ' . $code . "\n";
+    $msg .= 'Amount: ' . $currency_part . $amount . "\n";
+    $msg .= 'View/Download: ' . $pdf_url . "\n";
+    $msg .= 'Thank you for your business!';
+
+    $encoded_msg = rawurlencode($msg);
+    if(empty($phone)){
+      $wa_url = 'https://api.whatsapp.com/send?text=' . $encoded_msg;
+    } else {
+      $wa_url = 'https://wa.me/' . $phone . '?text=' . $encoded_msg;
+    }
+
+    return array(
+      'url'     => $wa_url,
+      'phone'   => $phone,
+      'message' => $msg
+    );
+  }
+
+  function sf_sec_title($section, $fallback = ''){
+    if(is_object($section) && !empty($section->config_json)){
+      $cfg = json_decode($section->config_json, true);
+      if(!empty($cfg['title'])) return $cfg['title'];
+    }
+    if(is_object($section) && !empty($section->section_label)){
+      $label = $section->section_label;
+      if(preg_match('/_\d+$/', (string)($section->section_key ?? ''))){
+        $label = preg_replace('/\s*\(\d+\)$/', '', $label);
+      }
+      return $label;
+    }
+    return $fallback;
+  }
+
+  function sf_sec_sub($section, $fallback = ''){
+    if(is_object($section) && !empty($section->config_json)){
+      $cfg = json_decode($section->config_json, true);
+      if(!empty($cfg['subtitle'])) return $cfg['subtitle'];
+    }
+    return $fallback;
+  }
+
+  function sf_currency($amount=0, $store_currency=null){
+    if(empty($store_currency) || !is_array($store_currency)){
+      return store_number_format($amount);
+    }
+    $symbol = $store_currency['symbol'] ?? '';
+    $placement = $store_currency['placement'] ?? 'Left';
+    $formatted = store_number_format($amount);
+    if($placement === 'Right'){
+      return $formatted . ' ' . $symbol;
+    }
+    return $symbol . ' ' . $formatted;
+  }
+
+  function mp_format_money($amount=0){
+    $CI =& get_instance();
+    $symbol = $CI->session->userdata('currency') ?? '₦';
+    $placement = $CI->session->userdata('currency_placement') ?? 'Left';
+    $formatted = store_number_format($amount);
+    if($placement === 'Right'){
+      return $formatted . ' ' . $symbol;
+    }
+    return $symbol . ' ' . $formatted;
+  }
+
+  function mp_format_money_compact($amount=0, $with_symbol=true){
+    $CI =& get_instance();
+    $amount = floatval($amount ?? 0);
+    $symbol = $CI->session->userdata('currency') ?? '₦';
+    $placement = $CI->session->userdata('currency_placement') ?? 'Left';
+    $negative = $amount < 0 ? '-' : '';
+    $abs = abs($amount);
+
+    $suffix = '';
+    $divisor = 1;
+    if ($abs >= 1000000000) {
+      $divisor = 1000000000;
+      $suffix = 'B';
+    } elseif ($abs >= 1000000) {
+      $divisor = 1000000;
+      $suffix = 'M';
+    } elseif ($abs >= 1000) {
+      $divisor = 1000;
+      $suffix = 'K';
+    }
+
+    if ($suffix === '') {
+      $formatted = store_number_format($amount);
+    } else {
+      $scaled = $abs / $divisor;
+      $formatted = $negative . number_format($scaled, ($scaled >= 100 ? 1 : 2), '.', ',');
+      $formatted .= $suffix;
+    }
+
+    if (!$with_symbol) {
+      return $formatted;
+    }
+
+    if($placement === 'Right'){
+      return $formatted . ' ' . $symbol;
+    }
+    return $symbol . ' ' . $formatted;
+  }
+
+  function is_mobile(){
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+    return (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry|Tablet|Kindle|PlayBook|SM-T|Nexus 7|Nexus 9|KFTT|Silk/i', $ua);
+  }
+
+  function is_tablet(){
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+    return (bool) preg_match('/iPad|Tablet|Kindle|PlayBook|SM-T|Nexus 7|Nexus 9|KFTT|Silk|Lenovo.*Tab|Galaxy.*Tab|Tab/i', $ua);
+  }
+ 
+  /**
+   * Write an entry to the store audit trail (db_audit_trail).
+   * No-op when the table does not exist or the DB is unavailable,
+   * so callers never break on older schemas.
+   *
+   * @param string $module      e.g. 'auth', 'sales', 'users', 'roles', 'settings'
+   * @param string $action      e.g. 'login', 'create', 'update', 'delete'
+   * @param string $ref_id      optional record reference (invoice no, user id, ...)
+   * @param string $description human readable detail
+   */
+  function mp_audit_recording_enabled(){
+    $CI =& get_instance();
+    if (!$CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) return true;
+    $query = $CI->db->query('SELECT audit_trail_enabled FROM db_sitesettings WHERE id = ? LIMIT 1', array(1));
+    $flag = $query ? $query->row() : null;
+    return !$flag || $flag->audit_trail_enabled === null || (int)$flag->audit_trail_enabled !== 0;
+  }
+
+  function mp_audit_log($module, $action, $ref_id = null, $description = null, $opts = array()){
+    $CI =& get_instance();
+    if (!isset($CI->db)) return false;
+    $previousDebug = $CI->db->db_debug;
+    $CI->db->db_debug = false;
+    try {
+      if (!$CI->db->table_exists('db_audit_trail')) {
+        log_message('error', 'Audit recording unavailable: db_audit_trail is missing. Apply the current migrations.');
+        return false;
+      }
+      if (!mp_audit_recording_enabled()) return false;
+      $opts = is_array($opts) ? $opts : array();
+      $store_id = isset($opts['store_id']) ? (int)$opts['store_id'] : (int)get_current_store_id();
+      if ($store_id <= 0) {
+        log_message('error', 'Audit recording skipped: no valid store context.');
+        return false;
+      }
+      // A CLI run (migration, cron) has no session at all, so staff is read
+      // from the session only when one exists.
+      $hasSession = isset($CI->session);
+      $sessionUser = $hasSession ? $CI->session->userdata('inv_userid') : null;
+      $sessionName = $hasSession ? $CI->session->userdata('inv_username') : null;
+      $row = array(
+        'store_id'     => $store_id,
+        'user_id'      => isset($opts['user_id']) && (int)$opts['user_id'] > 0 ? (int)$opts['user_id'] : ($sessionUser ?: null),
+        'username'     => $sessionName ?: null,
+        'module'       => substr((string)$module, 0, 100),
+        'action'       => substr((string)$action, 0, 100),
+        'ref_id'       => $ref_id !== null ? substr((string)$ref_id, 0, 100) : null,
+        'description'  => $description !== null ? (string)$description : null,
+        'ip_address'   => $CI->input->ip_address(),
+        'created_date' => date('Y-m-d'),
+        'created_time' => date('h:i:s a'),
+        'created_at'   => date('Y-m-d H:i:s'),
+      );
+      // What the record is called, and which values moved. Both arrive with
+      // 4.0.9.246; a database that has not received it still records the event
+      // as it always did rather than losing the row to an unknown column.
+      if (mp_audit_has_column('ref_label')) {
+        $row['ref_label'] = isset($opts['label']) && (string)$opts['label'] !== ''
+          ? mb_substr(trim((string)$opts['label']), 0, 191) : null;
+      }
+      if (mp_audit_has_column('changes')) {
+        $changes = mp_audit_normalise_changes(isset($opts['changes']) ? $opts['changes'] : null);
+        $row['changes'] = $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null;
+      }
+      // INSERT with bindings preserves the caller's unfinished query builder.
+      $columns = '`' . implode('`,`', array_keys($row)) . '`';
+      $sql = 'INSERT INTO db_audit_trail (' . $columns . ') VALUES (' . implode(',', array_fill(0, count($row), '?')) . ')';
+      $saved = (bool)$CI->db->query($sql, array_values($row));
+      if (!$saved) {
+        $error = $CI->db->error();
+        log_message('error', 'Audit recording failed: ' . ($error['message'] ?? 'unknown database error'));
+      }
+      return $saved;
+    } catch (Throwable $e) {
+      log_message('error', 'mp_audit_log failed: ' . $e->getMessage());
+      return false;
+    } finally {
+      $CI->db->db_debug = $previousDebug;
+    }
+  }
+
+  /**
+   * The recorder, ready to use, or null when this request cannot record.
+   *
+   * A capture is a witness, never a party to the transaction it is watching:
+   * if it cannot be built, the save it was meant to describe still happens.
+   * Callers pair this with a try/catch so an unexpected fault inside a capture
+   * cannot leave a half-written invoice or a batch that never moved.
+   */
+  if(!function_exists('mp_audit_capture')){
+    function mp_audit_capture(){
+      static $capture = null;
+      if ($capture !== null) return $capture;
+      if (!function_exists('mp_audit_log') || !defined('APPPATH')) return null;
+      $file = APPPATH . 'models/Audit_capture_model.php';
+      if (!class_exists('Audit_capture_model', false)) {
+        if (!is_file($file)) return null;
+        require_once $file;
+      }
+      if (!class_exists('Audit_capture_model', false)) return null;
+      $capture = new Audit_capture_model();
+      return $capture;
+    }
+  }
+
+  /** Column probe cached per request — the writer runs inside save paths.
+   *  $reset clears the cache for whoever changed the schema mid-request. */
+  if(!function_exists('mp_audit_has_column')){
+    function mp_audit_has_column($column, $reset = false){
+      static $seen = array();
+      if ($reset) { $seen = array(); return true; }
+      $key = (string)$column;
+      if (!isset($seen[$key])) {
+        $CI =& get_instance();
+        $seen[$key] = (isset($CI->db) && $CI->db->table_exists('db_audit_trail'))
+          ? $CI->db->field_exists($key, 'db_audit_trail') : false;
+      }
+      return (bool)$seen[$key];
+    }
+  }
+
+  /** One recorded movement, already in the words a reviewer should read. */
+  if(!function_exists('mp_audit_change')){
+    function mp_audit_change($label, $from = null, $to = null){
+      return array('label' => (string)$label, 'from' => $from, 'to' => $to);
+    }
+  }
+
+  /** How one field's value is said out loud. */
+  if(!function_exists('mp_audit_format_value')){
+    function mp_audit_format_value($value, $kind = 'text'){
+      switch ($kind) {
+        case 'money':
+        case 'qty':
+          if ($value === null || $value === '') return 'nothing set';
+          $n = (float)$value;
+          return $kind === 'money' ? store_number_format($n) : rtrim(rtrim(number_format($n, 4, '.', ''), '0'), '.');
+        case 'date':
+          if (empty($value)) return 'no date';
+          $t = strtotime((string)$value);
+          return $t ? date('j M Y', $t) : (string)$value;
+        case 'yesno':
+          return ((int)$value === 1) ? 'Yes' : 'No';
+        case 'word':
+          if ($value === null || $value === '') return 'nothing set';
+          return mp_code_label((string)$value);
+        default:
+          $text = trim(preg_replace('/\s+/', ' ', (string)$value));
+          return $text === '' ? 'nothing set' : $text;
+      }
+    }
+  }
+
+  /**
+   * Diff two records over the fields a reviewer cares about.
+   * $fields maps the column onto ['label' => 'Selling price', 'type' => 'money'].
+   * Only fields that genuinely moved are returned, so an unchanged save never
+   * claims a change.
+   */
+  if(!function_exists('mp_audit_diff')){
+    function mp_audit_diff($before, $after, array $fields){
+      $out = array();
+      foreach ($fields as $column => $spec) {
+        $b = is_array($before) ? ($before[$column] ?? null) : ($before->{$column} ?? null);
+        $a = is_array($after) ? ($after[$column] ?? null) : ($after->{$column} ?? null);
+        $kind = $spec['type'] ?? 'text';
+        $moved = false;
+        if ($kind === 'money' || $kind === 'qty') {
+          $moved = abs((float)$b - (float)$a) > 0.0000001;
+        } elseif ($kind === 'yesno') {
+          $moved = (int)$b !== (int)$a;
+        } else {
+          $moved = trim((string)($b ?? '')) !== trim((string)($a ?? ''));
+        }
+        if (!$moved) continue;
+        $out[] = array(
+          'label' => (string)($spec['label'] ?? $column),
+          'from'  => mp_audit_format_value($b, $kind),
+          'to'    => mp_audit_format_value($a, $kind),
+        );
+      }
+      return $out;
+    }
+  }
+
+  /**
+   * Bound what a single entry can carry. An audit row is read on a screen, not
+   * downloaded, so a change that touches thirty fields shows the first eight
+   * and says how many it left out instead of burying the reader.
+   */
+  if(!function_exists('mp_audit_normalise_changes')){
+    function mp_audit_normalise_changes($changes){
+      if (!is_array($changes) || !$changes) return array();
+      $clean = array();
+      foreach ($changes as $row) {
+        if (!is_array($row)) {
+          if ($row === null || trim((string)$row) === '') continue;
+          $row = array('label' => (string)$row, 'from' => null, 'to' => null);
+        }
+        $label = mb_substr(trim(preg_replace('/\s+/', ' ', (string)($row['label'] ?? ''))), 0, 80);
+        if ($label === '') continue;
+        $item = array('label' => $label);
+        foreach (array('from', 'to') as $k) {
+          if (!array_key_exists($k, $row) || $row[$k] === null) { $item[$k] = null; continue; }
+          $v = is_string($row[$k]) ? $row[$k] : (string)$row[$k];
+          $item[$k] = mb_substr(trim(preg_replace('/\s+/', ' ', $v)), 0, 120);
+        }
+        if (($item['from'] ?? null) === null && ($item['to'] ?? null) === null) continue;
+        $clean[] = $item;
+      }
+      if (!$clean) return array();
+      if (count($clean) > 8) {
+        $left = count($clean) - 7;
+        $clean = array_slice($clean, 0, 7);
+        $clean[] = array('label' => 'Other changes', 'from' => null, 'to' => $left . ' more not listed here');
+      }
+      return $clean;
+    }
+  }
+
+  /** Read the stored JSON back as rows; garbage or an old row yields none. */
+  if(!function_exists('mp_audit_decode_changes')){
+    function mp_audit_decode_changes($json){
+      if (!is_string($json) || trim($json) === '') return array();
+      $rows = json_decode($json, true);
+      if (!is_array($rows)) return array();
+      $out = array();
+      foreach ($rows as $row) {
+        if (!is_array($row) || trim((string)($row['label'] ?? '')) === '') continue;
+        $out[] = array(
+          'label' => (string)$row['label'],
+          'from'  => isset($row['from']) ? (string)$row['from'] : null,
+          'to'    => isset($row['to']) ? (string)$row['to'] : null,
+        );
+      }
+      return $out;
+    }
+  }
+
+  /**
+   * The name a reviewer should see for a record, never its row id. Falls back
+   * to nothing when the table or the name is missing so the screen can show
+   * the reference it has.
+   */
+  if(!function_exists('mp_audit_record_name')){
+    function mp_audit_record_name($table, $id, $column = 'name'){
+      $CI =& get_instance();
+      $id = (int)$id;
+      if ($id <= 0 || !isset($CI->db)) return '';
+      static $cache = array();
+      $key = $table . ':' . $column . ':' . $id;
+      if (isset($cache[$key])) return $cache[$key];
+      $name = '';
+      $previousDebug = $CI->db->db_debug;
+      $CI->db->db_debug = false;
+      try {
+        if ($CI->db->table_exists($table) && $CI->db->field_exists($column, $table)) {
+          $row = $CI->db->select($column)->where('id', $id)->limit(1)->get($table)->row();
+          $name = mp_catalogue_name($row ? ($row->{$column} ?? '') : '');
+        }
+      } catch (Throwable $e) {
+        $name = '';
+      } finally {
+        $CI->db->db_debug = $previousDebug;
+      }
+      $cache[$key] = $name;
+      return $name;
+    }
+  }
+
+  /* ----------------------------------------------------------------------
+   * Serial / barcode lifecycle + customer equipment register helpers
+   * (Scientific Equipment & asset-tracking workflows)
+   * -------------------------------------------------------------------- */
+
+  /* Free-text note/description fields must NOT pass through CI3 xss_clean:
+   * Security.php rawurldecode()s any input containing '%' (e.g. "50% balance"
+   * → "50?lance" because %ba is valid hex). Views echo these fields raw, so
+   * store them html_escape()d — that blocks stored XSS without URL-decoding. */
+  if(!function_exists('mp_clean_text')){
+    function mp_clean_text($str){
+      return html_escape(trim((string)$str));
+    }
+  }
+  if(!function_exists('mp_post_text')){
+    function mp_post_text($key){
+      $CI =& get_instance();
+      return mp_clean_text($CI->input->post($key)); // raw post — no xss_clean
+    }
+  }
+
+  /* Release every tracked unit bound to a sale (sale update/delete paths).
+   * Only releases rows still marked 'sold' so units under warranty-return
+   * review (status 2) are left untouched. */
+  if(!function_exists('mp_release_sale_barcodes')){
+    function mp_release_sale_barcodes($sales_id){
+      $CI =& get_instance();
+      if(empty($sales_id) || !$CI->db->table_exists('db_item_barcodes')){ return; }
+      if(!$CI->db->field_exists('barcode_id','db_salesitems')){ return; }
+      $CI->db->query(
+        "UPDATE db_item_barcodes b
+         JOIN db_salesitems si ON si.barcode_id = b.id
+         SET b.status = 1
+         WHERE si.sales_id = ? AND si.sales_status = 'Final' AND si.barcode_id > 0 AND b.status = 0",
+        array((int)$sales_id)
+      );
+    }
+  }
+
+  /* Create a db_customer_equipment row for each serialised unit on a sale line.
+   * Idempotent per (salesitems_id, barcode_id). */
+  if(!function_exists('mp_register_equipment_from_sale')){
+    function mp_register_equipment_from_sale($sales_id, $salesitems_id, $customer_id = null){
+      $CI =& get_instance();
+      if(!$CI->db->table_exists('db_customer_equipment')){ return; }
+      if(!function_exists('mp_feature_enabled') || !mp_feature_enabled('equipment_register')){ return; }
+      $line = $CI->db->where('id',$salesitems_id)->get('db_salesitems')->row();
+      $sale = $CI->db->where('id',$sales_id)->get('db_sales')->row();
+      if(!$line || !$sale){ return; }
+      $customer_id = $customer_id ?: $sale->customer_id;
+      if(empty($customer_id)){ return; }
+      $bc = ($line->barcode_id > 0) ? $CI->db->where('id',$line->barcode_id)->get('db_item_barcodes')->row() : null;
+      $serial = $bc ? $bc->serial_number : ($line->sold_serial_number ?? null);
+      if(empty($serial)){ return; }
+      $item = $CI->db->select('item_name,warranty_months')->where('id',$line->item_id)->get('db_items')->row();
+
+      // Idempotent: one register row per sale line + physical unit
+      $CI->db->where('salesitems_id',$salesitems_id);
+      if($line->barcode_id > 0){ $CI->db->where('barcode_id',$line->barcode_id); }
+      else { $CI->db->where('serial_number',$serial); }
+      if($CI->db->get('db_customer_equipment')->num_rows() > 0){ return; }
+
+      $warranty_months = (int)($line->warranty_months_snapshot ?? ($bc->warranty_months ?? ($item->warranty_months ?? 0)));
+      $warranty_end = ($warranty_months > 0 && !empty($sale->sales_date))
+        ? date('Y-m-d', strtotime($sale->sales_date." +{$warranty_months} months")) : null;
+
+      $CI->db->insert('db_customer_equipment', array(
+        'store_id'        => $sale->store_id,
+        'customer_id'     => $customer_id,
+        'site_id'         => $CI->db->field_exists('shippingaddress_id','db_sales') ? ($sale->shippingaddress_id ?? null) : null,
+        'item_id'         => $line->item_id,
+        'barcode_id'      => $line->barcode_id ?: null,
+        'serial_number'   => $serial,
+        'model'           => $item->item_name ?? null,
+        'sales_id'        => $sales_id,
+        'salesitems_id'   => $salesitems_id,
+        'sale_date'       => $sale->sales_date,
+        'warranty_months' => $warranty_months,
+        'warranty_start'  => $sale->sales_date,
+        'warranty_end'    => $warranty_end,
+        'equipment_status'=> 'delivered',
+        'created_by'      => $CI->session->userdata('inv_userid'),
+        'created_date'    => date('Y-m-d'),
+        'created_time'    => date('H:i:s'),
+      ));
+    }
+  }
+
+  /* Remove equipment-register rows created by a sale (update/delete paths). */
+  if(!function_exists('mp_unregister_equipment_for_sale')){
+    function mp_unregister_equipment_for_sale($sales_id){
+      $CI =& get_instance();
+      if(empty($sales_id) || !$CI->db->table_exists('db_customer_equipment')){ return; }
+      $CI->db->where('sales_id',(int)$sales_id)->delete('db_customer_equipment');
+    }
+  }

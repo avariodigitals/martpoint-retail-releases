@@ -1,0 +1,596 @@
+<?php
+/**
+ * MartPoint Retail — Core Base Controller
+ *
+ * All application controllers extend this class.
+ * Handles authentication, global data loading, database updates,
+ * language switching, store context, and theme engine setup.
+ *
+ * @author      Rapheal Ogundiran (MartPoint Retail by Avario)
+ * @copyright   Copyright (c) 2019 - 2026, Avario / MartPoint Retail
+ * @license     Private — All rights reserved
+ * @since       1.0.0
+ */
+class MY_Controller extends CI_Controller{
+      public $source_version = "4.0.8";
+      public function __construct()
+      {
+        parent::__construct();
+
+        $this->source_version = app_version();
+
+        //$this->output->enable_profiler(TRUE);
+
+        //Before Login Update check
+        if($this->uri->segment(1) == 'login' || empty($this->uri->segment(1))){
+          $this->update_db();
+        }
+
+        //Used after logout
+        if(!empty($this->input->cookie("language"))){
+         $this->session->set_userdata('language',$this->input->cookie("language"));
+         
+         $cookie = array(
+            'name'   => 'language',
+              'value'  => '',
+              'expire' => '0',
+              );
+          $this->input->set_cookie($cookie);
+        }
+        //end
+        
+        $default_lang = ($this->session->has_userdata('language')) ? $this->session->userdata('language') : "English";
+
+        $this->lang->load($default_lang, $default_lang);
+      }
+      public function load_info(){
+        /*if(strtotime(date("d-m-Y")) >= strtotime(date("05-04-2019"))){
+            echo "License Expired! Contact Admin";exit();
+          }*/
+
+            //CHECK LANGUAGE IN SESSION ELSE FROM DB
+            if(!$this->session->has_userdata('language') && $this->session->has_userdata('logged_in') ){
+              $this->load->model('language_model');
+              $this->language_model->set(get_current_store_language());
+            }
+            if($this->session->has_userdata('logged_in')){
+              $this->lang->load($this->session->userdata('language'), $this->session->userdata('language'));
+            }
+            //End
+
+            //If currency not set retrieve from DB
+            $this->load_currency_data();
+            //end
+
+            
+
+            $query =$this->db->select('site_name,version')->where('id',1)->get('db_sitesettings');
+
+            $this->db->select('store_name,timezone,time_format,date_format,decimals,qty_decimals');
+            if($this->session->userdata('logged_in')){
+              $this->db->where('id',get_current_store_id());
+            }
+            else{
+              $this->db->where('id',1);
+            }
+            $this->db->from('db_store');
+            $query1 = $this->db->get();
+
+            date_default_timezone_set(trim($query1->row()->timezone));
+
+            $time_format = ($query1->row()->time_format=='24') ? date("h:i:s") : date("h:i:s a");
+
+            $date_view_format = trim($query1->row()->date_format);
+            $this->session->set_userdata(array('view_date'  => $date_view_format));
+            $this->session->set_userdata(array('view_time'  => $query1->row()->time_format));
+            $this->session->set_userdata(array('decimals'  => $query1->row()->decimals));
+            $this->session->set_userdata(array('qty_decimals'  => $query1->row()->qty_decimals));
+            $this->session->set_userdata(array('store_name'  => $query1->row()->store_name));
+            
+
+            $this->data = array('theme_link'    => base_url().'theme/',
+                                'base_url'      => base_url(),
+                                'SITE_TITLE'    => $query->row()->site_name,
+                                /*
+                                 * The STORE's own name, for anywhere the user is
+                                 * meant to see which shop they are in.
+                                 *
+                                 * $SITE_TITLE is db_sitesettings.site_name: ONE
+                                 * row for the whole installation, seeded by the
+                                 * installer to the vendor's product name
+                                 * ('MartPoint Retail'). Every mobile header used
+                                 * it, so a customer's own shop was labelled with
+                                 * the vendor's brand. Exposed here so the views
+                                 * do not each have to reach into the session.
+                                 */
+                                'store_name'    => $query1->row()->store_name,
+                                'VERSION'       => app_version(),
+                                'CURRENCY'      => $this->session->userdata('currency'),
+                                'CURRENCY_PLACE'=> $this->session->userdata('currency_placement'),
+                                'CURRENCY_CODE' => $this->session->userdata('currency_code'),
+                                'CUR_DATE'      => date("Y-m-d"),
+                                'VIEW_DATE'     => $date_view_format,
+                                'CUR_TIME'      => $time_format,
+                                'SYSTEM_IP'     => $_SERVER['REMOTE_ADDR'],
+                                // Metadata only: never block a login/page render on reverse DNS.
+                                'SYSTEM_NAME'   => ($_SERVER['REMOTE_ADDR'] ?? ''),
+                                'CUR_USERNAME'  => $this->session->userdata('inv_username'),
+                                'CUR_USERID'    => $this->session->userdata('inv_userid'),
+                                'CUR_USERID'    => $this->session->userdata('inv_userid'),
+                                    );
+
+            // Load subscription license status
+            if($this->session->userdata('logged_in') && $this->db->table_exists('db_subscription_license')){
+              $this->load->model('subscription_license_model','sub_lic');
+              $this->data['subscription_status'] = $this->sub_lic->get_status();
+            }
+      }
+      public function load_currency_data(){
+        if($this->session->userdata('logged_in')){
+          $q1=$this->db->query("SELECT a.currency_name,a.currency,a.currency_code,a.symbol,b.currency_placement FROM db_currency a,db_store b WHERE a.id=b.currency_id AND b.id=".get_current_store_id());
+              $currency = $q1->row()->currency;
+              $currency_placement = $q1->row()->currency_placement;
+              $currency_code = $q1->row()->currency_code;
+              $this->session->set_userdata(array('currency'  => $currency,'currency_placement'  => $currency_placement,'currency_code'  => $currency_code));
+        }
+        else{
+          $this->session->set_userdata(array('currency'  => '','currency_placement'  => '','currency_code'  => '')); 
+        }
+      }
+
+      public function verify_store_and_user_status(){
+            $store_rec = get_store_details();
+            //STORE ACTIVE OR NOT
+            if(!$store_rec->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'This store is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
+              $this->session->set_flashdata('failed', 'Your Store Temporarily Inactive!');
+              redirect('logout');exit;
+            }
+            //USER ACTIVE OR NOT
+            if(!get_user_details()->status){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(403);
+                echo json_encode(array('status'=>'error','message'=>'Your account is temporarily inactive. Please contact your administrator.'));
+                exit;
+              }
+              $this->session->set_flashdata('failed', 'Your account is temporarily inactive!');
+              redirect('logout');exit;
+            }
+      }
+      /**
+       * True when the current request expects a JSON response (fetch/AJAX API
+       * call) rather than a rendered page. Used to answer session expiry and
+       * subscription blocks with JSON instead of a login-page redirect, which
+       * browsers surface to users as a confusing "JSON parse" error.
+       */
+      protected function wants_json_response(){
+            $ctype  = $_SERVER['CONTENT_TYPE'] ?? '';
+            $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+            return $this->input->is_ajax_request()
+              || $this->input->post('is_ajax')
+              || strpos($ctype, 'application/json') !== false
+              || strpos($accept, 'application/json') !== false;
+      }
+
+      public function load_global($validate_subs='VALIDATE'){
+            //Check login or redirect to logout
+            if($this->session->userdata('logged_in')!=1){
+              if($this->wants_json_response()){
+                header('Content-Type: application/json');
+                set_status_header(401);
+                echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'Your session has expired. Please log in again.'));
+                exit;
+              }
+              redirect(base_url().'logout','refresh');
+            }
+
+            $this->enforce_idle_timeout();
+
+            $this->verify_store_and_user_status();
+
+            // Subscription enforcement
+            $this->enforce_subscription();
+
+            // DB update warning: handled in code_flashdata via session flag (not flashdata)
+            // to prevent it from reappearing on every page load
+
+            $this->load_info();
+            $this->enforce_pharmacy_admin_settings();
+
+            // Re-seed any missing default permissions once per session so role
+            // fixes take effect immediately without forcing every user to log out.
+            $this->reseed_role_permissions();
+      }
+
+      /** Keep pharmacy administration protected even when its URL is entered directly. */
+      private function enforce_pharmacy_admin_settings(){
+            if($this->input->is_cli_request()) return;
+            $industry = mp_get_store_profile()['industry_type'] ?? '';
+            if(!in_array($industry, ['pharmacy', 'medical_store', 'healthcare'], true)) return;
+            $this->load->helper('pharmacy_workspace');
+            $controller = strtolower($this->router->fetch_class());
+            $method = strtolower($this->router->fetch_method());
+            if (mp_pharmacy_standard() && mp_pharmacy_advanced_route($controller, $method)) {
+                $this->show_access_denied_page('This workflow requires Advanced Pharmacy.');
+                exit;
+            }
+            $command = $this->input->get('command') ?: $this->input->post('command');
+            $self_update = $command === 'update'
+                && (int)$this->session->userdata('inv_userid') > 0
+                && (int)$this->input->post('q_id') === (int)$this->session->userdata('inv_userid');
+            if(pharmacy_workspace_admin_route($controller, $method, $self_update) && !pharmacy_workspace_is_admin()){
+                $this->show_access_denied_page('Critical pharmacy settings are restricted to administrators.');
+                exit;
+            }
+      }
+
+      /**
+       * Server-side inactivity enforcement. The idle warning/snooze overlay
+       * (idle_lock.php) is client-side JS — it only runs while a page is
+       * open, so a closed browser or a killed mobile tab would keep the
+       * session alive for the full sess_expiration window. This applies the
+       * same store settings server-side: any request arriving after the
+       * idle window ends the session for real.
+       *
+       * The Session_lock controller is exempt: a snoozed screen is a
+       * deliberate pause protected by PIN/password on resume, and its ping
+       * is what keeps that paused session warm.
+       */
+      private function enforce_idle_timeout(){
+            if($this->input->is_cli_request()){
+                return;
+            }
+            $now = time();
+            if(strtolower($this->router->fetch_class()) === 'session_lock'){
+                // Exempt from the expiry check, but still stamp activity so a
+                // resumed session does not look instantly stale.
+                $this->session->set_userdata('mp_last_activity', $now);
+                return;
+            }
+            $last = (int)$this->session->userdata('mp_last_activity');
+
+            $store_id = function_exists('get_current_store_id') ? (int)get_current_store_id() : 0;
+            $enabled  = 0;
+            $window   = 0;
+            if($store_id && $this->db->table_exists('db_store_settings')){
+                $enabled = (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_enabled', 0);
+                $timeout = max(1, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_timeout_minutes', 15));
+                $grace   = max(0, (int)mp_get_store_setting($store_id, 'idle_lock', 'idle_warning_seconds', 60));
+                $window  = ($timeout * 60) + $grace;
+            }
+
+            if($enabled && $last && ($now - $last) > $window){
+                log_message('error', 'idle timeout: user '.$this->session->userdata('inv_userid').' store '.$store_id.' idle '.($now - $last).'s exceeded '.$window.'s on '.$this->uri->uri_string());
+                $this->session->sess_destroy();
+                if($this->wants_json_response()){
+                    header('Content-Type: application/json');
+                    set_status_header(401);
+                    echo json_encode(array('status'=>'error','code'=>'session_expired','message'=>'You were logged out because the session was idle. Please log in again.'));
+                    exit;
+                }
+                redirect(base_url().'login?reason=idle','refresh');
+                exit;
+            }
+
+            $this->session->set_userdata('mp_last_activity', $now);
+      }
+
+      private function reseed_role_permissions(){
+            // Use a versioned session flag so the reseed runs again after each
+            // deployment where the default permission sets have changed.
+            $flag = 'mp_perms_reseeded_v6_' . get_current_store_id() . '_' . app_version();
+            if($this->session->userdata($flag)){
+                return;
+            }
+
+            // Make sure the latest Default_data_model is loaded for the reseed
+            $model_file = APPPATH . 'models/Default_data_model.php';
+            if(function_exists('opcache_invalidate') && file_exists($model_file)){
+                @opcache_invalidate($model_file, true);
+                @opcache_invalidate(__FILE__, true);
+            }
+
+            try {
+                $this->load->model('default_data_model','default_data');
+                $this->default_data->reseed_missing_permissions();
+                $this->default_data->sync_system_admin_permissions(get_current_store_id());
+                if (physio_enabled()) {
+                    $store_id = get_current_store_id();
+                    $this->default_data->create_physio_roles($store_id);
+                    $this->default_data->sync_industry_feature_flags($store_id);
+                    $this->default_data->sync_clinical_admin_permissions($store_id);
+                    $this->default_data->sync_install_admin_permissions();
+                    $this->default_data->sync_store_owner_permissions($store_id);
+                    $this->default_data->sync_physio_role_permissions($store_id);
+                }
+                // A pharmacy always needs a named dispenser on the role list.
+                $pharmacy_store_id = get_current_store_id();
+                if (function_exists('mp_pharmacy_industry')
+                    && mp_pharmacy_industry(mp_get_store_profile($pharmacy_store_id)['industry_type'] ?? '')) {
+                    $this->default_data->create_pharmacy_roles($pharmacy_store_id);
+                    $this->default_data->sync_pharmacy_feature_flags($pharmacy_store_id);
+                }
+                $this->session->set_userdata($flag, 1);
+            } catch (Throwable $e) {
+                log_message('error', 'reseed_role_permissions failed: ' . $e->getMessage());
+            }
+      }
+
+      public function enforce_subscription(){
+            $ctrl = strtolower($this->router->fetch_class());
+            $method = strtolower($this->router->fetch_method());
+            // Allow access to subscription management and login/logout pages.
+            // cron / system_updates / fleet MUST stay reachable on suspended
+            // installs — they are the channels that deliver the vendor's
+            // resume command; gating them makes suspension irreversible.
+            if($ctrl === 'subscription_license' || $ctrl === 'login' || $ctrl === 'logout' || $ctrl === 'updates' || $ctrl === 'dashboard'
+              || $ctrl === 'cron' || $ctrl === 'system_updates' || $ctrl === 'fleet' || $ctrl === 'manifest'){
+              return;
+            }
+            if(!special_access() && $this->db->table_exists('db_subscription_license')){
+              $this->load->model('subscription_license_model','sub_lic');
+              $sub = $this->sub_lic->get_status();
+              if($sub['status'] === 'SUSPENDED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription is suspended. Please contact your administrator.'));
+                  exit;
+                }
+                $this->session->set_flashdata('failed', 'Subscription is SUSPENDED. Contact admin for support.');
+                redirect('dashboard','refresh');
+                exit;
+              }
+              if($sub['status'] === 'EXPIRED'){
+                if($this->wants_json_response()){
+                  header('Content-Type: application/json');
+                  set_status_header(403);
+                  echo json_encode(array('status'=>'error','message'=>'Your subscription has expired. Please renew to continue.'));
+                  exit;
+                }
+                $this->session->set_flashdata('failed', 'Subscription has EXPIRED. Please renew to continue.');
+                redirect('dashboard','refresh');
+                exit;
+              }
+            }
+      }
+
+      public function currency($value='',$with_comma=true){
+        $value = trim($value);
+
+        if($value !== '' && is_numeric($value)){
+          $value= ($with_comma) ? store_number_format($value) : store_number_format($value,false);
+        }
+
+        if($this->session->userdata('currency_placement')=='Left'){
+          if(!empty($value)){
+            return $this->session->userdata('currency')." ".$value;
+          }
+          return $this->session->userdata('currency')."".$value;
+          
+        }
+        else{
+          if(!empty($value)){
+            return $value." ".$this->session->userdata('currency');    
+          }
+         return $value."".$this->session->userdata('currency'); 
+        }
+      }
+
+      
+
+      public function store_wise_currency($store_id,$value=''){
+
+        $q1=$this->db->query("SELECT a.currency_name,a.currency,a.currency_code,a.symbol,b.currency_placement FROM db_currency a,db_store b WHERE a.id=b.currency_id AND b.id=".$store_id);
+              $currency = $q1->row()->currency;
+              $currency_placement = $q1->row()->currency_placement;
+              $currency_code = $q1->row()->currency_code;
+
+        $value = trim($value);
+        if(!empty($value) && is_numeric($value)){
+          $value=number_format($value,2,'.','');
+        }
+        if($currency_placement=='Left'){
+          if(!empty($value)){
+            return $currency." ".$value;
+          }
+          return $currency."".$value;
+          
+        }
+        else{
+          if(!empty($value)){
+            return $value." ".$currency;    
+          }
+         return $value."".$currency; 
+        }
+      }
+      
+      public function currency_code($value=''){
+        if(!empty($this->session->userdata('currency_code'))){
+          if($this->session->userdata('currency_placement')=='Left'){
+            return $this->session->userdata('currency_code')." ".$value;
+          }
+          else{
+           return $value." ".$this->session->userdata('currency'); 
+          }
+        }
+        else{
+          return $value;
+        }
+      }
+      public function permissions($permissions=''){
+          // Platform Admin accounts and the recognized tenant Admin roles
+          // receive full workspace permissions. Business Owner and staff roles
+          // remain controlled by their explicit grants.
+          if($this->session->userdata('inv_userid')==1 || $this->session->userdata('inv_userid')==2){
+            return true;
+          }
+          if((function_exists('is_admin') && is_admin()) || (function_exists('is_store_admin') && is_store_admin())){
+            return true;
+          }
+
+          $role_id = $this->session->userdata('role_id');
+          if(empty($role_id)){
+            return false;
+          }
+
+          $tot=$this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="'.$this->db->escape_str($permissions).'" and role_id='.(int)$role_id)->row()->tot;
+          // Duplicate legacy grants still represent one allowed permission.
+          return ($tot > 0);
+        }
+        
+        public function permission_check($value=''){
+          if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
+             $this->show_access_denied_page();
+          }
+          return true;
+        }
+        public function permission_check_with_msg($value=''){
+          if(!$this->permissions($value)){
+             log_message('error', 'permission denied: '.$value.' for user '.$this->session->userdata('inv_userid').' role '.$this->session->userdata('role_id').' on '.$this->uri->uri_string());
+             if($this->wants_json_response()){
+               header('Content-Type: application/json');
+               set_status_header(403);
+               echo json_encode(array('status'=>'error','message'=>'You do not have permission to do this. Please ask an admin to check your role.'));
+               exit;
+             }
+             echo "You don't have permission for this operation.";
+            exit();
+          }
+          return true;
+        }
+        public function show_access_denied_page($message = '')
+        {
+          // AJAX/JSON requests get JSON, not a redirect or HTML page
+          if($this->wants_json_response()){
+            header('Content-Type: application/json');
+            set_status_header(403);
+            echo json_encode(array('status'=>'error','message'=> $message ?: 'You don\'t have permission to access this feature.'));
+            exit;
+          }
+
+          set_status_header(403);
+          $d = $this->data ?? [];
+          $d['theme_link'] = $d['theme_link'] ?? base_url().'theme/';
+          $d['base_url']   = $d['base_url'] ?? base_url();
+          $d['page_title'] = 'Access Denied';
+          $d['message']    = $message ?: 'You don\'t have permission to access this feature. Contact your administrator if you believe this is a mistake.';
+          $d['content']    = $this->load->view('errors/access_denied', $d, TRUE);
+
+          /*
+           * Render to a STRING and echo it.
+           *
+           * A top-level $this->load->view() does not echo: Loader::_ci_load()
+           * hands the buffer to CI_Output::append_output() and cleans it, and
+           * that buffer is only sent by Output::_display() on a normal
+           * shutdown. This method exits immediately after, so _display() never
+           * runs and the page was thrown away — every ungranted screen answered
+           * 403 with ZERO bytes, i.e. a blank white page instead of the
+           * "Permission Required" screen that explains it.
+           *
+           * Asking for the string and echoing sidesteps the output object
+           * entirely, so the explanation always reaches the browser.
+           */
+          echo $this->load->view('mp_layout', $d, TRUE);
+          exit;
+        }
+
+        /**
+         * Render the branded "Feature Not Activated" card.
+         * Use this when a feature flag is off (not a permission issue).
+         */
+        public function show_feature_not_activated($flag, $description = '')
+        {
+          $profile = function_exists('mp_get_store_profile') ? mp_get_store_profile() : [];
+          $industry_label = '';
+          if (is_array($profile) && !empty($profile['industry_type'])) {
+            $industry_label = ucwords(str_replace(['_','-'], ' ', $profile['industry_type']));
+          }
+          $icons = [
+            'treatment_notes'      => 'fa-file-text-o',
+            'medical_notes'        => 'fa-file-medical-o',
+            'custom_orders'        => 'fa-pencil-square-o',
+            'memberships'          => 'fa-id-card',
+            'packages'             => 'fa-gift',
+            'production_workflow'  => 'fa-industry',
+            'recipe_tracking'      => 'fa-cutlery',
+            'kitchen_workflow'     => 'fa-utensils',
+            'laundry_workflow'     => 'fa-tint',
+            'price_catalogue'      => 'fa-book',
+            'public_catalogue'     => 'fa-globe',
+            'staff_assignment'     => 'fa-user-md',
+            'staff_commission'     => 'fa-percent',
+            'table_management'     => 'fa-table',
+            'delivery_scheduling'  => 'fa-truck',
+            'expiry_tracking'      => 'fa-calendar-times-o',
+            'batch_tracking'       => 'fa-layer-group',
+            'serial_number_tracking'=> 'fa-barcode',
+            'imei_tracking'        => 'fa-mobile',
+            'warranty_tracking'    => 'fa-shield',
+            'online_store'         => 'fa-globe',
+            'qr_ordering'          => 'fa-qrcode',
+            'loyalty'              => 'fa-heart',
+            'gift_cards'           => 'fa-gift',
+            'store_credit'         => 'fa-credit-card',
+            'payplan'              => 'fa-money',
+            'bundles'              => 'fa-cubes',
+            'item_variants'        => 'fa-cubes',
+            'manager_approvals'    => 'fa-check-circle-o',
+            'accounts'             => 'fa-calculator',
+            'warehouse'            => 'fa-building',
+            'multi_unit_inventory' => 'fa-cubes',
+            'nylon_workflow'       => 'fa-industry',
+          ];
+          $icon = isset($icons[$flag]) ? $icons[$flag] : 'fa-lock';
+
+          $d = $this->data ?? [];
+          $d['theme_link']      = $d['theme_link'] ?? base_url().'theme/';
+          $d['base_url']        = $d['base_url'] ?? base_url();
+          $d['page_title']      = function_exists('mp_feature_label') ? mp_feature_label($flag) : ucwords(str_replace(['_','-'],' ',$flag));
+          $d['feature_label']   = $d['page_title'];
+          $d['feature_key']     = $flag;
+          $d['industry_label']  = $industry_label;
+          $d['icon']            = $icon;
+          $d['description']     = $description;
+          $d['enable_url']      = base_url('business_profile');
+          $d['back_url']        = base_url('dashboard');
+          $d['content']         = $this->load->view('errors/feature_not_activated', $d, TRUE);
+          // Echo the buffered layout before exiting. A bare load->view() only
+          // appends to CI_Output, which is discarded by exit — that is exactly
+          // what made the 403 page blank (see show_access_denied_page). Without
+          // the echo every feature-gated screen returned 200 with 0 bytes.
+          echo $this->load->view('mp_layout', $d, TRUE);
+          exit;
+        }
+            //end
+        public function get_current_version_of_db(){
+          return $this->db->select('version')->from('db_sitesettings')->get()->row()->version;
+        }
+        
+        public function belong_to($table,$rec_id){
+          if(!is_it_belong_to_store($table,$rec_id)){
+            log_message('error', 'belong_to denied: '.$table.'#'.$rec_id.' for user '.$this->session->userdata('inv_userid').' store '.get_current_store_id().' on '.$this->uri->uri_string());
+            $this->show_access_denied_page('This record does not belong to your store or you do not have permission to access it.');
+          }
+        }
+
+       public function update_db()
+        { 
+          //Before Login purpose only
+          $this->load->model('updates_model');
+          $migration_started = microtime(true);
+          $this->updates_model->index();
+          $migration_ms = (int)round((microtime(true)-$migration_started)*1000);
+          if($migration_ms >= 2000){
+            log_message('error','Slow login migration phase: '.$migration_ms.'ms; previous DB version '.(string)$this->updates_model->db_version.'. Review failed migration jobs; no versions were skipped.');
+          }
+        }
+
+}

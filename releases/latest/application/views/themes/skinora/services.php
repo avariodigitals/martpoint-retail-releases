@@ -1,0 +1,10 @@
+<?php
+require_once APPPATH . 'views/themes/skinora/_helpers.php';
+$snSlug = $settings->store_slug ?? '';
+$snHome = base_url('store/' . $snSlug);
+$snBase = $snHome . '/services';
+$snQuery = [];
+if (!empty($category_id)) $snQuery['category'] = (int) $category_id;
+if (!empty($search)) $snQuery['search'] = $search;
+?>
+<main class="sn-inner sn-services-page"><div class="container"><div class="sn-breadcrumb"><a href="<?= sn_e($snHome); ?>">Home</a><span>›</span>Treatments</div><div class="sn-page-intro"><div class="eyebrow">BEAUTY, BEYOND THE BOTTLE</div><h1>A little time for you.</h1><p>Treatments and guidance tailored to your skin goals.</p></div><form class="sn-search-form" action="<?= sn_e($snBase); ?>" method="get"><input type="search" name="search" value="<?= sn_e($search ?? ''); ?>" placeholder="Search treatments" aria-label="Search treatments"><button class="btn" type="submit">SEARCH ↗</button></form><?php if (!empty($service_categories)): ?><div class="tabs sn-list-tabs"><a class="tab <?= empty($category_id) ? 'active' : ''; ?>" href="<?= sn_e($snBase); ?>">All treatments</a><?php foreach ($service_categories as $category): ?><a class="tab <?= (int) ($category_id ?? 0) === (int) $category->id ? 'active' : ''; ?>" href="<?= sn_e($snBase . '?category=' . (int) $category->id); ?>"><?= sn_e($category->category_name); ?></a><?php endforeach; ?></div><?php endif; ?><?php if (!empty($services)): ?><div class="service-grid"><?php foreach ($services as $service) sn_service_card($service, $snSlug, $store_currency ?? null); ?></div><?php else: ?><div class="empty"><h2>No treatments found.</h2><p>Try another search or explore all treatments.</p><a class="btn" href="<?= sn_e($snBase); ?>">VIEW TREATMENTS ↗</a></div><?php endif; ?><?php if (($total_pages ?? 1) > 1): ?><nav class="sn-pagination" aria-label="Service pages"><?php for ($p = 1; $p <= $total_pages; $p++): $snQuery['page'] = $p; ?><a class="<?= $p === (int) $page ? 'active' : ''; ?>" href="<?= sn_e($snBase . '?' . http_build_query($snQuery)); ?>"><?= $p; ?></a><?php endfor; ?></nav><?php endif; ?></div></main>

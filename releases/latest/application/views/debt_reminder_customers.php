@@ -1,0 +1,143 @@
+<?php
+/* Debt Reminder Customers — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<style>
+.mp-toggle-small input[type="checkbox"] { width:36px; height:20px; -webkit-appearance:none; appearance:none; background:#CBD5E1; border-radius:10px; position:relative; cursor:pointer; outline:none; transition:background .2s; }
+.mp-toggle-small input[type="checkbox"]:checked { background:#10B981; }
+.mp-toggle-small input[type="checkbox"]::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.mp-toggle-small input[type="checkbox"]:checked::after { left:18px; }
+/* Protect from iCheck + mobile min-height overrides */
+.mp-toggle-small input[type="checkbox"] { min-height:0 !important; }
+.mp-channel-input { -webkit-appearance:none !important; appearance:none !important; min-height:0 !important; }
+.mp-select { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; color:#0F172A; background:#fff; }
+.mp-select:focus { border-color:#3B82F6; outline:none; }
+.mp-input-sm { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; width:70px; }
+.mp-btn-save { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; border:none; cursor:pointer; background:#10B981; color:#fff; }
+.mp-btn-save:hover { background:#059669; }
+.mp-badge { display:inline-block; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.mp-badge-green { background:#D1FAE5; color:#065F46; }
+.mp-badge-red { background:#FEE2E2; color:#991B1B; }
+.mp-empty { text-align:center; padding:40px; color:#94A3B8; }
+</style>
+
+<div class="mp-page-head">
+  <h1 class="mp-page-title"><?= $page_title ?></h1>
+</div>
+
+<div class="mp-card">
+  <div class="mp-card-header">
+    <div class="mp-card-title"><i class="fa fa-users text-blue"></i> Customers with Outstanding Debt</div>
+    <div>
+      <small class="text-muted">Store default: <?= ucfirst($store_defaults->frequency); ?> &middot; 
+      <?= $store_defaults->enabled ? '<span style="color:#10B981;">Enabled</span>' : '<span style="color:#EF4444;">Disabled</span>'; ?></small>
+    </div>
+  </div>
+  <div class="mp-card-body">
+    <?php if(!empty($customers)): ?>
+    <div class="table-responsive">
+      <table class="mp-table" id="tbl_customers">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Mobile</th>
+            <th>Amount Due</th>
+            <th>Reminders Sent</th>
+            <th>Last Sent</th>
+            <th>Override</th>
+            <th>Freq</th>
+            <th>Max</th>
+            <th>Email</th>
+            <th>SMS</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach($customers as $c): ?>
+          <tr data-cid="<?= $c->customer_id; ?>">
+            <td><strong><?= htmlspecialchars($c->customer_name); ?></strong></td>
+            <td><?= htmlspecialchars($c->mobile); ?></td>
+            <td><?= store_number_format($c->amount_due); ?></td>
+            <td><?= (int)$c->reminder_count; ?></td>
+            <td><?= !empty($c->last_reminder_sent) ? date('M d, Y H:i', strtotime($c->last_reminder_sent)) : '<span class="text-muted">Never</span>'; ?></td>
+            <td>
+              <select class="mp-select override-enabled" data-cid="<?= $c->customer_id; ?>">
+                <option value="" <?= $c->enabled === NULL ? 'selected' : ''; ?>>Use Store Default (<?= $store_defaults->enabled ? 'On' : 'Off'; ?>)</option>
+                <option value="1" <?= $c->enabled === '1' ? 'selected' : ''; ?>>Enabled</option>
+                <option value="0" <?= $c->enabled === '0' ? 'selected' : ''; ?>>Disabled</option>
+              </select>
+            </td>
+            <td>
+              <select class="mp-select override-freq" data-cid="<?= $c->customer_id; ?>">
+                <option value="">Default</option>
+                <option value="daily" <?= $c->frequency == 'daily' ? 'selected' : ''; ?>>Daily</option>
+                <option value="3days" <?= $c->frequency == '3days' ? 'selected' : ''; ?>>3 Days</option>
+                <option value="weekly" <?= $c->frequency == 'weekly' ? 'selected' : ''; ?>>Weekly</option>
+                <option value="biweekly" <?= $c->frequency == 'biweekly' ? 'selected' : ''; ?>>Bi-Weekly</option>
+                <option value="monthly" <?= $c->frequency == 'monthly' ? 'selected' : ''; ?>>Monthly</option>
+              </select>
+            </td>
+            <td><input type="number" class="mp-input-sm override-max" value="<?= $c->max_reminders !== NULL ? $c->max_reminders : ''; ?>" placeholder="Default" data-cid="<?= $c->customer_id; ?>"></td>
+            <td><label class="mp-toggle-small"><input type="checkbox" class="override-email mp-channel-input no-icheck" <?= $c->send_email == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
+            <td><label class="mp-toggle-small"><input type="checkbox" class="override-sms mp-channel-input no-icheck" <?= $c->send_sms == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
+            <td><button class="mp-btn-save btn-save-customer" data-cid="<?= $c->customer_id; ?>"><i class="fa fa-save"></i></button></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php else: ?>
+      <div class="mp-empty">
+        <i class="fa fa-check-circle" style="font-size:32px; color:#10B981; margin-bottom:10px;"></i>
+        <p>No customers currently have outstanding debt. Great job!</p>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<script>
+$(function(){
+  if(typeof toastr !== 'undefined'){
+    toastr.options = { positionClass: 'toast-top-right', closeButton: true, progressBar: true };
+  }
+
+  $('.btn-save-customer').click(function(){
+    var btn = $(this);
+    var cid = btn.data('cid');
+    var row = $('tr[data-cid="'+cid+'"]');
+    btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+
+    $.ajax({
+      url: '<?=base_url("debt_reminder/update_customer");?>',
+      type: 'POST',
+      dataType: 'json',
+      data: {
+        customer_id: cid,
+        enabled: row.find('.override-enabled').val(),
+        frequency: row.find('.override-freq').val(),
+        max_reminders: row.find('.override-max').val(),
+        send_email: row.find('.override-email').is(':checked') ? 1 : 0,
+        send_sms: row.find('.override-sms').is(':checked') ? 1 : 0,
+        <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
+      },
+      success: function(res){
+        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
+        if(res && res.status === 'success'){
+          if(typeof toastr !== 'undefined'){ toastr.success(res.message); }
+          else { alert(res.message); }
+        } else {
+          var msg = res && res.message ? res.message : 'Failed to update';
+          if(typeof toastr !== 'undefined'){ toastr.error(msg); }
+          else { alert('Error: ' + msg); }
+        }
+      },
+      error: function(xhr, status, error){
+        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
+        var msg = 'Server error: ' + (error || status || 'Unknown error');
+        if(typeof toastr !== 'undefined'){ toastr.error(msg); }
+        else { alert(msg); }
+      }
+    });
+  });
+});
+</script>

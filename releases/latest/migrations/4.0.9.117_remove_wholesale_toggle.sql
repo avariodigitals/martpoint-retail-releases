@@ -1,0 +1,44 @@
+-- ============================================================================
+-- MartPoint 4.0.9.117 — remove the Wholesale/Retail price switch
+--
+-- No schema change. db_salesitems.price_type is KEPT — see the note at the end.
+--
+-- WHY IT WAS REMOVED
+--
+-- The sales screen carried a two-button price switch: Wholesale / Retail. Pick
+-- one and every line is priced from that tier.
+--
+-- That is a shopkeeper's control. A shop stocks an item at two prices and picks
+-- the trade one for a bulk buyer. In print there is no tier to pick: the price
+-- was already settled by the quotation the client accepted. Offering a tier on
+-- the invoice let an operator bill at a price the client never agreed to — the
+-- exact dispute the quote/acceptance flow exists to prevent.
+--
+-- WHAT CHANGED (views/sales.php)
+--
+--   * The .price-toggle button pair is gone from the item search bar.
+--   * setPriceType() is removed — it existed only to flip that switch.
+--   * The .price-toggle / .pt-btn CSS is removed.
+--   * #price_type REMAINS as a hidden field carrying the tier the lines are
+--     actually priced at, so the save path is untouched.
+--
+-- This screen serves both "New Sale" and "Quotation → Invoice", so removing it
+-- here removes it from the conversion path too, which is where it mattered most.
+--
+-- NOT CHANGED: the POS till (views/pos_desktop.php) keeps its switch.
+--
+-- The till is a genuine cash-and-carry counter where a shopkeeper does sell to
+-- a trade buyer at a trade price. A print shop does not reach the till at all —
+-- /pos redirects it to the new-job builder (see .114) — so the switch is
+-- unreachable for print and still correct for the shop it was built for.
+--
+-- db_salesitems.price_type IS DELIBERATELY NOT DROPPED.
+--
+-- Dropping a column is destructive and irreversible, and historical invoices
+-- still hold the value they were created with. Removing the toggle stops new
+-- rows being priced by tier; keeping the column preserves what past rows mean.
+-- A migration that dropped it would silently change the reading of old sales.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

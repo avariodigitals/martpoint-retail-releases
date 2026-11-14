@@ -1,0 +1,77 @@
+<?php $fprods = $featured_products ?? []; ?>
+<?php if(!empty($fprods)): ?>
+<div class="mp-section">
+  <div class="mp-section-title">
+    <?= htmlspecialchars(sf_sec_title($section, 'Featured Products')); ?>
+    <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/products'); ?>">View all products &rarr;</a>
+  </div>
+  <div class="mp-grid">
+    <?php foreach($fprods as $p):
+      $showSaleStockLabels = (int)($settings->show_sale_stock_labels ?? 1) === 1;
+      $price = $p->effective_price ?? $p->sales_price;
+      $oldPrice = $p->original_price ?? $p->sales_price;
+      $hasDiscount = $showSaleStockLabels && $oldPrice > $price;
+      $discountPct = $hasDiscount ? round((($oldPrice - $price) / $oldPrice) * 100) : 0;
+      $pType = $p->product_type ?? 'physical';
+      $isPhysical = $pType === 'physical';
+      $ctaLabel = ['digital'=>'Get Access','course'=>'Enroll','membership'=>'Join','service'=>'Book','physical'=>'Add to Cart'][$pType] ?? 'Add to Cart';
+      $badgeLabel = ['digital'=>'Digital','course'=>'Course','membership'=>'Membership','service'=>'Service'][$pType] ?? null;
+      $outOfStock = $isPhysical && $p->stock <= 0 && !($settings->allow_backorder ?? false);
+    ?>
+    <div class="mp-card" onclick="<?= !empty($p->variant_count) ? "location.href='" . base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $p->id) . "'" : "openProductModal(" . $p->id . ", '" . htmlspecialchars(addslashes($p->item_name)) . "', " . $price . ", '" . $p->item_image . "', '" . htmlspecialchars(addslashes($p->description ?? '')) . "', " . $p->stock . ", " . ($hasDiscount ? $oldPrice : 0) . ", '" . $pType . "')"; ?>">
+      <div class="mp-card-img-wrap">
+        <?php if($p->item_image && file_exists($p->item_image)): ?>
+          <img src="<?= mp_storefront_image_url($p->item_image); ?>" srcset="<?= mp_storefront_image_url($p->item_image); ?> 1x, <?= base_url($p->item_image); ?> 2x" class="mp-card-img" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
+        <?php else: ?>
+          <div class="mp-card-placeholder">
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="12" width="48" height="40" rx="4"/><path d="M8 40l12-12 10 10 14-14 12 12"/></svg>
+            <span><?= htmlspecialchars(substr($p->item_name, 0, 1)); ?></span>
+          </div>
+        <?php endif; ?>
+        <?php if($badgeLabel): ?>
+          <span class="mp-card-badge" style="background:rgba(124,58,237,.12);color:#7C3AED;"><?= $badgeLabel; ?></span>
+        <?php endif; ?>
+        <?php if($hasDiscount && $discountPct > 0): ?>
+          <span class="mp-card-badge discount">-<?= $discountPct; ?>%</span>
+        <?php endif; ?>
+        <button class="mp-card-wishlist" onclick="event.stopPropagation();"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      </div>
+      <div class="mp-card-body">
+        <div class="mp-card-name"><?= htmlspecialchars($p->item_name); ?></div>
+        <?php $cardDescription = trim(strip_tags((string)($p->short_description ?? ($p->description ?? '')))); if($cardDescription !== ''): ?><p class="mp-card-description" style="margin:0 0 8px;color:var(--mp-gray);font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;"><?= htmlspecialchars($cardDescription, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
+        <div style="display:flex;align-items:center;">
+          <span class="mp-card-price"><?= sf_currency($price, $store_currency ?? null); ?></span>
+          <?php if($hasDiscount): ?><span class="mp-card-old"><?= sf_currency($oldPrice, $store_currency ?? null); ?></span><?php endif; ?>
+        </div>
+        <div style="font-size:12px; color:var(--mp-gray); margin-top:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <?php if($outOfStock && $showSaleStockLabels): ?>
+            <span style="padding:2px 8px; border-radius:999px; background:rgba(239,68,68,.1); color:#B91C1C; font-weight:600;">Out of Stock</span>
+          <?php else: ?>
+            <span style="padding:2px 8px; border-radius:999px; background:rgba(5,150,105,.1); color:#047857; font-weight:600;">Available</span>
+          <?php endif; ?>
+          <?php if($p->sold_count > 0): ?>
+            <?php if($pType === 'course'): ?><span><?= number_format($p->sold_count); ?> student<?= $p->sold_count != 1 ? 's' : ''; ?></span>
+            <?php elseif($pType === 'membership'): ?><span><?= number_format($p->sold_count); ?> member<?= $p->sold_count != 1 ? 's' : ''; ?></span>
+            <?php else: ?><span><?= number_format($p->sold_count); ?> sold</span>
+            <?php endif; ?>
+          <?php endif; ?>
+        </div>
+        <?php if($outOfStock && $showSaleStockLabels): ?>
+          <div class="mp-card-stock">Out of Stock</div>
+        <?php elseif(!$isPhysical): ?>
+          <div class="mp-card-stock" style="color:#7C3AED;background:rgba(124,58,237,.06);"><?php echo ['digital'=>'Instant download','course'=>'Self-paced','membership'=>'Recurring'][$pType] ?? ''; ?></div>
+        <?php endif; ?>
+        <button class="mp-card-add" <?= $outOfStock ? "disabled style=\"opacity:.5;cursor:not-allowed;\"" : ""; ?> onclick="event.stopPropagation();<?= !empty($p->variant_count) ? "location.href='" . base_url('store/' . ($settings->store_slug ?? '') . '/product/' . $p->id) . "'" : "addToCart(" . $p->id . ",'" . $pType . "','" . htmlspecialchars(addslashes($p->item_name)) . "'," . $price . ",'" . $p->item_image . "',1," . $p->stock . ")"; ?>">
+          <span>+</span> <?= !empty($p->variant_count) ? 'Options' : ($outOfStock ? 'Out of Stock' : $ctaLabel); ?>
+        </button>
+        <?php if($isPhysical && !empty($settings->whatsapp_number) && ($settings->allow_whatsapp ?? 1)): ?>
+        <button class="mp-card-wa" onclick="event.stopPropagation();<?= $outOfStock ? "window.open('https://wa.me/" . preg_replace('/[^0-9]/','',$settings->whatsapp_number ?? '') . "?text='+encodeURIComponent('Hello, is " . htmlspecialchars(addslashes($p->item_name)) . " back in stock?'),'_blank')" : "orderProductOnWhatsApp('" . htmlspecialchars(addslashes($p->item_name)) . "'," . $price . ")"; ?>">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.13 1.558 5.931L.157 24l6.305-1.654a11.882 11.882 0 0 0 5.587 1.396h.004c6.552 0 11.887-5.335 11.89-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg> <?= $outOfStock ? 'Ask about availability' : 'Order on WhatsApp'; ?>
+        </button>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>

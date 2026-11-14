@@ -1,0 +1,970 @@
+<link rel="stylesheet" href="<?= htmlspecialchars(base_url('theme/css/dashboard_links.css?v='.app_version()),ENT_QUOTES,'UTF-8'); ?>">
+<?php
+/* Dashboard view — content fragment for mp_layout */
+$this->load->view('admin/desktop/_styles');
+?>
+
+
+    <?php
+    $CI =& get_instance();
+    $is_product_business = true;
+    $is_service_business = false;
+    $industry_type = 'general_retail';
+    $dashboard_template = 'general_retail';
+    $is_creator = false;
+    try {
+      $bp_profile = mp_get_store_profile();
+      $is_product_business = empty($bp_profile['business_model']) || in_array($bp_profile['business_model'], ['product_based','product_and_service']);
+      $is_service_business = in_array($bp_profile['business_model'] ?? '', ['service_based','product_and_service']);
+      $industry_type = $bp_profile['industry_type'] ?? 'general_retail';
+      $dashboard_template = $bp_profile['dashboard_template'] ?? $industry_type;
+      $is_creator = $industry_type === 'creator';
+    } catch (Exception $e) {}
+    $this->load->helper('industry_guide');
+    $dashboard_guide = mp_industry_guide($industry_type);
+    $expiry_rendered = false;
+    $dashboard_template_label = '';
+    if ($dashboard_template !== 'general_retail' && function_exists('mp_get_dashboard_templates')) {
+        $dt_labels = mp_get_dashboard_templates();
+        $dashboard_template_label = $dt_labels[$dashboard_template] ?? '';
+    }
+    $item_label = mp_label('item','Product');
+    $customer_label = mp_label('customer','Customer');
+    $branch_label = mp_label('branch','Branch');
+
+    // Dashboard card counts
+    $store_id = get_current_store_id();
+    $today = date('Y-m-d');
+    // Range-aware invoice + new-customer counts (respond to the date filter)
+    $invoices_range = $invoices_range ?? ['count'=>0, 'previous'=>0, 'change'=>0];
+    $new_customers_range = $new_customers_range ?? ['count'=>0, 'previous'=>0, 'change'=>0];
+
+    // Range-aware sales target (daily goal × days in selected range)
+    $range_target_days = 1;
+    switch($range){
+      case '7Days': $range_target_days = 7; break;
+      case '30Days': $range_target_days = 30; break;
+      case 'LastMonth': $range_target_days = date('t', strtotime('-1 month')); break;
+      case 'ThisMonth': $range_target_days = date('t'); break;
+      case 'ThisYear': $range_target_days = date('L') ? 366 : 365; break;
+    }
+    $range_target = $daily_target * $range_target_days;
+    $range_sales = $today_sales['today'] ?? 0;
+    $range_progress = ($range_target > 0) ? min(100, round(($range_sales / $range_target) * 100, 1)) : 0;
+    ?>
+
+    <!-- Subscription Warning Banner -->
+    <?php if(!special_access() && isset($subscription_status) && $subscription_status['status'] !== 'ACTIVE' && $subscription_status['status'] !== 'NOT_ACTIVATED'): ?>
+    <div class="mp-sub-banner alert alert-<?= ($subscription_status['status'] === 'SUSPENDED') ? 'danger' : 'warning'; ?> alert-dismissible">
+      <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+      <h4><i class="fa fa-<?= ($subscription_status['status'] === 'SUSPENDED') ? 'ban' : 'warning'; ?>"></i> <?= ($subscription_status['status'] === 'SUSPENDED') ? 'Subscription Suspended' : 'Subscription Expiring'; ?></h4>
+      <?php if($subscription_status['status'] === 'SUSPENDED'): ?>
+        Your subscription has been suspended. Some features may be limited. Contact admin for support.
+      <?php elseif($subscription_status['status'] === 'EXPIRED'): ?>
+        Your subscription has expired. Please contact admin to renew.
+      <?php else: ?>
+        Your subscription expires on <?=show_date($subscription_status['end_date']);?> (<?=$subscription_status['days_left'];?> days left). Contact admin to renew.
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Clock-in banner -->
+    <?php if(!is_user() && !empty($needs_clock_in)): ?>
+    <div class="mp-section">
+      <div id="dashClockStatusCard" class="mp-clock-banner">
+        <div class="mp-clock-icon <?= (!empty($needs_clock_in)) ? '' : 'ok' ?>">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="mp-clock-body">
+          <h4 class="mp-clock-title" style="font-size:14px;color:<?= (!empty($needs_clock_in)) ? '#92400E' : '#065F46'; ?>;"><?= (!empty($needs_clock_in)) ? 'You are not clocked in.' : 'You are clocked in.'; ?></h4>
+          <div class="mp-clock-sub"><?= (!empty($needs_clock_in)) ? 'Clock in before processing sales.' : 'Remember to clock out at the end of your shift.'; ?></div>
+        </div>
+        <button type="button" class="mp-clock-btn <?= (!empty($needs_clock_in)) ? 'in' : 'out'; ?>" onclick="$('#appClockInBtn').trigger('click');">
+          <?= (!empty($needs_clock_in)) ? 'Clock In' : 'Clock Out'; ?>
+        </button>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Quick actions + branch selector -->
+    <div class="mp-section">
+      <div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;width:100%;box-sizing:border-box;">
+        <div class="mp-quick-actions">
+          <?php
+            // The quick action follows the same rule as the header button: for a
+            // print shop /pos is not a till, so calling this "New Sale" would
+            // name a screen the store does not have. A print job starts as a
+            // job, which is what this now offers.
+            $qa_printing = (mp_get_store_profile()['industry_type'] ?? '') === 'printing';
+            $qa_oil = (mp_get_store_profile()['industry_type'] ?? '') === 'oil_processing_plant';
+          ?>
+          <?php if(!$is_creator): ?><a href="<?= base_url($qa_printing ? 'printing/job' : ($qa_oil ? 'operations/production_schedule' : 'pos')); ?>" class="mp-qa-btn green"><i class="fa <?= $qa_printing ? 'fa-print' : ($qa_oil ? 'fa-industry' : 'fa-shopping-cart'); ?>"></i> <?= $qa_printing ? 'New Print Job' : ($qa_oil ? 'Processing Runs' : 'New Sale'); ?></a>
+          <a href="<?=base_url('customers/add');?>" class="mp-qa-btn blue"><i class="fa fa-user-plus"></i> Add <?= $customer_label; ?></a>
+          <a href="<?=base_url('expense/add');?>" class="mp-qa-btn orange"><i class="fa fa-minus-square"></i> Add Expense</a>
+          <?php if($is_product_business): ?><a href="<?=base_url('purchase/add');?>" class="mp-qa-btn purple"><i class="fa fa-plus-square"></i> Purchase Stock</a><?php endif; ?>
+          <?php if($is_service_business): ?><a href="<?=base_url('services/add');?>" class="mp-qa-btn purple"><i class="fa fa-scissors"></i> Add Service</a><?php endif; ?>
+          <a href="<?=base_url('sales/add');?>" class="mp-qa-btn red"><i class="fa fa-file-text-o"></i> New Invoice</a>
+          <a href="<?=base_url('dashboard/daily_summary');?>" class="mp-qa-btn teal"><i class="fa fa-file-text"></i> Today's Summary</a>
+          <?php if($dashboard_guide): ?><a href="<?= base_url('docs/product-design/customer-guide/'.$dashboard_guide['file']); ?>" target="_blank" rel="noopener" class="mp-qa-btn blue"><i class="fa fa-book"></i> <?= htmlspecialchars($dashboard_guide['title'], ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?>
+          <?php else: ?>
+          <a href="<?=base_url('creator/create/digital');?>" class="mp-qa-btn green"><i class="fa fa-download"></i> New Digital Product</a>
+          <a href="<?=base_url('creator/create/course');?>" class="mp-qa-btn blue"><i class="fa fa-play-circle"></i> New Course</a>
+          <a href="<?=base_url('creator/create/membership');?>" class="mp-qa-btn orange"><i class="fa fa-star"></i> New Membership</a>
+          <a href="<?=base_url('online_store/orders');?>" class="mp-qa-btn red"><i class="fa fa-shopping-bag"></i> Orders</a>
+          <a href="<?=base_url('online_store');?>" class="mp-qa-btn teal"><i class="fa fa-store"></i> Store Dashboard</a>
+          <?php endif; ?>
+          <a href="<?= base_url('accounts/cash_ledger'); ?>" class="mp-cash-inline" title="Click to view cash ledger"><i class="fa fa-money" style="opacity:0.85;"></i><span>Cash: <strong><?= $CI->currency($cash_in_hand); ?></strong></span></a>
+        </div>
+        <?php if(warehouse_module() && warehouse_count() > 1): ?>
+        <div class="mp-branch-sel">
+          <i class="fa fa-building-o text-muted"></i>
+          <span style="font-size:13px;color:#666;">Current Branch</span>
+          <form method="get" action="<?= base_url('dashboard'); ?>" style="display:inline;margin:0;padding:0;">
+            <?php if($range !== 'Today'): ?><input type="hidden" name="range" value="<?= $range; ?>"><?php endif; ?>
+            <select name="branch_id" onchange="this.form.submit();">
+              <option value="">All Branches</option>
+              <?php
+              $warehouses = $this->db->where('store_id', get_current_store_id())->where('status', 1)->get('db_warehouse')->result();
+              $sel = intval($selected_branch);
+              foreach($warehouses as $wh):
+                $wh_id = intval($wh->id);
+                $is_sel = ($sel === $wh_id && $sel > 0);
+              ?>
+              <option value="<?= $wh_id; ?>" <?= $is_sel ? 'selected="selected"' : ''; ?>><?= htmlspecialchars($wh->warehouse_name); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </form>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+      <!-- SECTION 1: BUSINESS OVERVIEW -->
+      <div class="mp-section">
+        <div class="mp-page-head">
+          <div>
+            <h2><?= ($dashboard_template === 'restaurant') ? htmlspecialchars(mp_workspace_word('Restaurant') . ' Overview') : 'Business Overview'; ?></h2>
+            <div class="mp-page-sub"><?= $range_label; ?> · <?= htmlspecialchars($this->session->userdata('store_name') ?? 'MartPoint'); ?><?php if(!empty($dashboard_template_label)): ?> · <span style="color:var(--mp-primary);font-weight:600;"><?= htmlspecialchars($dashboard_template_label); ?></span><?php endif; ?></div>
+          </div>
+          <div class="mp-range-tabs">
+            <?php $range_tabs = ['Today'=>'Today','7Days'=>'7 Days','30Days'=>'30 Days','LastMonth'=>'Last Month','ThisMonth'=>'This Month','ThisYear'=>'This Year']; ?>
+            <?php foreach($range_tabs as $rk=>$rv):
+              $range_url = base_url('dashboard?range=' . $rk);
+              if(!empty($selected_branch)){ $range_url .= '&branch_id=' . $selected_branch; }
+            ?>
+            <a href="<?= $range_url; ?>" class="tab <?= ($range === $rk) ? 'active' : ''; ?>"><?= $rv; ?></a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <div class="mp-kpi-grid">
+          <div class="mp-kpi-card sales">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'sales','card_dates'=>$range_info ?? array(),'card_link_label'=>'View sales details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="mp-kpi-label"><?= $range_label; ?> Sales</div>
+            <div class="mp-kpi-value"><?= $CI->currency($today_sales['today']); ?></div>
+            <div class="mp-kpi-sub <?= $today_sales['change'] >= 0 ? 'up' : 'down' ?>"><?= $today_sales['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($today_sales['change']) ?>% vs Previous</div>
+          </div>
+          <div class="mp-kpi-card profit">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'profit','card_dates'=>$range_info ?? array(),'card_link_label'=>'View profit details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+            <div class="mp-kpi-label"><?= $range_label; ?> Profit</div>
+            <div class="mp-kpi-value"><?= $CI->currency($today_profit['profit']); ?></div>
+            <div class="mp-kpi-sub up">Margin <?= $today_profit['margin'] ?>%</div>
+          </div>
+          <div class="mp-kpi-card expense">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'expense','card_dates'=>$range_info ?? array(),'card_link_label'=>'View expense details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+            <div class="mp-kpi-label"><?= $range_label; ?> Expenses</div>
+            <div class="mp-kpi-value"><?= $CI->currency($today_expenses); ?></div>
+            <div class="mp-kpi-sub neutral">Total spent</div>
+          </div>
+          <div class="mp-kpi-card cash">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'cash','card_dates'=>$range_info ?? array(),'card_link_label'=>'View cash details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+            <div class="mp-kpi-label">Cash in Hand</div>
+            <div class="mp-kpi-value"><?= $CI->currency($cash_in_hand); ?></div>
+            <div class="mp-kpi-sub up"><a href="<?= base_url('accounts/cash_ledger'); ?>" style="color:inherit;text-decoration:none;">View Ledger &rarr;</a></div>
+          </div>
+          <div class="mp-kpi-card debt">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'debt','card_dates'=>$range_info ?? array(),'card_link_label'=>'View debt details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
+            <div class="mp-kpi-label">Outstanding Debts</div>
+            <div class="mp-kpi-value"><?= $CI->currency($outstanding['total']); ?></div>
+            <div class="mp-kpi-sub down"><?= number_format($outstanding['count']) ?> <?= $customer_label; ?><?= $outstanding['count'] != 1 ? 's' : '' ?> Owing</div>
+          </div>
+          <?php if($is_product_business && $dashboard_template !== 'tyre_shop'): ?>
+          <div class="mp-kpi-card stock">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'stock','card_dates'=>$range_info ?? array(),'card_link_label'=>'View stock details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+            <div class="mp-kpi-label">Low Stock Items</div>
+            <div class="mp-kpi-value"><?= $low_stock_count ?></div>
+            <div class="mp-kpi-sub <?= $low_stock_count > 0 ? 'down' : 'up' ?>"><?= $low_stock_count > 0 ? 'Need Attention' : 'Stock is Healthy' ?></div>
+          </div>
+          <?php endif; ?>
+          <?php if($dashboard_template !== 'tyre_shop'): ?>
+          <div class="mp-kpi-card sales">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'invoices','card_dates'=>$range_info ?? array(),'card_link_label'=>'View invoices details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg></div>
+            <div class="mp-kpi-label"><?= $range_label; ?> Invoices</div>
+            <div class="mp-kpi-value"><?= number_format($invoices_range['count']); ?></div>
+            <div class="mp-kpi-sub <?= $invoices_range['change'] >= 0 ? 'up' : 'down' ?>"><?= $invoices_range['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($invoices_range['change']) ?>% vs Previous</div>
+          </div>
+          <div class="mp-kpi-card profit">
+            <?php $this->load->view('components/dashboard_card_link',array('card_metric'=>'customers','card_dates'=>$range_info ?? array(),'card_link_label'=>'View customers details')); ?>
+            <div class="mp-kpi-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>
+            <div class="mp-kpi-label"><?= $range_label; ?> New <?= $customer_label ?>s</div>
+            <div class="mp-kpi-value"><?= number_format($new_customers_range['count']); ?></div>
+            <div class="mp-kpi-sub <?= $new_customers_range['change'] >= 0 ? 'up' : 'down' ?>"><?= $new_customers_range['change'] >= 0 ? '&uarr;' : '&darr;' ?> <?= abs($new_customers_range['change']) ?>% vs Previous</div>
+          </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <?php if($dashboard_template === 'restaurant'): ?>
+      <!-- Restaurant front-of-house snapshot -->
+      <div class="mp-section">
+        <div class="mp-page-head">
+          <div>
+            <h2>Front of House</h2>
+            <div class="mp-page-sub">Tables & kitchen queue status</div>
+          </div>
+          <a href="<?= base_url('operations/kitchen'); ?>" class="mp-card-link">Kitchen &rarr;</a>
+        </div>
+        <div class="mp-kpi-grid">
+          <?php
+            $table_counts = ['available' => 0, 'occupied' => 0, 'reserved' => 0, 'cleaning' => 0, 'total' => 0];
+            $kds_counts = ['new' => 0, 'preparing' => 0, 'ready' => 0, 'served' => 0];
+            try {
+              $CI->load->model('tables_model','dash_tables');
+              $table_counts = $CI->dash_tables->count_by_status($store_id);
+            } catch (Exception $e) {}
+            try {
+              $CI->load->model('kitchen_model','dash_kitchen');
+              $kds_counts = $CI->dash_kitchen->count_by_status($store_id);
+            } catch (Exception $e) {}
+          ?>
+          <div class="mp-kpi-card success">
+            <div class="mp-kpi-icon"><i class="fa fa-table"></i></div>
+            <div class="mp-kpi-label">Available Tables</div>
+            <div class="mp-kpi-value"><?= (int)$table_counts['available']; ?></div>
+          </div>
+          <div class="mp-kpi-card debt">
+            <div class="mp-kpi-icon"><i class="fa fa-users"></i></div>
+            <div class="mp-kpi-label">Occupied / Reserved</div>
+            <div class="mp-kpi-value"><?= (int)($table_counts['occupied'] + $table_counts['reserved']); ?></div>
+          </div>
+          <div class="mp-kpi-card warn">
+            <div class="mp-kpi-icon"><i class="fa fa-fire"></i></div>
+            <div class="mp-kpi-label">In Kitchen</div>
+            <div class="mp-kpi-value"><?= (int)(($kds_counts['new'] ?? 0) + ($kds_counts['preparing'] ?? 0) + ($kds_counts['ready'] ?? 0)); ?></div>
+          </div>
+          <div class="mp-kpi-card sales">
+            <div class="mp-kpi-icon"><i class="fa fa-check-circle"></i></div>
+            <div class="mp-kpi-label">Ready to Serve</div>
+            <div class="mp-kpi-value"><?= (int)($kds_counts['ready'] ?? 0); ?></div>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php if($dashboard_template === 'tyre_shop'): ?>
+      <!-- Tyre shop snapshot: size alerts, fleet vehicles, fitments and the
+           seasonal (last-12-months) trend the industry page promises. -->
+      <div class="mp-section">
+        <div class="mp-page-head">
+          <div>
+            <h2>Tyre Shop Overview</h2>
+            <div class="mp-page-sub">Stock by size, the workshop queue, and tyre sales through the year</div>
+          </div>
+          <a href="<?= base_url('automobile/list'); ?>" class="mp-card-link">Customer vehicles &rarr;</a>
+        </div>
+        <?php
+        $tyre_size_low_items = [];
+        $fleet_count = 0;
+        $fitments_30d = 0;
+        $sizes_on_file = 0;
+        $seasonal_rows = [];
+        try {
+          // Sizes low on stock: variant child items (one per tyre size) whose
+          // own stock has fallen to or under their alert level.
+          if ($CI->db->field_exists('variant_id', 'db_items')) {
+            $sizes_on_file = (int)$CI->db->where('store_id', $store_id)
+              ->where('status', 1)->where('variant_id >', 0)->count_all_results('db_items');
+            $sizes_q = $CI->db->select('item_name, sku, stock, alert_qty')
+              ->where('store_id', $store_id)
+              ->where('status', 1)
+              ->where('variant_id >', 0)
+              ->where('alert_qty >', 0)
+              ->limit(400)
+              ->get('db_items');
+            foreach ($sizes_q->result() as $it) {
+              $stock = (float)($it->stock ?? 0);
+              $alert = (float)($it->alert_qty ?? 0);
+              if ($alert > 0 && $stock <= $alert) { $tyre_size_low_items[] = $it; }
+            }
+            usort($tyre_size_low_items, function ($a, $b) {
+              return (float)($a->stock ?? 0) <=> (float)($b->stock ?? 0);
+            });
+          }
+          if ($CI->db->table_exists('db_vehicles')) {
+            $fleet_count = (int)$CI->db->where('store_id', $store_id)
+              ->where('is_deleted', 0)->count_all_results('db_vehicles');
+          }
+          if ($CI->db->field_exists('vehicle_id', 'db_sales')) {
+            $fitments_30d = (int)$CI->db->where('store_id', $store_id)
+              ->where('vehicle_id >', 0)
+              ->where('sales_date >=', date('Y-m-d', strtotime('-30 days')))
+              ->count_all_results('db_sales');
+          }
+          // Seasonal analytics: monthly tyre (size-variant) quantity and revenue.
+          $season_from = date('Y-m-01', strtotime('-11 months'));
+          $seasonal_q = $CI->db->select("DATE_FORMAT(s.sales_date, '%Y-%m') AS ym, SUM(si.sales_qty) AS qty, SUM(si.sales_qty * si.price_per_unit) AS amt")
+            ->from('db_salesitems si')
+            ->join('db_sales s', 's.id = si.sales_id')
+            ->join('db_items i', 'i.id = si.item_id')
+            ->where('s.store_id', $store_id)
+            ->where('s.sales_status', 'Final')
+            ->where('s.sales_date >=', $season_from)
+            ->where('i.variant_id >', 0)
+            ->group_by('ym')
+            ->order_by('ym', 'asc')
+            ->get();
+          foreach ($seasonal_q->result() as $row) {
+            $seasonal_rows[(string)$row->ym] = ['qty' => (float)($row->qty ?? 0), 'amt' => (float)($row->amt ?? 0)];
+          }
+        } catch (Exception $e) { /* tyre tables not ready yet */ }
+        ?>
+        <div class="mp-kpi-grid">
+          <div class="mp-kpi-card stock">
+            <div class="mp-kpi-icon"><i class="fa fa-circle-thin"></i></div>
+            <div class="mp-kpi-label">Sizes on File</div>
+            <div class="mp-kpi-value"><?= $sizes_on_file; ?></div>
+            <div class="mp-kpi-sub <?= count($tyre_size_low_items) > 0 ? 'down' : 'up' ?>"><?= count($tyre_size_low_items) > 0 ? count($tyre_size_low_items).' low — reorder' : 'All sizes above alert level' ?></div>
+          </div>
+          <div class="mp-kpi-card debt">
+            <div class="mp-kpi-icon"><i class="fa fa-car"></i></div>
+            <div class="mp-kpi-label">Vehicles on File</div>
+            <div class="mp-kpi-value"><?= $fleet_count; ?></div>
+            <div class="mp-kpi-sub"><?= $fleet_count > 0 ? 'Customer & fleet vehicles' : 'Add vehicles to offer fit history' ?></div>
+          </div>
+          <div class="mp-kpi-card sales">
+            <div class="mp-kpi-icon"><i class="fa fa-wrench"></i></div>
+            <div class="mp-kpi-label">Fitments (Last 30 Days)</div>
+            <div class="mp-kpi-value"><?= $fitments_30d; ?></div>
+            <div class="mp-kpi-sub">Sales billed to a vehicle</div>
+          </div>
+          <div class="mp-kpi-card warn">
+            <div class="mp-kpi-icon"><i class="fa fa-exchange"></i></div>
+            <div class="mp-kpi-label">Tyres Sold</div>
+            <div class="mp-kpi-value"><?= (int) array_sum(array_map(function ($m) { return $m['qty']; }, $seasonal_rows ?: [])); ?></div>
+            <div class="mp-kpi-sub">Counted over the last 12 months</div>
+          </div>
+        </div>
+        <div class="mp-row r-equal" style="margin-top:12px;">
+        <div class="mp-card">
+          <div class="mp-card-head"><h3>Size Alerts</h3><a href="<?= base_url('items'); ?>" class="mp-card-link">All stock &rarr;</a></div>
+          <div class="mp-card-body" style="padding:0;">
+            <?php if (!empty($tyre_size_low_items)): ?>
+            <?php foreach (array_slice($tyre_size_low_items, 0, 6) as $it): ?>
+            <div class="mp-top-prod" style="padding:12px 20px;">
+              <div class="mp-top-prod-info">
+                <div class="mp-top-prod-name"><?= htmlspecialchars($it->item_name ?? ''); ?></div>
+                <?php if (!empty($it->sku)): ?><div class="mp-top-prod-meta"><?= htmlspecialchars($it->sku); ?></div><?php endif; ?>
+              </div>
+              <div class="mp-top-prod-amt" style="color:var(--mp-danger);"><?= rtrim(rtrim(number_format((float)($it->stock ?? 0), 2, '.', ''), '0'), '.'); ?></div>
+            </div>
+            <?php endforeach; ?>
+            <?php else: ?>
+            <div class="text-muted" style="padding:14px 20px;">Every size is above its reorder level.</div>
+            <?php endif; ?>
+          </div>
+        </div>
+        <div class="mp-card">
+          <div class="mp-card-head"><h3>Seasonal Tyre Sales</h3><span class="mp-card-link" style="cursor:default;">Last 12 months</span></div>
+          <div class="text-muted" style="padding:10px 20px 0; font-size:13px;">How many sized tyres you sell each month — the rising bars before the rains are when customers start hunting for tyres, so it shows what to reorder early.</div>
+          <div class="mp-card-body" style="padding:6px 0;">
+            <?php
+            $season_max = 0.0;
+            $season_months = [];
+            for ($sm = 11; $sm >= 0; $sm--) {
+              $key = date('Y-m', strtotime("-{$sm} months"));
+              $season_months[$key] = $seasonal_rows[$key] ?? ['qty' => 0.0, 'amt' => 0.0];
+              if ($season_months[$key]['qty'] > $season_max) { $season_max = (float)$season_months[$key]['qty']; }
+            }
+            $any_season = $season_max > 0;
+            if (!$any_season): ?>
+            <div class="text-muted" style="padding:14px 20px;">No tyre sales recorded in the last 12 months yet. Sales of sized tyres will draw this trend automatically.</div>
+            <?php endif; ?>
+            <?php foreach ($season_months as $key => $mv): if (!$any_season) break; ?>
+            <?php $pct = $season_max > 0 ? round(($mv['qty'] / $season_max) * 100) : 0; ?>
+            <div class="mp-top-prod" style="padding:8px 20px;">
+              <div class="mp-top-prod-info" style="min-width:90px;"><div class="mp-top-prod-name" style="font-weight:600; font-size:13px;"><?= date('M Y', strtotime($key . '-01')); ?></div></div>
+              <div style="flex:1; margin:0 12px; background:rgba(0,0,0,0.06); border-radius:6px; overflow:hidden;">
+                <div style="height:10px; width:<?= $pct; ?>%; background:var(--mp-primary, #2563eb); border-radius:6px;"></div>
+              </div>
+              <div class="mp-top-prod-info" style="min-width:70px; text-align:right;"><div style="font-size:12px; color:var(--mp-muted, #666);"><?= rtrim(rtrim(number_format($mv['qty'], 2, '.', ''), '0'), '.'); ?> sold</div></div>
+              <div class="mp-top-prod-amt" style="min-width:110px; text-align:right; font-size:14px;"><?= $CI->currency($mv['amt']); ?></div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php if($dashboard_template === 'tyre_shop' && !$expiry_rendered):
+        // Tyre shops read stock age and best sellers side by side: one tells
+        // what to move, the other what to reorder. The row always renders.
+        $expiry_rendered = true;
+        $aged_available = false; $expired_count = 0; $expiring_count = 0;
+        try {
+          if(mp_feature_enabled('expiry_tracking')){
+            $CI->load->model('expiry_settings_model');
+            $expired_count = $CI->expiry_settings_model->count_expired();
+            $expiring_count = $CI->expiry_settings_model->count_expiring();
+            $aged_available = true;
+          }
+        } catch (Exception $e) { /* Expiry table not ready yet */ }
+      ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Aged Stock &amp; DOT Checks</h3><a href="<?= base_url('expired_items_report'); ?>" class="mp-card-link">View Report</a></div>
+            <div class="mp-card-body" style="padding:0;">
+              <?php if(!$aged_available): ?>
+                <div class="mp-empty-state" style="padding:24px;">Stock-age checks are not switched on for this store.</div>
+              <?php elseif(($expired_count + $expiring_count) > 0): ?>
+                <div class="mp-top-prod" style="padding:14px 20px;">
+                  <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-danger);">Expired Items</div></div>
+                  <div class="mp-top-prod-amt" style="color:var(--mp-danger);font-size:20px;"><?= $expired_count; ?></div>
+                </div>
+                <div class="mp-top-prod" style="padding:14px 20px;">
+                  <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-warning);">Expiring Soon</div></div>
+                  <div class="mp-top-prod-amt" style="color:var(--mp-warning);font-size:20px;"><?= $expiring_count; ?></div>
+                </div>
+              <?php else: ?>
+                <div class="mp-empty-state" style="padding:24px;">Every tyre is inside its stock-age window.</div>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php $this->load->view('comman/dashboard_top_products_card', [
+            'top_products' => $top_products ?? [],
+            'card_title'   => 'Top Selling ' . $item_label . 's',
+            'range_label'  => $range_label,
+          ]); ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
+      // Mini Mart / Supermarket dashboard template: promote Expiry Alerts
+      // to the top (perishable-goods priority). Other templates render the
+      // expiry block in its original position further down.
+      if (in_array($dashboard_template, ['mini_mart', 'supermarket', 'pharmacy', 'distributor', 'wholesaler'], true) && !$expiry_rendered):
+          try {
+              if (mp_feature_enabled('expiry_tracking')):
+                  $CI->load->model('expiry_settings_model');
+                  $expired_count = $CI->expiry_settings_model->count_expired();
+                  $expiring_count = $CI->expiry_settings_model->count_expiring();
+                  $total_alerted = $expired_count + $expiring_count;
+                  if ($total_alerted > 0):
+                      $expiry_rendered = true;
+      ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Expiry Alerts</h3><a href="<?= base_url('expired_items_report'); ?>" class="mp-card-link">View Report</a></div>
+            <div class="mp-card-body" style="padding:0;">
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-danger);">Expired Items</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-danger);font-size:20px;"><?= $expired_count; ?></div>
+              </div>
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-warning);">Expiring Soon</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-warning);font-size:20px;"><?= $expiring_count; ?></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php
+                  endif;
+              endif;
+          } catch (Exception $e) { /* Expiry table not ready yet */ }
+      endif;
+      ?>
+
+      <!-- SECTION 1a: INTELLIGENCE REPORT
+           Placed at the TOP of the dashboard, immediately before License &
+           Usage, so the owner reads what the numbers MEAN before reading the
+           licence counters. It sits here rather than at the bottom because an
+           insight nobody scrolls to is an insight nobody acts on.
+
+           The plain insights list still lives in the header marquee. This is
+           the reasoned set: stock cover at the real selling rate, payment
+           behaviour, tied-up cash — not a restatement of today's counters.
+           Renders nothing and takes no space when the model has no evidenced
+           insight to give. -->
+      <?php
+        /* The subtitle follows the insight set actually rendered. A print shop
+           reaching this dashboard gets print insights, so promising "trends,
+           risks and cash" in retail terms would mislabel its own numbers. */
+        $intel_is_print = function_exists('mp_is_print_shop') && mp_is_print_shop();
+        $this->load->view('comman/intelligence_card', [
+          'intel'          => $intel ?? [],
+          'intel_title'    => 'Intelligence Report',
+          'intel_report_url' => base_url('dashboard/intelligence'),
+          'intel_subtitle' => $intel_is_print
+            ? 'What needs attention on the floor, and what your job history is showing.'
+            : 'What your own records are showing — trends, risks and where cash is tied up.',
+        ]);
+      ?>
+
+      <!-- SECTION 1b: LICENSE & USAGE -->
+      <?php
+        $lic_summary = function_exists('mp_get_license_usage_summary') ? mp_get_license_usage_summary() : null;
+        if($lic_summary):
+          $lic_status = $lic_summary['status'];
+          $lic_status_color = [
+            'ACTIVE'         => 'var(--mp-success)',
+            'EXPIRING_SOON'  => 'var(--mp-warning)',
+            'EXPIRED'        => 'var(--mp-danger)',
+            'SUSPENDED'      => 'var(--mp-danger)',
+            'NOT_ACTIVATED'  => 'var(--mp-muted)',
+          ][$lic_status] ?? 'var(--mp-muted)';
+          $lic_status_label = [
+            'ACTIVE'         => 'Active',
+            'EXPIRING_SOON'  => 'Expiring Soon',
+            'EXPIRED'        => 'Expired',
+            'SUSPENDED'      => 'Suspended',
+            'NOT_ACTIVATED'  => 'Not Activated',
+          ][$lic_status] ?? $lic_status;
+      ?>
+      <div class="mp-section">
+        <div class="mp-card mp-license-card">
+          <div class="mp-card-head">
+            <h3><i class="fa fa-shield" style="color:var(--mp-primary);"></i> License &amp; Usage</h3>
+            <a href="<?= base_url('subscription_license/usage'); ?>" class="mp-card-link">Details</a>
+          </div>
+          <div class="mp-card-body" style="padding:20px;">
+            <div class="mp-license-top">
+              <div class="mp-license-plan">
+                <span class="mp-license-plan-label">Plan</span>
+                <span class="mp-license-plan-name"><?= htmlspecialchars($lic_summary['plan_name'] ?: '—'); ?></span>
+              </div>
+              <div class="mp-license-status">
+                <span class="mp-license-badge" style="background:<?= htmlspecialchars($lic_status_color); ?>22;color:<?= htmlspecialchars($lic_status_color); ?>;">
+                  <i class="fa fa-<?= ($lic_status === 'ACTIVE') ? 'check-circle' : 'exclamation-circle'; ?>"></i>
+                  <?= htmlspecialchars($lic_status_label); ?>
+                </span>
+                <?php if($lic_status === 'ACTIVE' && $lic_summary['days_left'] <= 30 && $lic_summary['days_left'] > 0): ?>
+                  <span class="mp-license-days"><?= $lic_summary['days_left']; ?> days left</span>
+                <?php elseif($lic_summary['has_license'] && $lic_summary['end_date']): ?>
+                  <span class="mp-license-days">Until <?= show_date($lic_summary['end_date']); ?></span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="mp-license-quotas">
+              <?php foreach($lic_summary['quotas'] as $q):
+                $q_color = ($q['pct'] >= 100) ? 'var(--mp-danger)' : (($q['pct'] >= 80) ? 'var(--mp-warning)' : 'var(--mp-primary)');
+                $q_used_fmt = $q['unit'] === 'MB' ? number_format($q['used'], 1) . ' MB' : number_format($q['used']);
+                $q_limit_fmt = $q['unit'] === 'MB' ? number_format($q['limit']) . ' MB' : number_format($q['limit']);
+              ?>
+              <div class="mp-license-quota">
+                <div class="mp-license-quota-head">
+                  <span class="mp-license-quota-label"><?= htmlspecialchars($q['label']); ?></span>
+                  <span class="mp-license-quota-val"><?= $q_used_fmt; ?> <span class="mp-of">of</span> <?= $q_limit_fmt; ?></span>
+                </div>
+                <div class="mp-license-bar">
+                  <div class="mp-license-bar-fill" style="width:<?= min($q['pct'], 100); ?>%;background:<?= htmlspecialchars($q_color); ?>;"></div>
+                </div>
+              </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>
+        .mp-license-card .mp-license-top {
+          display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+          margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--mp-border);
+        }
+        .mp-license-plan { display:flex;flex-direction:column;gap:2px; }
+        .mp-license-plan-label { font-size:12px;color:var(--mp-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em; }
+        .mp-license-plan-name { font-size:20px;font-weight:700;color:var(--mp-ink); }
+        .mp-license-status { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+        .mp-license-badge {
+          display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+          font-size:13px;font-weight:600;
+        }
+        .mp-license-days { font-size:12px;color:var(--mp-muted); }
+        .mp-license-quotas { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px; }
+        .mp-license-quota-head {
+          display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;
+        }
+        .mp-license-quota-label { font-size:13px;font-weight:600;color:var(--mp-ink); }
+        .mp-license-quota-val { font-size:12px;color:var(--mp-muted); }
+        .mp-license-quota-val .mp-of { opacity:0.6; }
+        .mp-license-bar { height:6px;background:var(--mp-bg);border-radius:3px;overflow:hidden; }
+        .mp-license-bar-fill { height:100%;border-radius:3px;transition:width 0.4s ease; }
+        @media (max-width:768px){
+          .mp-license-quotas { grid-template-columns:1fr; }
+          .mp-license-top { flex-direction:column;align-items:flex-start; }
+        }
+      </style>
+      <?php endif; ?>
+
+      <!-- SECTION 2: SALES VS EXPENSES + SALES TARGET (2fr 1fr) -->
+      <?php if($CI->permissions('dashboard_view')){ ?>
+      <div class="mp-section">
+        <div class="mp-row r-2-1">
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3>Sales vs Expenses</h3>
+              <a href="<?=base_url('reports/profit_loss');?>" class="mp-card-link">View Report</a>
+            </div>
+            <div class="mp-card-body" style="padding:20px;position:relative;">
+              <?php
+              // Build chronological SVG chart data
+              $c_labels = array_reverse($month ?? []);
+              $c_sales = array_reverse($sales ?? []);
+              $c_expense = array_reverse($expense ?? []);
+              $c_n = count($c_labels);
+              $c_w = 600; $c_h = 240;
+              $c_pl = 50; $c_pr = 20; $c_pt = 20; $c_pb = 35;
+              $c_pw = $c_w - $c_pl - $c_pr;
+              $c_ph = $c_h - $c_pt - $c_pb;
+
+              $all_vals = array_merge($c_sales, $c_expense);
+              $c_max_raw = !empty($all_vals) ? max($all_vals) : 0;
+              $c_max = 1000;
+              if($c_max_raw > 0){
+                $digits = strlen((string)floor($c_max_raw));
+                $step = pow(10, max(0, $digits - 1));
+                $c_max = ceil($c_max_raw / $step) * $step;
+                if($c_max < $c_max_raw * 1.1){
+                  $c_max = ceil($c_max_raw / ($step / 2)) * ($step / 2);
+                }
+              }
+              if($c_max <= 0) $c_max = 1000;
+
+              function mp_svg_chart_fmt($v){
+                if($v >= 1000000) return round($v/1000000,1).'M';
+                if($v >= 1000) return round($v/1000,0).'k';
+                return number_format($v);
+              }
+
+              $c_points = [];
+              for($i=0; $i<$c_n; $i++){
+                $cx = $c_n <= 1 ? $c_pl + $c_pw/2 : $c_pl + ($i / ($c_n - 1)) * $c_pw;
+                $cy_s = $c_h - $c_pb - (($c_sales[$i] / $c_max) * $c_ph);
+                $cy_e = $c_h - $c_pb - (($c_expense[$i] / $c_max) * $c_ph);
+                $c_points[] = ['x'=>$cx, 'y_s'=>$cy_s, 'y_e'=>$cy_e, 'label'=>$c_labels[$i], 'sales'=>$c_sales[$i], 'expense'=>$c_expense[$i]];
+              }
+
+              $sales_area = '';
+              $sales_line = '';
+              $expense_line = '';
+              if(!empty($c_points)){
+                $sales_area = 'M '.$c_points[0]['x'].' '.($c_h - $c_pb);
+                foreach($c_points as $p) $sales_area .= ' L '.$p['x'].' '.$p['y_s'];
+                $sales_area .= ' L '.$c_points[$c_n-1]['x'].' '.($c_h - $c_pb).' Z';
+
+                $sales_line = 'M';
+                foreach($c_points as $k=>$p){
+                  $sales_line .= ($k ? ' L ' : ' ').$p['x'].' '.$p['y_s'];
+                }
+
+                $expense_line = 'M';
+                foreach($c_points as $k=>$p){
+                  $expense_line .= ($k ? ' L ' : ' ').$p['x'].' '.$p['y_e'];
+                }
+              }
+              ?>
+              <div style="aspect-ratio:600/240; width:100%;"><svg id="salesTrendChart" viewBox="0 0 600 240" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;">
+                <g stroke="var(--mp-border)" stroke-width="1">
+                  <?php for($g=0; $g<5; $g++):
+                    $gy = $c_h - $c_pb - ($g / 4) * $c_ph;
+                    $gv = round(($g / 4) * $c_max);
+                  ?>
+                  <line x1="<?= $c_pl; ?>" y1="<?= $gy; ?>" x2="<?= $c_w - $c_pr; ?>" y2="<?= $gy; ?>"/>
+                  <text x="<?= $c_pl - 6; ?>" y="<?= $gy + 4; ?>" text-anchor="end" font-size="10" fill="var(--mp-muted)" font-family="Inter"><?= mp_svg_chart_fmt($gv); ?></text>
+                  <?php endfor; ?>
+                </g>
+                <?php if(!empty($c_points)): ?>
+                <path d="<?= $sales_area; ?>" fill="rgba(0,87,255,.12)" stroke="none"/>
+                <path d="<?= $sales_line; ?>" fill="none" stroke="var(--mp-primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                <path d="<?= $expense_line; ?>" fill="none" stroke="var(--mp-pay)" stroke-width="2.5" stroke-dasharray="4 4" stroke-linejoin="round" stroke-linecap="round"/>
+                <g fill="var(--mp-primary)">
+                  <?php foreach($c_points as $pk=>$p): ?>
+                  <circle cx="<?= $p['x']; ?>" cy="<?= $p['y_s']; ?>" r="<?= $pk === $c_n - 1 ? '4' : '3'; ?>"/>
+                  <?php endforeach; ?>
+                </g>
+                <g fill="var(--mp-pay)">
+                  <?php foreach($c_points as $p): ?>
+                  <circle cx="<?= $p['x']; ?>" cy="<?= $p['y_e']; ?>" r="3"/>
+                  <?php endforeach; ?>
+                </g>
+                <g fill="var(--mp-muted)" font-size="10" font-family="Inter" text-anchor="middle">
+                  <?php foreach($c_points as $p): ?>
+                  <text x="<?= $p['x']; ?>" y="<?= $c_h - 12; ?>"><?= htmlspecialchars($p['label']); ?></text>
+                  <?php endforeach; ?>
+                </g>
+                <?php else: ?>
+                <text x="300" y="120" text-anchor="middle" font-size="14" fill="var(--mp-muted)" font-family="Inter">No data for selected range</text>
+                <?php endif; ?>
+              </svg></div>
+            </div>
+            <div class="mp-chart-legend">
+              <div class="mp-legend-item"><div class="mp-legend-dot" style="background:var(--mp-primary)"></div> Sales</div>
+              <div class="mp-legend-item"><div class="mp-legend-dot" style="background:var(--mp-pay)"></div> Expenses</div>
+            </div>
+          </div>
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3>Sales Target</h3>
+              <a href="<?=base_url('dashboard/daily_summary');?>" class="mp-card-link">Summary</a>
+            </div>
+            <div class="mp-card-body">
+              <div class="mp-target-ring">
+                <svg class="mp-ring-svg" width="120" height="120" viewBox="0 0 120 120" style="flex-shrink:0;">
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--mp-bg)" stroke-width="12"/>
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--mp-primary)" stroke-width="12"
+                    stroke-dasharray="314" stroke-dashoffset="<?= 314 - (314 * min($range_progress, 100) / 100); ?>" stroke-linecap="round"
+                    transform="rotate(-90 60 60)"/>
+                  <text x="60" y="65" text-anchor="middle" font-size="22" font-weight="700" fill="var(--mp-primary)" font-family="Inter"><?= intval($range_progress); ?>%</text>
+                </svg>
+                <div class="mp-target-info">
+                  <div class="mp-target-pct"><?= $CI->currency($range_sales); ?></div>
+                  <div class="mp-target-amt">of <?= $CI->currency($range_target); ?> goal</div>
+                  <div class="mp-target-eta"><?= $range_progress >= 100 ? 'Target reached!' : 'On track'; ?></div>
+                </div>
+              </div>
+              <?php if($dashboard_template !== 'tyre_shop'): ?>
+              <div style="margin-top:20px;border-top:1px solid var(--mp-border);padding-top:16px;">
+                <div style="font-size:12px;color:var(--mp-muted);font-weight:600;margin-bottom:10px;"><?= $range_label; ?> Stats</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--mp-muted);">Profit</span><span style="font-weight:700;"><?= $CI->currency($today_profit['profit']); ?></span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--mp-muted);">Expenses</span><span style="font-weight:700;"><?= $CI->currency($today_expenses); ?></span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--mp-muted);">Cash</span><span style="font-weight:700;"><?= $CI->currency($cash_in_hand); ?></span></div>
+              </div>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php } ?>
+
+      <!-- SECTION 3: RECENT SALES + RECENT ACTIVITY (2fr 1fr) -->
+      <div class="mp-section">
+        <div class="mp-row r-2-1">
+          <?php
+            $this->db->select("*");
+            $this->db->where("store_id", get_current_store_id());
+            $this->db->from("db_sales");
+            if(is_cashier() && !permissions('show_all_users_sales_invoices')){ $this->db->where("created_by", $this->session->userdata('inv_username')); }
+            if(!empty($selected_branch)){ $this->db->where("warehouse_id", $selected_branch); }
+            // Filter recent sales by the selected date range
+            if(!empty($range_info)){
+              if($range_info['from'] === $range_info['to']){
+                $this->db->where("sales_date", $range_info['from']);
+              } else {
+                $this->db->where("sales_date >=", $range_info['from']);
+                $this->db->where("sales_date <=", $range_info['to']);
+              }
+            }
+            $this->db->order_by('id','desc')->limit(6);
+            $q_recent = $this->db->get();
+          ?>
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3>Recent Sales <span style="font-size:12px;color:var(--mp-muted);font-weight:400;">· <?= $range_label; ?></span></h3>
+              <a href="<?=base_url('sales');?>" class="mp-card-link">View All</a>
+            </div>
+            <table class="mp-tbl">
+              <thead>
+                <tr><th>Invoice</th><th><?= $customer_label ?></th><th>Amount</th><th>Status</th><th>Time</th></tr>
+              </thead>
+              <tbody>
+                <?php if($q_recent->num_rows() > 0){ ?>
+                  <?php foreach($q_recent->result() as $res5){
+                    $cust = get_customer_details($res5->customer_id);
+                    $cust_name = ($cust && !empty($cust->customer_name)) ? $cust->customer_name : 'Walk-in';
+                    $time_str = !empty($res5->created_time) ? date('g:i A', strtotime($res5->created_time)) : date('g:i A', strtotime($res5->sales_date));
+                  ?>
+                  <tr>
+                    <td><strong><?= $res5->sales_code; ?></strong></td>
+                    <td><?= htmlspecialchars($cust_name); ?></td>
+                    <td class="amt"><?= $CI->currency($res5->grand_total, true); ?></td>
+                    <td><span class="mp-pill <?= $res5->payment_status == 'Paid' ? 'paid' : ($res5->payment_status == 'Partial' ? 'partial' : 'unpaid'); ?>"><?= $res5->payment_status; ?></span></td>
+                    <td><?= $time_str; ?></td>
+                  </tr>
+                  <?php } ?>
+                <?php } else { ?>
+                  <tr><td colspan="5" style="text-align:center;color:var(--mp-muted);padding:24px;">No sales in <?= $range_label; ?></td></tr>
+                <?php } ?>
+              </tbody>
+            </table>
+          </div>
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Recent Activity</h3></div>
+            <div class="mp-card-body">
+              <?php if(!empty($recent_activities)){ ?>
+              <?php foreach(array_slice($recent_activities, 0, 5) as $act){ ?>
+              <div class="mp-activity-item">
+                <div class="mp-activity-dot <?= $act['type'] ?>">
+                  <?php if($act['type']=='sale'){ ?><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  <?php } elseif($act['type']=='customer'){ ?><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>
+                  <?php } else { ?><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><?php } ?>
+                </div>
+                <div class="mp-activity-body">
+                  <div class="mp-activity-title"><?= $act['title'] ?></div>
+                  <div class="mp-activity-meta"><?= show_date($act['date']) ?></div>
+                </div>
+                <?php if($act['amount'] > 0){ ?><div class="mp-activity-amt" style="color:var(--mp-success)">+<?= $CI->currency($act['amount']) ?></div><?php } ?>
+              </div>
+              <?php } ?>
+              <?php } else { ?><div class="mp-empty-state">No recent activity</div><?php } ?>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 4: TOP PRODUCTS + LOW STOCK (equal) — tyre shops render
+           Top Selling beside Aged Stock in the promoted row instead. -->
+      <?php if($dashboard_template !== 'tyre_shop'): ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <?php if($is_product_business || $is_service_business): ?>
+          <?php $this->load->view('comman/dashboard_top_products_card', [
+            'top_products' => $top_products ?? [],
+            'card_title'   => 'Top Selling ' . ($is_service_business && !$is_product_business ? 'Services' : $item_label . 's'),
+            'range_label'  => $range_label,
+          ]); ?>
+          <?php endif; ?>
+          <?php if($is_product_business): ?>
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3>Low Stock Alerts</h3>
+              <a href="<?=base_url('items');?>" class="mp-card-link">Restock</a>
+            </div>
+            <table class="mp-tbl">
+              <thead><tr><th>Product</th><th>Stock</th><th>Status</th></tr></thead>
+              <tbody>
+                <?php if(!empty($low_stock_items)){ ?>
+                <?php foreach(array_slice($low_stock_items, 0, 5) as $item){ ?>
+                <tr>
+                  <td><?= $item['name'] ?></td>
+                  <td class="amt"><?= $item['qty'] ?></td>
+                  <td><span class="mp-pill <?= $item['qty'] <= 0 ? 'out' : 'low' ?>"><?= $item['qty'] <= 0 ? 'Out' : 'Low' ?></span></td>
+                </tr>
+                <?php } ?>
+                <?php } else { ?>
+                <tr><td colspan="3" style="text-align:center;color:var(--mp-muted);padding:24px;">All stock levels are healthy</td></tr>
+                <?php } ?>
+              </tbody>
+            </table>
+          </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- SECTION 5: BRANCH PERFORMANCE + TOP DEBTORS (equal) -->
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <?php if(warehouse_module() && warehouse_count() > 1 && !empty($branch_performance)): ?>
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3><?= $branch_label; ?> Performance — <?= $range_label; ?></h3>
+            </div>
+            <div class="mp-card-body">
+              <?php
+              $branch_sales_values = array_map('floatval', array_column($branch_performance, 'sales'));
+              $max_branch_sales = max(1.0, max($branch_sales_values ?: [0]));
+              $branch_colors = ['var(--mp-primary)', 'var(--mp-success)', 'var(--mp-pay)', 'var(--mp-warning)'];
+              $bi = 0;
+              foreach($branch_performance as $branch):
+                $branch_url = base_url('dashboard?branch_id=' . $branch['id']);
+                if($range !== 'Today'){ $branch_url .= '&range=' . $range; }
+                $pct = round(($branch['sales'] / $max_branch_sales) * 100);
+              ?>
+              <div class="mp-branch-row">
+                <div class="mp-branch-name"><?= $branch['name']; ?></div>
+                <div class="mp-branch-bar"><div class="mp-branch-bar-fill" style="width:<?= $pct; ?>%;background:<?= $branch_colors[$bi % 4]; ?>;"></div></div>
+                <div class="mp-branch-amt"><?= $CI->currency($branch['sales']); ?></div>
+              </div>
+              <?php $bi++; endforeach; ?>
+            </div>
+          </div>
+          <?php endif; ?>
+          <div class="mp-card">
+            <div class="mp-card-head">
+              <h3>Top Debtors</h3>
+              <a href="<?=base_url('customers');?>" class="mp-card-link">View All</a>
+            </div>
+            <table class="mp-tbl">
+              <thead><tr><th><?= $customer_label ?></th><th>Owing</th></tr></thead>
+              <tbody>
+                <?php if(!empty($top_debtors)){ ?>
+                <?php foreach(array_slice($top_debtors, 0, 5) as $debtor){ ?>
+                <tr>
+                  <td><?= $debtor['name'] ?></td>
+                  <td class="amt" style="color:var(--mp-danger);"><?= $CI->currency($debtor['amount']) ?></td>
+                </tr>
+                <?php } ?>
+                <?php } else { ?>
+                <tr><td colspan="2" style="text-align:center;color:var(--mp-muted);padding:24px;">No outstanding payments</td></tr>
+                <?php } ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fashion Intelligence Widget (conditional) - removed per request -->
+
+      <!-- Expiry Alerts (conditional) — skipped when already rendered above for mini_mart/supermarket -->
+      <?php
+      if (!$expiry_rendered):
+      try {
+        if (mp_feature_enabled('expiry_tracking')):
+        $CI->load->model('expiry_settings_model');
+        $expired_count = $CI->expiry_settings_model->count_expired();
+        $expiring_count = $CI->expiry_settings_model->count_expiring();
+        $total_alerted = $expired_count + $expiring_count;
+        if($total_alerted > 0):
+      ?>
+      <div class="mp-section">
+        <div class="mp-row r-equal">
+          <div class="mp-card">
+            <div class="mp-card-head"><h3>Expiry Alerts</h3><a href="<?= base_url('expired_items_report'); ?>" class="mp-card-link">View Report</a></div>
+            <div class="mp-card-body" style="padding:0;">
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-danger);">Expired Items</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-danger);font-size:20px;"><?= $expired_count; ?></div>
+              </div>
+              <div class="mp-top-prod" style="padding:14px 20px;">
+                <div class="mp-top-prod-info"><div class="mp-top-prod-name" style="color:var(--mp-warning);">Expiring Soon</div></div>
+                <div class="mp-top-prod-amt" style="color:var(--mp-warning);font-size:20px;"><?= $expiring_count; ?></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php
+        endif;
+        endif;
+      } catch (Exception $e) { /* Expiry table not ready yet */ }
+      endif;
+      ?>
+
+      <!-- Hidden preserved elements (DataTables, charts, admin tables) -->
+      <div style="display:none;">
+        <?php if($is_product_business && $CI->permissions('dashboard_stock_alert') && !is_user()) { ?>
+        <table id="example2" class="table table-bordered table-hover"><thead><tr class='bg-warning'><th>#</th><th><?= $this->lang->line('item_name'); ?></th><th><?= $this->lang->line('category_name'); ?></th><th><?= $this->lang->line('brand_name'); ?></th><th><?= $this->lang->line('stock'); ?></th></tr></thead><tbody></tbody></table>
+        <?php } ?>
+        <canvas id="doughnut-chart" width="100%" height="200"></canvas>
+        <?php if(is_admin() && store_module()){ ?>
+        <table id="stores_details" class="table"><thead><tr><th>#</th><th><?= $this->lang->line('store_name'); ?></th><th><?= $this->lang->line('total_sales'); ?></th><th><?= $this->lang->line('total_expense'); ?></th><th><?= $this->lang->line('sales_due'); ?></th></tr></thead><tbody><?= $CI->get_storewise_details(); ?></tbody></table>
+        <?php } ?>
+      </div>
+

@@ -1,0 +1,1 @@
+<button type="button" class="garden-voice-button" data-garden-voice="<?= htmlspecialchars($voice_target); ?>"><i class="fa fa-microphone" aria-hidden="true"></i><i class="fa fa-stop" aria-hidden="true"></i> Dictate note</button><span class="garden-voice-status" role="status" aria-live="polite"></span>

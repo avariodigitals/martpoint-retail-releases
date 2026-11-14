@@ -1,0 +1,334 @@
+/* Sparkle Laundry Theme Styles */
+
+.laundry-hero {
+  position: relative;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: #F0F9FF;
+}
+
+.laundry-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.laundry-hero-media img,
+.laundry-hero-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.laundry-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(14, 165, 233, 0.88), rgba(34, 197, 94, 0.75));
+  z-index: 2;
+}
+
+.laundry-hero-content {
+  position: relative;
+  z-index: 3;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 48px 24px;
+  color: #fff;
+}
+
+.laundry-hero-title {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 12px;
+  max-width: 640px;
+}
+
+.laundry-hero-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  opacity: 0.95;
+  margin-bottom: 28px;
+  max-width: 560px;
+}
+
+.laundry-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.laundry-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  border-radius: var(--mp-radius);
+  font-size: 15px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.laundry-hero-btn.primary {
+  background: #fff;
+  color: var(--mp-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.laundry-hero-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.laundry-hero-btn.secondary {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.laundry-hero-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.laundry-hero-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.laundry-hero-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.laundry-hero-trust svg {
+  flex-shrink: 0;
+}
+
+.laundry-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.laundry-cat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: #fff;
+  border: 1px solid var(--mp-border);
+  border-radius: var(--mp-radius);
+  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.laundry-cat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  border-color: var(--mp-primary);
+}
+
+.laundry-cat-card img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.laundry-cat-initial {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mp-primary), var(--mp-secondary));
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.laundry-cat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mp-dark);
+}
+
+.laundry-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.laundry-service-card {
+  background: #fff;
+  border: 1px solid var(--mp-border);
+  border-radius: var(--mp-radius);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.laundry-service-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+.laundry-service-img-wrap {
+  display: block;
+  height: 160px;
+  overflow: hidden;
+}
+
+.laundry-service-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.laundry-service-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mp-light-gray);
+  color: var(--mp-primary);
+  font-size: 48px;
+  font-weight: 700;
+}
+
+.laundry-service-body {
+  padding: 16px;
+}
+
+.laundry-service-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--mp-dark);
+  margin-bottom: 6px;
+}
+
+.laundry-service-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--mp-gray);
+  margin-bottom: 12px;
+}
+
+.laundry-service-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.laundry-service-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--mp-primary);
+  margin-bottom: 14px;
+}
+
+.laundry-service-btn {
+  display: block;
+  text-align: center;
+  padding: 10px 16px;
+  background: var(--mp-primary);
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--mp-radius-sm);
+  transition: background 0.2s ease;
+}
+
+.laundry-service-btn:hover {
+  background: var(--mp-primary-dark);
+}
+
+.laundry-how-it-works {
+  background: #fff;
+  border-top: 1px solid var(--mp-border);
+  border-bottom: 1px solid var(--mp-border);
+}
+
+.laundry-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  text-align: center;
+}
+
+.laundry-step {
+  flex: 1 1 220px;
+  max-width: 280px;
+}
+
+.laundry-step-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mp-primary), var(--mp-secondary));
+  color: #fff;
+}
+
+.laundry-step-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--mp-dark);
+  margin-bottom: 6px;
+}
+
+.laundry-step-desc {
+  font-size: 14px;
+  color: var(--mp-gray);
+  line-height: 1.5;
+}
+
+.laundry-step-arrow {
+  color: var(--mp-primary);
+  opacity: 0.5;
+}
+
+@media (max-width: 767px) {
+  .laundry-hero-title {
+    font-size: 32px;
+  }
+
+  .laundry-hero-subtitle {
+    font-size: 16px;
+  }
+
+  .laundry-hero-trust {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .laundry-step-arrow {
+    display: none;
+  }
+
+  .laundry-service-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .laundry-cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}

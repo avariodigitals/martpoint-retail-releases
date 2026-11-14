@@ -1,0 +1,2078 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Pos_model extends CI_Model {
+
+	/**
+	 * Return the first batch that can be sold from the requested location. An
+	 * expired item-level date must not block a valid batch; the item date is only
+	 * the fallback when no stocked batch rows exist at this location.
+	 */
+	public function pos_batch_candidates(array $item_ids, $store_id, $warehouse_id, $stop_expired, $today){
+		$map = array();
+		$item_ids = array_values(array_unique(array_filter(array_map('intval', $item_ids))));
+		if(empty($item_ids) || !$this->db->table_exists('db_item_barcodes')) return $map;
+
+		$select = array('id','item_id','batch_lot','expire_date','qty');
+		if($this->db->field_exists('barcode','db_item_barcodes')) $select[] = 'barcode';
+		$hasCreatedDate = $this->db->field_exists('created_date','db_item_barcodes');
+		if($hasCreatedDate) $select[] = 'created_date';
+		$this->db->select(implode(',', $select))->from('db_item_barcodes')
+			->where_in('item_id', $item_ids)->where('status',1)->where('qty >',0);
+		if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+		if($this->db->field_exists('serial_number','db_item_barcodes')) $this->db->where("(serial_number IS NULL OR serial_number = '')", null, false);
+		if($this->db->field_exists('imei_number','db_item_barcodes')) $this->db->where("(imei_number IS NULL OR imei_number = '')", null, false);
+		$rows = $this->db->get()->result();
+		$byItem = array();
+		foreach($rows as $row){
+			$hasBatchCode = !empty($row->batch_lot);
+			$hasExpiry = is_valid_date($row->expire_date);
+			if(!$hasBatchCode && !$hasExpiry) continue;
+			$id = (int)$row->item_id;
+			if(!isset($byItem[$id])) $byItem[$id] = array();
+			$byItem[$id][] = $row;
+		}
+
+		$this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+		$rotation = $this->pos_inventory_rotation->method((int)$store_id);
+		foreach($byItem as $id => $batches){
+			usort($batches, function($a, $b) use ($rotation){
+				if($rotation === Inventory_rotation_model::FIFO){
+					$cmp = strcmp((string)($a->created_date ?? ''), (string)($b->created_date ?? ''));
+				}else{
+					$aHasDate = is_valid_date($a->expire_date);
+					$bHasDate = is_valid_date($b->expire_date);
+					if($aHasDate !== $bHasDate) return $aHasDate ? -1 : 1;
+					$cmp = $aHasDate ? strcmp((string)$a->expire_date, (string)$b->expire_date) : 0;
+					if($cmp === 0) $cmp = strcmp((string)($a->created_date ?? ''), (string)($b->created_date ?? ''));
+				}
+				return $cmp !== 0 ? $cmp : ((int)$a->id <=> (int)$b->id);
+			});
+
+			$eligible = array();
+			$expired = array();
+			foreach($batches as $batch){
+				if(is_valid_date($batch->expire_date) && $batch->expire_date < $today) $expired[] = $batch;
+				else $eligible[] = $batch;
+			}
+			$sellable = !empty($stop_expired) ? $eligible : $batches;
+			$chosen = !empty($sellable) ? $sellable[0] : (!empty($expired) ? $expired[0] : $batches[0]);
+			$map[(int)$id] = array(
+				'has_batches' => true,
+				'batch' => $chosen,
+				// The desktop POS uses this ordered list to show the clerk which
+				// physical lot the same FEFO/FIFO allocator will draw from.
+				'candidates' => $sellable,
+				'all_expired' => !empty($stop_expired) && empty($eligible) && !empty($expired),
+			);
+		}
+		return $map;
+	}
+
+	/** Checkout safety net: reject an expired chosen lot, or an expired item
+	 * only when no stocked sellable lot remains at the selected location. */
+	private function pos_expiry_error($item, $store_id, $warehouse_id, $barcode_id = 0){
+		$this->load->model('expiry_settings_model');
+		$settings = $this->expiry_settings_model->get_settings((int)$store_id);
+		if(empty($settings->stop_selling_expired)) return '';
+		$today = date('Y-m-d');
+		if((int)$barcode_id > 0){
+			$this->db->from('db_item_barcodes')->where('id',(int)$barcode_id)->where('item_id',(int)$item->id);
+			if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+			$barcode = $this->db->get()->row();
+			if(!$barcode) return 'The selected batch or unit is not available at this location.';
+			if(is_valid_date($barcode->expire_date) && $barcode->expire_date < $today){
+				return 'This batch has expired ('.$barcode->expire_date.'). Cannot sell expired items.';
+			}
+			return '';
+		}
+		$map = $this->pos_batch_candidates(array((int)$item->id), $store_id, $warehouse_id, 1, $today);
+		$state = $map[(int)$item->id] ?? null;
+		if($state && !empty($state['has_batches'])){
+			return !empty($state['all_expired'])
+				? 'All available batches for this item are expired. Cannot sell expired stock.'
+				: '';
+		}
+		return is_valid_date($item->expire_date) && $item->expire_date < $today
+			? 'This item has expired ('.$item->expire_date.'). Cannot sell expired items.' : '';
+	}
+
+	public function inclusive($price, $tax_per){
+		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
+	}
+
+	public function get_item_details($item_id)
+	{
+		  $this->db->select("b.id as tax_id, a.*,b.tax,b.tax_name");
+	      $this->db->from("db_items a");
+	      $this->db->join("db_tax b","b.id=a.tax_id","left");
+	      $this->db->where("a.status=1");
+	      $this->db->where("a.id",$item_id);
+	      $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+		  //echo $this->db->get_compiled_select();exit();
+		  $res1=$this->db->get()->row();
+		  if(!$res1){
+		      return json_encode(array('error' => 'Item not available for sale.'));
+		  }
+
+	      $price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+      $barcode = $this->input->post('barcode', TRUE) ?? '';
+      $barcode_id = $this->input->post('barcode_id', TRUE) ?? 0;
+      $customer_id = $this->input->post('customer_id', TRUE) ?? 0;
+      $warehouse_id = $this->input->post('warehouse_id');
+      if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($res1->store_id);
+
+      // Multi-unit selling lookup
+      $selected_unit = null;
+      $selling_units = [];
+      if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+          $this->load->model('item_selling_units_model','selling_units');
+          $selling_units = $this->selling_units->get_units($item_id, $res1->store_id);
+          // If a barcode was scanned and it matches a selling unit, select that unit
+          if(!empty($barcode)){
+              foreach($selling_units as $su){
+                  if($su->barcode === $barcode){
+                      $selected_unit = $su;
+                      break;
+                  }
+              }
+          }
+          if(!$selected_unit){
+              foreach($selling_units as $su){
+                  if($su->is_default){
+                      $selected_unit = $su;
+                      break;
+                  }
+              }
+          }
+          if(!$selected_unit && !empty($selling_units)){
+              $selected_unit = $selling_units[0];
+          }
+      }
+
+      // Load expiry settings once so we can block expired barcodes/batches
+      $this->load->model('expiry_settings_model');
+      $expiry_settings = $this->expiry_settings_model->get_settings();
+      $today = date('Y-m-d');
+
+      // Barcode / Unit-specific lookup (by barcode_id, barcode, serial, or imei)
+      if((!empty($barcode_id) || !empty($barcode)) && !$selected_unit){
+        $this->db->select('b.*, a.item_name, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
+        $this->db->from('db_item_barcodes b');
+        $this->db->join('db_items a', 'a.id = b.item_id', 'left');
+        $this->db->join('db_tax t', 't.id = a.tax_id', 'left');
+        $this->db->where('b.item_id', $item_id);
+        $this->db->where('b.status', 1);
+        if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('b.warehouse_id',(int)$warehouse_id);
+        if(!empty($barcode_id)){
+          $this->db->where('b.id', $barcode_id);
+        } else {
+          $this->db->where('b.barcode', $barcode);
+        }
+        $bc_data = $this->db->get()->row();
+        if($bc_data){
+          // Block if the scanned batch itself is expired
+          if(is_valid_date($bc_data->expire_date) && $expiry_settings->stop_selling_expired == 1 && $bc_data->expire_date < $today){
+            return json_encode(array('error' => 'This batch has expired ('.$bc_data->expire_date.'). Cannot sell expired items.'));
+          }
+          $sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0) ? $bc_data->mrp : $bc_data->sales_price;
+          $sales_price = get_price_level_price($customer_id, $sales_price, $bc_data->sales_price);
+          $item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price, $bc_data->tax) : calculate_exclusive($sales_price, $bc_data->tax);
+          return json_encode(array(
+            'id' => $item_id, 'item_name' => $bc_data->item_name, 'stock' => $bc_data->qty,
+            'sales_price' => $sales_price, 'original_sales_price' => $bc_data->sales_price,
+            'mrp' => $bc_data->mrp, 'batch_lot' => $bc_data->batch_lot, 'expire_date' => $bc_data->expire_date, 'purchase_price' => $bc_data->purchase_price,
+            'tax_id' => $bc_data->tax_id, 'tax_type' => $bc_data->tax_type, 'tax' => $bc_data->tax,
+            'tax_name' => $bc_data->tax_name, 'item_tax_amt' => $item_tax_amt,
+            'discount_type' => $bc_data->discount_type, 'discount' => $bc_data->discount,
+            'service_bit' => $bc_data->service_bit, 'barcode' => $bc_data->barcode,
+            'barcode_id' => $bc_data->id,
+            'serial_number' => $bc_data->serial_number,
+            'imei_number' => $bc_data->imei_number,
+            'imei_number_2' => $bc_data->imei_number_2 ?? '',
+            'warranty_months' => $bc_data->warranty_months,
+            'track_serial' => $bc_data->track_serial ?? 0,
+            'track_imei' => $bc_data->track_imei ?? 0,
+          ));
+        }
+      }
+
+      // Prefer a sellable batch at the selected location. The product-level
+      // expire_date is only authoritative when there is no stocked batch row.
+      $effective_expire = $res1->expire_date;
+      $effective_batch = $res1->batch_lot;
+		$batchMap = $this->pos_batch_candidates(array($item_id), $res1->store_id, $warehouse_id, $expiry_settings->stop_selling_expired, $today);
+		$batchState = $batchMap[(int)$item_id] ?? null;
+		if($batchState && $batchState['has_batches']){
+			$effective_expire = $batchState['batch']->expire_date;
+			$effective_batch = $batchState['batch']->batch_lot;
+			if($batchState['all_expired']){
+				return json_encode(array('error' => 'All available batches for this item are expired. Cannot sell expired stock.'));
+			}
+		}
+		if(!empty($res1->is_bundle)){
+			$this->load->model('Extras_model', 'extras_model');
+			$effective_price = $this->extras_model->bundleUnitPrice($res1, $res1->store_id);
+		} elseif($selected_unit){
+          $unit_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
+                            ? $selected_unit->wholesale_price
+                            : $selected_unit->selling_price;
+          $effective_price = get_price_level_price($customer_id, $unit_price, $selected_unit->wholesale_price);
+      } else {
+          $effective_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0) ? $res1->mrp : $res1->sales_price;
+          $effective_price = get_price_level_price($customer_id, $effective_price, $res1->sales_price);
+      }
+	      // Apply the item's configured sale discount before any dated
+	      // promotion. This keeps the price shown in the POS catalogue equal to
+	      // the price used when the item is opened into the cart.
+	      $original_effective_price = (float)$effective_price;
+	      $item_discount_amount = 0;
+	      if(!mp_customer_has_group($customer_id) && (float)($res1->discount ?? 0) > 0){
+		  $itemDiscount = (float)$res1->discount;
+		  if(strtolower((string)($res1->discount_type ?? '')) === 'percentage'){
+			  $item_discount_amount = $original_effective_price * ($itemDiscount / 100);
+		  } else {
+			  $item_discount_amount = $itemDiscount;
+		  }
+		  $item_discount_amount = min($original_effective_price, max(0, $item_discount_amount));
+		  $effective_price = max(0, $original_effective_price - $item_discount_amount);
+	      }
+      $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) :calculate_exclusive($effective_price,$res1->tax);
+	      
+	      // Check expiry against the resolved effective batch
+	      try {
+	      	if(is_valid_date($effective_expire) && $expiry_settings->stop_selling_expired == 1){
+	      		if($effective_expire < $today){
+	      			return json_encode(array('error' => 'This item has expired ('.$effective_expire.'). Cannot sell expired items.'));
+	      		}
+	      	}
+	      } catch (Exception $e) { /* Expiry settings not ready yet */ }
+
+      // Apply active promotion (with margin protection) if module is available
+      $promo_name = '';
+      $promo_discount = 0;
+      try {
+          if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
+              $this->load->model('promotions_model');
+              $promo = $this->promotions_model->compute_effective_price($item_id, $effective_price);
+              if($promo['has_promo']){
+                  $effective_price = $promo['price'];
+                  $promo_name = $promo['promo_name'];
+                  $promo_discount = $promo['discount_amount'];
+                  // Recalculate tax on the promoted price
+                  $item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($effective_price,$res1->tax) : calculate_exclusive($effective_price,$res1->tax);
+              }
+          }
+      } catch (Exception $e) { /* Promotions module not ready */ }
+
+	      $warehouse_stock = !empty($res1->is_bundle)
+			? $this->extras_model->bundleAvailability($item_id, $res1->store_id, $warehouse_id)
+			: total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+
+      $purchase_price = $res1->purchase_price;
+	      $original_sales_price = $original_effective_price;
+      $unit_id = null;
+      $unit_name = null;
+      $unit_shortcode = null;
+      $conversion_factor = 1;
+      if($selected_unit){
+          $purchase_price = !empty($selected_unit->purchase_price) ? $selected_unit->purchase_price : $res1->purchase_price;
+          $original_sales_price = ($price_type == 'wholesale' && !empty($selected_unit->wholesale_price) && $selected_unit->wholesale_price > 0)
+                                    ? $selected_unit->wholesale_price
+                                    : $selected_unit->selling_price;
+          $unit_id = (int)$selected_unit->unit_id;
+          $unit_name = $selected_unit->unit_name;
+          $unit_shortcode = $selected_unit->unit_shortcode;
+          $conversion_factor = (float)$selected_unit->conversion_factor;
+      }
+	      $item_array = array(
+	      				'id' 					=> $res1->id,
+	      				'item_name' 			=> $res1->item_name,
+	      				'stock' 				=> $warehouse_stock,
+	      				'sales_price' 			=> $effective_price,
+	      				'original_sales_price'	=> $original_sales_price,
+							'item_discount_amount' => $item_discount_amount,
+	      				'mrp' 					=> $res1->mrp,
+	      				'batch_lot' 			=> $effective_batch,
+	      				'expire_date' 			=> $effective_expire,
+	      				'purchase_price' 		=> $purchase_price,
+	      				'tax_id' 				=> $res1->tax_id,
+	      				'tax_type' 				=> $res1->tax_type,
+	      				'tax' 					=> $res1->tax,
+	      				'tax_name' 				=> $res1->tax_name,
+	      				'item_tax_amt' 			=> $item_tax_amt,
+	      				'promo_name' 			=> $promo_name,
+	      				'promo_discount' 		=> $promo_discount,
+	      				'discount_type' 		=> $res1->discount_type,
+	      				'discount' 				=> $res1->discount,
+	      				'service_bit' 			=> $res1->service_bit,
+	      				'package_bit' 			=> $res1->package_bit ?? 0,
+	      				'barcode_id' 			=> 0,
+	      				'serial_number' 		=> $res1->serial_number ?? '',
+	      				'imei_number' 			=> $res1->imei_number ?? '',
+	       'imei_number_2' 		=> '',
+	      				'warranty_months' 		=> $res1->warranty_months ?? 0,
+				'track_serial' 			=> $res1->track_serial ?? 0,
+				'track_imei' 			=> $res1->track_imei ?? 0,
+				'unit_id' 				=> $unit_id,
+				'unit_name' 			=> $unit_name,
+				'unit_shortcode' 		=> $unit_shortcode,
+				'conversion_factor' 	=> $conversion_factor,
+				'selling_units' 		=> $selling_units,
+	      );
+
+	      return json_encode($item_array);
+
+	}
+
+	public function get_details(){
+
+		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+
+		$data=$this->data;
+		$store_id = get_current_store_id();
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		if(empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
+		$id = $this->input->post('id', TRUE);
+		$brand_id = $this->input->post('brand_id', TRUE);
+		$item_name = $this->input->post('item_name', TRUE);
+		$last_id = $this->input->post('last_id', TRUE);
+		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$CI =& get_instance();
+		
+		
+		  $i=0;
+		 
+		  if(!empty($id)){
+			mp_category_filter('a.category_id',$id,$store_id);
+		  }
+		  if($brand_id!=''){
+		  	$this->db->where(" a.brand_id=$brand_id");
+		  }
+		  
+		  $this->db->select("a.*,b.tax,b.tax_name");
+
+		  $this->db->join(" db_tax b ","b.id=a.tax_id",'left');
+		  
+		  $this->db->from("db_items as a");
+		  $this->db->where("a.store_id",$store_id);
+		  $this->db->where("a.status",1);
+		  $this->db->where("(a.not_for_sale IS NULL OR a.not_for_sale = 0)");
+		  if(!empty($item_name)){
+		  	$this->db->where("upper(a.item_name) like upper('%".$item_name."%')");
+		  }
+		  if(isset($last_id) && !empty($last_id)){
+		  	$this->db->where("a.id>".$last_id);
+		  }
+		  $this->db->limit(30);
+
+		  //echo $this->db->get_compiled_select();exit();
+
+	      $q2=$this->db->get();
+	      $table='';
+	      //Load expiry settings once
+	      $this->load->model('expiry_settings_model');
+	      $expiry_settings = $this->expiry_settings_model->get_settings();
+	      $today = date('Y-m-d');
+		// Resolve one sellable batch per product in the current outlet. An
+		// expired lot must not mark the whole product card expired when another
+		// lot at this outlet is still valid.
+		$item_ids = $q2->num_rows() > 0 ? array_map(function($r){ return (int)$r->id; }, $q2->result()) : array();
+		$item_batch_map = $this->pos_batch_candidates($item_ids, $store_id, $warehouse_id, $expiry_settings->stop_selling_expired, $today);
+	      if($q2->num_rows()>0){
+	        foreach($q2->result() as $res2){
+	        	if($res2->item_group=='Variants'){continue;}
+	            if(isset($item_batch_map[$res2->id])){
+				$res2->expire_date = $item_batch_map[$res2->id]['batch']->expire_date;
+				$res2->batch_lot = $item_batch_map[$res2->id]['batch']->batch_lot;
+			}
+				if(!empty($res2->is_bundle) && !isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
+				$w_stock = !empty($res2->is_bundle)
+					? $this->extras_model->bundleAvailability($res2->id, $store_id, $warehouse_id)
+					: total_available_qty_items_of_warehouse($warehouse_id,$store_id,$res2->id);
+	        	$item_code = $res2->item_code;
+	        	$item_tax_type = $res2->tax_type;
+	        	$item_tax_id = $res2->tax_id;
+
+
+	        	$discount_type = $res2->discount_type;
+	        	$discount = $res2->discount;
+	        	
+	        	// Multi-unit selling: load default unit price and units list
+	        	$default_unit = null;
+	        	$selling_units_json = '[]';
+	        	$conversion_factor = 1;
+	        	if(mp_feature_enabled('multi_unit_selling') && $this->db->table_exists('db_item_selling_units')){
+	        		if(!isset($this->selling_units)) $this->load->model('item_selling_units_model','selling_units');
+	        		$sus = $this->selling_units->get_units($res2->id, $store_id);
+	        		if(!empty($sus)){
+	        			foreach($sus as $su){ if($su->is_default){ $default_unit = $su; break; } }
+	        			if(!$default_unit) $default_unit = $sus[0];
+	        			$selling_units_json = json_encode($sus, JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+	        			$conversion_factor = (float)$default_unit->conversion_factor;
+	        		}
+	        	}
+
+	        	$display_price = $default_unit
+	        			? (($price_type == 'wholesale' && !empty($default_unit->wholesale_price) && $default_unit->wholesale_price > 0)
+	        			    ? $default_unit->wholesale_price
+	        			    : $default_unit->selling_price)
+	        		: (($price_type == 'retail' && !empty($res2->mrp) && $res2->mrp > 0) ? $res2->mrp : $res2->sales_price);
+				if(!empty($res2->is_bundle)){
+					if(!isset($this->extras_model)) $this->load->model('Extras_model', 'extras_model');
+					$display_price = $this->extras_model->bundleUnitPrice($res2, $store_id);
+				}
+				$item_sales_price = get_price_level_price($customer_id,$display_price,$default_unit ? $default_unit->wholesale_price : $res2->sales_price);
+				$item_sales_price = number_format($item_sales_price,decimals(),'.','');
+
+	        	$item_cost = ($default_unit && !empty($default_unit->purchase_price)) ? $default_unit->purchase_price : $res2->purchase_price;
+	        	$item_tax = $res2->tax;
+	        	$item_tax_name = $res2->tax_name;
+	        	$service_bit = $res2->service_bit;
+	        	$item_sales_qty = 1;
+
+				$item_tax_amt = ($item_tax_type=='Inclusive') ? calculate_inclusive($item_sales_price,$item_tax) :calculate_exclusive($item_sales_price,$item_tax);
+
+				// Check expiry first
+				$is_expired = false;
+				if(is_valid_date($res2->expire_date) && $expiry_settings->stop_selling_expired == 1 && $res2->expire_date < $today){
+					$is_expired = true;
+				}
+
+	        	if($is_expired){
+	        		$str="expired_item()";
+	        		$disabled='';
+	        		$bg_color="background-color:#f8d7da";
+	        		$label_title = 'Expired on: '.$res2->expire_date;
+	        		$label = 'EXPIRED';
+	        	}
+	        	else if($w_stock <1 && !$service_bit){
+	        		$str="zero_stock()";
+	        		$disabled='';
+	        		$bg_color="background-color:#9d9999";
+	        		$label_title = (!$service_bit) ? $w_stock.' Quantity in Stock' : 'Service Item';
+	        		$label = (!$service_bit) ? "Qty: ".$w_stock : 'Service';
+	        	}
+	        	else{
+	        		$str="addrow($res2->id)";
+	        		$disabled="disabled=disabled";
+	        		$bg_color="background-color:#dbf4cd";
+	        		$label_title = (!$service_bit) ? $w_stock.' Quantity in Stock' : 'Service Item';
+	        		$label = (!$service_bit) ? "Qty: ".$w_stock : 'Service';
+	        	}
+
+	        	$item_image = $res2->item_image;
+	        	if(!empty($res2->parent_id)){
+	        		$item_image = get_item_details($res2->parent_id)->item_image;
+	        	}
+
+	        	$img_src = (!empty($item_image) && file_exists($item_image)) ? base_url(return_item_image_thumb($item_image)) : base_url('theme/images/no_image.png');
+
+	        	$item_display_name = $is_expired ? substr($res2->item_name,0,15).' (EXPIRED)' : substr($res2->item_name,0,25);
+	        	$item_tooltip = $is_expired ? $res2->item_name.' [Expired: '.$res2->expire_date.']' : $res2->item_name;
+
+	         	$table .= '<div class="col-lg-3 col-md-3 col-sm-3 col-xs-6 pos-item-col" id="item_parent_'.$i.'" '.$disabled.' data-toggle="tooltip" style="padding-left:5px;padding-right:5px;" title="'.$item_tooltip.'">
+	          <div class="box box-default item_box" id="div_'.$res2->id.'" onclick="'.$str.'"
+	          				data-item-id="'.$res2->id.'"
+	          				data-item-selling-units="'.$selling_units_json.'"
+	          				data-conversion-factor="'.$conversion_factor.'"
+	          				data-item-name="'.$res2->item_name.'"
+	          				data-item-available-qty="'.$w_stock.'"
+	          				data-item-sales-price="'.$item_sales_price.'"
+									data-item-mrp="'.(mp_customer_has_group($customer_id) ? $item_sales_price : $res2->mrp).'"
+									data-item-batch-lot="'.$res2->batch_lot.'"
+	          				data-item-cost="'.$item_cost.'"
+	          				data-item-tax-id="'.$item_tax_id.'"
+	          				data-item-tax-type="'.$item_tax_type.'"
+	          				data-item-tax-value="'.$item_tax.'"
+	          				data-item-tax-name="'.$item_tax_name.'"
+	          				data-item-tax-amt="'.$item_tax_amt.'"
+	          				data-service_bit="'.$service_bit.'"
+																												data-package-bit="'.($res2->package_bit ?? 0).'"
+	          													data-commission-type="'.($res2->commission_type ?? 'none').'"
+	          													data-commission-value="'.($res2->commission_value ?? 0).'"
+	          				data-discount_type="'.$discount_type.'"
+	          				data-discount="'.$discount.'"
+								data-item-serial-number="'.($res2->serial_number ?? '').'"
+								data-item-imei-number="'.($res2->imei_number ?? '').'"
+								data-item-warranty-months="'.($res2->warranty_months ?? 0).'"
+							data-item-track-serial="'.($res2->track_serial ?? 0).'"
+							data-item-track-imei="'.($res2->track_imei ?? 0).'"
+	           				style="cursor: pointer;'.$bg_color.'">
+	           	<span class="label label-danger push-right" style="font-weight: bold;font-family: sans-serif;" data-toggle="tooltip" title="'.$label_title.'">'.$label.'</span>
+	          
+
+	            <div class="box-body box-profile">
+	            	<center>
+	            	<img class=" img-responsive item_image" style="border: 1px solid gray;"  src="'.$img_src.'" alt="Item picture">
+	              </center>
+	              <lable class="text-center search_item" style="font-weight: bold;font-family: sans-serif;" id="item_'.$i.'">'.$item_display_name.'</label><br>
+	              <span class="" style="font-family: sans-serif;font-size:150%; " >'.$CI->currency(store_number_format($item_sales_price)).'
+	              </span>
+	            </div>
+
+
+	          </div>
+	        </div>';
+          // Clearfix every 4 items for lg/md/sm, every 2 for xs
+          if(($i + 1) % 4 == 0){
+            $table .= '<div class="clearfix visible-lg-block visible-md-block visible-sm-block"></div>';
+          }
+          if(($i + 1) % 2 == 0){
+            $table .= '<div class="clearfix visible-xs-block"></div>';
+          }
+          $i++;
+	          }//for end
+	          return $table;
+	      }//if num_rows() end
+	     
+	}
+	//CROSS SITE FILTER
+	public function xss_html_filter($input){
+		return $this->security->xss_clean(html_escape($input));
+	}
+	
+	//Save Sales
+	public function pos_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
+		$this->db->trans_begin();
+		$by_cash = $this->input->post('by_cash', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+
+		// Validate customer_id
+		if(empty($customer_id)){
+			$this->db->trans_rollback();
+			echo "Customer ID is required."; exit;
+		}
+
+		// Laundry / service businesses require real customer data
+		if (mp_feature_enabled('laundry_workflow') && is_walk_in_customer($customer_id)) {
+			$this->db->trans_rollback();
+			echo "Please select or create a registered customer before creating a laundry invoice. Walk-in is not allowed for service orders."; exit;
+		}
+		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$count_id = $this->input->post('count_id', TRUE);
+		$init_code = $this->input->post('init_code', TRUE);
+		$table_id = (int) $this->input->post('table_id', TRUE);
+		$command = $this->input->post_get('command', TRUE);
+		$sales_id = $this->input->post('sales_id', TRUE);
+		$store_id = $this->input->post('store_id', TRUE);
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$coupon_code = $this->input->post('coupon_code', TRUE);
+		$coupon_discount_amt = $this->input->post('coupon_discount_amt', TRUE);
+		$discount_input = $this->input->post('discount_input', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
+		$pay_all = $this->input->get_post('pay_all', TRUE);
+		$points_use = $this->input->post('points_use', TRUE);
+		$sales_note = mp_post_text('sales_note');
+		// Manual Shipping — columns guarded for un-migrated installs
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
+		// A selected restaurant table is dine-in; shipping cannot coexist with it.
+		if ($table_id > 0) { $shipping_fee_id = 0; $shipping_label = ''; $shipping_fee = 0; }
+		// Fitment link (Tyre Shop) — guarded for un-migrated installs. The bill
+		// may only name a vehicle of this store that belongs to the billed
+		// customer; anything else is dropped rather than trusted.
+		$vehicle_col = false;
+		$pos_vehicle_id = 0;
+		if ($this->db->field_exists('vehicle_id', 'db_sales') && $this->db->table_exists('db_vehicles')) {
+			$vehicle_col = true;
+			$candidate_vehicle_id = (int)$this->input->post('vehicle_id', TRUE);
+			if ($candidate_vehicle_id > 0) {
+				$vehicle_row = $this->db->select('id, customer_id')
+					->where('id', $candidate_vehicle_id)
+					->where('store_id', $store_id)
+					->where('is_deleted', 0)
+					->limit(1)->get('db_vehicles')->row();
+				if ($vehicle_row && (int)$vehicle_row->customer_id === (int)$customer_id) {
+					$pos_vehicle_id = (int)$vehicle_row->id;
+				}
+			}
+		}
+		$discount_to_all_input = $this->input->post('discount_to_all_input', TRUE);
+		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
+		$discount_type = $this->input->post('discount_type', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
+		// Optional document links (quote→invoice traceability, delivery site)
+		$pos_quotation_id = (int)$this->input->post('quotation_id', TRUE);
+		$pos_shipaddr_id  = (int)$this->input->post('shippingaddress_id', TRUE);
+		$pos_idempotency_key = substr(trim((string)$this->input->post('pos_idempotency_key', TRUE)), 0, 96);
+		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+
+		//varify max sales usage of the package subscription
+		validate_package_offers('max_invoices','db_sales');
+		//END
+
+		//check payment method
+		if(isset($by_cash) && $by_cash==true){ //by cash payment
+			$by_cash=true;
+			$payment_row_count=1;
+		}else{ //by multiple payments
+			$by_cash=false;
+			$payment_row_count = $this->input->post('payment_row_count', TRUE);
+			$payment_row_count = (empty($payment_row_count)) ? 0 : intval($payment_row_count);
+		}
+		//end 
+
+		$store_id=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+		if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null && !in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) {
+			$this->db->trans_rollback();
+			echo "You are not assigned to this branch."; exit;
+		}
+		// A queued/offline request may be retried after the browser lost the
+		// response. Return the original receipt instead of creating another sale.
+		if($command === 'save' && $pos_idempotency_key !== ''
+			&& $this->db->field_exists('pos_idempotency_key', 'db_sales')){
+			$existing = $this->db->where('store_id', (int)$store_id)
+				->where('pos_idempotency_key', substr($pos_idempotency_key, 0, 96))
+				->get('db_sales')->row();
+			if($existing){
+				$this->db->trans_rollback();
+				$advance = $this->db->select('COALESCE(SUM(payment),0) AS amount')->where('sales_id', (int)$existing->id)->get('db_salespayments')->row();
+				echo 'success<<<###>>>'.$existing->id.'<<<###>>>'.($existing->init_code ?? '').'<<<###>>>'.($existing->count_id ?? '').'<<<###>>>'.($advance->amount ?? 0).'<<<###>>>'.($existing->sales_code ?? $existing->id);
+				exit;
+			}
+		}
+		// Prescription-only medicines cannot be dispensed without an approved,
+		// patient-matched prescription linked to the sale.
+		if($command === 'save' && function_exists('mp_prescription_gate')){
+			$rx_item_ids = [];
+			// Till rows are 0-indexed (hidden_rowcount is the count, not the last
+			// index), so scanning 1..N skipped the first item on every sale.
+			for($rx_i = 0; $rx_i < (int)$hidden_rowcount; $rx_i++){
+				$rx_item_id = (int)$this->input->post_get('tr_item_id_'.$rx_i, TRUE);
+				if($rx_item_id > 0) $rx_item_ids[] = $rx_item_id;
+			}
+			$rx_err = mp_prescription_gate((int)$store_id, $rx_item_ids,
+				(int)$this->input->post_get('medical_note_id', TRUE), (int)$customer_id);
+			if($rx_err !== ''){
+				$this->db->trans_rollback();
+				echo "failed: " . $rx_err;
+				return "failed: " . $rx_err;
+			}
+		}
+		$gardenSaleProfile=mp_get_store_profile($store_id);
+		$isGardenSale=($gardenSaleProfile['industry_type'] ?? '')==='garden_centre_landscaping';
+		if ($isGardenSale && $command==='update' && $this->db->table_exists('db_service_fulfilment_sources')
+			&& $this->db->where('store_id',(int)$store_id)->where('source_type','sale')->where('source_parent_id',(int)$sales_id)->count_all_results('db_service_fulfilment_sources')) {
+			$this->db->trans_rollback();return 'This sale has linked service work. Use the return/correction workflow instead of replacing its lines.';
+		}
+
+		// Serialize invoice-number generation per store for concurrent POS users.
+		if($command == 'save' && !empty($store_id)){
+			$this->db->query("SELECT 1 FROM db_store WHERE id = ? FOR UPDATE", [(int)$store_id]);
+			$count_id = autosynch_sales_code();
+		}
+
+		$rowcount 			=$hidden_rowcount;
+		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
+		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;
+		$discount_input 	= (empty($discount_input)) ? 'NULL' : $discount_input;
+		// Clean numerics captured before tot_disc/tot_grand are swapped for the
+		// string 'NULL' below. round_off is worked out once the coupon is final.
+		$tot_amt_n = parse_amount($tot_amt);
+		$tot_disc_n = parse_amount($tot_disc);
+		$tot_grand_n = parse_amount($tot_grand);
+		$tot_disc 		= (empty($tot_disc) || $tot_disc==0) ? 'NULL' : $tot_disc;
+		$tot_grand 		= (empty($tot_grand)) ? 'NULL' : $tot_grand;
+		//$tot_grand		=round($tot_amt);
+
+
+		//FIND CUSTOMER INFORMATION BY ITS ID
+		$q1=$this->db->query("select customer_name,mobile from db_customers where id=$customer_id");
+		if(!$q1 || $q1->num_rows() == 0){
+			$this->db->trans_rollback();
+			echo "Customer not found. Please select a valid customer."; exit;
+		}
+		$customer_name 	= $q1->row()->customer_name;
+		$mobile 		= $q1->row()->mobile;
+
+
+		//Get coupon details
+	    $customer_coupon_id = null;
+	    if(!empty($coupon_code)){
+	    	$coupon_details = get_customer_coupon_details_by_coupon_code($coupon_code);
+	    	
+		    if($coupon_details->num_rows()>0){
+		    	if($coupon_details->row()->customer_id==$customer_id){
+		    		$customer_coupon_id = $coupon_details->row()->id;		
+		    	}
+		    } else {
+		    	// Fallback: check if this is a promotion code
+		    	// Reject walk-in customers for promotion codes
+		    	$walkin_id = get_walk_in_customer_id();
+		    	$is_walkin = (!empty($walkin_id) && (int)$customer_id === (int)$walkin_id);
+		    	if($is_walkin){
+		    		// Walk-in customers cannot use promotion codes
+		    		$coupon_code = '';
+		    	} else {
+		    	try {
+		    		if($this->db->table_exists('db_promotions')){
+		    			$promo = $this->db->where('store_id', $store_id)
+		    				->where('status', 1)
+		    				->where('promotion_code', strtoupper($coupon_code))
+		    				->where('start_date <=', date('Y-m-d'))
+		    				->where('end_date >=', date('Y-m-d'))
+		    				->get('db_promotions')->row();
+					if($promo){
+						$subtotal = 0;
+						// Try cart array (mobile POS / desktop POS JSON payload)
+						$cart_json = $this->input->post('cart', TRUE);
+						if(!empty($cart_json)){
+							$cart_items = is_array($cart_json) ? $cart_json : json_decode($cart_json, true);
+							if(is_array($cart_items)){
+								foreach($cart_items as $ci){
+									$subtotal += (float)$ci['price'] * (float)$ci['qty'];
+								}
+							}
+						}
+						// Fallback: try td_data_*_9 fields (legacy POS form)
+						if($subtotal == 0){
+							foreach($this->input->post() as $k => $v){
+								if(strpos($k, 'td_data_') === 0 && substr($k, -2) === '_9'){
+									$subtotal += (float)$v;
+								}
+							}
+						}
+						// Atomic claim — serializes concurrent redemptions so
+						// usage limits cannot be exceeded by racing checkouts.
+						$this->load->model('Promotions_model','promotions_m');
+						$claim = $this->promotions_m->claim_redemption($promo->id, $customer_id, $subtotal, $store_id);
+						if(!$claim['ok']){
+							$this->db->trans_rollback();
+							return "Promotion code rejected: " . $claim['message'];
+						}
+						// Recalculate coupon_discount_amt from the promotion if not provided
+						if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
+							if($promo->discount_type == 'Percentage'){
+								$coupon_discount_amt = $subtotal * ($promo->discount_value / 100);
+							} else {
+								$coupon_discount_amt = (float)$promo->discount_value;
+							}
+						}
+					}
+					}
+		    	} catch (Exception $e) { /* Promotions table not available */ }
+		    }
+		    } // end else (not walk-in)
+	    }
+
+
+
+
+
+	    //Verify Sales Code
+		$this->db->where("sales_code",$init_code.$count_id);
+		if($command=='update'){
+			$this->db->where("id<>",$sales_id);
+		}
+		$this->db->from('db_sales');
+		//echo $this->db->get_compiled_select();exit;
+		$count = $this->db->count_all_results();
+		
+
+		if($count>0){
+
+			$autosynch_sales_code = true;
+
+			if($autosynch_sales_code){
+				$count_id = autosynch_sales_code();
+			}
+			else{
+				echo "Sales Code already exist";
+				exit;	
+			}
+		}
+
+
+
+
+		// Round off is the genuine rounding only. It used to be tot_grand - tot_amt,
+		// which swallowed the discount, coupon and delivery fee into "Round Off" and
+		// left the printed breakdown not adding up to the grand total.
+		$round_off = number_format($tot_grand_n - ($tot_amt_n - $tot_disc_n - parse_amount($coupon_discount_amt) + (float)$shipping_fee), decimals(),'.','');
+
+		$sales_entry_init = array(
+	    							'init_code' 				=> $init_code,
+				    				'count_id' 					=> $count_id,
+				    				'sales_code' 				=> $init_code.$count_id,
+				    				/*Coupon disocunt amt*/
+				    				'coupon_id' 				=> $customer_coupon_id,
+				    				'coupon_amt' 				=> $coupon_discount_amt,
+				    				'invoice_terms' 			=> $invoice_terms,
+	    						);
+		//echo "<pre>";print_r($sales_entry_init);exit;
+
+		$prev_item_ids = array();
+
+		if($command=='update'){
+				$sales_entry = array(
+		    				'store_id' 				=> $store_id,
+		    				//'sales_date' 				=> $sales_date,
+		    				'sales_status' 				=> 'Final',
+		    				'customer_id' 				=> $customer_id,
+		    				/*'warehouse_id' 				=> $warehouse_id,*/
+		    				/*Discount*/
+		    				'discount_to_all_input' 	=> $discount_input,
+		    				'discount_to_all_type' 		=> $discount_type,
+		    				'tot_discount_to_all_amt' 	=> $tot_disc,
+		    				/*Subtotal & Total */
+		    				'subtotal' 					=> $tot_amt,
+		    				'round_off' 				=> $round_off,
+		    				'grand_total' 				=> $tot_grand,
+		    				'sales_note' 				=> $sales_note,
+		    			);
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $pos_vehicle_id ?: null;
+			}
+				$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
+				$q3 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
+				if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+					$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+				}
+
+				##############################################START
+				//FIND THE PREVIOUSE ITEM LIST ID'S
+				$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
+				##############################################END
+
+				/* Re-ringing an invoice replaces its lines, so the lots the previous
+				 * version consumed must go back to the ledger first — otherwise the
+				 * re-saved sale deducts the same stock twice. Editing an invoice that
+				 * already has a return would break that return's batch provenance, so
+				 * refuse it instead of silently losing the trail. */
+				$this->load->model('Inventory_rotation_model', 'pos_inventory_rotation');
+				if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+					$hasReturns = $this->db->where('sales_id', (int)$sales_id)->count_all_results('db_salesreturn') > 0;
+					if ($hasReturns) {
+						$this->db->trans_rollback();
+						return 'This invoice has a return. Its batch history cannot be edited; create a correction invoice instead.';
+					}
+					if (!$this->pos_inventory_rotation->restore_sale($sales_id)) {
+						$this->db->trans_rollback();
+						return 'Could not restore the invoice batch allocations. No changes were saved.';
+					}
+				}
+
+				// Release serialised units bound to the previous version
+				if(function_exists('mp_release_sale_barcodes')){ mp_release_sale_barcodes($sales_id); }
+				if(function_exists('mp_unregister_equipment_for_sale')){ mp_unregister_equipment_for_sale($sales_id); }
+
+				$q11=$this->db->where('sales_id', $sales_id)->delete('db_salesitems');
+				$q12=$this->db->where('sales_id', $sales_id)->delete('db_salespayments');
+				if(!$q11 || !$q12){
+					return "failed";
+				}
+		}
+		else{
+
+			$sales_entry = array(
+							//'count_id' 					=> get_count_id('db_sales'),  
+		    				//'sales_code' 				=> get_init_code('sales'), 
+		    				'store_id' 				=> $store_id,
+		    				'sales_date' 				=> $sales_date,
+		    				'sales_status' 				=> 'Final',
+		    				'customer_id' 				=> $customer_id,
+		    				/*'warehouse_id' 				=> $warehouse_id,*/
+		    				/*Discount*/
+		    				'discount_to_all_input' 	=> $discount_input,
+		    				'discount_to_all_type' 		=> $discount_type,
+		    				'tot_discount_to_all_amt' 	=> $tot_disc,
+		    				/*Subtotal & Total */
+		    				'subtotal' 					=> $tot_amt,
+		    				'round_off' 				=> $round_off,
+		    				'grand_total' 				=> $tot_grand,
+		    				/*System Info*/
+		    				'created_date' 				=> $CUR_DATE,
+		    				'created_time' 				=> $CUR_TIME,
+		    				'created_by' 				=> $CUR_USERNAME,
+		    				'system_ip' 				=> $SYSTEM_IP,
+		    				'system_name' 				=> $SYSTEM_NAME,
+		    				'pos' 						=> 1,
+		    				'status' 					=> 1,
+		    				'sales_note' 				=> $sales_note,
+			);
+			if($this->db->field_exists('pos_idempotency_key', 'db_sales') && $pos_idempotency_key !== ''){
+				$sales_entry['pos_idempotency_key'] = substr($pos_idempotency_key, 0, 96);
+				$sales_entry['offline_sync_status'] = (stripos($pos_idempotency_key, 'offline:') === 0) ? 'synced' : null;
+			}
+			if($pos_quotation_id > 0 && $this->db->field_exists('quotation_id','db_sales')){
+				$sales_entry['quotation_id'] = $pos_quotation_id;
+			}
+			if($pos_shipaddr_id > 0 && $this->db->field_exists('shippingaddress_id','db_sales')){
+				$sales_entry['shippingaddress_id'] = $pos_shipaddr_id;
+			}
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $pos_vehicle_id ?: null;
+			}
+			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
+
+			
+			$q3 = $this->db->insert('db_sales', array_merge($sales_entry,$sales_entry_init));
+			$sales_id = $this->db->insert_id();
+			if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+				$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+			}
+			// Keep the source quotation in sync when the sale carries its link
+			if($pos_quotation_id > 0 && $sales_id){
+				$this->db->set('sales_status','Converted')->where('id',$pos_quotation_id)->update('db_quotation');
+			}
+		}
+
+	
+
+		//Import post data from form
+		for($i=0;$i<$rowcount;$i++){
+		
+			if(isset($_REQUEST['tr_item_id_'.$i]) && trim($_REQUEST['tr_item_id_'.$i])!=''){
+			
+				//RECEIVE VALUES FROM FORM
+				$item_id 	=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
+				$sales_qty 	=$this->xss_html_filter(trim($_REQUEST['item_qty_'.$i]));
+				$price_per_unit =$this->xss_html_filter(trim($_REQUEST['sales_price_'.$i]));
+				$weight_lines_input = $_POST['weight_lines_'.$i] ?? ($_REQUEST['weight_lines_'.$i] ?? null);
+				$weight_lines = $weight_lines_input !== null && is_numeric($weight_lines_input)
+					? max(0, (int)$weight_lines_input) : null;
+				$price_per_unit = mp_weight_pricing_unit_price(get_item_details($item_id), $sales_qty, $price_per_unit, $weight_lines);
+				$tax_amt =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
+				$tax_type =$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
+				$tax_id =$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
+				$tax_value =$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));//%
+				$total_cost =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4']));
+				$description =$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$batch_lot =$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i]));
+				$price_type =$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'retail'));
+				
+				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
+				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
+				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+								$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+								$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
+
+				if($tax_type=='Exclusive'){
+					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
+				}
+				else{//Inclusive
+					$single_unit_total_cost =$price_per_unit;
+				}
+				$total_cost = ($tax_type == 'Exclusive') ? (($price_per_unit * $sales_qty) + (float)$tax_amt) : ($price_per_unit * $sales_qty);
+
+				
+				if($tax_id=='' || $tax_id==0){$tax_id=null;}
+				if($tax_amt=='' || $tax_amt==0){$tax_amt=null;}
+				if($total_cost=='' || $total_cost==0){$total_cost=null;}
+				
+				
+				/* ******************************** */
+				//Find the qty available or not
+				$item_details = get_item_details($item_id);
+				$item_name = $item_details->item_name;
+				$service_bit = $item_details->service_bit;
+				$expiryError = $this->pos_expiry_error($item_details, $store_id, $warehouse_id, (int)($_REQUEST['barcode_id_'.$i] ?? 0));
+				if($expiryError !== ''){
+					$this->db->trans_rollback();
+					return $expiryError;
+				}
+				// Use the item's cost (purchase_price with tax) when no barcode, or the barcode's cost when a unit is selected
+				if($barcode_id > 0){
+					$barcode_rec = $this->db->where('id',$barcode_id)->get('db_item_barcodes')->row();
+					$purchase_price = ($barcode_rec && !empty($barcode_rec->purchase_price)) ? $barcode_rec->purchase_price : 0;
+				} else {
+					$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				}
+				$track_serial = $item_details->track_serial ?? 0;
+				$track_imei = $item_details->track_imei ?? 0;
+
+				// Serial/IMEI validation for electronics and cellular devices
+				if($track_serial && empty($sold_serial_number)){
+					$this->db->trans_rollback();
+					return "Serial number is required for {$item_name}. Please scan or type the serial number before checkout.";
+				}
+				if($track_imei && empty($sold_imei_number)){
+					$this->db->trans_rollback();
+					return "IMEI number is required for {$item_name}. Please scan or type the IMEI before checkout.";
+				}
+
+				// Prevent selling a unit that is already marked as sold
+				if($barcode_id > 0){
+					$bc_status = $this->db->where('id', $barcode_id)->get('db_item_barcodes')->row()->status ?? 1;
+					if($bc_status == 3){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} is frozen by a product recall and cannot be sold.";
+					}
+					if($bc_status != 1){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} has already been sold. Use a different serial/IMEI or barcode.";
+					}
+				} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+					$this->db->where('item_id', $item_id);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+					if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+					$matched_bc = $this->db->get('db_item_barcodes')->row();
+					if($matched_bc && $matched_bc->status == 3){
+						$this->db->trans_rollback();
+						return "This unit of {$item_name} is frozen by a product recall and cannot be sold.";
+					}
+					if($matched_bc && $matched_bc->status != 1){
+						$this->db->trans_rollback();
+						return "The serial/IMEI for {$item_name} has already been sold. Use a different unit.";
+					}
+				}
+
+				
+				$this->load->model('Extras_model', 'extras_model');
+				$qtyError = $this->extras_model->qtyRuleError($item_details, $sales_qty);
+				if($qtyError){
+					$this->db->trans_rollback();
+					return $qtyError;
+				}
+
+				// Multi-unit selling: the till posts the chosen selling unit and its
+				// conversion, but stock and batch rows are counted in base units.
+				// "1 box" of 10 tablets must consume 10, not 1.
+				$unit_id = $this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
+				$unit_name = $this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
+				$conversion_factor = isset($_REQUEST['conversion_factor_'.$i]) ? (float)$_REQUEST['conversion_factor_'.$i] : 1;
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
+				$base_unit_qty = $sales_qty * $conversion_factor;
+
+				if(!empty($item_details->is_bundle)){
+					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
+					if($availableBundles === null || $availableBundles < $sales_qty){
+						$this->db->trans_rollback();
+						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
+					}
+				} else {
+					$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+					if($current_stock_of_item<$base_unit_qty && $service_bit==0){
+						$this->db->trans_rollback();
+						return $item_name." has only ".$current_stock_of_item." in Stock!!";
+					}
+				}
+				
+				$salesitems_entry = array(
+		    				'store_id' 			=> $store_id, 
+		    				'sales_id' 			=> $sales_id, 
+		    				'sales_status'		=> 'Final', 
+		    				'item_id' 			=> $item_id, 
+		    				'description' 		=> $description,
+	    				'batch_lot' 		=> $batch_lot,
+	    			'price_type' 		=> $price_type, 
+		    				'sales_qty' 		=> $sales_qty,
+		    				'price_per_unit' 	=> $price_per_unit,
+		    				'tax_id' 			=> $tax_id,
+		    				'tax_amt' 			=> $tax_amt,
+		    				'tax_type' 			=> $tax_type,
+		    				'discount_type' 	=> $discount_type,
+		    				'discount_input' 	=> $discount_input,
+		    				'discount_amt' 		=> $discount_amt,
+		    				'unit_total_cost' 	=> $single_unit_total_cost,
+		    				'total_cost' 		=> $total_cost,
+		    				'purchase_price' 	=> $purchase_price,
+		    				'status'	 		=> 1,
+		    				'seller_points'		=> get_seller_points($item_id) * $sales_qty,
+		    				'sold_serial_number'=> $sold_serial_number,
+		    				'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
+		    			);
+				$q4 = $this->db->insert('db_salesitems', $salesitems_entry);
+				if(!$q4){
+					$err = $this->db->error();
+					log_message('error', "POS db_salesitems insert FAILED: #{$err['code']} {$err['message']} sales_id=$sales_id item_id=$item_id");
+					$this->db->trans_rollback();
+					return "Failed to save sale item: " . $err['message'];
+				}
+				$sale_items_id = $this->db->insert_id();
+				log_message('error', "POS db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
+
+				if($sale_items_id){
+					$this->db->where('id', $sale_items_id)->update('db_salesitems', array(
+						'unit_id'           => ($unit_id === '' ? null : (int)$unit_id),
+						'unit_name'         => ($unit_name === '' ? null : $unit_name),
+						'conversion_factor' => $conversion_factor,
+						'base_unit_qty'     => $base_unit_qty,
+					));
+				}
+
+				/* The counter must consume the same batch ledger as the invoice screen
+				 * and the online store, otherwise FEFO/FIFO records a sale that never
+				 * took stock off a lot. Manual rotation (the default) keeps counter
+				 * behaviour exactly as it was. Bundles and recipe-produced lines
+				 * consume their components elsewhere, so they never draw a lot. */
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$rotationStoreId = (int)(store_module() && is_admin() ? $store_id : get_current_store_id());
+				$rotationMethod = $this->inventory_rotation->method($rotationStoreId);
+				$rotationApplies = $rotationMethod !== Inventory_rotation_model::MANUAL
+					&& empty($item_details->is_bundle)
+					&& !in_array((string)($item_details->item_production_mode ?? ''), array('component', 'sale_deplete'), true);
+				if($rotationApplies){
+					$allocationError = $barcode_id > 0
+						? $this->inventory_rotation->consume_chosen_batch($sales_id, $sale_items_id, $rotationStoreId, (int)$warehouse_id, $item_id, $barcode_id, $base_unit_qty, $item_name)
+						: $this->inventory_rotation->allocate_sale_line($sales_id, $sale_items_id, $rotationStoreId, (int)$warehouse_id, $item_id, $base_unit_qty, $service_bit);
+					if($allocationError !== ''){
+						$this->db->trans_rollback();
+						return $allocationError;
+					}
+				}
+
+				// Mark the unit as sold so it cannot be sold again
+				if($q4 && ($track_serial || $track_imei || !empty($sold_serial_number) || !empty($sold_imei_number))){
+					if($barcode_id > 0){
+						$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => 0]);
+					} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+						$this->db->where('item_id', $item_id);
+						if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+						if(!empty($sold_imei_number)) $this->db->where('imei_number', $sold_imei_number);
+						$this->db->limit(1)->update('db_item_barcodes', ['status' => 0]);
+					}
+				}
+
+				// Register serialised equipment on the customer (equipment register)
+				if(function_exists('mp_register_equipment_from_sale') && ($track_serial || !empty($sold_serial_number))){
+					mp_register_equipment_from_sale($sales_id, $sale_items_id, $customer_id);
+				}
+
+				if(empty($item_details->is_bundle)){
+					$q11=$this->update_items_quantity($item_id);
+					if(!$q11){
+						$this->db->trans_rollback();
+						return "failed";
+					}
+				} else if(!$this->extras_model->deplete_bundle_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+
+				// Deplete recipe components/ingredients for component plates and sale-deplete items
+				$q12 = $this->deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id);
+				if(!$q12){
+					$this->db->trans_rollback();
+					return "failed";
+				}
+
+			}
+		
+		}//for end
+		
+		if($pay_all=='true'){
+			$by_cash=true;
+			$payment_row_count=1;
+		}
+		else{
+			$by_cash=false;
+		}
+
+		$tot_received_amt = 0;
+		//UPDATE CUSTMER MULTPLE PAYMENTS
+		$payments_processed = 0;
+		for($i=1;$i<=$payment_row_count;$i++){
+		
+			if((isset($_REQUEST['amount_'.$i]) && trim($_REQUEST['amount_'.$i])!='') || ($by_cash==true)){
+
+				if($by_cash==true){
+					//RECEIVE VALUES FROM FORM
+					$amount 		=$tot_grand;
+					$payment_type 	=get_default_payment_mode_code($store_id);
+					$payment_note 	='Paid By ' . $payment_type;
+					$payments_processed++;
+				}
+				else{
+					//RECEIVE VALUES FROM FORM
+					$amount 		=$this->xss_html_filter(trim($_REQUEST['amount_'.$i]));
+					// Skip if amount is 0 or empty
+					if(empty($amount) || $amount == 0){
+						continue;
+					}
+					$payment_type 	=$this->xss_html_filter(trim($_REQUEST['payment_type_'.$i] ?? ''));
+					$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
+					$payment_note 	=mp_clean_text($_REQUEST['payment_note_'.$i] ?? '');
+					$payment_reference = $this->xss_html_filter(trim($_REQUEST['payment_reference_'.$i] ?? ''));
+					$confirmation_status = intval($_REQUEST['confirmation_status_'.$i] ?? 1);
+					$payments_processed++;
+				}
+
+				if($command=='save' && $pay_all=='true'){
+					$account_id = $this->session->userdata('default_account_id');
+				}
+				else{
+					$account_id 	=$this->xss_html_filter(trim($_REQUEST['account_id_'.$i] ?? ''));
+				}
+				
+
+				//If amount is greater than paid amount
+				$change_return=0;
+				if($amount>$tot_grand){
+					$change_return =$amount-$tot_grand;
+					$amount =$tot_grand;
+				}
+				//end
+				// Look up payment_mode_id
+				$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes');
+				$payment_mode_id = ($pm_row && $pm_row->num_rows() > 0) ? $pm_row->row()->id : null;
+
+				$payment_code=get_init_code('sales_payment');
+				$salespayments_entry = array(
+					'payment_code' 		=> $payment_code,
+		    		'count_id'	  		=> get_count_id('db_salespayments'),
+					'store_id' 		=> $store_id, 
+					'sales_id' 		=> $sales_id, 
+					'payment_date'		=> $sales_date,//Current Payment with sales entry
+					'payment_type' 		=> $payment_type,
+					'payment_mode_id'  => $payment_mode_id,
+					'payment' 			=> $amount,
+					'payment_note' 		=> $payment_note,
+					'payment_reference'  => $payment_reference ?? '',
+					'confirmation_status'=> $confirmation_status ?? 1,
+					'created_date' 		=> $CUR_DATE,
+    				'created_time' 		=> $CUR_TIME,
+    				'created_by' 		=> $CUR_USERNAME,
+    				'system_ip' 		=> $SYSTEM_IP,
+    				'system_name' 		=> $SYSTEM_NAME,
+    				'change_return' 	=> $change_return,
+    				'status' 			=> 1,
+    				'customer_id' 		=> $customer_id,
+    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+				);
+
+
+				//is total advance payment enabled ?
+				$advance_adjusted=0;
+				if(isset($allow_tot_advance)){
+					$tot_advance = get_customer_details($customer_id)->tot_advance;
+					if($tot_advance>0){
+						if($amount==$tot_advance){
+							$advance_adjusted = $amount;
+						}
+						else if($amount>$tot_advance){
+							$advance_adjusted = $tot_advance;	
+						}
+						else{
+							$advance_adjusted =  $amount;
+						}
+					}
+				}
+				//end 
+				$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+				if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+					$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+					$open_shift = $this->m3_cashier_shifts->get_open_shift($store_id, get_current_user_id());
+					if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+				}
+
+
+			  
+			  $q7 = $this->db->insert('db_salespayments', $salespayments_entry);
+			  $last_insert_id = $this->db->insert_id();
+
+			    if(!$q7)
+				{
+					return "failed";
+				}
+
+				if(!set_customer_tot_advance($customer_id)){
+		        	return 'failed';
+		        }
+				//Set the payment to specified account
+				if(!empty($account_id)){
+					//ACCOUNT INSERT
+					$insert_bit = insert_account_transaction(array(
+																'transaction_type'  	=> 'SALES PAYMENT',
+																'reference_table_id'  	=> $last_insert_id,
+																'debit_account_id'  	=> null,
+																'credit_account_id'  	=> $account_id,
+																'debit_amt'  			=> 0,
+																'credit_amt'  			=> $amount,
+																'process'  				=> 'SAVE',
+																'note'  				=> $payment_note,
+																'transaction_date'  	=> $CUR_DATE,
+																'payment_code'  		=> $payment_code,
+																'customer_id'  			=> $customer_id,
+																'supplier_id'  			=> null,
+														));
+					if(!$insert_bit){
+						return "failed";
+					}
+				}
+				//end
+
+
+				$tot_received_amt += $amount;
+				
+			}//if()
+		
+		}//for end
+
+		// Check if any payments were processed (unless it's a credit sale for registered customer)
+		if($payments_processed == 0 && $tot_grand > 0 && is_walk_in_customer($customer_id)){
+			$this->db->trans_rollback();
+			echo "Walk-in Customer requires payment. Please enter a payment amount.";exit;
+		}
+
+		// WALK-IN CUSTOMER CANNOT OWE MONEY
+		if(is_walk_in_customer($customer_id) && $tot_received_amt < $tot_grand){
+			$this->db->trans_rollback();
+			echo "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";exit;
+		}
+
+		if($tot_received_amt>$tot_grand){
+			echo "Payble amount should not be exceeds Invoice Amount!!";exit;
+		}
+
+		/**
+		 * Verifieng previous and current payment total with invoice amount
+		*/
+		
+		$tot_payment = $this->db->select('coalesce(sum(payment),0) as payment')->where('sales_id',$sales_id)->get('db_salespayments')->row()->payment;
+
+		if($tot_payment>$tot_grand){
+			echo "Payble amount should not be exceeds Invoice Amount!!\nPlease check previous payments as well.";exit;
+		}
+		
+
+	
+		//UPDATE itemS QUANTITY IN itemS TABLE
+		$this->load->model('sales_model');				
+		$q6=$this->sales_model->update_sales_payment_status($sales_id,$customer_id);
+		if(!$q6){
+			return "failed";
+		}
+
+		//Calculate Opening balance before and after invoice
+		/*$q7=calculate_ob_of_customer($sales_id,$customer_id);
+		if(!$q7){
+			return "failed";
+		}*/
+
+		if(isset($hidden_invoice_id) && !empty($hidden_invoice_id)){
+			$q13=$this->hold_invoice_delete($hidden_invoice_id);
+			if(!$q13){
+				return "failed";
+			}
+		}
+		
+		
+		$sms_info='';
+		if(isset($send_sms) && $customer_id!=1){
+			if(send_sms_using_template($sales_id,1)==true){
+				$sms_info = 'SMS Has been Sent!';
+			}else{
+				$sms_info = 'Failed to Send SMS';
+			}
+		}
+
+		##############################################START
+		//FIND THE PREVIOUSE ITEM LIST ID'S
+		$curr_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
+		$two_array = array_merge($prev_item_ids,$curr_item_ids);
+
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehouse_items($two_array);
+		if(!$q7){
+			return "failed";
+		}
+		##############################################END
+
+		
+
+		//Dont save if invoice credit limit exceeds
+		$credit_check = check_credit_limit_with_invoice($customer_id,$sales_id);
+		if($credit_check !== true){
+			return $credit_check;
+		}
+
+		
+		//Record Loyalty Points
+		if(!is_walk_in_customer($customer_id) && $tot_grand > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$sale_items = $this->db->select('item_id, sales_qty, price_per_unit, discount_amt')
+							->where('sales_id', $sales_id)
+							->get('db_salesitems')
+							->result();
+				$loyalty_items = array();
+				foreach($sale_items as $si){
+					$loyalty_items[] = array(
+						'item_id' => (int)$si->item_id,
+						'qty' => (float)$si->sales_qty,
+						'line_value' => max(0, (float)$si->price_per_unit * (float)$si->sales_qty - (float)($si->discount_amt ?? 0))
+					);
+				}
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_grand, $loyalty_items);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from POS sale');
+				}
+			}
+		}
+		//end
+
+		// Record promotion usage if a promotion code was used
+		if(!empty($coupon_code)){
+			$promo = $this->db->where('store_id', $store_id)->where('UPPER(promotion_code)', strtoupper($coupon_code))->get('db_promotions')->row();
+			if($promo){
+				$this->load->model('Promotions_model','promotions_m');
+				$this->promotions_m->record_usage($promo->id, $customer_id, $sales_id, $store_id);
+			}
+		}
+
+		//COMMIT RECORD
+		if ($isGardenSale && $this->db->table_exists('db_service_fulfilment_sources')) {
+			try { $this->load->model('service_fulfilment_model');$this->service_fulfilment_model->fulfil_sale($sales_id,$store_id); }
+			catch (Throwable $e) { $this->db->trans_rollback();log_message('error','POS service fulfilment: '.$e->getMessage());return 'Could not prepare service work. The sale was not saved.'; }
+		}
+		$this->db->trans_commit();
+
+		log_message('error', "[POS SAVE] sales_id=$sales_id date=$sales_date status=Final store=$store_id grand_total=$tot_grand");
+		
+		$this->session->set_flashdata('success', 'Success!! Sales Created Successfully!'.$sms_info);
+        return "success<<<###>>>$sales_id";
+
+
+	}
+
+	public function update_items_quantity($item_id){
+		//FIND IS IS SERVICE OR NOT
+		$iq = $this->db->query("select service_bit, item_production_mode from db_items where id='$item_id'");
+		if(!$iq){ return false; }
+		$item = $iq->row();
+		if(!$item){ return false; }
+		if($item->service_bit==1){
+			return true;
+		}
+		// Component plates and sale-deplete items do not track their own finished stock;
+		// their recipe components/ingredients are adjusted separately
+		if (!empty($item->item_production_mode) && in_array($item->item_production_mode, ['component','sale_deplete'])) {
+			return true;
+		}
+		
+		//UPDATE itemS QUANTITY IN itemS TABLE
+		$stockAdjustmentSql = "SELECT COALESCE(SUM(ai.adjustment_qty),0) AS stock_qty FROM db_stockadjustmentitems ai";
+		$stockAdjustmentWhere = " WHERE ai.item_id='".(int)$item_id."'";
+		if($this->db->table_exists('db_stockadjustment') && $this->db->table_exists('db_online_orders')
+			&& $this->db->field_exists('sales_id','db_online_orders')){
+			$stockAdjustmentSql .= " JOIN db_stockadjustment a ON a.id=ai.adjustment_id LEFT JOIN db_online_orders oo
+				ON a.store_id=oo.store_id AND a.reference_no=CONCAT('ONLINE-RESERVE-',oo.id)";
+			$stockAdjustmentWhere .= " AND (a.reference_no NOT LIKE 'ONLINE-RESERVE-%' OR oo.id IS NULL OR COALESCE(oo.sales_id,0)=0)";
+		}
+		$q7=$this->db->query($stockAdjustmentSql.$stockAdjustmentWhere);
+		if(!$q7){ return false; }
+		$stock_qty=$q7->row()->stock_qty;
+
+		$q8=$this->db->query("select COALESCE(SUM(CASE WHEN received_qty IS NOT NULL THEN COALESCE(base_unit_qty, received_qty) ELSE COALESCE(base_unit_qty, purchase_qty) END),0) as pu_tot_qty from db_purchaseitems where item_id='$item_id' and purchase_status IN ('Received','Partially Received')");
+		if(!$q8){ return false; }
+		$pu_tot_qty=$q8->row()->pu_tot_qty;
+		
+		$q9=$this->db->query("select coalesce(SUM(COALESCE(base_unit_qty, sales_qty)),0) as sl_tot_qty from db_salesitems where item_id='$item_id' and sales_status='Final'");
+		if(!$q9){ return false; }
+		$sl_tot_qty=$q9->row()->sl_tot_qty;
+
+		/*Fid Return Items Count*/
+		$q6=$this->db->query("select COALESCE(SUM(return_qty),0) as pu_return_tot_qty from db_purchaseitemsreturn where item_id='$item_id' ");/*and purchase_id is null */
+		if(!$q6){ return false; }
+		$pu_return_tot_qty=$q6->row()->pu_return_tot_qty;
+
+		/*Fid Return Items Count*/
+		$q6=$this->db->query("select COALESCE(SUM(return_qty),0) as sl_return_tot_qty from db_salesitemsreturn where item_id='$item_id' ");/*and sales_id is null */
+		if(!$q6){ return false; }
+		$sl_return_tot_qty=$q6->row()->sl_return_tot_qty;
+
+		$stock=((($stock_qty+$pu_tot_qty)-$sl_tot_qty)+$sl_return_tot_qty)-$pu_return_tot_qty;
+		$q7=$this->db->query("update db_items set stock=$stock where id='$item_id'");
+		if($q7){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}	
+	
+
+	public function edit_pos($sales_id){
+		$data=$this->data;
+	     $q2=$this->db->query("select * from db_sales where id='$sales_id'");
+	    if($q2->num_rows()>0){
+	      $res2=$q2->row();
+	      $sales_date=show_date($res2->sales_date);
+	      $customer_id=$res2->customer_id;
+	      $discount_input=$res2->discount_to_all_input;
+	      $discount_type=$res2->discount_to_all_type;
+	      $grand_total=$res2->grand_total;
+	      $store_id=$res2->store_id;
+	      $warehouse_id=$res2->warehouse_id;
+	      $sales_note=$res2->sales_note;
+	      $invoice_terms=trim($res2->invoice_terms);
+
+	      $q3=$this->db->query("SELECT * FROM db_salesitems WHERE sales_id='$sales_id'");
+		  $rows=$q3->num_rows();
+		  if($rows>0){
+		  	$i=0;
+		  	
+		  	foreach ($q3->result() as $res3) { 
+		  		$q5=$this->db->query("select * from db_items where id=".$res3->item_id);
+		  		$price_per_unit = $res3->price_per_unit;
+		  		$description = $res3->description;
+		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
+
+		  		$stock = total_available_qty_items_of_warehouse($warehouse_id,$store_id,$q5->row()->id);
+		  		$stock+=$res3->sales_qty;
+
+		  		$item_discount = $res3->discount_amt;
+		  		$item_discount_type = $res3->discount_type;
+		  		$item_discount_input = $res3->discount_input;
+
+
+				$q6=get_document_item_tax($res3->tax_id);
+
+		  		//$item_tax_type = $q5->row()->tax_type;
+	        	/*if($item_tax_type=='Exclusive'){
+	        		$per_item_price_inc_tax=$price_per_unit+(($price_per_unit*$q5->row()->tax)/100);
+				}
+				else{//Inclusive	
+					$per_item_price_inc_tax=$price_per_unit;
+				}*/
+				$per_item_price_inc_tax=$price_per_unit;
+				$per_item_price_inc_tax=number_format($per_item_price_inc_tax,decimals(),'.','');	
+
+				$tax_amt = $res3->tax_amt;
+				$tax_type = $res3->tax_type;
+				$tax_id = $res3->tax_id;
+				$tax_value = $q6->tax;
+
+		  		$quantity        ='<div class="input-group input-group-sm"><span class="input-group-btn"><button onclick="decrement_qty('.$res3->item_id.','.$i.')" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>';
+			    $quantity       .='<input typ="text" value="'.format_qty($res3->sales_qty).'" class="form-control min_width" onkeyup="item_qty_input('.$res3->item_id.','.$i.')" id="item_qty_'.$i.'" name="item_qty_'.$i.'">';
+			    $quantity       .='<span class="input-group-btn"><button onclick="increment_qty('.$res3->item_id.','.$i.')" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span></div>';
+			    $sub_total       =$res3->total_cost;
+			    $remove_btn      ='<a class="fa fa-fw fa-trash-o text-red" style="cursor: pointer;font-size: 20px;" onclick="removerow('.$i.')" title="Delete Item?"></a>';
+			    
+		  		echo '<tr id="row_'.$i.'" data-row="0" data-item-id="'.$res3->item_id.'" >'; /*item id */
+		  		echo '<td id="td_'.$i.'_0">
+		  		<a data-toggle="tooltip" title="Click to Change Tax" class="pointer" id="td_data_'.$i.'_0" onclick="show_sales_item_modal('.$i.')">'.$q5->row()->item_name.'</a>
+		  		</td>';  /*td_0_0 item name*/
+		  		echo '<td id="td_'.$i.'_1">'.$stock.'</td>';  /*td_0_1 item available qty*/
+		  		echo '<td id="td_'.$i.'_2">'.$quantity.'</td>';    /*td_0_2 item available qty */
+
+		  		$info = '<input id="sales_price_'.$i.'" onblur="set_to_original('.$i.','.$q5->row()->purchase_price.')" onkeyup="update_price('.$i.','.$q5->row()->purchase_price.')" name="sales_price_'.$i.'" type="text" class="form-control min_width" value="'.$per_item_price_inc_tax.'">';
+
+		  		echo '<td id="td_'.$i.'_3" class="text-right" >'.$info.'</td>';    /*td_0_3 item sales price */
+
+		  		$info = '<input data-toggle="tooltip" title="Click to Change" onclick="show_sales_item_modal('.$i.')" id="item_discount_'.$i.'" readonly name="item_discount_'.$i.'" type="text" class="form-control text-left no-padding" value="'.$item_discount.'">';
+
+		  		echo '<td id="td_'.$i.'_6" class="text-right" >'.$info.'</td>';
+
+		  		echo '<td id="td_'.$i.'_11"><input data-toggle="tooltip" title="Click to Change" id="td_data_'.$i.'_11" onclick="show_sales_item_modal('.$i.')" name="td_data_'.$i.'_11" type="text" class="form-control no-padding pointer min_width" readonly value="'.$tax_amt.'"></td>';
+		  		echo '<td id="td_'.$i.'_4" class="text-right" >
+		  		<input data-toggle="tooltip" title="Total" id="td_data_'.$i.'_4" name="td_data_'.$i.'_4" type="text" class="form-control no-padding pointer min_width" readonly value="'.store_number_format($sub_total,false).'"></td>';    /*td_0_4 item sub_total */
+		  		echo '<td id="td_'.$i.'_5">'.$remove_btn.'</td>';    /* td_0_5 item gst_amt  */
+
+		  		echo '<input type="hidden" name="tr_item_id_'.$i.'" id="tr_item_id_'.$i.'" value="'.$res3->item_id.'">'; 
+		  		echo '<input type="hidden" id="tr_item_per_'.$i.'" name="tr_item_per_'.$i.'" value="'.$q6->tax.'">';
+		  		echo '<input type="hidden" id="tr_sales_price_temp_'.$i.'" name="tr_sales_price_temp_'.$i.'" value="'.$per_item_price_inc_tax.'">';
+		  		echo '</tr>';
+		  		echo '<input type="hidden" id="tr_tax_type_'.$i.'" name="tr_tax_type_'.$i.'" value="'.$tax_type.'">';
+        		echo '<input type="hidden" id="tr_tax_id_'.$i.'" name="tr_tax_id_'.$i.'" value="'.$tax_id.'">';
+        		echo '<input type="hidden" id="tr_tax_value_'.$i.'" name="tr_tax_value_'.$i.'" value="'.$tax_value.'">';
+        		echo '<input type="hidden" id="description_'.$i.'" name="description_'.$i.'" value="'.$description.'">';
+        		echo '<input type="hidden" id="service_bit_'.$i.'" name="service_bit_'.$i.'" value="'.$service_bit.'">';
+        		echo '<input type="hidden" id="batch_lot_'.$i.'" name="batch_lot_'.$i.'" value="'.($res3->batch_lot ?? '').'">';
+        		echo '<input type="hidden" id="barcode_'.$i.'" name="barcode_'.$i.'" value="">';
+			echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_type ?? 'retail').'">';
+		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
+        		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
+		  		$i++;
+		  	}//foreach() end
+
+		  	echo "<<<###>>>".$discount_input."<<<###>>>".$discount_type."<<<###>>>".$customer_id."<<<###>>>".$store_id."<<<###>>>".$warehouse_id."<<<###>>>".$sales_note."<<<###>>>".$invoice_terms;
+
+		  }//if ()
+		 
+	    }
+	    else{
+	      print "Record Not Available";
+	    }
+	     
+	}//edit_pos()
+
+	
+	/* ######################################## HOLD INVOICE ############################# */
+	
+	public function hold_invoice_list(){
+		$data=$this->data;
+		  $i=0;
+		  $str ='';
+	      $q2=$this->db->where('store_id', get_current_store_id())->order_by('id', 'desc')->get('db_hold');
+	      if($q2->num_rows()>0){
+	        foreach($q2->result() as $res2){
+	     
+                  $str =$str."<tr>";
+                  $str =$str."<td>".$res2->id."</td>";
+                  $str =$str."<td>".show_date($res2->sales_date)."</td>";
+                  $str =$str."<td>".$res2->reference_id."</td>";
+                  $str =$str."<td>";
+                  	$str =$str.'<a class="fa fa-fw fa-trash-o text-red" style="cursor: pointer;font-size: 20px;" onclick="hold_invoice_delete('.$res2->id.')" title="Delete Invoive?"></a>';
+                  	$str =$str.'<a class="fa fa-fw fa-edit text-success" style="cursor: pointer;font-size: 20px;" onclick="hold_invoice_edit('.$res2->id.')" title="Edit Invoive?"></a>';
+                  $str =$str."</td>";
+                $str =$str."</tr>";
+	     
+	          $i++;
+	          }//for end
+	      }//if num_rows() end
+	      else{
+	      	
+	      	$str =$str."<tr>";
+	      		$str =$str.'<td colspan="4" class="text-danger text-center">No Records Found</td>';
+	      	$str =$str.'</tr>';
+	      	
+	      }
+		return $str;
+	}
+	public function hold_invoice_delete($id){
+		$this->db->trans_begin();
+		$this->db->where('id', (int)$id);
+		$this->db->where('store_id', get_current_store_id());
+		$this->db->delete('db_hold');
+		if($this->db->affected_rows() == 0){
+			$this->db->trans_rollback();
+			return "failed";
+		}
+		// Also delete related hold items
+		$this->db->where('hold_id', (int)$id);
+		$this->db->delete('db_holditems');
+		//COMMIT RECORD
+		$this->db->trans_commit();
+        return "success";
+
+	}
+
+
+	public function hold_invoice_edit(){
+		$data=$this->data;
+		$hold_id = $this->input->post('hold_id', TRUE);
+	     $q2=$this->db->query("select * from db_hold where id='$hold_id'");
+	    if($q2->num_rows()>0){
+	      $res2=$q2->row();
+	      $sales_date=show_date($res2->sales_date);
+	      $customer_id=$res2->customer_id;
+	      $discount_input=$res2->discount_to_all_input;
+	      $discount_type=$res2->discount_to_all_type;
+	      $grand_total=$res2->grand_total;
+	      $store_id=$res2->store_id;
+	      $warehouse_id=$res2->warehouse_id;
+	      $sales_note=$res2->sales_note;
+
+	      $q3=$this->db->query("SELECT * FROM db_holditems WHERE hold_id='$hold_id'");
+		  $rows=$q3->num_rows();
+		  if($rows>0){
+		  	$i=0;
+		  	
+		  	foreach ($q3->result() as $res3) { 
+		  		$q5=$this->db->query("select * from db_items where id=".$res3->item_id);
+		  		$price_per_unit = $res3->price_per_unit;
+		  		$description = $res3->description;
+		  		$service_bit = $q5->row()->service_bit;
+		  		$item_commission_type = $q5->row()->commission_type ?? 'none';
+		  		$item_commission_value = $q5->row()->commission_value ?? 0;
+		  		$staff_id = $res3->staff_id ?? 0;
+		  		$commission_amount = $res3->commission_amount ?? 0;
+
+		  		$warehouse_stock = total_available_qty_items_of_warehouse($warehouse_id,null,$res3->item_id);
+		  		$stock=$warehouse_stock;//$q5->row()->stock + $res3->sales_qty;
+
+		  		$item_discount = $res3->discount_amt;
+		  		$item_discount_type = $res3->discount_type;
+		  		$item_discount_input = $res3->discount_input;
+
+
+				$q6=get_document_item_tax($res3->tax_id);
+
+		  		
+				$per_item_price_inc_tax=$price_per_unit;
+				$per_item_price_inc_tax=number_format($per_item_price_inc_tax,decimals(),'.','');	
+
+				$tax_amt = $res3->tax_amt;
+				$tax_type = $res3->tax_type;
+				$tax_id = $res3->tax_id;
+				$tax_value = $q6->tax;
+
+		  		$quantity        ='<div class="input-group input-group-sm"><span class="input-group-btn"><button onclick="decrement_qty('.$res3->item_id.','.$i.')" type="button" class="btn btn-default btn-flat"><i class="fa fa-minus text-danger"></i></button></span>';
+			    $quantity       .='<input typ="text" value="'.$res3->sales_qty.'" class="form-control min_width" onkeyup="item_qty_input('.$res3->item_id.','.$i.')" id="item_qty_'.$i.'" name="item_qty_'.$i.'">';
+			    $quantity       .='<span class="input-group-btn"><button onclick="increment_qty('.$res3->item_id.','.$i.')" type="button" class="btn btn-default btn-flat"><i class="fa fa-plus text-success"></i></button></span></div>';
+			    $sub_total       =$res3->total_cost;
+			    $remove_btn      ='<a class="fa fa-fw fa-trash-o text-red" style="cursor: pointer;font-size: 20px;" onclick="removerow('.$i.')" title="Delete Item?"></a>';
+			    
+		  		echo '<tr id="row_'.$i.'" data-row="0" data-item-id="'.$res3->item_id.'" >'; /*item id */
+		  		echo '<td id="td_'.$i.'_0">
+		  		<a data-toggle="tooltip" title="Click to Change Tax" class="pointer" id="td_data_'.$i.'_0" onclick="show_sales_item_modal('.$i.')">'.$q5->row()->item_name.'</a>
+		  		</td>';  /*td_0_0 item name*/
+		  		echo '<td id="td_'.$i.'_1">'.$stock.'</td>';  /*td_0_1 item available qty*/
+		  		echo '<td id="td_'.$i.'_2">'.$quantity.'</td>';    /*td_0_2 item available qty */
+
+		  		$info = '<input id="sales_price_'.$i.'" onblur="set_to_original('.$i.','.$q5->row()->purchase_price.')" onkeyup="update_price('.$i.','.$q5->row()->purchase_price.')" name="sales_price_'.$i.'" type="text" class="form-control min_width" value="'.$per_item_price_inc_tax.'">';
+
+		  		echo '<td id="td_'.$i.'_3" class="text-right" >'.$info.'</td>';    /*td_0_3 item sales price */
+
+		  		$info = '<input data-toggle="tooltip" title="Click to Change" onclick="show_sales_item_modal('.$i.')" id="item_discount_'.$i.'" readonly name="item_discount_'.$i.'" type="text" class="form-control text-left no-padding" value="'.$item_discount.'">';
+
+		  		echo '<td id="td_'.$i.'_6" class="text-right" >'.$info.'</td>';
+
+		  		echo '<td id="td_'.$i.'_11"><input data-toggle="tooltip" title="Click to Change" id="td_data_'.$i.'_11" onclick="show_sales_item_modal('.$i.')" name="td_data_'.$i.'_11" type="text" class="form-control no-padding pointer min_width" readonly value="'.$tax_amt.'"></td>';
+		  		echo '<td id="td_'.$i.'_4" class="text-right" >
+		  		<input data-toggle="tooltip" title="Total" id="td_data_'.$i.'_4" name="td_data_'.$i.'_4" type="text" class="form-control no-padding pointer min_width" readonly value="'.store_number_format($sub_total,false).'"></td>';    /*td_0_4 item sub_total */
+		  		echo '<td id="td_'.$i.'_5">'.$remove_btn.'</td>';    /* td_0_5 item gst_amt  */
+
+		  		echo '<input type="hidden" name="tr_item_id_'.$i.'" id="tr_item_id_'.$i.'" value="'.$res3->item_id.'">'; 
+		  		echo '<input type="hidden" id="tr_item_per_'.$i.'" name="tr_item_per_'.$i.'" value="'.$q6->tax.'">';
+		  		echo '<input type="hidden" id="tr_sales_price_temp_'.$i.'" name="tr_sales_price_temp_'.$i.'" value="'.$per_item_price_inc_tax.'">';
+		  		echo '</tr>';
+		  		echo '<input type="hidden" id="tr_tax_type_'.$i.'" name="tr_tax_type_'.$i.'" value="'.$tax_type.'">';
+        		echo '<input type="hidden" id="tr_tax_id_'.$i.'" name="tr_tax_id_'.$i.'" value="'.$tax_id.'">';
+        		echo '<input type="hidden" id="tr_tax_value_'.$i.'" name="tr_tax_value_'.$i.'" value="'.$tax_value.'">';
+        		echo '<input type="hidden" id="description_'.$i.'" name="description_'.$i.'" value="'.$description.'">';
+        		echo '<input type="hidden" id="service_bit_'.$i.'" name="service_bit_'.$i.'" value="'.$service_bit.'">';
+        		echo '<input type="hidden" id="batch_lot_'.$i.'" name="batch_lot_'.$i.'" value="'.($res3->batch_lot ?? '').'">';
+        		echo '<input type="hidden" id="barcode_'.$i.'" name="barcode_'.$i.'" value="">';
+			echo '<input type="hidden" id="price_type_'.$i.'" name="price_type_'.$i.'" value="'.($res3->price_type ?? 'retail').'">';
+		  		echo '<input type="hidden" id="item_discount_type_'.$i.'" name="item_discount_type_'.$i.'" value="'.$item_discount_type.'">';
+        		echo '<input type="hidden" id="item_discount_input_'.$i.'" name="item_discount_input_'.$i.'" value="'.$item_discount_input.'">';
+        		echo '<input type="hidden" id="commission_type_'.$i.'" name="commission_type_'.$i.'" value="'.$item_commission_type.'">';
+        		echo '<input type="hidden" id="commission_value_'.$i.'" name="commission_value_'.$i.'" value="'.$item_commission_value.'">';
+        		echo '<input type="hidden" id="commission_amount_'.$i.'" name="commission_amount_'.$i.'" value="'.$commission_amount.'">';
+        		echo '<input type="hidden" id="staff_id_'.$i.'" name="staff_id_'.$i.'" value="'.$staff_id.'">';
+		  		$i++;
+		  	}//foreach() end
+
+		  	echo "<<<###>>>".$discount_input."<<<###>>>".$discount_type."<<<###>>>".$customer_id."<<<###>>>".$store_id."<<<###>>>".$warehouse_id."<<<###>>>".$sales_note."<<<###>>>".$hold_id;
+
+		  }//if ()
+		 
+	    }
+	    else{
+	      print "Record Not Available";
+	    }
+	     
+	}//edit_pos()
+
+
+	public function hold_list_save_update(){//Save or update sales
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = 'localhost';
+
+		$this->db->trans_begin();
+		$hidden_rowcount = $this->input->post('hidden_rowcount', TRUE);
+		$reference_id = $this->input->post_get('reference_id', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$discount_input = $this->input->post('discount_input', TRUE);
+		$tot_disc = $this->input->get_post('tot_disc', TRUE);
+		$tot_grand = $this->input->get_post('tot_grand', TRUE);
+		$tot_amt = $this->input->get_post('tot_amt', TRUE);
+		$sales_note = mp_post_text('sales_note');
+		$discount_type = $this->input->post('discount_type', TRUE);
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$table_id = (int) $this->input->post('table_id', TRUE);
+		// Manual Shipping — columns guarded for un-migrated installs
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
+		// A selected restaurant table is dine-in; shipping cannot coexist with it.
+		if ($table_id > 0) { $shipping_fee_id = 0; $shipping_label = ''; $shipping_fee = 0; }
+		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+
+		$store_id= get_current_store_id();
+		if (empty($warehouse_id)) $warehouse_id = get_pos_default_warehouse_id($store_id);
+		$allowed_warehouse_ids = mp_allowed_warehouse_ids($store_id);
+		if ($allowed_warehouse_ids !== null && !in_array((int)$warehouse_id, $allowed_warehouse_ids, true)) {
+			$this->db->trans_rollback();
+			return "You are not assigned to this branch.";
+		}
+		$rowcount 			=$hidden_rowcount;
+		$sales_date 		=date("Y-m-d",strtotime($CUR_DATE));
+		//$points 			= (empty($points_use)) ? 'NULL' : $points_use;
+		$discount_input 	= (empty($discount_input)) ? 'NULL' : $discount_input;
+		// Round off is the genuine rounding only — it used to be tot_grand - tot_amt,
+		// which swallowed the discount and delivery fee into "Round Off". db_hold has
+		// no coupon column, so the coupon can only land here.
+		$round_off = number_format(parse_amount($tot_grand) - (parse_amount($tot_amt) - parse_amount($tot_disc) + (float)$shipping_fee), decimals(),'.','');
+		$tot_disc 		= (empty($tot_disc) || $tot_disc==0) ? 'NULL' : $tot_disc;
+		$tot_grand 		= (empty($tot_grand)) ? 'NULL' : $tot_grand;
+		//$tot_grand		=round($tot_amt);
+		
+
+		$prev_item_ids = array();
+
+
+		$tot = $this->db->select("count(*) as tot")->where("store_id",$store_id)->where("reference_id",$reference_id)->get("db_hold")->row()->tot;
+		if($tot>0){
+			$this->db->where('reference_id', $reference_id);
+			$this->db->where('store_id', $store_id);
+			$q11=$this->db->delete('db_hold');
+			if(!$q11){
+				return "failed";
+			}
+		}
+		
+
+		$sales_entry = array(
+						'reference_id' 				=> $reference_id,
+	    				'store_id' 					=> $store_id,
+	    				'sales_date' 				=> $sales_date,
+	    				'sales_status' 				=> 'Final',
+	    				'customer_id' 				=> $customer_id,
+	    				/*Discount*/
+	    				'discount_to_all_input' 	=> $discount_input,
+	    				'discount_to_all_type' 		=> $discount_type,
+	    				'tot_discount_to_all_amt' 	=> $tot_disc,
+	    				/*Subtotal & Total */
+	    				'subtotal' 					=> $tot_amt,
+	    				'round_off' 				=> $round_off,
+	    				'grand_total' 				=> $tot_grand,
+	    				'pos' 						=> 1,
+	    				'sales_note' 				=> $sales_note,
+	    			);
+		if($this->db->field_exists('shipping_fee', 'db_hold')){
+			$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+			$sales_entry['shipping_label']  = $shipping_label ?: null;
+			$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+		}
+		$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1 && !empty($warehouse_id)) ? $warehouse_id : get_pos_default_warehouse_id($store_id);
+		$q3 = $this->db->insert('db_hold', $sales_entry);
+		$hold_id = $this->db->insert_id();
+		
+		//Import post data from form
+		for($i=0;$i<$rowcount;$i++){
+		
+			if(isset($_REQUEST['tr_item_id_'.$i]) && trim($_REQUEST['tr_item_id_'.$i])!=''){
+			
+				//RECEIVE VALUES FROM FORM
+				$item_id 	=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
+				$sales_qty 	=$this->xss_html_filter(trim($_REQUEST['item_qty_'.$i]));
+				$price_per_unit =$this->xss_html_filter(trim($_REQUEST['sales_price_'.$i]));
+				$tax_amt =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_11']));
+				$tax_type =$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
+				$tax_id =$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
+				$tax_value =$this->xss_html_filter(trim($_REQUEST['tr_tax_value_'.$i]));//%
+				$total_cost =$this->xss_html_filter(trim($_REQUEST['td_data_'.$i.'_4']));
+				$description =$this->xss_html_filter(trim($_REQUEST['description_'.$i]));
+				$batch_lot =$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i]));
+				$price_type =$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'retail'));
+				
+				$discount_type =$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
+				$discount_input =$this->xss_html_filter(trim($_REQUEST['item_discount_input_'.$i]));
+				$discount_amt =$this->xss_html_filter(trim($_REQUEST['item_discount_'.$i]));
+				$sold_serial_number = $this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number = $this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$barcode_id = intval($_REQUEST['barcode_id_'.$i] ?? 0);
+				$staff_id = intval($_REQUEST['staff_id_' . $i] ?? 0);
+				$commission_amount = floatval($_REQUEST['commission_amount_' . $i] ?? 0);
+
+				if($tax_type=='Exclusive'){
+					$single_unit_total_cost = $price_per_unit + ($tax_value * $price_per_unit / 100);
+				}
+				else{//Inclusive
+					$single_unit_total_cost =$price_per_unit;
+				}
+				$total_cost = ($tax_type == 'Exclusive') ? (($price_per_unit * $sales_qty) + (float)$tax_amt) : ($price_per_unit * $sales_qty);
+
+				
+				if($tax_id=='' || $tax_id==0){$tax_id=null;}
+				if($tax_amt=='' || $tax_amt==0){$tax_amt=null;}
+				if($total_cost=='' || $total_cost==0){$total_cost=null;}
+				
+				
+				/* ******************************** */
+				//Find the qty available or not
+				$item_details = get_item_details($item_id);
+				$item_name = $item_details->item_name;
+				$service_bit = $item_details->service_bit;
+				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+				if($current_stock_of_item<$sales_qty && $service_bit==0){
+					return $item_name." has only ".$current_stock_of_item." in Stock!!";exit;
+				}
+				
+				$salesitems_entry = array(
+							'store_id' 			=> $store_id,
+		    				'hold_id' 			=> $hold_id, 
+		    				'item_id' 			=> $item_id, 
+		    				'description' 		=> $description,
+	    				'batch_lot' 		=> $batch_lot,
+	    			'price_type' 		=> $price_type, 
+		    				'sales_qty' 		=> $sales_qty,
+		    				'price_per_unit' 	=> $price_per_unit,
+		    				'tax_id' 			=> $tax_id,
+		    				'tax_amt' 			=> $tax_amt,
+		    				'tax_type' 			=> $tax_type,
+		    				'discount_type' 	=> $discount_type,
+		    				'discount_input' 	=> $discount_input,
+		    				'discount_amt' 		=> $discount_amt,
+		    				'unit_total_cost' 	=> $single_unit_total_cost,
+		    				'total_cost' 		=> $total_cost,
+		    			'sold_serial_number'=> $sold_serial_number,
+		    			'sold_imei_number'  => $sold_imei_number,
+		    			'barcode_id'        => $barcode_id,
+		    											'staff_id'          => $staff_id ? $staff_id : null,
+		    											'commission_amount' => $commission_amount,
+		    			);
+				$q4 = $this->db->insert('db_holditems', $salesitems_entry);
+
+				$q11=$this->update_items_quantity($item_id);
+				if(!$q11){
+					return "failed";
+				}
+
+			}
+		
+		}//for end
+		
+
+		//COMMIT RECORD
+		$this->db->trans_commit();
+		
+		$this->session->set_flashdata('success', 'Success!! Sale Held Successfully!');
+        return "success";
+
+
+	}
+
+	/**
+	 * Deduct recipe ingredients / components when a sale is made.
+	 * Used for item_production_mode = 'component' or 'sale_deplete'.
+	 */
+	public function deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id) {
+		$item = $this->db->where('id', $item_id)->get('db_items')->row();
+		if (!$item || !in_array($item->item_production_mode, ['component', 'sale_deplete'])) {
+			return true;
+		}
+		if (empty($item->recipe_id)) {
+			return true;
+		}
+
+		$this->load->model('recipe_model');
+		$recipe = $this->recipe_model->get($item->recipe_id);
+		if (!$recipe) {
+			return true;
+		}
+
+		$ings = $this->recipe_model->get_ingredients($item->recipe_id);
+		if (empty($ings)) {
+			return true;
+		}
+
+		$yield = !empty($recipe->yield_qty) ? (float)$recipe->yield_qty : 1;
+		if ($yield <= 0) {
+			$yield = 1;
+		}
+		$scale = (float)$sales_qty / $yield;
+
+		$adjustment_items = [];
+		foreach ($ings as $ing) {
+			if (empty($ing->item_id)) {
+				continue;
+			}
+			$deduct_qty = (float)$ing->qty * $scale;
+			if ($deduct_qty <= 0) {
+				continue;
+			}
+			$adjustment_items[] = [
+				'store_id'       => $store_id,
+				'warehouse_id'   => $warehouse_id,
+				'item_id'        => (int)$ing->item_id,
+				'adjustment_qty' => -$deduct_qty,
+				'description'    => 'Sale #' . $sales_id . ' / ' . $item->item_name . ' x' . $sales_qty,
+			];
+		}
+
+		if (empty($adjustment_items)) {
+			return true;
+		}
+
+		// Never deduct the same sale line twice (replayed save, or the same sale
+		// written through more than one model): the line fingerprint carries the
+		// quantity so a genuine repeat with different qty still depletes.
+		$dedup_ref = 'SALE-' . $sales_id;
+		$line_fingerprint = 'Sale #' . $sales_id . ' / ' . $item->item_name . ' x' . $sales_qty;
+		$existing_docs = $this->db->where('store_id', $store_id)
+			->where('reference_no', $dedup_ref)
+			->select('id')
+			->get('db_stockadjustment')->result_array();
+		foreach ($existing_docs as $doc) {
+			$already = $this->db->where('adjustment_id', (int)$doc['id'])
+				->where('description', $line_fingerprint)
+				->count_all_results('db_stockadjustmentitems');
+			if ($already > 0) {
+				return true;
+			}
+		}
+
+		$adj = [
+			'store_id'        => $store_id,
+			'warehouse_id'    => $warehouse_id,
+			'reference_no'    => 'SALE-' . $sales_id,
+			'adjustment_date' => date('Y-m-d'),
+			'adjustment_note' => 'Recipe depletion for ' . $item->item_name,
+			'created_date'    => date('Y-m-d'),
+			'created_time'    => date('H:i:s'),
+			'created_by'      => 'POS',
+			'system_ip'       => '127.0.0.1',
+			'system_name'     => 'POS',
+			'status'          => 1,
+		];
+		if (!$this->db->insert('db_stockadjustment', $adj)) {
+			return false;
+		}
+		$adjustment_id = $this->db->insert_id();
+
+		foreach ($adjustment_items as $ai) {
+			$ai['adjustment_id'] = $adjustment_id;
+			$ai['status'] = 1;
+			if (!$this->db->insert('db_stockadjustmentitems', $ai)) {
+				return false;
+			}
+		}
+
+		foreach ($adjustment_items as $ai) {
+			if (!$this->update_items_quantity($ai['item_id'])) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+}

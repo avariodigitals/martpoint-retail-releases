@@ -1,0 +1,301 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Post-Installation Seeder
+ * Runs once after fresh installation to create default roles,
+ * permissions, and expense categories.
+ * 
+ * Does NOT require authentication.
+ * Safe to re-run (idempotent via model checks).
+ */
+class Install_seed extends CI_Controller {
+
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+        $this->load->helper('business_profile');
+        $this->load->model('default_data_model', 'seeder');
+        $this->load->model('business_profile_model', 'bp_model');
+    }
+
+    /**
+     * Run default data seeding for all retail stores
+     * then show the welcome celebration page
+     */
+    public function index() {
+        // This endpoint is intentionally unauthenticated for the first-run
+        // installer handoff. Refuse every later request once setup is locked.
+        if (is_file(APPPATH . 'config/installed.lock')) {
+            show_404();
+            return;
+        }
+
+        // Business type chosen in the installer (backwards compatible if not set)
+        $industry_type  = $this->input->get('industry_type', TRUE) ?: 'general_retail';
+        $business_model = $this->input->get('business_model', TRUE) ?: '';
+
+        // Seed all non-admin stores (store_id > 1)
+        $stores = $this->db->where('id >', 1)->get('db_store')->result();
+
+        foreach ($stores as $store) {
+            $this->seeder->seed_store_defaults($store->id);
+            $this->_assign_business_owner_role((int)$store->id);
+            $this->_apply_business_profile($store->id, $industry_type, $business_model);
+            $this->_apply_email_defaults($store->id);
+
+            // HIGH-FIDELITY DEMO INTEGRATION
+            // Trigger the rich seeder if the site is a demo instance
+            $this->_apply_demo_data($store->id, $industry_type);
+        }
+
+        // Create any extra staff accounts captured during installation
+        $this->_create_pending_users($stores);
+
+        // Mark installation as complete so the public entry point never
+        // accidentally redirects back into the installer.
+        $lock_file = APPPATH . 'config/installed.lock';
+        if (!file_exists($lock_file)) {
+            $lock_content = date('Y-m-d H:i:s') . ' | MartPoint ' . app_version() . PHP_EOL;
+            @file_put_contents($lock_file, $lock_content);
+        }
+
+        // Show beautiful welcome celebration page
+        $this->load->view('install_welcome');
+    }
+
+    /**
+     * Older installers assigned every merchant owner the global role id 2
+     * (Store Admin). The store's linked owner account must instead use its own
+     * store-scoped Business Owner role; never change other users or stores.
+     */
+    private function _assign_business_owner_role($store_id) {
+        if ($store_id <= 1 || !$this->db->field_exists('user_id', 'db_store')) {
+            return;
+        }
+        $store = $this->db->select('user_id')->where('id', $store_id)->limit(1)->get('db_store')->row();
+        $owner_id = $store ? (int)$store->user_id : 0;
+        if ($owner_id <= 0) {
+            return;
+        }
+
+        $role = $this->db->select('id, role_name')->where('store_id', $store_id)
+            ->where('UPPER(role_name)', 'BUSINESS OWNER')->where('status', 1)
+            ->limit(1)->get('db_roles')->row();
+        if (!$role) {
+            log_message('error', 'Install seed could not find the Business Owner role for store '.$store_id);
+            return;
+        }
+
+        $user = $this->db->select('id, role_id')->where('id', $owner_id)
+            ->where('store_id', $store_id)->limit(1)->get('db_users')->row();
+        if (!$user || (int)$user->role_id === (int)$role->id) {
+            return;
+        }
+        $current_role = $this->db->select('role_name')->where('id', (int)$user->role_id)->limit(1)->get('db_roles')->row();
+        if ((int)$user->role_id !== 2 && strtoupper(trim((string)($current_role->role_name ?? ''))) !== 'STORE ADMIN') {
+            return; // Preserve any deliberate owner-specific role assignment.
+        }
+
+        $update = array('role_id' => (int)$role->id);
+        if ($this->db->field_exists('role_name', 'db_users')) {
+            $update['role_name'] = $role->role_name;
+        }
+        $this->db->where('id', $owner_id)->where('store_id', $store_id)->update('db_users', $update);
+    }
+
+    /**
+     * Check if this is a demo instance and apply rich "Zonat" data.
+     */
+    private function _apply_demo_data($store_id, $industry_type) {
+        // We identify a demo instance by the server name or a specific environment flag
+        $server_name = $_SERVER['HTTP_HOST'] ?? '';
+        if (strpos($server_name, 'demo.martpoint') !== false) {
+            $this->load->model('Demo_seeder');
+            $this->Demo_seeder->seed_full_demo($store_id, $industry_type);
+        }
+    }
+
+    /**
+     * Apply the business-type preset to a store.
+     * Falls back to general_retail if an invalid type is supplied.
+     */
+    private function _apply_business_profile($store_id, $industry_type, $business_model = '') {
+        $presets = mp_get_business_presets();
+        $industry_type = (isset($presets[$industry_type])) ? $industry_type : 'general_retail';
+        $preset = $presets[$industry_type];
+
+        $business_models = mp_get_business_models();
+        if (empty($business_model) || !isset($business_models[$business_model])) {
+            $business_model = $preset['business_model'] ?? 'product_based';
+        }
+
+        $feature_flags = [];
+        foreach (mp_get_feature_flags() as $key => $label) {
+            $feature_flags[$key] = (isset($preset['features']) && in_array($key, $preset['features'], true)) ? '1' : '0';
+        }
+
+        $data = [
+            'industry_type'         => $industry_type,
+            'business_model'        => $business_model,
+            'workflow_template_key' => $preset['workflow_template'] ?? 'retail_standard',
+            'dashboard_template_key'=> $preset['dashboard_template'] ?? 'general_retail',
+            'storefront_theme_key'  => $preset['theme_key'] ?? 'general_retail',
+            'feature_flags_json'    => json_encode($feature_flags),
+            'label_overrides_json'  => !empty($preset['labels']) ? json_encode($preset['labels']) : null,
+            'industry_settings_json'=> null,
+        ];
+
+        $this->bp_model->update_profile($store_id, $data);
+
+        // Seed industry-specific master data (units, categories, formula types)
+        $this->load->model('Default_data_model', 'default_data');
+        $this->default_data->seed_industry_defaults($store_id, $industry_type);
+    }
+
+    /**
+     * Default every new store to the Resend email provider (credentials can be
+     * overridden later under Settings → Email Settings) and install the
+     * standard email templates so notifications work out of the box.
+     */
+    private function _apply_email_defaults($store_id) {
+        // Provider: Resend. API key/sender are left blank on purpose — the
+        // store admin overrides them in Email Settings.
+        if ($this->db->table_exists('db_email_settings')) {
+            $existing = $this->db->where('store_id', $store_id)->get('db_email_settings')->row();
+            if (!$existing) {
+                $store = $this->db->where('id', $store_id)->get('db_store')->row();
+                $from_name = ($store && !empty($store->store_name)) ? $store->store_name : 'MartPoint';
+                $this->db->insert('db_email_settings', [
+                    'store_id'          => $store_id,
+                    'email_provider'    => 'resend',
+                    'email_from_name'   => $from_name,
+                    'resend_from_name'  => $from_name,
+                ]);
+            }
+        }
+
+        // Standard email templates (invoice, receipt, OTP, reports, etc.)
+        $this->load->model('Email_template_model', 'email_templates');
+        if (method_exists($this->email_templates, 'seedDefaults')) {
+            $this->email_templates->seedDefaults($store_id);
+        }
+
+        // Default report schedules (daily summary / low stock)
+        $this->load->model('Report_schedule_model', 'report_schedules');
+        if (method_exists($this->report_schedules, 'seedDefaults')) {
+            $this->report_schedules->seedDefaults($store_id);
+        }
+    }
+
+    /**
+     * Create the extra staff users captured on the installer screen.
+     * The installer stores them (with bcrypt-hashed passwords) in
+     * db_store_settings under installer/pending_staff_users; we create the
+     * accounts here after roles are seeded so role names resolve to real
+     * role ids, then clear the stored payload.
+     */
+    private function _create_pending_users($stores) {
+        if (empty($stores) || ! $this->db->table_exists('db_store_settings')) {
+            return;
+        }
+        $store_id = (int)$stores[0]->id;
+
+        $row = $this->db->where('setting_group', 'installer')
+            ->where('setting_key', 'pending_staff_users')
+            ->get('db_store_settings')->row();
+        if (!$row || empty($row->setting_value)) {
+            return;
+        }
+        $pending = json_decode($row->setting_value, true);
+        // Consume the payload whether or not it is usable.
+        $this->db->where('id', $row->id)->delete('db_store_settings');
+        if (!is_array($pending) || empty($pending['users'])) {
+            return;
+        }
+
+        // Default warehouse for new staff: the seeded Business HQ warehouse
+        $hq = $this->db->where('store_id', $store_id)->order_by('id', 'asc')
+            ->get('db_warehouse')->row();
+        $hq_id = $hq ? (int)$hq->id : null;
+
+        foreach ($pending['users'] as $u) {
+            $full_name = trim((string)($u['name'] ?? ''));
+            $username  = trim((string)($u['username'] ?? ''));
+            $email     = trim((string)($u['email'] ?? ''));
+            $role_name = trim((string)($u['role'] ?? ''));
+
+            if ($full_name === '' || $username === '') {
+                continue;
+            }
+            if ($email === '') {
+                $email = $username;
+            }
+            // Skip duplicates
+            $dup = $this->db->where('username', $username)
+                ->or_where('email', $email)
+                ->get('db_users')->num_rows();
+            if ($dup > 0) {
+                continue;
+            }
+
+            // Resolve role name → role_id. Pending users are staff accounts;
+            // never silently promote an invalid/missing role to Store Admin.
+            $role = null;
+            if ($role_name !== '') {
+                $role = $this->db->where('store_id', $store_id)
+                    ->where('UPPER(role_name)', strtoupper($role_name))
+                    ->get('db_roles')->row();
+            }
+            if (!$role || in_array(strtoupper(trim($role->role_name)), array('ADMIN', 'STORE ADMIN', 'BUSINESS OWNER', 'STORE OWNER', 'OWNER'), true)) {
+                $role = $this->db->where('store_id', $store_id)
+                    ->where('UPPER(role_name)', 'MANAGER')->where('status', 1)
+                    ->limit(1)->get('db_roles')->row();
+            }
+            if (!$role) {
+                log_message('error', 'Install seed skipped pending staff account '.$username.'; no safe staff role was available for store '.$store_id);
+                continue;
+            }
+            $role_id = (int)$role->id;
+
+            $parts = preg_split('/\s+/', $full_name, 2);
+            // Installer stores only bcrypt hashes. Never create a new account
+            // from an absent or malformed password hash.
+            $pass_hash = trim((string)($u['pass_hash'] ?? ''));
+            if ($pass_hash === '' || password_get_info($pass_hash)['algoName'] === 'unknown') {
+                log_message('error', 'Install seed skipped pending staff account '.$username.'; a valid password hash was not supplied.');
+                continue;
+            }
+
+            $next_user_id = $this->db->select('COALESCE(MAX(id),0)+1 as next_id')
+                ->get('db_users')->row()->next_id;
+
+            $this->db->insert('db_users', [
+                'id'                   => $next_user_id,
+                'store_id'             => $store_id,
+                'username'             => $username,
+                'first_name'           => $parts[0],
+                'last_name'            => $parts[1] ?? '',
+                'password'             => $pass_hash,
+                'email'                => $email,
+                'mobile'               => trim((string)($u['mobile'] ?? '')),
+                'role_id'              => $role_id,
+                'role_name'            => $role->role_name,
+                'default_warehouse_id' => $hq_id,
+                'status'               => 1,
+                'created_date'         => date('Y-m-d'),
+                'created_time'         => date('h:i:s a'),
+                'created_by'           => 'installer',
+            ]);
+
+            // Warehouse assignment (matches Users_model behaviour for non-admin staff)
+            if ($hq_id) {
+                $max_wh = $this->db->select('COALESCE(MAX(id),0)+1 as nid')
+                    ->get('db_userswarehouses')->row()->nid;
+                $this->db->insert('db_userswarehouses', [
+                    'id' => $max_wh, 'user_id' => $next_user_id, 'warehouse_id' => $hq_id,
+                ]);
+            }
+        }
+    }
+}

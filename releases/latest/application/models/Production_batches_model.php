@@ -1,0 +1,494 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Production Batches Model
+ * Bakery batch scheduling, kitchen production, made-to-order manufacturing
+ */
+class Production_batches_model extends CI_Model {
+
+    var $table = 'db_production_batches as a';
+    var $column_order = array('a.id','a.batch_code','a.batch_name','a.scheduled_date','a.status','a.equipment','a.created_at');
+    var $column_search = array('a.batch_code','a.batch_name','a.equipment','a.notes');
+    var $order = array('a.scheduled_date' => 'asc');
+
+    public function __construct() {
+        parent::__construct();
+        $this->_ensure_tables();
+    }
+
+    private function _ensure_tables() {
+        $tables = ['db_production_batches', 'db_production_batch_items'];
+        foreach ($tables as $table) {
+            if (!$this->db->table_exists($table)) {
+                log_message('error', 'Missing required table: ' . $table . '. Run the 4.0.2 migration via login.');
+            }
+        }
+    }
+
+    // ========== Workflow helpers ==========
+    /**
+     * Status pipeline for production batches. Perfumeries follow the
+     * global blending workflow: source raw materials → blend → macerate
+     * (age the compound) → filter → bottle → ready. Other industries keep
+     * the bakery/kitchen pipeline.
+     */
+    public static function get_statuses($industry_type = null, $batch_type = null) {
+        if ($industry_type === null) {
+            $industry_type = self::_store_industry_type();
+        }
+        if ($industry_type === 'perfume_shop') {
+            // A Bottling Run skips the compounding stages entirely — it only
+            // fills bottles, so planned → bottling → ready → completed.
+            if ($batch_type === 'bottling') {
+                return ['planned','bottling','ready','completed','cancelled'];
+            }
+            return ['planned','sourcing','blending','macerating','filtering','bottling','ready','completed','cancelled'];
+        }
+        return ['planned','prepping','in_production','cooling','decorating','ready','completed','cancelled'];
+    }
+
+    private static function _store_industry_type() {
+        $CI =& get_instance();
+        if (!function_exists('mp_get_store_profile')) {
+            $CI->load->helper('business_profile');
+        }
+        if (function_exists('mp_get_store_profile')) {
+            $profile = mp_get_store_profile();
+            return $profile['industry_type'] ?? 'general_retail';
+        }
+        return 'general_retail';
+    }
+
+    public static function status_label($status) {
+        $labels = [
+            'planned' => 'Planned', 'prepping' => 'Prepping',
+            'in_production' => 'In Production', 'cooling' => 'Cooling',
+            'decorating' => 'Decorating', 'ready' => 'Ready',
+            'completed' => 'Completed', 'cancelled' => 'Cancelled',
+            'sourcing' => 'Sourcing Materials', 'blending' => 'Blending',
+            'macerating' => 'Macerating', 'filtering' => 'Filtering',
+            'bottling' => 'Bottling',
+        ];
+        return $labels[$status] ?? ucfirst(str_replace('_',' ',$status));
+    }
+
+    public static function status_badge($status) {
+        $map = [
+            'planned' => 'default', 'prepping' => 'info',
+            'in_production' => 'primary', 'cooling' => 'warning',
+            'decorating' => 'warning', 'ready' => 'success',
+            'completed' => 'success', 'cancelled' => 'danger',
+            'sourcing' => 'info', 'blending' => 'primary',
+            'macerating' => 'warning', 'filtering' => 'warning',
+            'bottling' => 'primary',
+        ];
+        return $map[$status] ?? 'default';
+    }
+
+    // ========== CRUD ==========
+    public function save($data, $id = null) {
+        $this->db->trans_begin();
+        try {
+            if ($id) {
+                // Stamp maceration start when a batch first enters the
+                // macerating stage, copying the aging requirement from its
+                // formula so the tracker can compute the ready date.
+                if (($data['status'] ?? '') === 'macerating' && $this->db->field_exists('maceration_started', 'db_production_batches')) {
+                    $existing = $this->db->where('id', $id)->get('db_production_batches')->row();
+                    if ($existing && $existing->status !== 'macerating') {
+                        if (empty($data['maceration_started'])) {
+                            $data['maceration_started'] = date('Y-m-d');
+                        }
+                        if (!isset($data['maceration_days'])) {
+                            $data['maceration_days'] = $this->_batch_maceration_days($id);
+                        }
+                    }
+                }
+                $this->db->where('id', $id);
+                $this->db->update('db_production_batches', $data);
+                $batch_id = $id;
+            } else {
+                $store_id = $data['store_id'] ?? get_current_store_id();
+                $prefix = 'BATCH-' . date('Ymd') . '-';
+                $last = $this->db->like('batch_code', $prefix, 'after')
+                    ->where('store_id', $store_id)
+                    ->order_by('id', 'DESC')
+                    ->limit(1)
+                    ->get('db_production_batches')->row();
+                $next_num = $last ? ((int)substr($last->batch_code, strrpos($last->batch_code, '-')+1) + 1) : 1;
+                $data['batch_code'] = $prefix . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+                $this->db->insert('db_production_batches', $data);
+                $batch_id = $this->db->insert_id();
+            }
+            $this->db->trans_commit();
+            return $batch_id;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Highest maceration_days across the formulas linked to a batch.
+     * A batch that blends several formulas must age for the longest one.
+     */
+    private function _batch_maceration_days($batch_id) {
+        if (!$this->db->field_exists('maceration_days', 'db_recipes')) {
+            return 0;
+        }
+        $days = 0;
+        $items = $this->get_items($batch_id);
+        foreach ($items as $item) {
+            if ($item->item_type !== 'recipe_product') continue;
+            $recipe = $this->db->where('id', $item->item_id)->get('db_recipes')->row();
+            if ($recipe && (int)$recipe->maceration_days > $days) {
+                $days = (int)$recipe->maceration_days;
+            }
+        }
+        return $days;
+    }
+
+    public function save_items($batch_id, $items) {
+        $this->db->where('batch_id', $batch_id);
+        $this->db->delete('db_production_batch_items');
+        foreach ($items as $item) {
+            $item['batch_id'] = $batch_id;
+            $this->db->insert('db_production_batch_items', $item);
+        }
+    }
+
+    public function get($id) {
+        $this->db->select('a.*, u.first_name, u.last_name');
+        $this->db->from('db_production_batches a');
+        $this->db->join('db_users u', 'u.id = a.staff_id', 'left');
+        $this->db->where('a.id', $id);
+        return $this->db->get()->row();
+    }
+
+    public function get_items($batch_id) {
+        $this->db->where('batch_id', $batch_id);
+        return $this->db->get('db_production_batch_items')->result();
+    }
+
+    public function delete($id) {
+        $this->db->where('id', $id);
+        $this->db->delete('db_production_batches');
+        $this->db->where('batch_id', $id);
+        $this->db->delete('db_production_batch_items');
+    }
+
+    /**
+     * Convert a recipe ingredient qty from its selected unit into the item's
+     * base (stock) unit. Recipes store the unit name the user picked; stock
+     * is always kept in the item's base unit.
+     */
+    private function ingredient_qty_in_base($item_id, $unit_name, $qty) {
+        if (empty($item_id) || empty($unit_name) || $qty == 0) return $qty;
+        $item = $this->db->select('unit_id, store_id')->where('id', $item_id)->get('db_items')->row();
+        if (!$item || empty($item->unit_id)) return $qty;
+        $base = $this->db->select('unit_name')->where('id', $item->unit_id)->get('db_units')->row();
+        if (!$base || $base->unit_name === $unit_name) return $qty;
+        if (!function_exists('get_unit_family')) return $qty;
+        foreach (get_unit_family($item->unit_id, $item->store_id) as $u) {
+            if ($u->unit_name === $unit_name && $u->equivalent_qty > 0) {
+                return $qty / (float)$u->equivalent_qty;
+            }
+        }
+        return $qty;
+    }
+
+    /**
+     * Complete a production batch:
+     * 1. Group items by recipe
+     * 2. Scale ingredient qty by (produce_qty / recipe_yield_qty)
+     * 3. Deduct raw materials from stock
+     * 4. Add final product to stock
+     * 5. Record production run
+     */
+    public function complete_batch($batch_id) {
+        if ($this->db->table_exists('db_garden_production_context') && $this->db->where('batch_id',(int)$batch_id)->count_all_results('db_garden_production_context')) return false; // Garden inputs are issued before output; use Garden_production_model::act().
+        $this->load->model('recipe_model', 'recipe');
+        $this->load->model('pos_model');
+        // Lock the batch before checking status. The lock and the stock,
+        // production-run, and status writes share one transaction so a
+        // repeated or concurrent completion cannot post twice.
+        $this->db->trans_begin();
+        try {
+            $batch = $this->db->query(
+                'SELECT a.*, u.first_name, u.last_name
+                 FROM db_production_batches a
+                 LEFT JOIN db_users u ON u.id = a.staff_id
+                 WHERE a.id = ? LIMIT 1 FOR UPDATE',
+                [(int)$batch_id]
+            )->row();
+            if (!$batch) {
+                $this->db->trans_rollback();
+                return false;
+            }
+
+            if (!empty($batch->status) && $batch->status === 'completed') {
+                $this->db->trans_commit();
+                return true;
+            }
+
+            $store_id = $batch->store_id;
+            $warehouse_id = get_store_warehouse_id();
+            $items = $this->get_items($batch_id);
+            $affected_item_ids = [];
+            $adjustment_items = [];
+            $production_runs = [];
+
+            foreach ($items as $item) {
+                $recipe_id = null;
+                $product_item_id = null;
+                $produce_qty = (float)$item->quantity;
+
+                if ($item->item_type == 'custom_order') {
+                    $co = $this->db->where('id', $item->item_id)->get('db_custom_orders')->row();
+                    if (!$co || !$co->item_id) continue;
+                    $product = $this->db->where('id', $co->item_id)->get('db_items')->row();
+                    if (!$product || !$product->recipe_id) continue;
+                    $recipe_id = $product->recipe_id;
+                    $product_item_id = $product->id;
+                } else if ($item->item_type == 'recipe_product') {
+                    $recipe_link = $this->db->where('id', $item->item_id)->get('db_recipes')->row();
+                    if (!$recipe_link) continue;
+                    $recipe_id = $recipe_link->id;
+                    $product_item_id = $recipe_link->product_item_id;
+                }
+
+                if (!$recipe_id || $produce_qty <= 0) continue;
+                $recipe = $this->recipe->get($recipe_id);
+                if (!$recipe || $recipe->yield_qty <= 0) continue;
+
+                $ings = $this->recipe->get_ingredients($recipe_id);
+                $scale = $produce_qty / (float)$recipe->yield_qty;
+                $run_cost = 0;
+
+                foreach ($ings as $ing) {
+                    if (!$ing->item_id) continue;
+                    $deduct_qty = $this->ingredient_qty_in_base($ing->item_id, $ing->unit ?? '', (float)$ing->qty) * $scale;
+                    if ($deduct_qty <= 0) continue;
+                    $run_cost += $deduct_qty * (float)$ing->cost_per_unit;
+                    $affected_item_ids[] = $ing->item_id;
+                    $adjustment_items[] = [
+                        'store_id' => $store_id, 'warehouse_id' => $warehouse_id,
+                        'item_id' => $ing->item_id, 'adjustment_qty' => -$deduct_qty,
+                        'description' => 'Production: ' . ($batch->batch_code ?? $batch_id) . ' / Recipe: ' . $recipe->name,
+                    ];
+                }
+
+                if ($product_item_id) {
+                    $affected_item_ids[] = $product_item_id;
+                    $adjustment_items[] = [
+                        'store_id' => $store_id, 'warehouse_id' => $warehouse_id,
+                        'item_id' => $product_item_id, 'adjustment_qty' => $produce_qty,
+                        'description' => 'Produced from batch ' . ($batch->batch_code ?? $batch_id) . ' / Recipe: ' . $recipe->name,
+                    ];
+                    if (!empty($recipe->margin_pct) && $recipe->margin_pct > 0) {
+                        $cost_per_unit = $run_cost / $produce_qty;
+                        $this->db->where('id', $product_item_id)->update('db_items', [
+                            'sales_price' => round($cost_per_unit * (1 + ((float)$recipe->margin_pct / 100)), 2),
+                        ]);
+                    }
+                }
+
+                $production_runs[] = [
+                    'store_id' => $store_id, 'recipe_id' => $recipe_id, 'batch_id' => $batch_id,
+                    'planned_qty' => $produce_qty, 'actual_yield' => $produce_qty,
+                    'actual_cost' => round($run_cost, 2), 'staff_id' => $batch->staff_id ?? null,
+                    'notes' => 'Completed from batch ' . ($batch->batch_code ?? $batch_id),
+                    'run_date' => date('Y-m-d'),
+                ];
+            }
+
+            if (!empty($adjustment_items)) {
+                $adj = [
+                    'store_id' => $store_id, 'warehouse_id' => $warehouse_id,
+                    'reference_no' => ($batch->batch_code ?? 'BATCH-'.$batch_id) . ' [PROD]',
+                    'adjustment_date' => date('Y-m-d'), 'adjustment_note' => 'Production batch completion',
+                    'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
+                    'created_by' => 'System', 'system_ip' => '127.0.0.1',
+                    'system_name' => 'Production', 'status' => 1,
+                ];
+                if ($this->db->field_exists('source_production_batch_id', 'db_stockadjustment')) {
+                    $adj['source_production_batch_id'] = (int)$batch_id;
+                    $adj['source_action'] = 'production';
+                }
+                if (!$this->db->insert('db_stockadjustment', $adj)) throw new Exception('Failed to create stock adjustment');
+                $adjustment_id = $this->db->insert_id();
+                if (!$adjustment_id) throw new Exception('Failed to get adjustment ID');
+
+                foreach ($adjustment_items as $ai) {
+                    $ai['adjustment_id'] = $adjustment_id;
+                    $ai['status'] = 1;
+                    if (!$this->db->insert('db_stockadjustmentitems', $ai)) throw new Exception('Failed to insert production adjustment item');
+                }
+            }
+
+            foreach ($production_runs as $run) {
+                if ($this->recipe->record_production_run($run) === false) throw new Exception('Failed to record production run');
+            }
+
+            $unique_ids = array_values(array_unique($affected_item_ids));
+            foreach ($unique_ids as $uid) {
+                if (!$this->pos_model->update_items_quantity($uid)) throw new Exception('Failed to update item quantity for item_id ' . $uid);
+            }
+            if (!empty($unique_ids)) {
+                $two_array = [];
+                foreach ($unique_ids as $uid) $two_array[] = [$uid];
+                if (!update_warehouse_items($two_array)) throw new Exception('Failed to update warehouse items');
+            }
+
+            // Set the guard inside the same transaction as the stock post.
+            $this->db->where('id', (int)$batch_id)->update('db_production_batches', ['status' => 'completed']);
+            if ($this->db->trans_status() === false) throw new Exception('Production completion transaction failed');
+            $this->db->trans_commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'complete_batch failed for batch ' . $batch_id . ': ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Validate that all ingredients for a batch have sufficient stock.
+     * Returns array of shortages: [['item_name'=>'Flour','needed'=>5,'available'=>2],...]
+     */
+    public function validate_stock_for_batch($batch_id) {
+        $this->load->model('recipe_model', 'recipe');
+        $items = $this->get_items($batch_id);
+        $warehouse_id = get_store_warehouse_id();
+        $store_id = get_current_store_id();
+        $shortages = [];
+
+        foreach ($items as $item) {
+            $recipe_id = null;
+            $produce_qty = (float)$item->quantity;
+
+            if ($item->item_type == 'custom_order') {
+                $co = $this->db->where('id', $item->item_id)->get('db_custom_orders')->row();
+                if (!$co || !$co->item_id) continue;
+                $product = $this->db->where('id', $co->item_id)->get('db_items')->row();
+                if (!$product || !$product->recipe_id) continue;
+                $recipe_id = $product->recipe_id;
+            } else if ($item->item_type == 'recipe_product') {
+                $recipe = $this->db->where('id', $item->item_id)->get('db_recipes')->row();
+                if (!$recipe) continue;
+                $recipe_id = $recipe->id;
+            }
+
+            if (!$recipe_id || $produce_qty <= 0) continue;
+            $recipe = $this->recipe->get($recipe_id);
+            if (!$recipe || $recipe->yield_qty <= 0) continue;
+
+            $ings = $this->recipe->get_ingredients($recipe_id);
+            $scale = $produce_qty / (float)$recipe->yield_qty;
+
+            foreach ($ings as $ing) {
+                if (!$ing->item_id) continue;
+                $needed = $this->ingredient_qty_in_base($ing->item_id, $ing->unit ?? '', (float)$ing->qty) * $scale;
+                if ($needed <= 0) continue;
+
+                $available = total_available_qty_items_of_warehouse($warehouse_id, $store_id, $ing->item_id);
+                if ($available < $needed) {
+                    $shortages[] = [
+                        'item_name' => $ing->item_name,
+                        'needed'    => round($needed, 3),
+                        'available' => round($available, 3),
+                    ];
+                }
+            }
+        }
+        return $shortages;
+    }
+
+    // ========== Scheduling ==========
+    public function get_schedule($store_id, $date_from, $date_to, $status = null) {
+        $this->db->select('a.*, u.first_name, u.last_name');
+        $this->db->from('db_production_batches a');
+        $this->db->join('db_users u', 'u.id = a.staff_id', 'left');
+        $this->db->where('a.store_id', $store_id);
+        $this->db->where('a.scheduled_date >=', $date_from);
+        $this->db->where('a.scheduled_date <=', $date_to);
+        if ($status) {
+            $this->db->where('a.status', $status);
+        }
+        $this->db->order_by('a.scheduled_date', 'ASC');
+        $this->db->order_by('a.scheduled_time', 'ASC');
+        return $this->db->get()->result();
+    }
+
+    public function get_pending_items($store_id) {
+        if (!$this->db->table_exists('db_custom_orders')) {
+            return [];
+        }
+        $this->db->select('a.*, c.customer_name');
+        $this->db->from('db_custom_orders a');
+        $this->db->join('db_customers c', 'c.id = a.customer_id', 'left');
+        $this->db->where('a.store_id', $store_id);
+        $this->db->where_in('a.status', ['new','confirmed','deposit_paid','quoted']);
+        $this->db->order_by('a.due_date', 'ASC');
+        return $this->db->get()->result();
+    }
+
+    public function count_by_status($store_id, $status) {
+        $this->db->where('store_id', $store_id);
+        $this->db->where('status', $status);
+        return $this->db->count_all_results('db_production_batches');
+    }
+
+    // ========== Datatables ==========
+    private function _get_datatables_query() {
+        $store_id = get_current_store_id();
+        $this->db->select('a.*, u.first_name, u.last_name');
+        $this->db->from($this->table);
+        $this->db->join('db_users u', 'u.id = a.staff_id', 'left');
+        $this->db->where('a.store_id', $store_id);
+
+        $i = 0;
+        foreach ($this->column_search as $item) {
+            if (isset($_POST['search']['value']) && $_POST['search']['value'] != '') {
+                if ($i === 0) {
+                    $this->db->group_start();
+                    $this->db->like($item, $_POST['search']['value']);
+                } else {
+                    $this->db->or_like($item, $_POST['search']['value']);
+                }
+                if (count($this->column_search) - 1 == $i) {
+                    $this->db->group_end();
+                }
+            }
+            $i++;
+        }
+        if (isset($_POST['order'])) {
+            $this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+        } else if (isset($this->order)) {
+            $order = $this->order;
+            $this->db->order_by(key($order), $order[key($order)]);
+        }
+    }
+
+    public function get_datatables() {
+        $this->_get_datatables_query();
+        if ($_POST['length'] != -1) {
+            $this->db->limit($_POST['length'], $_POST['start']);
+        }
+        return $this->db->get()->result();
+    }
+
+    public function count_filtered() {
+        $this->_get_datatables_query();
+        $query = $this->db->get();
+        return $query->num_rows();
+    }
+
+    public function count_all() {
+        $store_id = get_current_store_id();
+        $this->db->from('db_production_batches');
+        $this->db->where('store_id', $store_id);
+        return $this->db->count_all_results();
+    }
+}

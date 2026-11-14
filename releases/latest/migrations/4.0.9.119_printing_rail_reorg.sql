@@ -1,0 +1,74 @@
+-- ============================================================================
+-- MartPoint 4.0.9.119 — Printing rail reorganisation (navigation only)
+--
+-- No schema change. No routes change. Every destination preserved.
+--
+-- SCOPE: printing only. The section labels and renames below render only when
+-- $is_printing is true, verified with stores 1 (nylon_polytope) and 3
+-- (general_retail) both still receiving the full unlabelled retail rail.
+--
+-- The rail was 16 flat groups with no hierarchy, and — more importantly —
+-- several DESTINATIONS APPEARED TWICE or sat under the wrong parent. The menu
+-- had the right capabilities; the information architecture was wrong. This
+-- reorganises existing routes rather than adding menus.
+--
+-- NEW ORDER (17 groups, grouped by the working day rather than by module)
+--
+--   Printing Overview
+--   == Daily Work ==
+--     Quotations              New Quote · Awaiting a Job · All Quotes
+--     Print Jobs              Print Orders · Artwork · Authorisations · Job Payments
+--     Production              Production Floor
+--     Machines & Maintenance  Machines · Counter Readings · Maintenance · Consumables
+--     Customer Materials      Materials Held
+--   == Business Management ==
+--     Sales · Catalog · Promotions · Purchases & Suppliers · Inventory ·
+--     Clients · Finance · Marketing · Online Store · Help · Administration
+--
+-- SPECIFIC FIXES
+--
+--  * "Overview" removed from Print Shop. It pointed at /printing — the same
+--    route as the Printing Overview link at the top of the rail, so it was a
+--    second door to one room.
+--  * "New Quotation" and "Quotation History" removed from Sales. Both pointed
+--    at routes the Quotations group already owns (quotation/add, quotation),
+--    so the same two screens appeared under two menus. Sales went 7 items -> 5.
+--  * Customer Materials moved out of Machine Floor into its own group. A client
+--    can hand over stock for a job that never touches a press, and the material
+--    is theirs, not the shop's asset — filing it under equipment implied both.
+--  * Suppliers moved from Clients into Purchases & Suppliers. A supplier is who
+--    you BUY from; under Clients it was filed by "is a company" rather than by
+--    purpose. Purchases now carries 6 items.
+--  * Promotions stays its own group on this pass — merging it into Marketing
+--    is in the follow-up (see below), not done here to keep this change
+--    verifiable.
+--  * "Insights" -> "Reports", "Machine Floor" -> "Machines & Maintenance".
+--  * "Leads Hub" -> "Online Store". The group manages the storefront; the
+--    rename had implied it held leads, which it does not.
+--  * Small section captions (Daily Work / Business Management) and all groups
+--    collapsed by default, so the rail opens as a scannable index rather than
+--    a wall of expanded menus.
+--
+-- DELIBERATELY NOT DONE (each needs a decision, not a guess)
+--
+--  * Job Payments vs Sales Payments — BOTH KEPT. They are not two views of one
+--    ledger: db_print_payments records money against a JOB, sales_payments
+--    records money against an INVOICE. Different tables, different events.
+--  * Promotions merged into Marketing — left for the follow-up so this change
+--    stays verifiable in one piece.
+--  * Marketing (15) / Online Store (16) / Administration (37) internal
+--    sub-groups — the 37 Setting items must be mapped individually first, with
+--    the mapping in front of the operator, before anything moves. Moving them
+--    blind risks hiding a screen an operator needs.
+--  * Collection & Delivery has NO SCREEN. Printing::fulfil() is a POST endpoint
+--    that records a handover, not a page. Not linked — a menu item pointing at
+--    a write endpoint is exactly what caused the earlier Stage Report bug.
+--  * Customer Materials receipts / allocations / returns are sections WITHIN
+--    the existing screen, not separate destinations.
+--
+-- VERIFIED: 22 printing and moved routes navigated, all HTTP 200, none 404.
+-- Retail stores confirmed unaffected.
+-- ============================================================================
+
+SET @sql = 'DO 0';
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;

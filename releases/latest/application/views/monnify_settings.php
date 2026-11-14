@@ -1,0 +1,165 @@
+<?php
+/* Monnify (Moniepoint) Settings — content-only view for mp_layout */
+?>
+<?php $this->load->view('admin/desktop/_styles'); ?>
+<?php
+  $s = $settings ?? null;
+  $api_key = $s ? $s->api_key : '';
+  $secret_key = $s ? $s->secret_key : '';
+  $contract_code = $s ? $s->contract_code : '';
+  $wallet_account_number = $s ? ($s->wallet_account_number ?? '') : '';
+  $enabled = $s ? $s->enabled : 0;
+  $disbursements_enabled = $s ? ($s->disbursements_enabled ?? 0) : 0;
+  $test_mode = $s ? ($s->test_mode ?? 1) : 1;
+  $platform_fee_type = $s ? ($s->platform_fee_type ?? 'none') : 'none';
+  $platform_fee_value = $s ? ($s->platform_fee_value ?? 0) : 0;
+  $fee_bearer = $s ? ($s->fee_bearer ?? 'platform') : 'platform';
+  $payout = $payout_account ?? null;
+?>
+<?php include"comman/code_flashdata.php"; ?>
+
+<div class="mp-page-head">
+  <h1 class="mp-page-title">Monnify Settings</h1>
+</div>
+
+<div class="mp-card">
+  <div class="mp-card-body">
+    <form class="form-horizontal mp-settings-form" id="monnify-settings-form">
+      <div class="alert alert-info mp-settings-note">
+        <i class="fa fa-info-circle"></i> <strong>Webhook URL:</strong> <code><?=base_url('monnify/webhook');?></code><br>
+        <small>Copy this URL into your Monnify Dashboard &gt; Developers &gt; Webhook URLs (Transaction Completion and Disbursement).<br>
+        Whitelist Monnify's webhook IP <code>35.242.133.146</code> on your server for live notifications.</small>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Enable Monnify</label>
+        <div class="col-sm-6">
+<?php if(!empty($central_managed)): ?>
+          <div class="alert alert-info" style="margin-bottom:0">Monnify is managed by your Administrator. Manage your payout account below.</div>
+<?php else: ?>
+          <select class="form-control" id="enabled" name="enabled">
+            <option value="0" <?=($enabled==0)?'selected':'';?>>Disabled</option>
+            <option value="1" <?=($enabled==1)?'selected':'';?>>Enabled</option>
+          </select>
+<?php endif; ?>
+        </div>
+      </div>
+
+<?php if(empty($central_managed)): ?>
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-random"></i> Payment fee policy</h4>
+      <div class="alert alert-info mp-settings-note">This policy sets the MartPoint fee deducted before the remaining balance reaches the merchant payout account.</div>
+      <div class="form-group"><label class="col-sm-3 control-label">MartPoint fee</label><div class="mp-settings-inline-fields"><select class="form-control" name="platform_fee_type"><option value="none" <?=($platform_fee_type==='none')?'selected':'';?>>No platform fee</option><option value="percentage" <?=($platform_fee_type==='percentage')?'selected':'';?>>Percentage</option><option value="flat" <?=($platform_fee_type==='flat')?'selected':'';?>>Fixed NGN amount</option></select><input type="number" min="0" step="0.01" class="form-control" name="platform_fee_value" value="<?=htmlspecialchars($platform_fee_value);?>" placeholder="Fee value"></div></div>
+      <div class="form-group"><label class="col-sm-3 control-label">Gateway fee bearer</label><div class="col-sm-6"><select class="form-control" name="fee_bearer"><option value="platform" <?=($fee_bearer==='platform')?'selected':'';?>>MartPoint</option><option value="merchant" <?=($fee_bearer==='merchant')?'selected':'';?>>Merchant</option></select></div></div>
+      </section>
+<?php else: ?>
+      <div class="alert alert-info mp-settings-note">Your Administrator manages payment fees and settings. Manage your payout account below.</div>
+<?php endif; ?>
+
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-bank"></i> Merchant payout account</h4>
+      <div class="alert alert-success mp-settings-note">The merchant only needs to choose a bank, enter the account number, verify the name, and turn payouts on. No Monnify API settings are required here.</div>
+      <div class="form-group"><label class="col-sm-3 control-label">Bank</label><div class="col-sm-6"><select class="form-control" id="payout_bank_code" name="payout_bank_code"><option value="">Loading banks...</option></select><input type="hidden" id="payout_bank_name" name="payout_bank_name" value="<?=htmlspecialchars($payout->bank_name ?? '');?>"></div></div>
+      <div class="form-group"><label class="col-sm-3 control-label">Account number</label><div class="col-sm-6"><input type="text" inputmode="numeric" maxlength="10" class="form-control" id="payout_account_number" name="payout_account_number" value="<?=htmlspecialchars($payout->account_number ?? '');?>"></div></div>
+      <div class="form-group"><label class="col-sm-3 control-label">Payout email</label><div class="col-sm-6"><input type="email" class="form-control" id="payout_email" name="payout_email" value="<?=htmlspecialchars($payout->contact_email ?? '');?>"></div></div>
+      <div class="form-group"><label class="col-sm-3 control-label">Payout status</label><div class="col-sm-6"><select class="form-control" id="payout_enabled" name="payout_enabled"><option value="0" <?=empty($payout->enabled)?'selected':'';?>>Off</option><option value="1" <?=!empty($payout->enabled)?'selected':'';?>>On</option></select><small class="text-muted">Current: <?=htmlspecialchars($payout->status ?? 'Not connected');?><?=!empty($payout->account_name) ? ' — '.htmlspecialchars($payout->account_name) : '';?></small></div></div>
+      <div class="mp-settings-actions"><button type="button" id="save_payout_account" class="mp-btn-primary">Verify and save payout account</button></div>
+      </section>
+
+<?php if(empty($central_managed)): ?>
+      <section class="mp-settings-section">
+      <h4 class="mp-settings-section-title"><i class="fa fa-key"></i> Monnify API credentials</h4>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Mode</label>
+        <div class="col-sm-6">
+          <select class="form-control" id="test_mode" name="test_mode">
+            <option value="1" <?=($test_mode==1)?'selected':'';?>>Sandbox</option>
+            <option value="0" <?=($test_mode==0)?'selected':'';?>>Live</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">API Key <span class="text-danger">*</span></label>
+        <div class="col-sm-6">
+          <input type="text" class="form-control" id="api_key" name="api_key" value="<?=htmlspecialchars($api_key);?>" placeholder="MK_TEST_... or MK_PROD_...">
+          <span id="api_key_msg" style="display:none" class="text-danger"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Secret Key <span class="text-danger">*</span></label>
+        <div class="col-sm-6">
+          <input type="text" class="form-control" id="secret_key" name="secret_key" value="<?=htmlspecialchars($secret_key);?>" placeholder="Monnify Secret Key">
+          <span id="secret_key_msg" style="display:none" class="text-danger"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Contract Code <span class="text-danger">*</span></label>
+        <div class="col-sm-6">
+          <input type="text" class="form-control" id="contract_code" name="contract_code" value="<?=htmlspecialchars($contract_code);?>" placeholder="Contract code from Developers > API Keys & Contracts">
+          <span id="contract_code_msg" style="display:none" class="text-danger"></span>
+        </div>
+      </div>
+
+      <hr>
+      <h4 class="text-center"><i class="fa fa-paper-plane"></i> Transfers / Disbursements</h4>
+      <div class="alert alert-warning">
+        <i class="fa fa-exclamation-triangle"></i>
+        Disbursements require Monnify approval (Dashboard &gt; Settings &gt; Preferences &gt; Disbursements) and
+        <strong>your server's static IP must be whitelisted</strong> before live transfers will process.
+        OTP authorization is enabled by default on your Monnify account — contact
+        <a href="mailto:integration-support@monnify.com">integration-support@monnify.com</a> to disable it for
+        fully automated payouts.
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Enable Transfers</label>
+        <div class="col-sm-6">
+          <select class="form-control" id="disbursements_enabled" name="disbursements_enabled">
+            <option value="0" <?=($disbursements_enabled==0)?'selected':'';?>>Disabled</option>
+            <option value="1" <?=($disbursements_enabled==1)?'selected':'';?>>Enabled</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Wallet Account Number</label>
+        <div class="col-sm-6">
+          <input type="text" class="form-control" id="wallet_account_number" name="wallet_account_number" value="<?=htmlspecialchars($wallet_account_number);?>" placeholder="Monnify wallet account number (source of transfers)">
+          <span id="wallet_account_number_msg" style="display:none" class="text-danger"></span>
+        </div>
+      </div>
+      </section>
+<?php endif; ?>
+
+      <div class="mp-settings-actions">
+<?php if(empty($central_managed)): ?>
+        <button type="button" id="save_settings" class="mp-btn-primary">Save settings</button>
+<?php endif; ?>
+        <a href="<?=base_url('dashboard');?>" class="mp-btn-secondary close_btn">Close</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="<?php echo $theme_link; ?>js/monnify_settings.js"></script>
+<script>
+$(function(){
+  var currentBank = '<?=htmlspecialchars($payout->bank_code ?? '', ENT_QUOTES);?>';
+  $.getJSON('<?=base_url('monnify/banks');?>', function(res){
+    var sel=$('#payout_bank_code'); sel.empty().append('<option value="">Select bank</option>');
+    (res.banks||[]).forEach(function(b){ var code=b.code||b.bankCode; var name=b.name||b.bankName; if(code){ sel.append($('<option>',{value:code,text:name}).attr('data-name',name)); }});
+    sel.val(currentBank).select2({width:'100%', placeholder:'Search or select a bank', allowClear:true});
+  });
+  $('#payout_bank_code').on('change',function(){ $('#payout_bank_name').val($(this).find('option:selected').data('name')||''); });
+  $('#save_payout_account').on('click',function(){
+    var f=$('#monnify-settings-form'), btn=$(this); btn.prop('disabled',true);
+    $.post('<?=base_url('monnify/save_payout_account');?>', f.serialize(), function(res){
+      if(res.status){ toastr.success(res.message||'Payout account saved'); } else { toastr.error(res.message||'Could not save payout account'); }
+    },'json').always(function(){btn.prop('disabled',false);});
+  });
+});
+</script>
+<script>$(".monnify-settings-active-li").addClass("active");$(".monnify-settings-active-li").closest(".mp-nav-group").addClass("open");</script>

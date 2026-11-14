@@ -1,0 +1,2 @@
+<?php require_once APPPATH . 'views/themes/skinora/_helpers.php'; $snHome = base_url('store/' . ($settings->store_slug ?? '')); ?>
+<main class="sn-inner sn-cart-page"><div class="container"><div class="sn-breadcrumb"><a href="<?= sn_e($snHome); ?>">Home</a><span>›</span>Your beauty bag</div><div class="sn-page-intro"><div class="eyebrow">YOUR BEAUTY BAG</div><h1>Your ritual starts here.</h1><p>Review your selections before checkout.</p></div></div><?php $this->load->view('themes/shared/cart', ['cart_review_only' => true]); ?></main>

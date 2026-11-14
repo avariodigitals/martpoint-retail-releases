@@ -1,0 +1,55 @@
+/* Keep commercial descriptions useful without letting them set the page width. */
+.invoice-header-controls { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px 20px;padding:14px 16px;margin:14px 0;background:var(--mp-surface,#fff);border:1px solid var(--mp-border,#dbe3ed);border-radius:12px;min-width:0; }
+.invoice-header-controls .iw-status-field { grid-column:1;grid-row:1; }
+.invoice-header-controls .invoice-payment-account { grid-column:2;grid-row:1; }
+#sales-form .invoice-header-controls .iw-status-field>label,.invoice-header-controls .iw-status-field>label { display:block!important;width:auto!important;margin:0 0 6px!important;font-size:13px!important;font-weight:600;text-transform:none!important;letter-spacing:normal!important;text-align:left!important; }
+.invoice-header-controls .iw-status-select-wrap { min-width:0; }
+.invoice-header-controls .iw-status-trigger { display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;min-height:42px;border:1px solid var(--mp-border,#cbd5e1);border-radius:9px;background:var(--mp-surface,#fff);color:var(--mp-text,#172033);font:inherit;font-size:14px;cursor:pointer;text-align:left; }
+.invoice-header-controls .iw-status-trigger:after { content:'⌄';font-size:17px;line-height:1; }
+.invoice-header-controls .iw-status-options { margin-top:5px;max-height:180px;overflow-y:auto;border:1px solid var(--mp-border,#cbd5e1);border-radius:9px;background:var(--mp-surface,#fff); }
+.invoice-header-controls .iw-status-options[hidden] { display:none!important; }
+.invoice-header-controls .iw-status-options button { display:block;width:100%;padding:10px 12px;border:0;background:transparent;color:var(--mp-text,#172033);text-align:left;font:inherit;cursor:pointer;border-radius:0; }
+.invoice-header-controls .iw-status-options button[aria-selected=true] { background:var(--mp-bg,#eff6ff);color:var(--mp-primary,#0057ff);font-weight:600; }
+.invoice-header-controls .iw-status-trigger:focus-visible,.invoice-header-controls .iw-status-options button:focus-visible { outline:2px solid var(--mp-primary,#0057ff);outline-offset:2px; }
+.invoice-header-controls .iw-workflow-help,.invoice-header-controls .iw-sent-note { grid-column:1/-1;margin:0;font-size:13px;line-height:1.5;color:var(--mp-muted,#64748b); }
+.invoice-header-controls .iw-workflow-help { grid-row:2; }
+.invoice-header-controls .iw-sent-note { grid-row:3;font-size:12px; }
+.invoice-header-controls .invoice-payment-account { min-width:0;margin:0!important; }
+.invoice-header-controls .invoice-payment-account label { display:block!important;width:auto!important;margin:0 0 6px!important;font-size:13px!important;font-weight:600;text-transform:none!important;letter-spacing:normal!important;text-align:left!important; }
+@media(max-width:1024px){.invoice-header-controls{grid-template-columns:minmax(0,1fr);gap:12px;padding:12px;}.invoice-header-controls .iw-status-field,.invoice-header-controls .invoice-payment-account,.invoice-header-controls .iw-workflow-help,.invoice-header-controls .iw-sent-note{grid-column:1;grid-row:auto;}}
+.mp-document-scope { min-width:0; max-width:100%; }
+.mp-document-scope .item-desc,.mp-document-scope .quotation-item-description,
+.mp-document-scope .si-name,.mp-document-scope .mp-line-description {
+  white-space:normal; overflow-wrap:anywhere; word-break:normal; min-width:0; max-width:100%;
+}
+.mp-line-description { margin:5px 0; font-size:12px; line-height:1.5; color:var(--mp-muted,#64748b); }
+.mp-line-description summary { cursor:pointer; color:var(--mp-primary,#0057ff); font-weight:600; }
+.mp-line-description .mp-description-body { max-height:14rem; overflow:auto; padding:6px 0; }
+.mp-document-scope .table-responsive,.mp-document-scope .items-table-wrap,.mp-document-scope .mp-dt-scroll,.mp-document-scope .mp-table-scroll { max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.mp-document-scope td.num,.mp-document-scope .item-row>span:last-child { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.mp-document-scope #sales_table td[id$="_1"],.mp-document-scope #quotation_table td[id$="_1"] { min-width:160px; max-width:320px; }
+@media (max-width:1279px) and (min-width:1025px) {
+  .mp-document-scope .invoice-grid { grid-template-columns:minmax(0,1fr) !important; }
+}
+@media (max-width:1024px) {
+  .mp-document-scope #sales_table td[id$="_1"],.mp-document-scope #quotation_table td[id$="_1"] { max-width:100%; }
+  .mp-document-scope .item-card,.mp-document-scope .item-top { min-width:0; }
+  .mp-document-scope .item-name { overflow-wrap:anywhere; min-width:0; }
+  .mp-document-scope #sales-form #sales_table input.cell-input.num,
+  .mp-document-scope #sales-form #sales_table input.num.total { width:100%; min-width:0; }
+}
+@media print {
+  .mp-line-description .mp-description-body { max-height:none; overflow:visible; }
+}
+
+@media (max-width:1024px) {
+  body.mp-document-scope #sales-form #sales_table tbody tr { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; }
+  body.mp-document-scope #sales-form #sales_table tbody td[id$="_1"] { grid-column:1/-1; min-width:0; }
+  body.mp-document-scope #sales_table td[id$="_3"]:before { content:"Quantity"; }
+  body.mp-document-scope #sales_table td[id$="_10"]:before { content:"Unit price"; }
+  body.mp-document-scope #sales_table td[id$="_9"]:before { content:"Line total"; }
+  body.mp-document-scope #sales_table td[id$="_8"]:before { content:"Discount amount"; }
+  body.mp-document-scope #sales_table td[id$="_11"]:before { content:"Tax amount"; }
+  body.mp-document-scope #sales_table td:before { display:block; text-align:left; color:var(--mp-muted,#64748b); font-size:11px; margin-bottom:4px; }
+}
+@media print { .mp-line-description>.mp-description-body { display:block !important; } .mp-line-description>summary { display:none; } }

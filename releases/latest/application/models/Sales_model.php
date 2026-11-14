@@ -1,0 +1,2831 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Sales_model extends CI_Model {
+
+	//Datatable start
+	var $table = 'db_sales as a';
+	var $column_order = array( 
+							'a.id',
+							'a.sales_date',
+							'a.sales_code',
+							'a.reference_no',
+							'b.customer_name',
+							'a.grand_total',
+							'a.paid_amount',
+							'a.payment_status',
+							'a.created_by',
+							'a.return_bit',
+							'a.pos',
+							'a.store_id',
+							'a.quotation_id',
+							'a.due_date',
+							'c.code',
+							); //set column field database for datatable orderable
+	var $column_search = array( 
+							'a.id',
+							'a.sales_date',
+							'a.sales_code',
+							'a.reference_no',
+							'b.customer_name',
+							'a.grand_total',
+							'a.paid_amount',
+							'a.payment_status',
+							'a.created_by',
+							'a.return_bit',
+							'a.pos',
+							'a.store_id',
+							'a.due_date',
+							'c.code',
+							);//set column field database for datatable searchable 
+	var $order = array('a.id' => 'desc'); // default order  
+
+	public function __construct()
+	{
+		parent::__construct();
+		$CI =& get_instance();
+	}
+
+	private function _get_datatables_query()
+	{
+		$privileged_warehouses = get_privileged_warehouses_ids();
+
+		$this->db->select($this->column_order);
+		$this->db->select('a.sales_status');
+		if($this->db->field_exists('invoice_status','db_sales'))$this->db->select('a.invoice_status');
+		if($this->db->table_exists('db_payment_modes')){
+			if($this->db->field_exists('payment_mode_id', 'db_salespayments')){
+				$this->db->select("(SELECT GROUP_CONCAT(DISTINCT COALESCE(pm_id.name, pm_code.name, NULLIF(TRIM(sp.payment_type), '')) SEPARATOR ' + ')
+					FROM db_salespayments sp
+					LEFT JOIN db_payment_modes pm_id ON pm_id.id = sp.payment_mode_id AND pm_id.store_id = sp.store_id
+					LEFT JOIN db_payment_modes pm_code ON LOWER(pm_code.code) = LOWER(sp.payment_type) AND pm_code.store_id = sp.store_id
+					WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+			}else{
+				$this->db->select("(SELECT GROUP_CONCAT(DISTINCT COALESCE(pm.name, NULLIF(TRIM(sp.payment_type), '')) SEPARATOR ' + ')
+					FROM db_salespayments sp
+					LEFT JOIN db_payment_modes pm ON LOWER(pm.code) = LOWER(sp.payment_type) AND pm.store_id = sp.store_id
+					WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+			}
+		}else{
+			$this->db->select("(SELECT GROUP_CONCAT(DISTINCT sp.payment_type SEPARATOR ' + ') FROM db_salespayments sp WHERE sp.sales_id = a.id AND sp.status = 1) AS payment_type", FALSE);
+		}
+		$this->db->from($this->table);
+		$this->db->join('db_customers as b','b.id=a.customer_id','left');
+		$this->db->join('db_customer_coupons as c','c.id=a.coupon_id','left');
+		
+		/*If warehouse selected*/
+		$warehouse_id = $this->input->post('warehouse_id');
+		$customer_id = $this->input->post('customer_id');
+
+		if(!empty($warehouse_id)){
+			//$this->db->join('db_warehouse as w','w.id='.$warehouse_id,'left');
+			$this->db->where('a.warehouse_id',$warehouse_id);
+		}
+		else if(!is_admin() && !is_store_admin()){
+     		//Find the previllaged wareshouses to the user
+     		 //$this->db->join('db_warehouse as w','w.id in ('.$privileged_warehouses.')','left');
+     		 $this->db->where("a.warehouse_id in ($privileged_warehouses)");
+     	}
+
+		if(!empty($customer_id)){
+			$this->db->where('a.customer_id',$customer_id);
+		}
+		//if(!is_admin()){
+	      $this->db->where("a.store_id",get_current_store_id());
+	    //}
+	      // Cashiers without cross-user visibility permission may only view their own sales.
+	      if(is_cashier() && !permissions('show_all_users_sales_invoices')){
+	      	$this->db->where("upper(a.created_by)",strtoupper($this->session->userdata('inv_username')));
+	      }
+	     $sales_from_date = $this->input->post('sales_from_date');
+	     $sales_from_date = system_fromatted_date($sales_from_date);
+	     $sales_to_date = $this->input->post('sales_to_date');
+	     $sales_to_date = system_fromatted_date($sales_to_date);
+	     $users = $this->input->post('users');
+	     if($users && !empty($users)){
+	     	$this->db->where("upper(a.created_by)",strtoupper($users));
+	     }
+	     if($sales_from_date!='1970-01-01'){
+	     	$this->db->where("a.sales_date>=",$sales_from_date);
+	     }
+	     if($sales_to_date!='1970-01-01'){
+	     	$this->db->where("a.sales_date<=",$sales_to_date);
+	     }
+	   // echo $this->db->get_compiled_select();exit();
+		$i = 0;
+	
+		foreach ($this->column_search as $item) // loop column 
+		{
+			if(isset($_POST['search']['value']) && !empty($_POST['search']['value'])) // if datatable send POST for search
+			{
+				
+				
+
+				if($i===0) // first loop
+				{
+					$this->db->group_start(); // open bracket. query Where with OR clause better with bracket. because maybe can combine with other WHERE with AND.
+
+					$this->db->like($item, $_POST['search']['value']);
+
+				}
+				else
+				{
+					$this->db->or_like($item, $_POST['search']['value']);
+				}
+
+				
+
+
+				if(count($this->column_search) - 1 == $i) //last loop
+					$this->db->group_end(); //close bracket
+			}
+			$i++;
+		}
+		
+		if(isset($_POST['order']) && isset($_POST['order']['0']['column']) && isset($_POST['order']['0']['dir'])) // here order processing
+		{
+			$this->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+		} 
+		else if(isset($this->order))
+		{
+			$order = $this->order;
+			$this->db->order_by(key($order), $order[key($order)]);
+		}
+	}
+
+	function get_datatables()
+	{
+		$this->_get_datatables_query();
+		if(isset($_POST['length']) && $_POST['length'] != -1)
+		$this->db->limit($_POST['length'], $_POST['start']);
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	function count_filtered()
+	{
+		$this->_get_datatables_query();
+		$query = $this->db->get();
+		return $query->num_rows();
+	}
+
+	public function count_all()
+	{
+		$this->db->where("store_id",get_current_store_id());
+		$this->db->from($this->table);
+		return $this->db->count_all_results();
+	}
+	//Datatable end
+
+	public function xss_html_filter($input){
+		return $this->security->xss_clean(html_escape($input));
+	}
+
+	/**
+	 * Repair db_sales.quotation_id so the one-to-one unique index
+	 * (idx_quotation_sales_unique) distinguishes "no quotation" from
+	 * "quotation 0".
+	 *
+	 * MySQL counts every NULL as distinct in a UNIQUE index but 0 as a real
+	 * value, so a single 0-valued row permanently blocks every later unlinked
+	 * sale with:
+	 *   Duplicate entry '0' for key 'idx_quotation_sales_unique'
+	 *
+	 * Migration 4.0.9.88 normalised the legacy 0s once, but nothing stopped new
+	 * ones: the column carried DEFAULT 0 on some installs, and the sales save
+	 * path inserted '' (coerced to 0) whenever the quotation field was blank.
+	 * The write path is fixed; this clears rows already stranded and removes the
+	 * DEFAULT 0 that would recreate them.
+	 *
+	 * Idempotent and self-limiting — both statements are no-ops on a clean
+	 * install. Any failure is logged and swallowed: failing to repair must never
+	 * be the reason a sale cannot be saved.
+	 */
+	private function _heal_quotation_id_zero_rows(){
+		if(!$this->db->field_exists('quotation_id','db_sales')){
+			return;
+		}
+		try{
+			// Stranded 0s → NULL. Only touch rows that are actually 0.
+			$this->db->query("UPDATE db_sales SET quotation_id = NULL WHERE quotation_id = 0");
+			// Drop DEFAULT 0 if present, so inserts that omit the column do not
+			// silently reintroduce a colliding 0.
+			$col = $this->db->query(
+				"SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS
+				  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_sales'
+				    AND COLUMN_NAME = 'quotation_id'"
+			)->row();
+			if($col && $col->COLUMN_DEFAULT !== null && (string)$col->COLUMN_DEFAULT !== ''
+			   && (int)$col->COLUMN_DEFAULT === 0){
+				$this->db->query("ALTER TABLE db_sales MODIFY COLUMN quotation_id INT(11) NULL DEFAULT NULL");
+			}
+		}catch(Throwable $e){
+			log_message('error', 'quotation_id self-heal skipped: ' . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Validate a new quotation→invoice conversion. Returns [error, quote, override].
+	 * Called inside the sale transaction, before any row is written.
+	 */
+	private function _validate_quotation_conversion($quotationId, $storeId){
+		$quote = $this->db->query(
+			'SELECT id,store_id,lifecycle_status,sales_status,revision_no,quotation_status FROM db_quotation WHERE id=? AND store_id=? FOR UPDATE',
+			[(int)$quotationId, (int)$storeId]
+		)->row();
+		if(!$quote){
+			return ['error' => 'Quotation not found for this store.', 'quote' => null, 'override' => false];
+		}
+		if((string)($quote->sales_status ?? '') === 'Converted'){
+			return ['error' => 'This quotation has already been converted to an invoice.', 'quote' => $quote, 'override' => false];
+		}
+		$hasCustomLines = false;
+		foreach(['manual_item_name','part_code','unit_label'] as $customCol){
+			if($this->db->field_exists($customCol, 'db_quotationitems')
+				&& $this->db->where('quotation_id',(int)$quotationId)->where('store_id',(int)$storeId)
+					->where($customCol.' !=','')->count_all_results('db_quotationitems') > 0){
+				$hasCustomLines = true;
+				break;
+			}
+		}
+		if($hasCustomLines){
+			return ['error' => 'This quotation has custom line details. Create a sales invoice from the sales screen and enter the agreed items there.', 'quote' => $quote, 'override' => false];
+		}
+		$postedRevision = trim((string)$this->input->post('quotation_revision'));
+		if($postedRevision !== '' && (int)$postedRevision !== (int)$quote->revision_no){
+			return ['error' => 'The quotation was revised after this page was opened. Reload the quotation and try again.', 'quote' => $quote, 'override' => false];
+		}
+
+		$override = false;
+		if(mp_quote_acceptance_required((int)$storeId) && trim((string)($quote->lifecycle_status ?? '')) !== 'accepted'){
+			$requested = (string)$this->input->post('quotation_acceptance_override') === '1';
+			$canOverride = is_admin() || is_store_admin();
+			if(!$requested || !$canOverride){
+				return ['error' => 'Customer acceptance is required before this quotation can be converted. A store manager can authorise an audited override.', 'quote' => $quote, 'override' => false];
+			}
+			$override = true;
+		}
+		return ['error' => '', 'quote' => $quote, 'override' => $override];
+	}
+
+	/** Record a manager's acceptance override in both quotation and audit history. */
+	private function _record_quotation_override($quote, $salesId, $storeId){
+		if(!$quote) return true;
+		$reason = 'Manager override: invoice #' . (int)$salesId . ' converted without customer acceptance (revision ' . (int)$quote->revision_no . ').';
+		if(!$this->db->insert('db_quotation_lifecycle_log', [
+			'store_id' => (int)$storeId,
+			'quotation_id' => (int)$quote->id,
+			'job_id' => null,
+			'from_status' => (string)($quote->lifecycle_status ?? ''),
+			'to_status' => 'converted_override',
+			'reason' => $reason,
+			'actor' => (string)($this->session->userdata('inv_username') ?: 'manager'),
+			'channel' => 'admin_override',
+		])) return false;
+		mp_audit_log('quotation','acceptance_override',(int)$quote->id,$reason);
+		return true;
+	}
+
+	//Save Sales
+	public function verify_save_and_update($standard_invoice = false){
+		$CUR_DATE = date('Y-m-d');
+		$CUR_TIME = date('h:i:s a');
+		$CUR_USERNAME = $this->session->userdata('inv_username') ?? 'System';
+		$SYSTEM_IP = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+		$SYSTEM_NAME = gethostname() ?: 'localhost';
+		$command = $this->input->post_get('command', TRUE);
+		$sales_date = $this->input->post('sales_date', TRUE);
+		$due_date = $this->input->post('due_date', TRUE);
+		$reference_no = $this->input->post('reference_no', TRUE);
+		$sales_status = $this->input->post('sales_status', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$other_charges_input = parse_amount($this->input->post('other_charges_input', TRUE));
+		$other_charges_tax_id = $this->input->post('other_charges_tax_id', TRUE);
+		$other_charges_amt = parse_amount($this->input->post_get('other_charges_amt', TRUE));
+		$discount_to_all_input = parse_amount($this->input->post('discount_to_all_input', TRUE));
+		$discount_to_all_type = $this->input->post('discount_to_all_type', TRUE);
+		$tot_discount_to_all_amt = parse_amount($this->input->post_get('tot_discount_to_all_amt', TRUE));
+		$tot_subtotal_amt = parse_amount($this->input->post_get('tot_subtotal_amt', TRUE));
+		$tot_round_off_amt = parse_amount($this->input->post_get('tot_round_off_amt', TRUE));
+		$tot_total_amt = parse_amount($this->input->post_get('tot_total_amt', TRUE));
+		// Manual Shipping — fee selected at POS (columns guarded for un-migrated installs)
+		$shipping_cols = $this->db->field_exists('shipping_fee', 'db_sales');
+		$shipping_fee_id = $shipping_cols ? (int)$this->input->post('shipping_fee_id', TRUE) : 0;
+		$shipping_label  = $shipping_cols ? trim((string)$this->input->post('shipping_label', TRUE)) : '';
+		$shipping_fee    = $shipping_cols ? parse_amount($this->input->post('shipping_fee', TRUE)) : 0;
+		$sales_note = mp_post_text('sales_note');
+		$rowcount = $this->input->post_get('rowcount', TRUE);
+		$sales_id = $this->input->post_get('sales_id', TRUE);
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$store_id = $this->input->post('store_id', TRUE);
+		$invoice_account_id = $standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')
+			? (int)$this->input->post('invoice_account_id', TRUE) : 0;
+		if ($standard_invoice && $invoice_account_id > 0) {
+			$accountStoreId = get_current_store_id();
+			$invoiceAccount = $this->db->select('id')->where('id', $invoice_account_id)
+				->where('store_id', $accountStoreId)->where('status', 1)
+				->where('bank_account_number !=', '')->limit(1)->get('ac_accounts')->row();
+			if (!$invoiceAccount) return 'Choose an active bank account from this store’s Account List.';
+		}
+        $pricingHistory = $command === 'update' ? mp_customer_pricing()->history('db_salesitems','db_sales',$sales_id,get_current_store_id(),$customer_id) : [];
+		$count_id = $this->input->post('count_id', TRUE);
+		$init_code = $this->input->post('init_code', TRUE);
+		$coupon_code = $this->input->post('coupon_code', TRUE);
+        if($coupon_code && mp_customer_has_group($customer_id)) return 'Remove the coupon: automatic coupons do not stack with group prices.';
+		$coupon_discount_amt = parse_amount($this->input->post_get('coupon_discount_amt', TRUE));
+		$invoice_terms = mp_post_text('invoice_terms');
+		$restaurant_order_key = substr(trim((string)$this->input->post('restaurant_order_key', TRUE)), 0, 96);
+		$pos_idempotency_key = substr(trim((string)$this->input->post('pos_idempotency_key', TRUE)), 0, 96);
+		// Fitment link (Tyre Shop) — the vehicle this bill was made for. The
+		// counter only offers the billed customer's vehicles; re-verify here so
+		// no caller can write a vehicle from another store or customer.
+		// Guarded for un-migrated installs.
+		$vehicle_col = $this->db->field_exists('vehicle_id', 'db_sales');
+		$vehicle_id  = $vehicle_col ? (int)$this->input->post('vehicle_id', TRUE) : 0;
+		if ($vehicle_id > 0) {
+			if (!$this->db->table_exists('db_vehicles')) {
+				$vehicle_id = 0;
+			} else {
+				$vehicle_check_store = (store_module() && is_admin()) ? $store_id : get_current_store_id();
+				$vehicle_belongs = $this->db->select('id')
+					->where('id', $vehicle_id)
+					->where('store_id', $vehicle_check_store)
+					->where('customer_id', (int)$customer_id)
+					->where('is_deleted', 0)
+					->limit(1)->get('db_vehicles')->row();
+				if (!$vehicle_belongs) { $vehicle_id = 0; }
+			}
+		}
+		// A quotation link is optional. Normalise it to NULL here, ONCE, so every
+		// later use is safe.
+		//
+		// Why this cannot be left as the raw post value: db_sales has a UNIQUE
+		// index on quotation_id (idx_quotation_sales_unique) so a quotation can
+		// be converted only once. MySQL treats every NULL as DISTINCT in a
+		// unique index, but `0` is a real value — so a second unlinked sale
+		// carrying 0 collides and the insert dies with
+		// "Duplicate entry '0' for key 'idx_quotation_sales_unique'".
+		//
+		// `$this->input->post('quotation_id')` returns '' for a blank field, and
+		// '' is SET, so the old `isset()` below happily inserted '' — which MySQL
+		// coerces to the integer 0. Pos_model already guards with `> 0`; this is
+		// the same rule applied to the shared retail path.
+		$quotation_id = (int) $this->input->post('quotation_id', TRUE);
+		if($quotation_id <= 0){ $quotation_id = null; }
+		// Self-heal: an install that ran 4.0.9.88 before this fix can still be
+		// carrying 0-valued links. NULL them out once per request so the unique
+		// index stops rejecting ordinary sales, and drop a DEFAULT 0 on the
+		// column (a DEFAULT 0 re-creates the collision on every insert that
+		// omits the column). Cheap, idempotent, and harmless once clean.
+		$this->_heal_quotation_id_zero_rows();
+		$has_shipaddr_col = $this->db->field_exists('shippingaddress_id','db_sales');
+		$shippingaddress_id = $has_shipaddr_col ? (int)$this->input->post('shippingaddress_id', TRUE) : 0;
+		if($shippingaddress_id<=0){ $shippingaddress_id = null; }
+		$amount = parse_amount($this->input->post('amount', TRUE));
+		$payment_type = $this->input->post('payment_type', TRUE);
+		// Only apply default payment mode if not explicitly provided (for split payments, it will be empty)
+		if(empty($payment_type)){
+			$payment_type = null; // Keep it null for split payments, don't apply default
+		}
+		$payment_note = mp_post_text('payment_note');
+		$account_id = $this->input->post('account_id', TRUE);
+		$cheque_number = $this->input->post('cheque_number', TRUE);
+		$cheque_period = $this->input->post('cheque_period', TRUE);
+		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
+		$send_sms = $this->input->post('send_sms', TRUE);
+		//echo "<pre>";print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+		
+		// Check if pharmacy business type for customer notes tracking
+		$CI =& get_instance();
+		$store_profile = mp_get_store_profile();
+		$is_pharmacy = isset($store_profile['industry_type']) && $store_profile['industry_type'] == 'pharmacy';
+		
+		//varify max sales usage of the package subscription
+		validate_package_offers('max_invoices','db_sales');
+		//END
+
+		// Trusted controller flag: POS callers cannot opt into invoice drafts or pay-later rules.
+		$store_id = (store_module() && is_admin() && (int)$store_id > 0) ? (int)$store_id : (int)get_current_store_id();
+		$this->db->trans_begin();
+		$invoiceTransactionOpen=true;
+		try {
+		$this->load->library('invoice_workflow');
+		try {
+			$paymentTiming = $standard_invoice ? $this->input->post('payment_timing', TRUE) : '';
+			if($standard_invoice && $this->input->post('invoice_payment_mode',TRUE)==='amount')$paymentTiming=$amount>0?'now':'later';
+			$invoiceFlow = $this->invoice_workflow->prepare($standard_invoice, $command, $sales_id, $store_id,
+				$this->input->post('invoice_status', TRUE), $paymentTiming, $amount, $payment_type, $customer_id);
+		} catch (Throwable $e) { $this->db->trans_rollback(); return $e->getMessage(); }
+		$sales_status = $invoiceFlow['sales_status'];
+		$isInvoiceDraft = $standard_invoice && $sales_status === 'Draft';
+		if($standard_invoice && $invoiceFlow['previous']){$count_id=$invoiceFlow['previous']->count_id;$init_code=$invoiceFlow['previous']->init_code;}
+
+		if($standard_invoice && ((float)$invoiceFlow['paid'] + (float)$amount) > (float)$tot_total_amt + 0.005){$this->db->trans_rollback();return 'Invoice total cannot be less than payments already recorded plus this payment.';}
+
+
+		// Serialize invoice-number generation per store so concurrent POS users
+		// cannot be assigned the same sales_code.
+		if($command == 'save' && !empty($store_id)){
+			$this->db->query("SELECT 1 FROM db_store WHERE id = ? FOR UPDATE", [(int)$store_id]);
+			$count_id = autosynch_sales_code();
+		}
+
+		$conversionQuote = null;
+		$conversionOverride = false;
+		if($command === 'save' && $quotation_id !== null){
+			$conversionStoreId = (store_module() && is_admin() && (int)$store_id > 0)
+				? (int)$store_id
+				: (int)get_current_store_id();
+			$conversion = $this->_validate_quotation_conversion($quotation_id, $conversionStoreId);
+			if(!empty($conversion['error'])){
+				$this->db->trans_rollback();
+				return $conversion['error'];
+			}
+			$conversionQuote = $conversion['quote'];
+			$conversionOverride = (bool)$conversion['override'];
+		}
+
+		$sales_date=system_fromatted_date($sales_date);
+
+		$due_date=(!empty($due_date)) ? system_fromatted_date($due_date) : NULL;
+		if($due_date=='1970-01-01'){
+			$due_date = NULL;
+		}
+		//echo $due_date;exit;
+		if($other_charges_input=='' || $other_charges_input==0){$other_charges_input=null;}
+	    if($other_charges_tax_id=='' || $other_charges_tax_id==0){$other_charges_tax_id=null;}
+	    if($other_charges_amt=='' || $other_charges_amt==0){$other_charges_amt=null;}
+	    if($discount_to_all_input=='' || $discount_to_all_input==0){$discount_to_all_input=null;}
+	    if($tot_discount_to_all_amt=='' || $tot_discount_to_all_amt==0){$tot_discount_to_all_amt=null;}
+	    if($tot_round_off_amt=='' || $tot_round_off_amt==0){$tot_round_off_amt=null;}
+
+	    $prev_item_ids = array();
+	    
+	    if(empty(trim($count_id))) {
+	    	$this->db->trans_rollback();
+	    	return "Invoice Number Should be not be Empty!";
+	    }
+	    else{
+	    	if(!is_numeric($count_id)){
+	    		$this->db->trans_rollback();
+	    		return "Invoice Number Should be Numerical!";
+	    	}
+	    }
+
+
+	    //Get coupon details
+	    $customer_coupon_id = null;
+	    if(!empty($coupon_code)){
+	    	$coupon_details = get_customer_coupon_details_by_coupon_code($coupon_code);
+	    	
+		    if($coupon_details->num_rows()>0){
+		    	if($coupon_details->row()->customer_id==$customer_id){
+		    		$customer_coupon_id = $coupon_details->row()->id;		
+		    	}
+		    } else {
+		    	// Fallback: check if this is a promotion code
+		    	// Reject walk-in customers for promotion codes
+		    	$walkin_id = get_walk_in_customer_id();
+		    	$is_walkin = (!empty($walkin_id) && (int)$customer_id === (int)$walkin_id);
+		    	if($is_walkin){
+		    		$coupon_code = '';
+		    	} else {
+		    	try {
+				if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
+		    			$promo = $this->db->where('store_id', $store_id)
+		    				->where('status', 1)
+		    				->where('promotion_code', strtoupper($coupon_code))
+		    				->where('start_date <=', date('Y-m-d'))
+		    				->where('end_date >=', date('Y-m-d'))
+		    				->get('db_promotions')->row();
+		    			if($promo){
+		    				$tot_subtotal_amt = (float)$this->input->post_get('tot_subtotal_amt', TRUE);
+		    				// Atomic claim — serializes concurrent redemptions so
+		    				// usage limits cannot be exceeded by racing checkouts.
+				if(!$isInvoiceDraft){
+		    				$this->load->model('Promotions_model','promotions_m');
+		    				$claim = $this->promotions_m->claim_redemption($promo->id, $customer_id, $tot_subtotal_amt, $store_id);
+		    				if(!$claim['ok']){
+		    					$this->db->trans_rollback();
+		    					return "Promotion code rejected: " . $claim['message'];
+				}
+		    				}
+		    				// Recalculate coupon_discount_amt from the promotion if not provided
+		    				if(empty($coupon_discount_amt) || $coupon_discount_amt == 0){
+		    					if($tot_subtotal_amt > 0){
+		    						if($promo->discount_type == 'Percentage'){
+		    							$coupon_discount_amt = $tot_subtotal_amt * ($promo->discount_value / 100);
+		    						} else {
+		    							$coupon_discount_amt = (float)$promo->discount_value;
+		    						}
+		    					}
+		    				}
+		    			}
+		    		}
+		    	} catch (Exception $e) { /* Promotions table not available */ }
+		    	} // end else (not walk-in)
+		    }
+	    }
+
+	    //Verify Sales Code
+		$this->db->where("sales_code",$init_code.$count_id);
+		if($command=='update'){
+			$this->db->where("id<>",$sales_id);
+		}
+		$this->db->from('db_sales');
+		//echo $this->db->get_compiled_select();exit;
+		$count = $this->db->count_all_results();
+		
+
+		if($count>0){
+
+			$autosynch_sales_code = true;
+
+			if($autosynch_sales_code){
+				$count_id = autosynch_sales_code();
+			}
+			else{
+				$this->db->trans_rollback();
+				return "Sales Code already exist";
+			}
+		}
+		
+	    
+	    $sales_entry_init = array(
+							'init_code' 				=> $init_code,
+		    				'count_id' 					=> $count_id,
+		    				'sales_code' 				=> $init_code.$count_id,//get_init_code('sales'),
+		    				/*Coupon disocunt amt*/
+		    				'coupon_id' 				=> $customer_coupon_id,
+		    				'coupon_amt' 				=> $coupon_discount_amt,
+		    				'invoice_terms' 				=> trim($invoice_terms),
+	    					);
+
+		if($standard_invoice && $invoiceFlow['previous'])$sales_entry_init['sales_code']=$invoiceFlow['previous']->sales_code;
+		if($standard_invoice && $this->db->field_exists('invoice_status','db_sales')) $sales_entry_init['invoice_status']=$invoiceFlow['state'];
+	    if($command=='save'){//Create sales code unique if first time entry
+
+			
+		    $sales_entry = array(
+		    				
+		    				//'count_id' 					=> get_count_id('db_sales'),  
+		    				'reference_no' 				=> $reference_no, 
+		    				'sales_date' 				=> $sales_date,
+		    				'due_date' 					=> $due_date,
+		    				'sales_status' 				=> $sales_status,
+		    				'customer_id' 				=> $customer_id,
+		    				/*'warehouse_id' 				=> $warehouse_id,*/
+		    				/*Other Charges*/
+		    				'other_charges_input' 		=> $other_charges_input,
+		    				'other_charges_tax_id' 		=> $other_charges_tax_id,
+		    				'other_charges_amt' 		=> $other_charges_amt,
+		    				/*Discount*/
+		    				'discount_to_all_input' 	=> $discount_to_all_input,
+		    				'discount_to_all_type' 		=> $discount_to_all_type,
+		    				'tot_discount_to_all_amt' 	=> $tot_discount_to_all_amt,
+		    				
+		    				/*Subtotal & Total */
+		    				'subtotal' 					=> $tot_subtotal_amt,
+		    				'round_off' 				=> $tot_round_off_amt,
+		    				'grand_total' 				=> $tot_total_amt,
+		    				'sales_note' 				=> $sales_note,
+		    				/*System Info*/
+		    				'created_date' 				=> $CUR_DATE,
+		    				'created_time' 				=> $CUR_TIME,
+		    				'created_by' 				=> $CUR_USERNAME,
+		    				'system_ip' 				=> $SYSTEM_IP,
+		    				'system_name' 				=> $SYSTEM_NAME,
+		    				'status' 					=> 1,
+		    			);
+			if($restaurant_order_key !== '' && $this->db->field_exists('restaurant_order_key', 'db_sales')){
+				$sales_entry['restaurant_order_key'] = $restaurant_order_key;
+				$sales_entry['source_channel'] = 'walk_in';
+			}
+			// Offline replays land once: the unique (store_id, pos_idempotency_key)
+			// index protects the insert itself, not just the pre-save lookup.
+			if($pos_idempotency_key !== '' && $this->db->field_exists('pos_idempotency_key', 'db_sales')){
+				$sales_entry['pos_idempotency_key'] = $pos_idempotency_key;
+			}
+		    if($quotation_id !== null){
+				$sales_entry['quotation_id'] = $quotation_id;
+			}
+			if($has_shipaddr_col){
+				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
+			}
+			if($shipping_cols){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			if($vehicle_col){
+				$sales_entry['vehicle_id'] = $vehicle_id ?: null;
+			}
+			if($standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')){
+				$sales_entry['invoice_account_id'] = $invoice_account_id ?: null;
+			}
+		    $sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();  	
+		    $sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+
+		   // print_r($sales_entry);exit;
+			$q1 = $this->db->insert('db_sales', array_merge($sales_entry,$sales_entry_init));
+			if(!$q1){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				return 'Failed to save sale (db_sales insert): ' . ($err['message'] ?? 'unknown error');
+			}
+			$sales_id = $this->db->insert_id();
+			if(!$sales_id){
+				$err = $this->db->error();
+				$this->db->trans_rollback();
+				return 'Failed to save sale (no insert_id): ' . ($err['message'] ?? 'unknown error');
+			}
+			//SET QUOTATION STATUS — only when a real quotation is linked, and only
+			// for a quotation on the store this sale is being written to. Using
+			// `!== null` here (not isset) keeps a blank posting from being read as
+			// quotation 0 and marking an unrelated row Converted.
+			if($quotation_id !== null){
+				$belongs = $this->db->select('id')->from('db_quotation')
+					->where('id', $quotation_id)
+					->where('store_id', $sales_entry['store_id'])
+					->get()->row();
+				if($belongs){
+					$q11 = $this->db->set("sales_status",'Converted')->where("id",$quotation_id)->update("db_quotation");
+					if(!$q11){
+						$this->db->trans_rollback();
+						return 'Could not mark the quotation as converted.';
+					}
+					if($conversionOverride && $conversionQuote){
+						if(!$this->_record_quotation_override($conversionQuote,$sales_id,$sales_entry['store_id'])){
+							$this->db->trans_rollback();
+							return 'Could not record the quotation acceptance override.';
+						}
+					}
+				}
+			}
+
+		}
+		else if($command=='update'){	
+			$sales_entry = array(
+		    				//'sales_code' 				=> $sales_code, 
+		    				'reference_no' 				=> $reference_no, 
+		    				'sales_date' 			=> $sales_date,
+		    				'due_date' 				=> $due_date,
+		    				'sales_status' 			=> $sales_status,
+		    				'customer_id' 				=> $customer_id,
+		    				/*'warehouse_id' 				=> $warehouse_id,*/
+		    				/*Other Charges*/
+		    				'other_charges_input' 		=> $other_charges_input,
+		    				'other_charges_tax_id' 		=> $other_charges_tax_id,
+		    				'other_charges_amt' 		=> $other_charges_amt,
+		    				/*Discount*/
+		    				'discount_to_all_input' 	=> $discount_to_all_input,
+		    				'discount_to_all_type' 		=> $discount_to_all_type,
+		    				'tot_discount_to_all_amt' 	=> $tot_discount_to_all_amt,
+		    				/*Subtotal & Total */
+		    				'subtotal' 					=> $tot_subtotal_amt,
+		    				'round_off' 				=> $tot_round_off_amt,
+		    				'grand_total' 				=> $tot_total_amt,
+		    				'sales_note' 			=> $sales_note,
+		    			);
+			//print_r($sales_entry);exit;
+			if($has_shipaddr_col){
+				$sales_entry['shippingaddress_id'] = $shippingaddress_id;
+			}
+			if($standard_invoice && $this->db->field_exists('invoice_account_id', 'db_sales')){
+				$sales_entry['invoice_account_id'] = $invoice_account_id ?: null;
+			}
+			// Only touch the shipping columns when the caller actually posted them.
+			// The back-office Sales form has no shipping field, so editing a sale
+			// there must not silently drop the delivery fee (and shrink grand_total).
+			if($shipping_cols && $this->input->post('shipping_fee') !== NULL){
+				$sales_entry['shipping_fee_id'] = $shipping_fee_id ?: null;
+				$sales_entry['shipping_label']  = $shipping_label ?: null;
+				$sales_entry['shipping_fee']    = $shipping_fee ?: null;
+			}
+			// Editing from the back-office form posts no vehicle field at all, so
+			// an existing fitment link survives the edit untouched.
+			if($vehicle_col && $this->input->post('vehicle_id') !== NULL){
+				$sales_entry['vehicle_id'] = $vehicle_id ?: null;
+			}
+			$sales_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			$sales_entry['warehouse_id']=(warehouse_module() && warehouse_count()>1) ? $warehouse_id : get_store_warehouse_id();
+			$q1 = $this->db->where('id',$sales_id)->update('db_sales', array_merge($sales_entry,$sales_entry_init));
+
+			##############################################START
+			//FIND THE PREVIOUSE ITEM LIST ID'S
+			$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
+			// The rows are replaced below. Keep their quantities so an edit may
+			// retain stock already consumed by this same invoice, while still
+			// rejecting any increase beyond the quantity originally sold.
+			$previousInvoiceQtyByItem = array();
+			$qtyExpression = $this->db->field_exists('conversion_factor','db_salesitems')
+				? 'SUM(sales_qty * COALESCE(NULLIF(conversion_factor,0),1)) AS qty'
+				: 'SUM(sales_qty) AS qty';
+			$previousInvoiceQtyRows = $this->db->select('item_id, '.$qtyExpression, false)
+				->from('db_salesitems')->where('sales_id',(int)$sales_id)->group_by('item_id')->get()->result();
+			foreach($previousInvoiceQtyRows as $previousInvoiceQtyRow){
+				$previousInvoiceQtyByItem[(int)$previousInvoiceQtyRow->item_id] = (float)$previousInvoiceQtyRow->qty;
+			}
+			##############################################END
+
+			// A corrected bill must say which medicines came off it, so the
+			// prescription lines are read while they still exist.
+			$audit_rx_before = $this->_auditRxLines($sales_id);
+
+			// Release serialised/tracked units bound to the previous version of this
+			// sale before the item rows are replaced (otherwise they stay sold).
+			// Batch allocations are restored in the same transaction. Editing a
+			// sale that already has a return would invalidate the return-to-batch
+			// audit trail, so refuse it rather than silently losing provenance.
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+				$hasReturns = $this->db->where('sales_id', (int)$sales_id)->count_all_results('db_salesreturn') > 0;
+				if ($hasReturns) {
+					$this->db->trans_rollback();
+					return 'This invoice has a return. Its batch history cannot be edited; create a correction invoice instead.';
+				}
+				if (!$this->inventory_rotation->restore_sale($sales_id)) {
+					$this->db->trans_rollback();
+					return 'Could not restore the invoice batch allocations. No changes were saved.';
+				}
+			}
+			if(!$invoiceFlow['previous'] || $invoiceFlow['previous']->sales_status !== 'Draft'){
+			mp_release_sale_barcodes($sales_id);
+			mp_unregister_equipment_for_sale($sales_id);
+			}
+
+			$q11=$this->db->query("delete from db_salesitems where sales_id='$sales_id'");
+			if(!$q11){
+				return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+			}
+		}
+		//end
+
+		// Restaurant table tracking
+		$table_id = (int) $this->input->post('table_id', TRUE);
+		if($table_id > 0 && $this->db->field_exists('table_id','db_sales')){
+			$this->db->where('id',$sales_id)->update('db_sales', ['table_id' => $table_id]);
+		}
+
+		// Running tab: a round taken while a tab is open is linked to it. Only the
+		// save that issues the invoice may link it, and only once — editing or
+		// reprinting an existing invoice must never move its money onto another
+		// tab, and a tab that has closed refuses new rounds.
+		$tab_id = (int) $this->input->post('tab_id', TRUE);
+		if($command=='save' && $tab_id > 0 && $this->db->field_exists('tab_id','db_sales')){
+			$this->load->model('tabs_model', 'mp_tabs');
+			$tab_store = (store_module() && is_admin()) ? (int)$store_id : (int)get_current_store_id();
+			$tab_link = $this->mp_tabs->attach_round($tab_id, $sales_id, $tab_store);
+			if($tab_link !== true){
+				$this->db->trans_rollback();
+				return $tab_link;
+			}
+		}
+
+		// Every order belongs to a person, not just to a till. A round that joins
+		// a tab takes that tab's waiter (above); a bill rung up at the counter is
+		// served by whoever punched it. A floor can name somebody else on the bill
+		// when a waiter serves a table the cashier rang up.
+		$seller_id = (int) $this->session->userdata('inv_userid');
+		if($command=='save' && $seller_id > 0 && $tab_id <= 0
+			&& function_exists('mp_feature_enabled') && mp_feature_enabled('waiter_assignment')
+			&& $this->db->field_exists('waiter_user_id','db_sales')
+			&& (int) $this->db->where('id', $seller_id)->where('status', 1)
+				->where('store_id', (int) $store_id)->count_all_results('db_users') > 0){
+			$this->db->where('id', $sales_id)->where('waiter_user_id', null)
+				->update('db_sales', ['waiter_user_id' => $seller_id]);
+		}
+
+		
+		//Import post data from form
+		for($i=1;$i<=$rowcount;$i++){
+		
+			if(isset($_REQUEST['tr_item_id_'.$i]) && !empty($_REQUEST['tr_item_id_'.$i])){
+
+				$item_id 			=$this->xss_html_filter(trim($_REQUEST['tr_item_id_'.$i]));
+				$selected_batch_id = (int)($_REQUEST['batch_id_'.$i] ?? 0);
+
+				// Check expiry
+				try {
+					$this->load->model('expiry_settings_model');
+					$expiry_settings = $this->expiry_settings_model->get_settings();
+					$item_check = $this->db->select('item_name,expire_date')->where('id',$item_id)->get('db_items')->row();
+					if(!$isInvoiceDraft && is_valid_date($item_check->expire_date) && $expiry_settings->stop_selling_expired == 1 && $item_check->expire_date < date('Y-m-d')){
+						$this->load->model('Inventory_rotation_model', 'sales_expiry_rotation');
+						$hasValidBatch = $selected_batch_id > 0;
+						if(!$hasValidBatch && (int)$warehouse_id > 0 && $this->db->table_exists('db_item_barcodes')){
+							$hasValidBatch = $this->sales_expiry_rotation->sellable_qty((int)$store_id, [(int)$warehouse_id], (int)$item_id) > 0;
+						}
+						if(!$hasValidBatch){
+							$this->db->trans_rollback();
+							return "This item has expired (".$item_check->expire_date."). Cannot sell: ".$item_check->item_name;
+						}
+					}
+				} catch (Exception $e) { /* Expiry settings not ready yet */ }
+				$sales_qty			=parse_amount($_REQUEST['td_data_'.$i.'_3'] ?? '');
+				$price_per_unit 	=parse_amount($_REQUEST['td_data_'.$i.'_4'] ?? '');
+				$tax_id 			=$this->xss_html_filter(trim($_REQUEST['tr_tax_id_'.$i]));
+				$tax_amt 			=parse_amount($_REQUEST['td_data_'.$i.'_11'] ?? '');
+				$unit_total_cost	=parse_amount($_REQUEST['td_data_'.$i.'_10'] ?? '');
+				//$discount_input	=parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');
+				$total_cost			=parse_amount($_REQUEST['td_data_'.$i.'_9'] ?? '');
+				$tax_type			=$this->xss_html_filter(trim($_REQUEST['tr_tax_type_'.$i]));
+				$unit_tax			=parse_amount($_REQUEST['tr_tax_value_'.$i] ?? '');
+				$description		=mp_clean_text(mp_catalogue_name($_REQUEST['description_'.$i] ?? ''));
+				$batch_lot			=$this->xss_html_filter(trim($_REQUEST['batch_lot_'.$i] ?? ''));
+				$sold_serial_number =$this->xss_html_filter(trim($_REQUEST['sold_serial_number_'.$i] ?? ''));
+				$sold_imei_number   =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_'.$i] ?? ''));
+				$sold_imei_number_2 =$this->xss_html_filter(trim($_REQUEST['sold_imei_number_2_'.$i] ?? ''));
+				$barcode_id         =intval($_REQUEST['barcode_id_'.$i] ?? 0);
+				$price_type			=$this->xss_html_filter(trim($_REQUEST['price_type_'.$i] ?? 'retail'));
+				$unit_id			=$this->xss_html_filter(trim($_REQUEST['unit_id_'.$i] ?? ''));
+				$unit_name			=$this->xss_html_filter(trim($_REQUEST['unit_name_'.$i] ?? ''));
+				$conversion_factor	=isset($_REQUEST['conversion_factor_'.$i]) ? (float)$_REQUEST['conversion_factor_'.$i] : 1;
+				if($conversion_factor <= 0){ $conversion_factor = 1; }
+
+                //$discount_input  =(empty($discount_input)) ? 0 : $discount_input;
+				//$discount_amt 		=($sales_qty * $unit_total_cost)*$discount_input/100;
+
+
+				$discount_type 		=$this->xss_html_filter(trim($_REQUEST['item_discount_type_'.$i]));
+				$discount_input 	=parse_amount($_REQUEST['item_discount_input_'.$i] ?? '');
+				$discount_amt	    =parse_amount($_REQUEST['td_data_'.$i.'_8'] ?? '');//Amount
+
+				if(!is_numeric($sales_qty) || !is_finite((float)$sales_qty) || (float)$sales_qty<=0){$this->db->trans_rollback();return 'Invoice quantities must be greater than zero.';}
+                try {
+                    $pricingSnapshot = mp_customer_pricing()->line_snapshot($store_id, $customer_id, $item_id,
+                        $price_type, $unit_id, $barcode_id, $price_per_unit, $_REQUEST['pricing_snapshot_'.$i] ?? null, $pricingHistory);
+                    if ($pricingSnapshot) $price_type = json_decode($pricingSnapshot, true)['effective_tier'];
+                } catch (RuntimeException $e) { $this->db->trans_rollback(); return $e->getMessage(); }
+				$discount_amt_per_unit = $discount_amt/$sales_qty;
+				if($tax_type=='Exclusive'){
+					$single_unit_total_cost = $price_per_unit + ($unit_tax * $price_per_unit / 100);
+				}
+				else{//Inclusive
+					$single_unit_total_cost =$price_per_unit;
+				}
+				$single_unit_total_cost -=$discount_amt_per_unit;
+				// Never persist a formatted browser string as a numeric line total.
+				$total_cost = round($single_unit_total_cost * $sales_qty, 4);
+
+
+				if($tax_id=='' || $tax_id==0){$tax_id=null;}
+				if($tax_amt=='' || $tax_amt==0){$tax_amt=null;}
+				if($discount_input=='' || $discount_input==0){$discount_input=null;}
+				//if($unit_total_cost=='' || $unit_total_cost==0){$unit_total_cost=null;}
+				if($total_cost=='' || $total_cost==0){$total_cost=null;}
+				
+				
+
+				//For Update operation only
+				if($command=='update' && !update_warehouse_items($item_id)){
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+				}
+				//end
+				
+				$item_details = get_item_details($item_id);
+				if(!$item_details || (int)$item_details->store_id!==(int)$store_id){$this->db->trans_rollback();return 'Invoice item not found for this store.';}
+				if($selected_batch_id > 0){
+					$selectedBatchRow = $this->db->where('id', $selected_batch_id)->where('item_id', (int)$item_id)->where('warehouse_id', (int)$warehouse_id)->where('status', 1)->get('db_item_barcodes')->row();
+					if(!$selectedBatchRow || (float)$selectedBatchRow->qty + 0.00001 < (float)$sales_qty * (float)$conversion_factor){
+						$this->db->trans_rollback();
+						return 'The selected batch is no longer available in the requested quantity. Choose another batch and retry.';
+					}
+					$batch_lot = (string)($selectedBatchRow->batch_lot ?? '');
+				}
+				$item_name = $item_details->item_name;
+				$service_bit = $item_details->service_bit;
+				$track_serial = $isInvoiceDraft ? 0 : ($item_details->track_serial ?? 0);
+				$track_imei   = $isInvoiceDraft ? 0 : ($item_details->track_imei ?? 0);
+
+				// Resolve the serial/IMEI strings from the selected unit row
+				$barcode_rec = null;
+				if($barcode_id > 0){
+					$this->db->where('id',$barcode_id)->where('item_id',(int)$item_id)->where('status',1);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$barcode_rec = $this->db->get('db_item_barcodes')->row();
+					if($barcode_rec){
+						if(!empty($barcode_rec->serial_number)) $sold_serial_number = $barcode_rec->serial_number;
+						if(!empty($barcode_rec->imei_number))  $sold_imei_number  = $barcode_rec->imei_number;
+						if(!empty($barcode_rec->imei_number_2)) $sold_imei_number_2 = $barcode_rec->imei_number_2;
+						if(!empty($barcode_rec->batch_lot))     $batch_lot         = $barcode_rec->batch_lot;
+					}
+				}
+                if(($track_serial || $track_imei || (int)($item_details->warranty_months ?? 0) > 0) && $barcode_id <= 0 && (!empty($sold_serial_number) || !empty($sold_imei_number) || !empty($sold_imei_number_2))){
+					$this->db->where('item_id',(int)$item_id)->where('status',1);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number',$sold_serial_number);
+					if(!empty($sold_imei_number)) $this->db->where('imei_number',$sold_imei_number);
+					if(!empty($sold_imei_number_2) && $this->db->field_exists('imei_number_2','db_item_barcodes')) $this->db->where('imei_number_2',$sold_imei_number_2);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$matched_unit = $this->db->get('db_item_barcodes')->row();
+					if($matched_unit) {
+						$barcode_id = (int)$matched_unit->id; $barcode_rec = $matched_unit;
+						$sold_serial_number = $matched_unit->serial_number ?: $sold_serial_number;
+						$sold_imei_number = $matched_unit->imei_number ?: $sold_imei_number;
+						$sold_imei_number_2 = ($matched_unit->imei_number_2 ?? '') ?: $sold_imei_number_2;
+					}
+				}
+
+				// Serialised equipment MUST carry an exact unit — this is what feeds
+				// warranty, equipment register and delivery traceability.
+				$requires_device_unit = !$isInvoiceDraft && (bool)($track_serial || $track_imei || (int)($item_details->warranty_months ?? 0) > 0);
+				if(($track_serial || (!$isInvoiceDraft && (int)($item_details->warranty_months ?? 0)>0 && !$track_imei)) && empty($sold_serial_number)){
+					$this->db->trans_rollback();
+					return "Serial number is required for {$item_name}. Pick the exact unit before saving the invoice.";
+				}
+				if($track_imei && empty($sold_imei_number)){
+					$this->db->trans_rollback();
+					return "IMEI number is required for {$item_name}.";
+				}
+				if($requires_device_unit && $barcode_id <= 0){
+					$this->db->trans_rollback();
+					return "Select an available received unit of {$item_name}; identifiers must match inventory.";
+				}
+				// One physical unit = one invoice line
+				if($requires_device_unit && $sales_qty > 1){
+					$this->db->trans_rollback();
+					return "{$item_name} is serial-tracked: add each unit on its own line (qty 1) so each serial can be assigned.";
+				}
+				$warranty_months_snapshot = max(0,(int)(($barcode_rec && (int)($barcode_rec->warranty_months ?? 0) > 0) ? $barcode_rec->warranty_months : ($item_details->warranty_months ?? 0)));
+				$warranty_start_snapshot = (!$isInvoiceDraft && $warranty_months_snapshot > 0 && !empty($sales_date)) ? $sales_date : null;
+				$warranty_end_snapshot = $warranty_start_snapshot ? date('Y-m-d',strtotime($warranty_start_snapshot.' +'.$warranty_months_snapshot.' months')) : null;
+				// Unit must still be available (status 1 = in stock)
+				if(!$isInvoiceDraft && $barcode_id > 0){
+					$this->db->where('id',$barcode_id)->where('item_id',(int)$item_id)->where('status',1);
+					if($this->db->field_exists('warehouse_id','db_item_barcodes')) $this->db->where('warehouse_id',(int)$warehouse_id);
+					$bc_row = $this->db->get('db_item_barcodes')->row();
+					if(!$bc_row || (int)$bc_row->status !== 1){
+						$this->db->trans_rollback();
+						return "The selected unit of {$item_name} is not available (already sold or reserved).";
+					}
+					$this->load->model('expiry_settings_model', 'expiry_rotation_guard');
+					$expiryGuard = $this->expiry_rotation_guard->get_settings();
+					if (!empty($expiryGuard->stop_selling_expired) && is_valid_date($bc_row->expire_date ?? null) && $bc_row->expire_date < date('Y-m-d')) {
+						$this->db->trans_rollback();
+						return "The selected batch of {$item_name} expired on {$bc_row->expire_date} and cannot be sold.";
+					}
+					$purchase_price = !empty($bc_row->purchase_price) ? $bc_row->purchase_price : ((!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price);
+				} else {
+					// Use the item's cost (purchase_price with tax) preferentially, falling back to base price before tax
+					$purchase_price = (!empty($item_details->purchase_price) && $item_details->purchase_price > 0) ? $item_details->purchase_price : $item_details->price;
+				}
+				$base_unit_qty = $sales_qty * $conversion_factor;
+				$current_stock_of_item = total_available_qty_items_of_warehouse($warehouse_id,null,$item_id);
+				$previous_invoice_qty = 0;
+				if($command==='update' && $invoiceFlow['previous']
+					&& (int)$invoiceFlow['previous']->warehouse_id===(int)$warehouse_id){
+					$previous_invoice_qty = (float)($previousInvoiceQtyByItem[(int)$item_id] ?? 0);
+				}
+				$available_for_invoice = $current_stock_of_item + $previous_invoice_qty;
+				$this->load->model('Extras_model', 'extras_model');
+				$qtyError = $this->extras_model->qtyRuleError($item_details, $sales_qty);
+				if($qtyError){
+					$this->db->trans_rollback();
+					return $qtyError;
+				}
+				if(!$isInvoiceDraft && !empty($item_details->is_bundle)){
+					$availableBundles = $this->extras_model->bundleAvailability($item_id, $store_id, $warehouse_id);
+					if($availableBundles === null || $availableBundles < $sales_qty){
+						$this->db->trans_rollback();
+						return $item_name . ' has only ' . max(0, (int)$availableBundles) . ' bundle(s) available.';
+					}
+				} else if(!$isInvoiceDraft && $available_for_invoice<$base_unit_qty && $service_bit==0){
+					// This runs inside the invoice transaction. Roll back the header,
+					// any earlier line rows and any related writes before returning;
+					// otherwise a rejected zero/short-stock invoice can leave the
+					// transaction open until request teardown (and hold DB locks).
+					$this->db->trans_rollback();
+					return $item_name . " has only " . $available_for_invoice . " in Stock!!";
+				}
+				
+				$salesitems_entry = array(
+		    				'sales_id' 			=> $sales_id, 
+		    				'sales_status'		=> $sales_status, 
+		    				'item_id' 			=> $item_id, 
+		    				'description' 		=> $description, 
+		    				'sales_qty' 		=> $sales_qty,
+		    				'price_per_unit' 	=> $price_per_unit,
+		    				'tax_type' 			=> $tax_type,
+		    				'tax_id' 			=> $tax_id,
+		    				'tax_amt' 			=> $tax_amt,
+		    				'discount_input' 	=> $discount_input,
+		    				'discount_amt' 		=> $discount_amt,
+		    				'discount_type' 	=> $discount_type,
+		    				'unit_total_cost' 	=> $single_unit_total_cost,
+		    				'total_cost' 		=> $total_cost,
+		    				'purchase_price' 	=> $purchase_price,
+	    				'batch_lot' 		=> $batch_lot,
+	    			'price_type' 		=> $price_type,
+		    				'status'	 		=> 1,
+				'seller_points'		=> $isInvoiceDraft ? 0 : get_seller_points($item_id) * $sales_qty,
+		    				'sold_serial_number'=> $sold_serial_number,
+							'sold_imei_number'  => $sold_imei_number,
+							'sold_imei_number_2' => $sold_imei_number_2,
+							'warranty_months_snapshot' => $warranty_months_snapshot,
+							'warranty_start' => $warranty_start_snapshot,
+							'warranty_end' => $warranty_end_snapshot,
+		    				'barcode_id'        => $barcode_id,
+
+		    			);
+
+				$salesitems_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+				$this->load->model('Physio_accounts_model','pa');
+				$salesitems_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salesitems_entry['store_id']);
+                if ($this->db->field_exists('pricing_snapshot','db_salesitems')) $salesitems_entry['pricing_snapshot'] = $pricingSnapshot;
+				$q2 = $this->db->insert('db_salesitems', $salesitems_entry);
+				if(!$q2){
+					$err = $this->db->error();
+					log_message('error', "Sales db_salesitems insert FAILED: #{$err['code']} {$err['message']} sales_id=$sales_id item_id=$item_id");
+					$this->db->trans_rollback();
+					return "Failed to save sale item: " . $err['message'];
+				}
+				$sale_items_id = $this->db->insert_id();
+				// Persist multi-unit selling fields and base-unit quantity for stock conversion
+				if($sale_items_id){
+					$this->db->where('id', $sale_items_id)->update('db_salesitems', array(
+						'unit_id'           => $unit_id,
+						'unit_name'         => $unit_name,
+						'conversion_factor' => $conversion_factor,
+						'base_unit_qty'     => $base_unit_qty,
+					));
+				}
+				log_message('error', "Sales db_salesitems OK: id=$sale_items_id sales_id=$sales_id item_id=$item_id qty=$sales_qty base_qty=$base_unit_qty");
+
+				if(!$isInvoiceDraft){
+				// FEFO/FIFO allocates automatically. Manual rotation consumes the
+				// exact lot the clerk selected in the POS picker. Services never draw
+				// batch stock.
+				$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+				$rotationStoreId = (int)(store_module() && is_admin() ? $store_id : get_current_store_id());
+				$rotationWarehouseId = (int)(warehouse_module() && warehouse_count() > 1 ? $warehouse_id : get_store_warehouse_id());
+				$allocationError = $selected_batch_id > 0
+					? $this->inventory_rotation->consume_chosen_batch($sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId, $item_id, $selected_batch_id, $base_unit_qty, $item_name)
+					: $this->inventory_rotation->allocate_sale_line(
+						$sales_id, $sale_items_id, $rotationStoreId, $rotationWarehouseId,
+						$item_id, $base_unit_qty, $service_bit
+					);
+				if ($allocationError !== '') {
+					$this->db->trans_rollback();
+					return $allocationError;
+				}
+
+				// Mark the physical unit as sold so it cannot be re-sold
+				if($barcode_id > 0){
+					$this->db->where('id', $barcode_id)->update('db_item_barcodes', ['status' => 0]);
+				} else if(!empty($sold_serial_number) || !empty($sold_imei_number)){
+					$this->db->where('item_id', $item_id);
+					if(!empty($sold_serial_number)) $this->db->where('serial_number', $sold_serial_number);
+					if(!empty($sold_imei_number))  $this->db->where('imei_number', $sold_imei_number);
+					$this->db->limit(1)->update('db_item_barcodes', ['status' => 0]);
+				}
+
+				// Register serialised equipment on the customer (equipment register)
+				if($track_serial || !empty($sold_serial_number)){
+					mp_register_equipment_from_sale($sales_id, $sale_items_id, $customer_id);
+				}
+
+				// If this is a package, create customer package record
+				if ($item_details->package_bit == 1) {
+					$this->load->model('service_package_model');
+					$pkg = $this->service_package_model->get_by_item_id($item_id);
+					if ($pkg) {
+						$this->service_package_model->create_customer_package($sales_id, $sale_items_id, $pkg->id, $customer_id);
+					}
+				}
+				
+				//UPDATE itemS QUANTITY IN itemS TABLE
+				$this->load->model('pos_model');				
+				if(empty($item_details->is_bundle)){
+					$q6=$this->pos_model->update_items_quantity($item_id);
+					if(!$q6){
+						$this->db->trans_rollback();
+						return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+					}
+				} else if(!$this->extras_model->deplete_bundle_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
+					return 'Failed to deplete bundle components.';
+				}
+
+				// Recipe-driven items (component plates, sale-deplete) must deduct
+				// their ingredients on every issuing sale path, not just legacy POS.
+				// The restaurant bridge recognises these SALE-<id> documents and
+				// skips them, so consumption stays exactly-once.
+				if($command=='save' && !$this->pos_model->deplete_recipe_at_sale($item_id, $sales_qty, $sales_id, $store_id, $warehouse_id)){
+					$this->db->trans_rollback();
+					return 'Failed to deplete recipe ingredients.';
+				}
+				
+			}
+				}// Issued invoice fulfilment only; drafts never consume stock or packages.
+		
+		}//for end
+
+		// POS-style checkout still requires walk-in full payment. Standard invoices
+		// carry their own receivable/payment history and may be saved unpaid.
+		$walkin_paid = ($amount=='' || $amount==0) ? 0 : floatval($amount);
+		if(!$standard_invoice && !$isInvoiceDraft && is_walk_in_customer($customer_id) && ($walkin_paid + (float)$invoiceFlow['paid']) < $tot_total_amt){
+			$this->db->trans_rollback();
+			return "Walk-in Customer cannot have credit! Please create a registered customer profile or collect full payment.";
+		}
+
+		if($amount=='' || $amount==0){$amount=null;}
+		if($amount>0 && !empty($payment_type)){
+
+			if($amount>$tot_total_amt){
+				$this->db->trans_rollback();
+				return "Payble amount should not be exceeds Invoice Amount!!";
+			}
+
+			/**
+			 * @update
+			 * Verifieng previous and current payment total with invoice amount
+			*/
+			if($command=='update'){
+				$tot_payment = $this->db->select('coalesce(sum(payment),0) as payment')->where('sales_id',$sales_id)->where('status',1)->get('db_salespayments')->row()->payment;
+				if(($tot_payment+$amount)>$tot_total_amt){
+					$this->db->trans_rollback();
+					return "Payble amount should not be exceeds Invoice Amount!!\nPlease check previous payments as well.";
+				}
+			}
+
+
+			//is total advance payment enabled ?
+			$advance_adjusted=0;
+			if(isset($allow_tot_advance)){
+				$tot_advance = get_customer_details($customer_id)->tot_advance;
+				if($tot_advance>0){
+					if($amount==$tot_advance){
+						$advance_adjusted = $amount;
+					}
+					else if($amount>$tot_advance){
+						$advance_adjusted = $tot_advance;	
+					}
+					else{
+						$advance_adjusted =  $amount;
+					}
+				}
+			}
+			//end 
+
+			// Look up payment_mode_id
+			$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
+			$payment_mode_id = $pm_row ? $pm_row->id : null;
+
+			$payment_code=get_init_code('sales_payment');
+			$salespayments_entry = array(
+					'payment_code' 		=> $payment_code,
+		    		'count_id'	  		=> get_count_id('db_salespayments'),
+					'sales_id' 			=> $sales_id, 
+					'payment_date'		=> $sales_date,//Current Payment with sales entry
+					'payment_type' 		=> $payment_type,
+					'payment_mode_id' 	=> $payment_mode_id,
+					'payment' 			=> $amount,
+					'payment_note' 		=> $payment_note,
+					'payment_reference' 	=> $payment_reference ?? '',
+					'confirmation_status'	=> $confirmation_status ?? 1,
+					'created_date' 		=> $CUR_DATE,
+    				'created_time' 		=> $CUR_TIME,
+    				'created_by' 		=> $CUR_USERNAME,
+    				'system_ip' 		=> $SYSTEM_IP,
+    				'system_name' 		=> $SYSTEM_NAME,
+    				'status' 			=> 1,
+    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+    				'customer_id' 		=> $customer_id,
+    				'advance_adjusted' 	=> $advance_adjusted,
+    				'cheque_number' 	=> $cheque_number,
+    				'cheque_period' 	=> $cheque_period,
+    				'cheque_status' 	=> "Pending",
+				);
+			$salespayments_entry['store_id']=(store_module() && is_admin()) ? $store_id : get_current_store_id();
+			if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift($salespayments_entry['store_id'], get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
+			$this->load->model('Physio_accounts_model','pa');
+			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
+			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
+		if(!$q3){
+			$err = $this->db->error();
+			$this->db->trans_rollback();
+			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
+		}
+			//Set the payment to specified account
+			if(!empty($account_id)){
+				//ACCOUNT INSERT
+				$insert_bit = insert_account_transaction(array(
+															'transaction_type'  	=> 'SALES PAYMENT',
+															'reference_table_id'  	=> $this->db->insert_id(),
+															'debit_account_id'  	=> null,
+															'credit_account_id'  	=> $account_id,
+															'debit_amt'  			=> 0,
+															'credit_amt'  			=> $amount,
+															'process'  				=> 'SAVE',
+															'note'  				=> $payment_note,
+															'transaction_date'  	=> $CUR_DATE,
+															'payment_code'  		=> $payment_code,
+															'customer_id'  			=> $customer_id,
+															'supplier_id'  			=> null,
+													));
+				if(!$insert_bit){
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+				}
+			}
+			//end
+			
+		}
+		
+		
+		
+
+		$q10=$this->update_sales_payment_status($sales_id,$customer_id);
+		if($q10!=1){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+		
+		
+		if(!set_customer_tot_advance($customer_id)){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+		/*$q10=$this->set_quotation_sales_status($sales_id);
+		if(!$q10){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}*/
+		
+		//Dont save if invoice credit limit exceeds
+		$credit_check = $isInvoiceDraft ? true : check_credit_limit_with_invoice($customer_id,$sales_id);
+		if($credit_check !== true){
+			$this->db->trans_rollback();return $credit_check;
+		}
+
+
+		$sms_info='';
+		if(!$isInvoiceDraft && isset($send_sms) && $customer_id!=1){
+			if(send_sms_using_template($sales_id,1)==true){
+				$sms_info = 'SMS Has been Sent!';
+			}else{
+				$sms_info = 'Failed to Send SMS';
+			}
+		}
+		
+
+		##############################################START
+		//FIND THE PREVIOUSE ITEM LIST ID'S
+		$curr_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id",$sales_id)->get()->result_array();
+		$two_array = array_merge($prev_item_ids,$curr_item_ids);
+
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehouse_items($two_array);
+		if(!$q7){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+		##############################################END
+		
+		//Calculate Opening balance before and after invoice
+		/*$q7=calculate_ob_of_customer($sales_id,$customer_id);
+		if(!$q7){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}*/
+
+		// Ensure invalid legacy due dates are stored as NULL
+
+		//Record Loyalty Points
+		if(!$isInvoiceDraft && $customer_id != 1 && $tot_total_amt > 0){
+			$this->load->model('loyalty_model');
+			$settings = $this->loyalty_model->get_settings();
+			if($settings && $settings->loyalty_enabled){
+				$sale_items = $this->db->select('item_id, sales_qty, price_per_unit, discount_amt')
+							->where('sales_id', $sales_id)
+							->get('db_salesitems')
+							->result();
+				$loyalty_items = array();
+				foreach($sale_items as $si){
+					$loyalty_items[] = array(
+						'item_id' => (int)$si->item_id,
+						'qty' => (float)$si->sales_qty,
+						'line_value' => max(0, (float)$si->price_per_unit * (float)$si->sales_qty - (float)($si->discount_amt ?? 0))
+					);
+				}
+				$points = $this->loyalty_model->calculate_points_for_sale($customer_id, $tot_total_amt, $loyalty_items);
+				if($points > 0){
+					$this->loyalty_model->record_points($customer_id, $sales_id, $points, 'earn', 'Points earned from sale');
+				}
+			}
+		}
+		//end
+
+		// Drafts do not redeem promotions.
+		if(!$isInvoiceDraft && !empty($coupon_code)){
+			$promo = $this->db->where('store_id', $store_id)->where('UPPER(promotion_code)', strtoupper($coupon_code))->get('db_promotions')->row();
+			if($promo){
+				$this->load->model('Promotions_model','promotions_m');
+				$this->promotions_m->record_usage($promo->id, $customer_id, $sales_id, $store_id);
+			}
+		}
+
+        $this->load->helper('garden');
+        $gardenLinkError=$command==='save' ? mp_garden_link_created_document('invoice',$sales_id) : null;
+        if ($gardenLinkError!==null) { $this->db->trans_rollback();return $gardenLinkError; }
+		if(!$this->db->trans_status())return 'Invoice could not be saved. No changes were committed.';
+		// Which medicines the bill released, and from which batch. Recorded
+		// after the save is known good and before it lands, so a failed bill
+		// leaves no entry behind — and a failed entry never fails the bill.
+		// Drafts are not dispensing, and a shop without prescription products
+		// writes nothing here.
+		if(!$isInvoiceDraft){
+			$this->_auditDispensed($store_id, $sales_id, $command === 'update',
+				isset($audit_rx_before) ? $audit_rx_before : array());
+		}
+		$this->db->trans_commit(); $invoiceTransactionOpen=false;
+
+		// Append sales_note to customer profile notes for tracking (works for all business types)
+		// Skip walk-in customers (they don't have persistent profiles)
+		if(!empty($sales_note) && !is_walk_in_customer($customer_id)){
+			try {
+				log_message('error', 'Saving sales_note to customer: customer_id=' . $customer_id . ', note=' . $sales_note);
+				$existing_notes = $this->db->select('notes')->where('id', $customer_id)->get('db_customers')->row()->notes ?? '';
+				$date_str = date('Y-m-d H:i');
+				$new_entry = "\n\n[$date_str] $sales_note";
+				$updated_notes = $existing_notes . $new_entry;
+				$this->db->where('id', $customer_id)->update('db_customers', ['notes' => $updated_notes]);
+				log_message('error', 'Customer notes updated successfully');
+			} catch (Exception $e) {
+				// Don't block sale if customer notes update fails
+				log_message('error', 'Failed to update customer notes: ' . $e->getMessage());
+			}
+		} else {
+			log_message('error', 'sales_note not saved: sales_note=' . $sales_note . ', customer_id=' . $customer_id . ', is_walkin=' . (is_walk_in_customer($customer_id) ? 'yes' : 'no'));
+		}
+
+		// Send only issued invoices; draft saves never send or spend messaging credits.
+		$firstIssue = !$standard_invoice || !$invoiceFlow['previous'] || $invoiceFlow['previous']->sales_status==='Draft';
+		if(!$isInvoiceDraft && $firstIssue && $customer_id != 1){ // Edits do not re-send or re-charge for an issued invoice.
+			try {
+				$this->load->model('email_service');
+				$customer = get_customer_details($customer_id);
+				$sales_rec = get_sales_details($sales_id);
+				if(!empty($customer->email)){
+					$invoiceLink = base_url('sales/print_invoice/' . $sales_id);
+					if($standard_invoice && $this->db->field_exists('invoice_payment_token', 'db_sales')){
+						$invoiceToken = trim((string)($this->db->select('invoice_payment_token')->where('id',(int)$sales_id)->where('store_id',(int)$store_id)->get('db_sales')->row()->invoice_payment_token ?? ''));
+						if($invoiceToken === ''){
+							try { $invoiceToken = bin2hex(random_bytes(32)); }
+							catch (Throwable $tokenError) { $invoiceToken = hash('sha256', uniqid((string)mt_rand(), true) . microtime(true)); }
+							$this->db->where('id',(int)$sales_id)->where('store_id',(int)$store_id)->where('invoice_payment_token IS NULL', null, false)
+								->update('db_sales', array('invoice_payment_token'=>$invoiceToken));
+							$invoiceToken = trim((string)($this->db->select('invoice_payment_token')->where('id',(int)$sales_id)->where('store_id',(int)$store_id)->get('db_sales')->row()->invoice_payment_token ?? ''));
+						}
+						if(preg_match('/^[a-f0-9]{64}$/D', $invoiceToken)) $invoiceLink = base_url('invoice/pay/' . $invoiceToken);
+					}
+					$emailResult=$this->email_service->sendTemplate(
+						'invoice_sent',
+						$customer->email,
+						[
+							'customer_name'   => $customer->customer_name,
+							'invoice_number'  => $sales_rec->sales_code,
+							'invoice_total'   => store_number_format($sales_rec->grand_total),
+							'amount_paid'     => store_number_format($sales_rec->paid_amount),
+							'amount_due'      => store_number_format($sales_rec->grand_total - $sales_rec->paid_amount),
+							'invoice_link'    => $invoiceLink,
+							'store_name'      => get_store_details()->store_name,
+						],
+						['related_module' => 'sales', 'related_record_id' => $sales_id]
+					);
+					if($standard_invoice && !empty($emailResult['success']))$this->invoice_workflow->markSent($sales_id,$store_id);
+				}
+			} catch (Exception $e) {
+				log_message('error', 'Invoice email failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
+			}
+		}
+
+		$this->session->set_flashdata('success', 'Success!! Record Saved Successfully! '.$sms_info);
+		return "success<<<###>>>$sales_id";
+		} finally {if($invoiceTransactionOpen)$this->db->trans_rollback();}
+	}
+	//verify_save_and_update() function end
+
+	/**
+	 * The prescription lines on a bill, read before the bill is rewritten.
+	 * The witness never gets a say in the save: if it cannot be built, the
+	 * caller carries an empty map and the invoice still lands.
+	 */
+	private function _auditRxLines($sales_id){
+		try {
+			$capture = mp_audit_capture();
+			return $capture ? $capture->dispensedLines($sales_id) : array();
+		} catch (Throwable $e) {
+			log_message('error', 'Prescription line audit read failed: ' . $e->getMessage());
+			return array();
+		}
+	}
+
+	private function _auditDispensed($store_id, $sales_id, $isUpdate, array $before){
+		try {
+			$capture = mp_audit_capture();
+			if ($capture) $capture->dispensed((int)$store_id, (int)$sales_id, (bool)$isUpdate, $before, 'till');
+		} catch (Throwable $e) {
+			log_message('error', 'Dispensing audit capture failed: ' . $e->getMessage());
+		}
+	}
+
+	function update_sales_payment_status_by_sales_id($sales_id,$customer_id){
+		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id' AND status=1");
+		$sum_of_payments=$q8->row()->payment;
+		
+
+		$payble_total=$this->db->query("select coalesce(sum(grand_total),0) as total from db_sales where id='$sales_id'")->row()->total;
+		//$payble_total=$q9->row()->total;
+		
+		//$pending_amt=$payble_total-$sum_of_payments;
+
+		$payment_status='';
+		if($payble_total==$sum_of_payments){
+			$payment_status="Paid";
+		}
+		else if($sum_of_payments!=0 && ($sum_of_payments<$payble_total)){
+			$payment_status="Partial";
+		}
+		else if($sum_of_payments==0){
+			$payment_status="Unpaid";
+		}
+
+
+		$q7=$this->db->query("update db_sales set 
+							payment_status='$payment_status',
+							paid_amount=$sum_of_payments 
+							where id='$sales_id'");
+		//$customer_id =$this->db->query("select customer_id from db_sales where id=$sales_id")->row()->customer_id;
+		$q12 = $this->db->query("update db_customers set sales_due=(select COALESCE(SUM(grand_total),0)-COALESCE(SUM(paid_amount),0) from db_sales where customer_id='$customer_id' and sales_status IN ('Final','Opening')) where id=$customer_id");
+		if(!$q7)
+		{
+			return false;
+		}
+		else{
+			return true;
+		}
+	}
+
+
+	function update_sales_payment_status($sales_id=null,$customer_id=null){
+	//UPDATE PRODUCTS QUANTITY IN PRODUCTS TABLE
+		if(empty($sales_id)){ //If sales ID not exist you need setup all the customers sales due
+			$q11=$this->db->query("select id from db_customers");
+			if($q11->num_rows()>0){
+				foreach ($q11->result() as $res) {
+
+					$q12=$this->db->query("select id from db_sales where customer_id=".$res->id);
+					if($q12->num_rows()>0){
+						foreach ($q12->result() as $res12) {
+							if(!$this->update_sales_payment_status_by_sales_id($res12->id,$res->id)){
+								return false;
+							}
+						}
+					}
+					else{
+						$q13=$this->db->query("update db_customers set sales_due=0 where id=".$res->id);
+						if(!$q13){
+							return false;
+						}
+					}
+
+				}
+			}
+			return true;
+		}
+		else{
+					if(!$this->update_sales_payment_status_by_sales_id($sales_id,$customer_id)){
+						return false;
+					}
+					return true;
+		}
+	}
+
+
+	//Get sales_details
+	public function get_details($id,$data){
+		//Validate This sales already exist or not
+		$query=$this->db->query("select * from db_sales where upper(id)=upper('$id')");
+		if($query->num_rows()==0){
+			show_404();exit;
+		}
+		else{
+			$query=$query->row();
+			$data['q_id']=$query->id;
+			$data['item_code']=$query->item_code;
+			$data['item_name']=$query->item_name;
+			$data['category_name']=$query->category_name;
+			$data['hsn']=$query->hsn;
+			$data['unit_name']=$query->unit_name;
+			$data['available_qty']=$query->available_qty;
+			$data['alert_qty']=$query->alert_qty;
+			$data['sales_price']=$query->sales_price;
+			$data['sales_price']=$query->sales_price;
+			$data['gst_percentage']=$query->gst_percentage;
+			
+			return $data;
+		}
+	}
+	public function update_status($id,$status){
+		
+        $query1="update db_sales set status='$status' where id=$id";
+        if ($this->db->simple_query($query1)){
+            echo "success";
+        }
+        else{
+            echo "failed";
+        }
+	}
+	public function delete_sales($ids){
+      	$this->db->trans_begin();
+
+      	$q12=$this->db->select("*")->where("sales_id in ($ids)")->get("db_salesreturn");
+      	if($q12->num_rows()>0){
+      		foreach ($q12->result() as $res12) {
+      			$sales_code = $this->db->select("sales_code")->where("id",$res12->sales_id)->get("db_sales")->row()->sales_code;
+      			echo "<br>Invoice Code: ".$sales_code;
+      		}
+      		echo "<br>Already Raised Returns, Please Delete Before Deleting Original Invoice";
+      		exit;
+      	}
+		if ($this->db->table_exists('db_salesitem_batch_allocations')) {
+			$this->load->model('Inventory_rotation_model', 'inventory_rotation');
+			foreach (array_filter(array_map('intval', explode(',', (string)$ids))) as $saleId) {
+				if (!$this->inventory_rotation->restore_sale($saleId)) {
+					$this->db->trans_rollback();
+					return 'Could not restore batch stock for a deleted invoice. No records were removed.';
+				}
+			}
+		}
+
+      	//ACCOUNT RESET
+		// Get the affected payment rows
+		$payment_rows = $this->db->select("id, account_id, payment_code")
+								->where("sales_id in ($ids)")
+								->get("db_salespayments")
+								->result();
+		$payment_codes = array_filter(array_unique(array_map(function($r){ return $r->payment_code; }, $payment_rows)));
+		$account_ids = array_filter(array_unique(array_map(function($r){ return $r->account_id; }, $payment_rows)));
+
+		// Delete the account transaction rows linked to this sale's payments
+		if(!empty($payment_codes)){
+			$this->db->where_in("payment_code", $payment_codes)
+					 ->where("transaction_type", 'SALES PAYMENT')
+					 ->delete("ac_transactions");
+			// Also delete the payment rows themselves
+			$this->db->where("sales_id in ($ids)")
+					 ->delete("db_salespayments");
+		}
+		//ACCOUNT RESET END
+
+      	##############################################START
+		//FIND THE PREVIOUSE ITEM LIST ID'S
+		$prev_item_ids = $this->db->select("item_id")->from("db_salesitems")->where("sales_id in ($ids)")->get()->result_array();
+		##############################################END
+		
+		//RESET QUOTATION RESET
+		if(!$this->reset_quotation_sales_status_to_null($ids)){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+
+		// Release serialised units + remove equipment-register rows before the
+		// invoice lines disappear (prevents orphaned 'sold' serials)
+		foreach (explode(',', $ids) as $_sid) {
+			mp_release_sale_barcodes((int)$_sid);
+			mp_unregister_equipment_for_sale((int)$_sid);
+		}
+
+		// Delete the invoice line items
+		$this->db->where("sales_id in ($ids)")
+				 ->delete("db_salesitems");
+
+		//find customer list group by
+		$this->db->select("customer_id,id as sales_id");
+		$this->db->where("id in ($ids)");
+		$this->db->where("store_id",get_current_store_id());
+		$this->db->group_by("customer_id");
+		$customer_records=$this->db->get("db_sales");
+		//end
+
+		#----------------------------------
+		$this->db->where("id in ($ids)");
+		//if not admin
+		if(!is_admin()){
+			$this->db->where("store_id",get_current_store_id());
+		}
+
+		$q3=$this->db->delete("db_sales");
+		#----------------------------------
+		
+		$item_ids_first = get_in_comma_delimited($prev_item_ids);
+
+
+
+		$q6=$this->db->query("select id from db_items where id in ('".$item_ids_first."')");
+		if($q6->num_rows()>0){			
+			$this->load->model('pos_model');
+			foreach ($q6->result() as $res6) {
+				$q6=$this->pos_model->update_items_quantity($res6->id);
+				if(!$q6){
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+				}
+			}
+		}
+		
+
+    	if($customer_records->num_rows()>0){
+        	foreach ($customer_records->result() as $res) {
+        		if(!$this->update_sales_payment_status($res->sales_id,$res->customer_id)){
+		        	return 'failed';
+		        }
+
+        	}        		
+        }
+
+		
+		##############################################START
+		/*Update items in all warehouses of the item*/
+		$q7=update_warehouse_items($prev_item_ids);
+		if(!$q7){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+		##############################################END
+		
+		//ACCOUNT RESET
+		if(!empty($account_ids)){
+			foreach ($account_ids as $acc_id) {
+				if(!empty($acc_id) && !update_account_balance($acc_id)){
+					return 'failed';
+				}
+			}
+		}
+		//ACCOUNT RESET END
+
+        if($customer_records->num_rows()>0){
+        	foreach ($customer_records->result() as $customer_id) {
+        		if(!set_customer_tot_advance($customer_id->customer_id)){
+		        	return 'failed';
+		        }
+        	}
+        		
+        }
+
+
+		$this->db->trans_commit();
+		if(function_exists('mp_audit_log')){
+			mp_audit_log('sales', 'delete', $ids, 'Deleted sale(s) '.$ids);
+		}
+		return "success";
+	}
+	public function search_item($q){
+		$json_array=array();
+        $query1="select id,item_name from db_items where (upper(item_name) like upper('%$q%') or upper(item_code) like upper('%$q%'))";
+
+        $q1=$this->db->query($query1);
+        if($q1->num_rows()>0){
+            foreach ($q1->result() as $value) {
+            	$json_array[]=['id'=>(int)$value->id, 'text'=>$value->item_name];
+            }
+        }
+
+        // Also search db_item_barcodes by barcode, serial, or imei
+		$this->db->select('b.item_id, a.item_name, b.barcode, b.serial_number, b.imei_number, b.imei_number_2');
+        $this->db->from('db_item_barcodes b');
+        $this->db->join('db_items a', 'a.id = b.item_id', 'left');
+        $this->db->where('b.status', 1);
+		$this->db->where("(LOWER(b.barcode) LIKE '%$q%' OR LOWER(b.serial_number) LIKE '%$q%' OR LOWER(b.imei_number) LIKE '%$q%' OR LOWER(b.imei_number_2) LIKE '%$q%')", null, false);
+        $this->db->group_by('b.item_id');
+        $q2 = $this->db->get();
+        if($q2->num_rows()>0){
+            foreach ($q2->result() as $value) {
+                $label = $value->item_name;
+                if($value->barcode) $label .= ' [BC:'.$value->barcode.']';
+                if($value->serial_number) $label .= ' [S/N:'.$value->serial_number.']';
+                if($value->imei_number) $label .= ' [IMEI:'.$value->imei_number.']';
+                if($value->imei_number_2) $label .= ' [IMEI2:'.$value->imei_number_2.']';
+                $json_array[]=['id'=>(int)$value->item_id, 'text'=>$label];
+            }
+        }
+        return json_encode($json_array);
+	}
+	
+	public function find_item_details($id){
+		$json_array=array();
+        $query1="select id,hsn,alert_qty,unit_name,sales_price,sales_price,gst_percentage,available_qty from db_items where id=$id";
+
+        $q1=$this->db->query($query1);
+        if($q1->num_rows()>0){
+            foreach ($q1->result() as $value) {
+            	$json_array=['id'=>$value->id, 
+        			 'hsn'=>$value->hsn,
+        			 'alert_qty'=>$value->alert_qty,
+        			 'unit_name'=>$value->unit_name,
+        			 'sales_price'=>$value->sales_price,
+        			 'sales_price'=>$value->sales_price,
+        			 'gst_percentage'=>$value->gst_percentage,
+        			 'available_qty'=>$value->available_qty,
+        			];
+            }
+        }
+        return json_encode($json_array);
+	}
+
+	
+	public function reset_quotation_sales_status_to_null($sales_ids){
+			$this->db->where("id in($sales_ids)");
+			// `quotation_id != ''` also matches 0 (and NULL, depending on the
+			// column), which would clear the status of quotation 0 / ship a
+			// meaningless `id in(0)`. Only real links count.
+			$this->db->where("quotation_id IS NOT NULL");
+			$this->db->where("quotation_id > 0");
+			$this->db->select("quotation_id");
+			$quotation_ids = $this->db->get("db_sales");
+
+			//if records exist
+			if($quotation_ids->num_rows()>0){
+				$tmpArr = array();
+			    foreach ($quotation_ids->result() as $sub) {
+			      $tmpArr[] = $sub->quotation_id;
+			    }
+			    $quotation_ids = implode(',', $tmpArr);
+			    if(!empty($quotation_ids)){
+			    	$q11 = $this->db->set("sales_status",null)->where("id in($quotation_ids)")->update("db_quotation");
+			    	if(!$q11){
+			    		return false;
+			    	}
+			    }
+			}
+			return true;
+  	}
+
+
+	
+	/*v1.1*/
+	public function inclusive($price, $tax_per){
+		return ($tax_per!=0) ? $price/(($tax_per/100)+1)/10 : $tax_per;
+	}
+	public function get_items_info($rowcount,$item_id){
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$warehouse_id = $this->input->post('warehouse_id', TRUE);
+		$barcode = $this->input->post('barcode', TRUE) ?? '';
+		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+
+		// Barcode-specific lookup
+		if(!empty($barcode)){
+			$this->db->select('b.*, a.item_name, a.description AS item_description, a.tax_id, a.tax_type, a.discount_type, a.discount, a.service_bit, t.tax, t.tax_name');
+			$this->db->from('db_item_barcodes b');
+			$this->db->join('db_items a', 'a.id = b.item_id', 'left');
+			$this->db->join('db_tax t', 't.id = a.tax_id', 'left');
+			$this->db->where('b.barcode', $barcode);
+			$this->db->where('b.item_id', $item_id);
+			$this->db->where('b.status', 1);
+			$bc_data = $this->db->get()->row();
+			if($bc_data){
+				$bc_data->tax = (float)($bc_data->tax ?? 0);
+				$bc_data->tax_id = (int)($bc_data->tax_id ?? 0);
+				$bc_data->tax_name = $bc_data->tax_name ?? 'No Tax';
+				$sales_price = ($price_type == 'retail' && !empty($bc_data->mrp) && $bc_data->mrp > 0)
+					? $bc_data->mrp
+					: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $bc_data->sales_price);
+				$sales_price = get_price_level_price($customer_id,$sales_price,$bc_data->sales_price);
+				$sales_price = number_format($sales_price,decimals(),'.','');
+
+				// Apply active promotion (with margin protection) if module is available
+				$bc_promo_name = '';
+				$bc_promo_discount = 0;
+				try {
+					if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
+						$this->load->model('promotions_model');
+						$bc_promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
+						if($bc_promo['has_promo']){
+							$sales_price = number_format($bc_promo['price'], decimals(), '.', '');
+							$bc_promo_name = $bc_promo['promo_name'];
+							$bc_promo_discount = $bc_promo['discount_amount'];
+						}
+					}
+				} catch (Exception $e) { /* Promotions module not ready yet */ }
+
+				$item_tax_amt = ($bc_data->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$bc_data->tax) :calculate_exclusive($sales_price,$bc_data->tax);
+				$info = array(
+					'item_id' => $item_id,
+					'description' => (string)($bc_data->item_description ?? ''),
+					'item_name' => $bc_data->item_name,
+					'item_available_qty' => $bc_data->qty,
+					'item_price' => $bc_data->purchase_price,
+					'item_sales_price' => $sales_price,
+					'item_tax_name' => $bc_data->tax_name,
+					'item_sales_qty' => ($bc_data->qty<1 && $bc_data->service_bit!=1) ? $bc_data->qty : number_format(1,2),
+					'item_tax_id' => $bc_data->tax_id,
+					'item_tax' => $bc_data->tax,
+					'item_tax_type' => $bc_data->tax_type,
+					'item_tax_amt' => $item_tax_amt,
+					'item_discount' => 0,
+					'item_discount_type' => $bc_data->discount_type,
+					'item_discount_input' => mp_customer_has_group($customer_id) ? 0 : $bc_data->discount,
+					'service_bit' => $bc_data->service_bit,
+					'batch_lot' => $bc_data->batch_lot,
+					'barcode' => $barcode,
+					'price_type' => $price_type,
+					'promo_name' => $bc_promo_name,
+					'promo_discount' => $bc_promo_discount,
+				);
+				$this->return_row_with_data($rowcount,$info);
+				return;
+			}
+		}
+
+		$res1=$this->db->select('*')->from('db_items')->where('id',(int)$item_id)->where('store_id',get_current_store_id())->where('status',1)->get()->row();
+		if(!$res1){
+			echo json_encode(array('error'=>'This item is no longer available. Search again to refresh the catalogue.'));
+			return;
+		}
+		$res1->tax_type = in_array($res1->tax_type, array('Inclusive','Exclusive'), true) ? $res1->tax_type : 'Exclusive';
+
+		// Check expiry
+		try {
+			$this->load->model('expiry_settings_model');
+			$expiry_settings = $this->expiry_settings_model->get_settings();
+			if(is_valid_date($res1->expire_date) && $expiry_settings->stop_selling_expired == 1 && $res1->expire_date < date('Y-m-d')){
+				echo json_encode(array('error' => 'This item has expired ('.$res1->expire_date.'). Cannot sell expired items.'));
+				return;
+			}
+		} catch (Exception $e) { /* Expiry settings not ready yet */ }
+
+		$q3=get_document_item_tax($res1->tax_id);
+
+		//Get Customer Price
+		$price_type = $this->input->post('price_type', TRUE) ?? 'retail';
+		$base_price = ($price_type == 'retail' && !empty($res1->mrp) && $res1->mrp > 0)
+			? $res1->mrp
+			: (($price_type === 'retail' && mp_feature_enabled('auto_retail_markup')) ? 0 : $res1->sales_price);
+		$sales_price = get_price_level_price($customer_id,$base_price,$res1->sales_price);
+		$sales_price = number_format($sales_price,decimals(),'.','');
+
+		// Apply active promotion (with margin protection) if module is available
+		$promo_name = '';
+		$promo_discount = 0;
+		try {
+			if(!mp_customer_has_group($customer_id) && $this->db->table_exists('db_promotions')){
+				$this->load->model('promotions_model');
+				$promo = $this->promotions_model->compute_effective_price($item_id, $sales_price);
+				if($promo['has_promo']){
+					$sales_price = number_format($promo['price'], decimals(), '.', '');
+					$promo_name = $promo['promo_name'];
+					$promo_discount = $promo['discount_amount'];
+				}
+			}
+		} catch (Exception $e) { /* Promotions module not ready yet */ }
+
+		$item_available_qty = total_available_qty_items_of_warehouse($warehouse_id,null,$res1->id);// $res1->stock;
+
+		$item_tax_amt = ($res1->tax_type=='Inclusive') ? calculate_inclusive($sales_price,$q3->tax) :calculate_exclusive($sales_price,$q3->tax);
+
+		$info = array(
+							'item_id' 					=> $res1->id,
+							'description' 				=> (string)($res1->description ?? ''),
+							'item_name' 				=> $res1->item_name,
+							'item_available_qty' 		=> $item_available_qty,
+							'item_price' 				=> $res1->price,
+							'item_sales_price' 			=> $sales_price,
+							'item_tax_name' 			=> $q3->tax_name,
+							'item_sales_qty' 			=> ($item_available_qty<1 && $res1->service_bit!=1) ? $item_available_qty : number_format(1,2),
+							'item_tax_id' 				=> $q3->id,
+							'item_tax' 					=> $q3->tax,
+							'item_tax_type' 			=> $res1->tax_type,
+							'item_tax_amt' 				=> $item_tax_amt,
+							'item_discount' 			=> 0,
+							'item_discount_type' 		=> $res1->discount_type,
+							'item_discount_input' 		=> mp_customer_has_group($customer_id) ? 0 : $res1->discount,
+							'service_bit' 				=> $res1->service_bit,
+							'price_type' 				=> $price_type,
+							'promo_name' 				=> $promo_name,
+							'promo_discount' 			=> $promo_discount,
+						);
+
+		$this->return_row_with_data($rowcount,$info);
+	}
+	/* For Quotation Items List Retrieve*/
+	public function return_quotation_list($quotation_id){
+		$q1=$this->db->select('*')->from('db_quotationitems')->where("quotation_id=$quotation_id")->get();
+		$rowcount =1;
+		foreach ($q1->result() as $res1) {
+			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
+			
+			$info = array(
+							'item_id' 					=> $res1->item_id, 
+							'description' 				=> $res1->description, 
+							'item_name' 				=> $res2->item_name,
+							'item_available_qty' 		=> $res2->stock,
+							'item_price' 				=> $res2->price, 
+							'item_sales_price' 			=> $res1->price_per_unit,
+							'pricing_snapshot' => $res1->pricing_snapshot ?? null,
+							'unit_id' => $res1->unit_id ?? 0,
+							'unit_name' => $res1->unit_name ?? '',
+							'conversion_factor' => $res1->conversion_factor ?? 1,
+							'item_tax_name' 			=> $q3->tax_name, 
+							'item_sales_qty' 			=> $res1->quotation_qty, 
+							'item_tax_id' 				=> $res1->tax_id, 
+							'item_tax' 					=> $q3->tax, 
+							'item_tax_type' 			=> $res1->tax_type, 
+							'item_tax_amt' 				=> $res1->tax_amt, 
+							'item_discount' 			=> $res1->discount_input, 
+							'item_discount_type' 		=> $res1->discount_type, 
+							'item_discount_input' 		=> $res1->discount_input, 
+							'service_bit' 				=> 1, 
+						);
+
+			$result = $this->return_row_with_data($rowcount++,$info);
+		}
+		return $result;
+	}
+	/* For Purchase Items List Retrieve*/
+	public function return_sales_list($sales_id){
+		$q1=$this->db->select('*')->from('db_salesitems')->where("sales_id=$sales_id")->get();
+		$rowcount =1;
+		foreach ($q1->result() as $res1) {
+			$res2=$this->db->query("select * from db_items where id=".$res1->item_id)->row();
+			$q3=get_document_item_tax($res1->tax_id);
+			
+			$info = array(
+							'item_id' 					=> $res1->item_id, 
+							'description' 				=> $res1->description, 
+							'item_name' 				=> $res2->item_name,
+							'item_available_qty' 		=> ($res2->stock + $res1->sales_qty),
+							'item_price' 				=> $res2->price, 
+							'item_sales_price' 			=> $res1->price_per_unit,
+							'pricing_snapshot' => $res1->pricing_snapshot ?? null,
+							'unit_id' => $res1->unit_id ?? 0,
+							'unit_name' => $res1->unit_name ?? '',
+							'conversion_factor' => $res1->conversion_factor ?? 1,
+							'item_tax_name' 			=> $q3->tax_name, 
+							'item_sales_qty' 			=> $res1->sales_qty, 
+							'item_tax_id' 				=> $res1->tax_id, 
+							'item_tax' 					=> $q3->tax, 
+							'item_tax_type' 			=> $res1->tax_type, 
+							'item_tax_amt' 				=> $res1->tax_amt, 
+							'item_discount' 			=> $res1->discount_input, 
+							'item_discount_type' 		=> $res1->discount_type, 
+							'item_discount_input' 		=> $res1->discount_input, 
+							'service_bit' 				=> $res2->service_bit, 
+							'sold_serial_number' 		=> $res1->sold_serial_number, 
+							'sold_imei_number' 			=> $res1->sold_imei_number, 
+							'sold_imei_number_2' 		=> $res1->sold_imei_number_2 ?? '',
+							'barcode_id' 				=> $res1->barcode_id, 
+						);
+
+			$result = $this->return_row_with_data($rowcount++,$info);
+		}
+		return $result;
+	}
+
+	public function return_row_with_data($rowcount,$info){
+		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+		$description = isset($info['description']) ? $info['description'] : '';
+		$item_name = isset($info['item_name']) ? $info['item_name'] : '';
+		$item_available_qty = isset($info['item_available_qty']) ? $info['item_available_qty'] : '';
+		$item_price = isset($info['item_price']) ? $info['item_price'] : '';
+		$item_sales_price = isset($info['item_sales_price']) ? $info['item_sales_price'] : '';
+		$item_tax_name = isset($info['item_tax_name']) ? $info['item_tax_name'] : '';
+		$item_sales_qty = isset($info['item_sales_qty']) ? $info['item_sales_qty'] : '';
+		$item_tax_id = isset($info['item_tax_id']) ? $info['item_tax_id'] : '';
+		$item_tax = isset($info['item_tax']) ? $info['item_tax'] : '';
+		$item_tax_type = isset($info['item_tax_type']) ? $info['item_tax_type'] : '';
+		$item_tax_amt = isset($info['item_tax_amt']) ? $info['item_tax_amt'] : '';
+		$item_discount = isset($info['item_discount']) ? $info['item_discount'] : '';
+		$item_discount_type = isset($info['item_discount_type']) ? $info['item_discount_type'] : '';
+		$item_discount_input = isset($info['item_discount_input']) ? $info['item_discount_input'] : '';
+		$service_bit = isset($info['service_bit']) ? $info['service_bit'] : '';
+		$item_amount = ($item_sales_price * $item_sales_qty) + $item_tax_amt;
+		$promo_name = isset($info['promo_name']) ? $info['promo_name'] : '';
+
+		// Serialised / batch-tracked unit pickers (equipment & lab consumables).
+		$row_item = (!empty($item_id)) ? $this->db->select('track_serial,track_imei,warranty_months')->where('id',$item_id)->get('db_items')->row() : null;
+		$row_track_serial = (int)($row_item->track_serial ?? 0);
+		$row_track_imei   = (int)($row_item->track_imei ?? 0);
+		$row_requires_unit = (bool)($row_track_serial || $row_track_imei || (int)($row_item->warranty_months ?? 0) > 0);
+		if (!$row_track_serial && !$row_track_imei && $row_requires_unit) $row_track_serial = 1;
+		$sel_barcode_id   = isset($info['barcode_id']) ? (int)$info['barcode_id'] : 0;
+		$sel_serial       = isset($info['sold_serial_number']) ? $info['sold_serial_number'] : '';
+		$sel_imei         = isset($info['sold_imei_number']) ? $info['sold_imei_number'] : '';
+		$sel_imei_2       = isset($info['sold_imei_number_2']) ? $info['sold_imei_number_2'] : '';
+		$avail_units = array();
+		if($row_requires_unit && !empty($item_id)){
+			$this->db->where('item_id',$item_id)->where('status',1);
+			$this->db->group_start()->where('serial_number IS NOT NULL')->where("serial_number != ''")->or_where('imei_number IS NOT NULL')->or_where("imei_number != ''")->group_end();
+			$avail_units = $this->db->get('db_item_barcodes')->result();
+			// On update, the unit already bound to this line was released — allow it to be re-picked
+			if($sel_barcode_id > 0){
+				$bound = $this->db->where('id',$sel_barcode_id)->get('db_item_barcodes')->row();
+				if($bound && !in_array($bound->id, array_column($avail_units,'id'))){ $avail_units[] = $bound; }
+			}
+		}
+		$avail_batches = array();
+		if(empty($info['batch_lot']) && !empty($item_id)){
+			$avail_batches = $this->db->where('item_id',$item_id)->where('status',1)
+				->where('batch_lot IS NOT NULL')->where("batch_lot != ''")->where('qty >',0)
+				->order_by('expire_date','ASC')->get('db_item_barcodes')->result();
+		}
+		?>
+            <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
+               <!-- Item Name -->
+               <td id="td_<?=$rowcount;?>_1">
+                  <div class="si-name">
+                     <a id="td_data_<?=$rowcount;?>_1" href="javascript:void()" onclick="show_sales_item_modal(<?=$rowcount;?>)" class="si-name-link" title="Edit item details"><?=$item_name;?></a>
+                     <?= mp_document_description($description); ?>
+                     <?php if(!empty($promo_name)): ?>
+                        <span class="si-promo"><?= htmlspecialchars($promo_name); ?></span>
+                     <?php endif; ?>
+                     <span class="si-meta">In stock: <span id="tr_available_qty_<?=$rowcount;?>_13_disp"><?= $item_available_qty; ?></span></span>
+					<?php if($row_requires_unit): ?>
+                        <select id="barcode_id_<?=$rowcount;?>" name="barcode_id_<?=$rowcount;?>" class="cell-input serial-pick" data-row="<?=$rowcount;?>" style="margin-top:4px;font-size:11px;width:100%;">
+                           <option value="">— Select <?= $row_track_serial ? 'serial' : 'IMEI'; ?> unit * —</option>
+                           <?php foreach($avail_units as $u):
+                              $ulabel = $row_track_serial ? $u->serial_number : $u->imei_number;
+                              if(!empty($u->batch_lot)) $ulabel .= ' (batch '.$u->batch_lot.')';
+                           ?>
+                              <option value="<?=$u->id;?>" data-serial="<?=htmlspecialchars($u->serial_number ?? '');?>" data-imei="<?=htmlspecialchars($u->imei_number ?? '');?>" data-imei2="<?=htmlspecialchars($u->imei_number_2 ?? '');?>" <?=($sel_barcode_id==$u->id)?'selected':'';?>><?=htmlspecialchars($ulabel);?><?=!empty($u->imei_number_2)?' / IMEI2:'.htmlspecialchars($u->imei_number_2):'';?></option>
+                           <?php endforeach; ?>
+                        </select>
+                        <input type="hidden" id="sold_serial_number_<?=$rowcount;?>" name="sold_serial_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_serial);?>">
+                        <input type="hidden" id="sold_imei_number_<?=$rowcount;?>" name="sold_imei_number_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_imei);?>">
+                        <input type="hidden" id="sold_imei_number_2_<?=$rowcount;?>" name="sold_imei_number_2_<?=$rowcount;?>" value="<?=htmlspecialchars($sel_imei_2);?>">
+                     <?php endif; ?>
+                     <?php if(!empty($avail_batches)): ?>
+                        <select id="batch_pick_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" class="cell-input batch-pick" style="margin-top:4px;font-size:11px;width:100%;">
+                           <option value="">— Select batch/lot —</option>
+                           <?php foreach($avail_batches as $b):
+                              $blabel = $b->batch_lot.' (avail '.format_qty($b->qty).(!empty($b->expire_date) ? ', exp '.show_date($b->expire_date) : '').')';
+                           ?>
+                              <option value="<?=htmlspecialchars($b->batch_lot);?>"><?=htmlspecialchars($blabel);?></option>
+                           <?php endforeach; ?>
+                        </select>
+                     <?php else: ?>
+                        <input type="hidden" id="batch_lot_<?=$rowcount;?>" name="batch_lot_<?=$rowcount;?>" value="<?=isset($info['batch_lot']) ? $info['batch_lot'] : '';?>">
+                     <?php endif; ?>
+                  </div>
+               </td>
+
+               <!-- Qty -->
+               <td id="td_<?=$rowcount;?>_3" class="num">
+                  <div class="qty-stepper">
+                     <button onclick="decrement_qty(<?=$rowcount;?>)" type="button" class="qty-btn" title="Decrease"><i class="fa fa-minus"></i></button>
+                     <input type="text" value="<?=format_qty($item_sales_qty);?>" class="qty-input" onkeyup="calculate_tax(<?=$rowcount;?>)" id="td_data_<?=$rowcount;?>_3" name="td_data_<?=$rowcount;?>_3">
+                     <button onclick="increment_qty(<?=$rowcount;?>)" type="button" class="qty-btn" title="Increase"><i class="fa fa-plus"></i></button>
+                  </div>
+               </td>
+
+               <!-- Unit Price -->
+               <td id="td_<?=$rowcount;?>_10" class="num"><input type="text" name="td_data_<?=$rowcount;?>_10" id="td_data_<?=$rowcount;?>_10" class="cell-input num" onkeyup="calculate_tax(<?=$rowcount;?>)" value="<?=store_number_format($item_sales_price);?>"></td>
+
+               <!-- Discount -->
+               <td id="td_<?=$rowcount;?>_8" class="num">
+                  <input type="text" data-toggle="tooltip" title="Click to Change" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="cell-input num item_discount" value="<?=store_number_format($item_discount);?>" onclick="show_sales_item_modal(<?=$rowcount;?>)" readonly>
+               </td>
+
+               <!-- Tax (amount + name) -->
+               <td id="td_<?=$rowcount;?>_11" class="num">
+                  <input type="text" name="td_data_<?=$rowcount;?>_11" id="td_data_<?=$rowcount;?>_11" class="cell-input num" value="<?=store_number_format($item_tax_amt);?>" readonly>
+                  <a id="td_data_<?=$rowcount;?>_12" href="javascript:void()" data-toggle="tooltip" title='Click to Change' onclick="show_sales_item_modal(<?=$rowcount;?>)" class="si-tax-name"><?=$item_tax_name ;?></a>
+               </td>
+
+               <!-- Total -->
+               <td id="td_<?=$rowcount;?>_9" class="num total"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="cell-input num total" readonly value="<?=store_number_format($item_amount);?>"></td>
+
+               <!-- Remove -->
+               <td id="td_<?=$rowcount;?>_16" class="action-col">
+                  <a class="remove-btn" onclick="removerow(<?=$rowcount;?>)" title="Delete ?" name="td_data_<?=$rowcount;?>_16" id="td_data_<?=$rowcount;?>_16"><i class="fa fa-trash"></i></a>
+               </td>
+               <input type="hidden" id="td_data_<?=$rowcount;?>_4" name="td_data_<?=$rowcount;?>_4" value="<?=$item_sales_price;?>">
+               <input type="hidden" id="td_data_<?=$rowcount;?>_15" name="td_data_<?=$rowcount;?>_15" value="<?=$item_tax_id;?>">
+               <input type="hidden" id="td_data_<?=$rowcount;?>_5" name="td_data_<?=$rowcount;?>_5" value="<?=$item_tax_amt;?>">
+               <input type="hidden" id="tr_available_qty_<?=$rowcount;?>_13" value="<?=$item_available_qty;?>">
+               <input type="hidden" id="tr_item_id_<?=$rowcount;?>" name="tr_item_id_<?=$rowcount;?>" value="<?=$item_id;?>">
+               <input type="hidden" id="pricing_snapshot_<?=$rowcount;?>" name="pricing_snapshot_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['pricing_snapshot'] ?? ''),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="unit_id_<?=$rowcount;?>" name="unit_id_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['unit_id'] ?? 0),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="unit_name_<?=$rowcount;?>" name="unit_name_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['unit_name'] ?? ''),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="conversion_factor_<?=$rowcount;?>" name="conversion_factor_<?=$rowcount;?>" value="<?=htmlspecialchars((string)($info['conversion_factor'] ?? 1),ENT_QUOTES,'UTF-8');?>">
+               
+               <input type="hidden" id="tr_tax_type_<?=$rowcount;?>" name="tr_tax_type_<?=$rowcount;?>" value="<?=$item_tax_type;?>">
+               <input type="hidden" id="tr_tax_id_<?=$rowcount;?>" name="tr_tax_id_<?=$rowcount;?>" value="<?=$item_tax_id;?>">
+               <input type="hidden" id="tr_tax_value_<?=$rowcount;?>" name="tr_tax_value_<?=$rowcount;?>" value="<?=$item_tax;?>">
+               <input type="hidden" id="description_<?=$rowcount;?>" name="description_<?=$rowcount;?>" value="<?=htmlspecialchars(mp_catalogue_name($description),ENT_QUOTES,'UTF-8');?>">
+               <input type="hidden" id="service_bit_<?=$rowcount;?>" name="service_bit_<?=$rowcount;?>" value="<?=$service_bit;?>">
+               <input type="hidden" id="barcode_<?=$rowcount;?>" name="barcode_<?=$rowcount;?>" value="<?=isset($info['barcode']) ? $info['barcode'] : '';?>">
+               <input type="hidden" id="price_type_<?=$rowcount;?>" name="price_type_<?=$rowcount;?>" value="<?=isset($info['price_type']) ? $info['price_type'] : 'retail';?>">
+
+               <input type="hidden" id="item_discount_type_<?=$rowcount;?>" name="item_discount_type_<?=$rowcount;?>" value="<?=$item_discount_type;?>">
+               <input type="hidden" id="item_discount_input_<?=$rowcount;?>" name="item_discount_input_<?=$rowcount;?>" value="<?=store_number_format($item_discount_input,0);?>">
+            </tr>
+		<?php
+
+	}
+	public function delete_payment($payment_id){
+        $this->db->trans_begin();
+
+        //ACCOUNT RESET
+		$reset_accounts = $this->db->select("debit_account_id,credit_account_id")
+									->where("ref_salespayments_id in ($payment_id)")
+									->group_by("debit_account_id,credit_account_id")
+									->get("ac_transactions");
+		//ACCOUNT RESET END
+
+		$salespayments = $this->db->query("select sales_id,customer_id from db_salespayments where id=$payment_id")->row();
+		$sales_id = $salespayments->sales_id;
+		$customer_id = $salespayments->customer_id;
+
+		$q1=$this->db->query("delete from db_salespayments where id='$payment_id'");
+		if(!$q1){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+		$q2=$this->update_sales_payment_status($sales_id,$customer_id);
+		if(!$q2){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+
+		//ACCOUNT RESET
+        if($reset_accounts->num_rows()>0){
+        	foreach ($reset_accounts->result() as $res1) {
+        		if(!update_account_balance($res1->debit_account_id)){
+					return 'failed';
+				}
+
+				if(!update_account_balance($res1->credit_account_id)){
+					return 'failed';
+				}
+
+        	}
+        }
+        //ACCOUNT RESET END
+
+        if(!set_customer_tot_advance($customer_id)){
+        	return 'failed';
+        }
+		$this->db->trans_commit();
+		return "success";
+		
+	}
+
+	public function show_pay_now_modal($sales_id){
+		$q1=$this->db->query("select * from db_sales where id=$sales_id");
+		$res1=$q1->row();
+		$customer_id = $res1->customer_id;
+		$q2=$this->db->query("select * from db_customers where id=$customer_id");
+		$res2=$q2->row();
+
+		$customer_name=$res2->customer_name;
+	    $customer_mobile=$res2->mobile;
+	    $customer_phone=$res2->phone;
+	    $customer_email=$res2->email;
+	    $customer_country=$res2->country_id;
+	    $customer_state=$res2->state_id;
+	    $customer_address=$res2->address;
+	    $customer_postcode=$res2->postcode;
+	    $customer_gst_no=$res2->gstin;
+	    $customer_tax_number=$res2->tax_number;
+	    $customer_opening_balance=$res2->opening_balance;
+	    $customer_tot_advance=$res2->tot_advance;
+
+	    $sales_date=$res1->sales_date;
+	    $reference_no=$res1->reference_no;
+	    $sales_code=$res1->sales_code;
+	    $sales_note=$res1->sales_note;
+	    $grand_total=$res1->grand_total;
+	    $paid_amount=$res1->paid_amount;
+	    $due_amount =$grand_total - $paid_amount;
+
+	    if(!empty($customer_country)){
+	      $customer_country = $this->db->query("select country from db_country where id='$customer_country'")->row()->country;  
+	    }
+	    if(!empty($customer_state)){
+	      $customer_state = $this->db->query("select state from db_states where id='$customer_state'")->row()->state;  
+	    }
+
+		?>
+		<div class="modal fade" id="pay_now" tabindex='-1'>
+		  <div class="modal-dialog ">
+		    <div class="modal-content">
+		      <div class="modal-header header-custom">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title text-center"><?= $this->lang->line('payments'); ?></h4>
+		      </div>
+		      <div class="modal-body">
+		        
+		    <div class="row">
+		      <div class="col-md-12">
+		      	<div class="row invoice-info">
+			        <div class="col-sm-4 invoice-col">
+			          <?= $this->lang->line('customer_details'); ?>
+			          <address>
+			            <strong><?php echo  $customer_name; ?></strong><br>
+			            <?php echo (!empty(trim($customer_mobile))) ? $this->lang->line('mobile').": ".$customer_mobile."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_phone))) ? $this->lang->line('phone').": ".$customer_phone."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_email))) ? $this->lang->line('email').": ".$customer_email."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_gst_no))) ? $this->lang->line('gst_number').": ".$customer_gst_no."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_tax_number))) ? $this->lang->line('tax_number').": ".$customer_tax_number."<br>" : '';?>
+			            
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <div class="col-sm-4 invoice-col">
+			          <?= $this->lang->line('sales_details'); ?>
+			          <address>
+			            <b><?= $this->lang->line('invoice'); ?> #<?php echo  $sales_code; ?></b><br>
+			            <b><?= $this->lang->line('date'); ?> :<?php echo show_date($sales_date); ?></b><br>
+			            <b><?= $this->lang->line('grand_total'); ?> :<?php echo $grand_total; ?></b><br>
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			       
+			        <div class="col-sm-4 invoice-col">
+			          <b><?= $this->lang->line('paid_amount'); ?> :<span><?php echo number_format($paid_amount,2,'.',''); ?></span></b><br>
+			          <b><?= $this->lang->line('due_amount'); ?> :<span id='due_amount_temp'><?php echo number_format($due_amount,decimals(),'.',''); ?></span></b><br>
+			         
+			        </div>
+			        <!-- /.col -->
+			      </div>
+			      <!-- /.row -->
+		      </div>
+		      <div class="col-md-12">
+		        <div>
+		        <input type="hidden" name="payment_row_count" id='payment_row_count' value="1">
+		        <input type="hidden" name="payment_idempotency_key" id="payment_idempotency_key" value="<?= htmlspecialchars(bin2hex(random_bytes(20)),ENT_QUOTES,'UTF-8'); ?>">
+		        <div class="col-md-12  payments_div">
+		          <div class="box box-solid bg-gray">
+		            <div class="box-body">
+			            <div class="row">
+	                         <div class="col-md-12">
+	                          <span for="">
+	                            <label>
+	                            <?= $this->lang->line('advance'); ?> : <label><?=store_number_format($customer_tot_advance)?></label>
+	                          </label>
+	                          </span>
+	                          <div class="checkbox">
+	                            <label>
+	                              <input type="checkbox" id="allow_tot_advance" name="allow_tot_advance"> <?= $this->lang->line('adjust_advance_payment'); ?>
+	                            </label>
+	                          </div>
+	                         </div>
+	                  	</div>
+
+		              <div class="row">
+		         		<div class="col-md-6">
+		                  <div class="">
+		                  <label for="payment_date"><?= $this->lang->line('date'); ?></label>
+		                    <div class="input-group date">
+			                      <div class="input-group-addon">
+			                      <i class="fa fa-calendar"></i>
+			                      </div>
+			                      <input type="text" class="form-control pull-right datepicker" value="<?= show_date(date("d-m-Y")); ?>" id="payment_date" name="payment_date" readonly>
+			                    </div>
+		                      <span id="payment_date_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                  <label for="amount"><?= $this->lang->line('amount'); ?></label>
+		                    <input type="text" class="form-control text-right paid_amt" id="amount" name="amount" placeholder="" value="<?=$due_amount;?>" >
+		                      <span id="amount_msg" style="display:none" class="text-danger"></span>
+		                </div>
+		               </div>
+
+		               
+
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="payment_type"><?= $this->lang->line('payment_type'); ?></label>
+		                    <select class="form-control" id='payment_type' name="payment_type" onchange="show_cheque_details()">
+		                      <?php
+		                        $q1=$this->db->query("select * from db_paymenttypes where status=1 and store_id=".get_current_store_id());
+		                         if($q1->num_rows()>0){
+		                             foreach($q1->result() as $res1){
+		                             echo "<option value='".$res1->payment_type."'>".$res1->payment_type ."</option>";
+		                           }
+		                         }
+		                         else{
+		                            echo "No Records Found";
+		                         }
+		                        ?>
+		                    </select>
+		                    <span id="payment_type_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+		                <div class="col-md-6">
+		                  <div class="">
+		                    <label for="account_id"><?= $this->lang->line('account'); ?></label>
+		                    <select class="form-control" id='account_id' name="account_id">
+		                    	<option value="">-None-</option>
+								<?= get_accounts_select_list(!empty($res1->invoice_account_id) ? $res1->invoice_account_id : get_store_details()->default_account_id);?>
+		                    </select>
+		                    <span id="account_id_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		                </div>
+
+		                <div class="cheque_div" style="display: none;">
+		               	<div class="col-md-6">
+                        <label for="cheque_number"><?= $this->lang->line('cheque_number'); ?></label>
+                          <input type="text" class="form-control" id="cheque_number" name="cheque_number">
+                            <span id="cheque_number_msg" style="display:none" class="text-danger"></span>
+                     	</div>
+                     	<div class="col-md-6">
+                     	<label for="cheque_period"><?= $this->lang->line('cheque_period'); ?></label>
+                          <input type="text" class="form-control" id="cheque_period" name="cheque_period">
+                            <span id="cheque_period_msg" style="display:none" class="text-danger"></span>
+                     	</div>
+                     	</div><!-- cheque_div -->
+
+
+
+		            <div class="clearfix"></div>
+		        </div>  
+		        <div class="row">
+		               <div class="col-md-12">
+		                  <div class="">
+		                    <label for="payment_note"><?= $this->lang->line('payment_note'); ?></label>
+		                    <textarea type="text" class="form-control" id="payment_note" name="payment_note" placeholder="" ></textarea>
+		                    <span id="payment_note_msg" style="display:none" class="text-danger"></span>
+		                  </div>
+		               </div>
+		                
+		            <div class="clearfix"></div>
+		        </div>   
+		        </div>
+		        </div>
+		      </div><!-- col-md-12 -->
+		    </div>
+		      </div><!-- col-md-9 -->
+		      <!-- RIGHT HAND -->
+		    </div>
+		      </div>
+		      <div class="modal-footer">
+		      	<input type="hidden" id="customer_id" value="<?=$customer_id?>">
+		        <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+		        <button type="button" onclick="save_payment(<?=$sales_id;?>)" class="btn bg-green btn-lg place_order btn-lg payment_save">Save<i class="fa  fa-check "></i></button>
+		      </div>
+		    </div>
+		    <!-- /.modal-content -->
+		  </div>
+		  <!-- /.modal-dialog -->
+		</div>
+		<?php
+	}
+
+	public function save_payment(){
+		$CUR_DATE=date('Y-m-d'); $CUR_TIME=date('h:i:s a');
+		$CUR_USERNAME=$this->session->userdata('inv_username') ?: 'System';
+		$SYSTEM_IP=$_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'; $SYSTEM_NAME=gethostname() ?: 'localhost';
+		$store_id=(int)get_current_store_id(); $paymentTransactionOpen=false;
+		try {
+		$amount = round(parse_amount($this->input->post('amount', TRUE)),2);
+		$payment_type = $this->input->post('payment_type', TRUE);
+		$payment_type = (!empty($payment_type)) ? $payment_type : get_default_payment_mode_code($store_id);
+		$payment_date = $this->input->post('payment_date', TRUE);
+		$payment_note = mp_post_text('payment_note');
+		$sales_id = $this->input->post('sales_id', TRUE);
+		$customer_id = $this->input->post('customer_id', TRUE);
+		$account_id = $this->input->post('account_id', TRUE);
+
+		$cheque_number = $this->input->post('cheque_number', TRUE);
+		$cheque_period = $this->input->post('cheque_period', TRUE);
+		$allow_tot_advance = $this->input->post('allow_tot_advance', TRUE);
+		$idempotencyKey = trim((string)$this->input->post('payment_idempotency_key', TRUE));
+		//print_r($this->xss_html_filter(array_merge($this->data,$_POST,$_GET)));exit();
+    	if($amount=='' || $amount==0){$amount=null;}
+		if($idempotencyKey !== '' && !preg_match('/^[a-zA-Z0-9_-]{16,80}$/D', $idempotencyKey)){
+			return 'Reload the payment form and try again.';
+		}
+		if($amount>0 && !empty($payment_type)){
+
+			$this->db->trans_begin(); $paymentTransactionOpen=true;
+			$this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE',array($store_id));
+			$this->db->where('id',(int)$sales_id);
+			if(!is_admin())$this->db->where('store_id',$store_id);
+			$saleDetails=$this->db->get('db_sales')->row();
+			if(!$saleDetails)return 'Invoice not found for this store.';
+			$locked=$this->db->query('SELECT * FROM db_sales WHERE id=? AND store_id=? FOR UPDATE',array((int)$sales_id,(int)$saleDetails->store_id));
+			$saleDetails=$locked?$locked->row():null;
+			if(!$saleDetails || $saleDetails->sales_status==='Draft')return 'Issue the draft invoice before recording payments.';
+			if(isset($saleDetails->status) && (int)$saleDetails->status!==1)return 'Payments cannot be recorded on an inactive invoice.';
+			$customer_id=(int)$saleDetails->customer_id;
+			$store_id=(int)$saleDetails->store_id;
+			$saleStoreId = (int)($saleDetails->store_id ?? 0);
+			if(!$saleStoreId){ return 'Invoice not found.'; }
+			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
+				$prior = $this->db->where('store_id',$saleStoreId)->where('idempotency_key',$idempotencyKey)
+					->get('db_salespayments')->row();
+				if($prior){
+					if((int)$prior->sales_id === (int)$sales_id && abs((float)$prior->payment - (float)$amount) < 0.005){
+						return 'success';
+					}
+					return 'This payment reference was already used for a different payment.';
+				}
+			}
+
+			$paidRow=$this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1',array((int)$sales_id))->row();
+			$dueKobo=(int)round((float)$saleDetails->grand_total*100)-(int)round((float)$paidRow->paid*100);
+			if(!is_finite($amount) || $amount<=0 || (int)round($amount*100)>$dueKobo)return 'Payment cannot exceed the outstanding invoice balance.';
+
+			// Look up payment_mode_id
+			$pm_row = $this->db->select('id')->where('store_id', $store_id)->where('code', $payment_type)->get('db_payment_modes')->row();
+			$payment_mode_id = $pm_row ? $pm_row->id : null;
+
+			// Auto-link cash payments to the active till account (or store default)
+			if(empty($account_id) && strtolower($payment_type) === 'cash'){
+				$account_id = get_current_cash_account_id();
+				if(empty($account_id)){
+					$account_id = get_cash_account_id();
+				}
+			}
+
+			if(!empty($account_id) && !$this->db->where('id',(int)$account_id)->where('store_id',$saleStoreId)->count_all_results('ac_accounts')) return 'Choose a payment account belonging to the invoice store.';
+			$payment_code=get_init_code('sales_payment');
+			$salespayments_entry = array(
+					'store_id' 			=> $saleStoreId,
+					'payment_code' 		=> $payment_code,
+		    		'count_id'	  		=> get_count_id('db_salespayments'),
+					'sales_id' 			=> $sales_id, 
+					'payment_date'		=> system_fromatted_date($payment_date),//Current Payment with sales entry
+					'payment_type' 		=> $payment_type,
+					'payment_mode_id' 	=> $payment_mode_id,
+					'payment' 			=> $amount,
+					'payment_note' 		=> $payment_note,
+					'created_date' 		=> $CUR_DATE,
+    				'created_time' 		=> $CUR_TIME,
+    				'created_by' 		=> $CUR_USERNAME,
+    				'system_ip' 		=> $SYSTEM_IP,
+    				'system_name' 		=> $SYSTEM_NAME,
+    				'status' 			=> 1,
+    				'account_id' 		=> (empty($account_id)) ? null : $account_id,
+    				'customer_id' 		=> $customer_id,
+    				'cheque_number' 	=> $cheque_number,
+    				'cheque_period' 	=> $cheque_period,
+    				'cheque_status' 	=> "Pending",
+				);
+		
+			//is total advance payment enabled ?
+			$advance_adjusted=0;
+			if($allow_tot_advance=='checked'){
+				$tot_advance = get_customer_details($customer_id)->tot_advance;
+				if($tot_advance>0){
+					if($amount==$tot_advance){
+						$advance_adjusted = $amount;
+					}
+					else if($amount>$tot_advance){
+						$advance_adjusted = $tot_advance;	
+					}
+					else{
+						$advance_adjusted =  $amount;
+					}
+				}
+			}
+			//end 
+			$salespayments_entry['advance_adjusted'] = $advance_adjusted;
+			if($this->db->field_exists('cashier_shift_id', 'db_salespayments')){
+				$this->load->model('cashier_shifts_model', 'm3_cashier_shifts');
+				$open_shift = $this->m3_cashier_shifts->get_open_shift($salespayments_entry['store_id'] ?? get_current_store_id(), get_current_user_id());
+				if($open_shift){ $salespayments_entry['cashier_shift_id'] = (int)$open_shift->id; }
+			}
+			if($idempotencyKey !== '' && $this->db->field_exists('idempotency_key','db_salespayments')){
+				$salespayments_entry['idempotency_key'] = $idempotencyKey;
+			}
+			$this->load->model('Physio_accounts_model','pa');
+			$salespayments_entry['physio_account_id']=$this->pa->forCustomer($customer_id,$salespayments_entry['store_id']);
+			$q3 = $this->db->insert('db_salespayments', $salespayments_entry);
+		if(!$q3){
+			$err = $this->db->error();
+			if($idempotencyKey !== '' && (int)($err['code'] ?? 0) === 1062){
+				$this->db->trans_rollback();
+				$prior = $this->db->where('store_id',$saleStoreId)->where('idempotency_key',$idempotencyKey)
+					->get('db_salespayments')->row();
+				if($prior && (int)$prior->sales_id === (int)$sales_id && abs((float)$prior->payment - (float)$amount) < 0.005){
+					return 'success';
+				}
+				return 'This payment reference was already used for a different payment.';
+			}
+			$this->db->trans_rollback();
+			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
+		}
+		$paymentId = (int)$this->db->insert_id();
+
+			//Set the payment to specified account
+			if(!empty($account_id)){
+				//ACCOUNT INSERT
+				$insert_bit = insert_account_transaction(array(
+															'transaction_type'  	=> 'SALES PAYMENT',
+															'reference_table_id'  	=> $this->db->insert_id(),
+															'debit_account_id'  	=> null,
+															'credit_account_id'  	=> $account_id,
+															'debit_amt'  			=> 0,
+															'credit_amt'  			=> $amount,
+															'process'  				=> 'SAVE',
+															'note'  				=> $payment_note,
+															'transaction_date'  	=> $CUR_DATE,
+															'payment_code'  		=> $payment_code,
+															'customer_id'  			=> $customer_id,
+															'supplier_id'  			=> null,
+													));
+				if(!$insert_bit){
+					return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+				}
+			}
+			//end
+
+			if(!set_customer_tot_advance($customer_id)){
+	        	return 'failed';
+	        }
+			
+		}
+		else{
+			return "Please Enter Valid Amount!";
+		}
+		
+		$q10=$this->update_sales_payment_status($sales_id,$customer_id);
+		if($q10!=1){
+			return "Failed to save sale at line " . __LINE__ . ": " . (($err = $this->db->error()) ? $err['message'] : 'unknown error');
+		}
+
+		if(!$this->db->trans_status())return 'Payment could not be saved. No changes were committed.';
+		$this->db->trans_commit(); $paymentTransactionOpen=false;
+
+		// Send payment received email to customer (non-critical)
+		if($customer_id != 1){ // Skip walk-in customer
+			try {
+				$this->load->model('email_service');
+				$customer = get_customer_details($customer_id);
+				$sales_rec = get_sales_details($sales_id);
+				if(!empty($customer->email)){
+					$this->email_service->sendTemplate(
+						'payment_received',
+						$customer->email,
+						[
+							'customer_name'       => $customer->customer_name,
+							'invoice_number'      => $sales_rec->sales_code,
+							'amount_paid'         => store_number_format($amount),
+							'amount_due'          => store_number_format($sales_rec->grand_total - $sales_rec->paid_amount),
+							'payment_reference'   => $payment_code,
+							'store_name'          => get_store_details()->store_name,
+						],
+						['related_module' => 'sales_payments', 'related_record_id' => $sales_id]
+					);
+				}
+			} catch (Exception $e) {
+				log_message('error', 'Payment received email failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
+			}
+			try {
+				$customer = $this->db->select('mobile')->where('id', $customer_id)->where('store_id', $saleStoreId)->get('db_customers')->row();
+				$sales_rec = get_sales_details($sales_id);
+				$store = get_store_details($saleStoreId);
+				if ($customer && !empty($customer->mobile) && $sales_rec) {
+					$currency = $this->db->select('c.currency')->from('db_store s')->join('db_currency c', 'c.id=s.currency_id', 'left')->where('s.id', $saleStoreId)->get()->row();
+					$currencyCode = trim((string)($currency->currency ?? 'NGN')) ?: 'NGN';
+					$balance = max(0, (float)$sales_rec->grand_total - (float)$sales_rec->paid_amount);
+					$message = trim((string)($store->store_name ?? 'MartPoint')) . ': payment received for invoice '
+						. $sales_rec->sales_code . '. Received ' . $currencyCode . ' ' . number_format((float)$amount, 2)
+						. '; balance due ' . $currencyCode . ' ' . number_format($balance, 2) . '.';
+					$this->load->library('transactional_sms');
+					$this->transactional_sms->send($saleStoreId, $customer->mobile, $message, 'invoice_payment_received', 'invoice-payment:' . $saleStoreId . ':' . $paymentId);
+				}
+			} catch (Throwable $e) {
+				log_message('error', 'Payment received SMS preparation failed for sales_id ' . $sales_id . ': ' . $e->getMessage());
+			}
+		}
+
+		return "success";
+		} catch(Throwable $e){
+			log_message('error','Invoice payment save failed: '.$e->getMessage());
+			return 'Payment could not be recorded. No payment changes were saved; please review the error log.';
+		} finally {if($paymentTransactionOpen)$this->db->trans_rollback();}
+	}
+	
+	public function view_payments_modal($sales_id){
+		$q1=$this->db->query("select * from db_sales where id=$sales_id");
+		$res1=$q1->row();
+		$customer_id = $res1->customer_id;
+		$q2=$this->db->query("select * from db_customers where id=$customer_id");
+		$res2=$q2->row();
+
+		$customer_name=$res2->customer_name;
+	    $customer_mobile=$res2->mobile;
+	    $customer_phone=$res2->phone;
+	    $customer_email=$res2->email;
+	    $customer_country=$res2->country_id;
+	    $customer_state=$res2->state_id;
+	    $customer_address=$res2->address;
+	    $customer_postcode=$res2->postcode;
+	    $customer_gst_no=$res2->gstin;
+	    $customer_tax_number=$res2->tax_number;
+	    $customer_opening_balance=$res2->opening_balance;
+
+	    $sales_date=$res1->sales_date;
+	    $reference_no=$res1->reference_no;
+	    $sales_code=$res1->sales_code;
+	    $sales_note=$res1->sales_note;
+	    $grand_total=$res1->grand_total;
+	    $paid_amount=$res1->paid_amount;
+	    $due_amount =$grand_total - $paid_amount;
+
+	    if(!empty($customer_country)){
+	      $customer_country = $this->db->query("select country from db_country where id='$customer_country'")->row()->country;  
+	    }
+	    if(!empty($customer_state)){
+	      $customer_state = $this->db->query("select state from db_states where id='$customer_state'")->row()->state;  
+	    }
+
+		?>
+		<div class="modal fade" id="view_payments_modal" tabindex='-1'>
+		  <div class="modal-dialog modal-lg">
+		    <div class="modal-content">
+		      <div class="modal-header header-custom">
+		        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span></button>
+		        <h4 class="modal-title text-center"><?= $this->lang->line('payments'); ?></h4>
+		      </div>
+		      <div class="modal-body">
+		        
+		    <div class="row">
+		      <div class="col-md-12">
+		      	<div class="row invoice-info">
+			        <div class="col-sm-4 invoice-col">
+			          <?= $this->lang->line('customer_details'); ?>
+			          <address>
+			            <strong><?php echo  $customer_name; ?></strong><br>
+			            <?php echo (!empty(trim($customer_mobile))) ? $this->lang->line('mobile').": ".$customer_mobile."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_phone))) ? $this->lang->line('phone').": ".$customer_phone."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_email))) ? $this->lang->line('email').": ".$customer_email."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_gst_no))) ? $this->lang->line('gst_number').": ".$customer_gst_no."<br>" : '';?>
+			            <?php echo (!empty(trim($customer_tax_number))) ? $this->lang->line('tax_number').": ".$customer_tax_number."<br>" : '';?>
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <div class="col-sm-4 invoice-col">
+			          <?= $this->lang->line('sales_details'); ?>
+			          <address>
+			            <b><?= $this->lang->line('invoice'); ?> #<?php echo  $sales_code; ?></b><br>
+			            <b><?= $this->lang->line('date'); ?> :<?php echo show_date($sales_date); ?></b><br>
+			            <b><?= $this->lang->line('grand_total'); ?> :<?php echo $grand_total; ?></b><br>
+			          </address>
+			        </div>
+			        <!-- /.col -->
+			        <div class="col-sm-4 invoice-col">
+			          <b><?= $this->lang->line('paid_amount'); ?> :<span><?php echo number_format($paid_amount,decimals(),'.',''); ?></span></b><br>
+			          <b><?= $this->lang->line('due_amount'); ?> :<span id='due_amount_temp'><?php echo number_format($due_amount,decimals(),'.',''); ?></span></b><br>
+			         
+			        </div>
+			        <!-- /.col -->
+			      </div>
+			      <!-- /.row -->
+		      </div>
+		      <div class="col-md-12">
+		       
+		     
+		              <div class="row">
+		         		<div class="col-md-12">
+		                  
+		                      <table class="table table-bordered">
+                                  <thead>
+                                  <tr class="bg-primary">
+                                    <th>#</th>
+                                    <th><?= $this->lang->line('payment_date'); ?></th>
+                                    <th><?= $this->lang->line('payment'); ?></th>
+                                    <th><?= $this->lang->line('payment_type'); ?></th>
+                                    <th><?= $this->lang->line('account'); ?></th>
+                                    <th><?= $this->lang->line('payment_note'); ?></th>
+                                    <th><?= $this->lang->line('created_by'); ?></th>
+                                    <th><?= $this->lang->line('action'); ?></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                	<?php
+                                	$q1=$this->db->query("select * from db_salespayments where sales_id=$sales_id");
+									$i=1;
+									$str = '';
+									if($q1->num_rows()>0){
+										foreach ($q1->result() as $res1) {
+											echo "<tr>";
+											echo "<td>".$i++."</td>";
+											echo "<td>".show_date($res1->payment_date)."</td>";
+											echo "<td>".store_number_format($res1->payment)."</td>";
+											echo "<td class='text-left'>";
+			                                    echo $res1->payment_type;
+			                                    if(!empty($res1->cheque_number)){
+				                                    echo "<br>Cheque no.:".$res1->cheque_number;
+				                                    echo "<br>Period:".$res1->cheque_period;
+				                                }
+			                                  echo "</td>";
+											echo "<td>".get_account_name($res1->account_id)."</td>";
+											echo "<td>".$res1->payment_note."</td>";
+											echo "<td>".ucfirst($res1->created_by)."</td>";
+										
+											echo "<td>
+											<a onclick='show_receipt(".$res1->id.")' title='Print Receipt' class='pointer btn  btn-default' ><i class='fa fa-print'></i>
+											<a onclick='delete_sales_payment(".$res1->id.")' title='Delete Payment ?' class='pointer btn  btn-danger' ><i class='fa fa-trash'></i>
+											</</td>";	
+											echo "</tr>";
+										}
+									}
+									else{
+										echo "<tr><td colspan='7' class='text-danger text-center'>No Records Found</td></tr>";
+									}
+									?>
+                                </tbody>
+                            </table>
+		               
+		               </div>
+		            <div class="clearfix"></div>
+		        </div>    
+		       
+		     
+		   
+		      </div><!-- col-md-9 -->
+		      <!-- RIGHT HAND -->
+		    </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default btn-lg" data-dismiss="modal">Close</button>
+		        
+		      </div>
+		    </div>
+		    <!-- /.modal-content -->
+		  </div>
+		  <!-- /.modal-dialog -->
+		</div>
+		<?php
+	}
+
+	public function get_customer_trends($customer_id, $store_id = null){
+		if(empty($store_id)) $store_id = get_current_store_id();
+		$trends = array();
+
+		$sales = $this->db->where('customer_id', $customer_id)
+						   ->where('store_id', $store_id)
+						   ->where('sales_status', 'Final')
+						   ->get('db_sales');
+
+		$trends['invoice_count'] = $sales->num_rows();
+		$trends['total_amount'] = 0;
+		$trends['paid_amount'] = 0;
+		$trends['due_amount'] = 0;
+		$paid_count = 0;
+		$partial_count = 0;
+		$unpaid_count = 0;
+		$payment_days = array();
+
+		foreach($sales->result() as $s){
+			$trends['total_amount'] += floatval($s->grand_total);
+			$trends['paid_amount'] += floatval($s->paid_amount);
+			$trends['due_amount'] += (floatval($s->grand_total) - floatval($s->paid_amount));
+
+			if($s->payment_status == 'Paid') $paid_count++;
+			else if($s->payment_status == 'Partial') $partial_count++;
+			else $unpaid_count++;
+
+			if($s->paid_amount > 0 && !empty($s->due_date)){
+				$payment_row = $this->db->where('sales_id', $s->id)
+										->order_by('id', 'desc')
+										->get('db_salespayments')
+										->row();
+				$paid_date = !empty($payment_row) ? $payment_row->payment_date : $s->sales_date;
+				if(!empty($paid_date)){
+					$payment_days[] = date_difference($s->due_date, $paid_date);
+				}
+			}
+		}
+
+		$trends['paid_count'] = $paid_count;
+		$trends['partial_count'] = $partial_count;
+		$trends['unpaid_count'] = $unpaid_count;
+		$trends['avg_payment_days'] = count($payment_days) ? round(array_sum($payment_days) / count($payment_days), 0) : 0;
+
+		$last_sale = $this->db->where('customer_id', $customer_id)
+							  ->where('store_id', $store_id)
+							  ->where('sales_status', 'Final')
+							  ->order_by('id', 'desc')
+							  ->get('db_sales')
+							  ->row();
+
+		$trends['last_sale_date'] = !empty($last_sale) ? show_date($last_sale->sales_date) : '-';
+		$trends['last_sale_amount'] = !empty($last_sale) ? floatval($last_sale->grand_total) : 0;
+
+		$top_items = $this->db->query("
+			SELECT i.item_name, SUM(si.sales_qty) as total_qty, SUM(si.total_cost) as total_amount
+			FROM db_salesitems si
+			JOIN db_items i ON si.item_id = i.id
+			JOIN db_sales s ON si.sales_id = s.id
+			WHERE s.customer_id = ? AND s.store_id = ? AND s.sales_status = 'Final'
+			GROUP BY si.item_id, i.item_name
+			ORDER BY total_qty DESC
+			LIMIT 3
+		", array($customer_id, $store_id))->result();
+
+		$trends['top_items'] = array();
+		foreach($top_items as $t){
+			$trends['top_items'][] = array(
+				'name' => $t->item_name,
+				'qty' => $t->total_qty,
+				'amount' => floatval($t->total_amount)
+			);
+		}
+
+		return $trends;
+	}
+}

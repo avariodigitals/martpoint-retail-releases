@@ -1,0 +1,40 @@
+/* Shared application controls; loaded by app shells, never storefront themes. */
+:is(.mp-main,.modal,.modal-content,.mp-header) select:not([multiple]):not([size]) {
+  -webkit-appearance:none!important;appearance:none!important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23394e45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;background-position:right 12px center!important;background-size:18px 18px!important;
+  padding-right:40px!important;cursor:pointer;
+}
+/* Keep Select2's own arrow, with room for both it and the clear button. */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  display:block!important;width:28px!important;right:5px!important;top:50%!important;height:24px!important;transform:translateY(-50%);
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+  border:solid #394e45!important;border-width:0 2px 2px 0!important;width:8px!important;height:8px!important;
+  left:50%!important;top:50%!important;margin:-6px 0 0 -4px!important;transform:rotate(45deg);
+}
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b{transform:rotate(225deg);margin-top:-2px!important}
+.select2-container--default .select2-selection--single .select2-selection__rendered{padding-right:36px!important}
+.select2-container--default .select2-selection--single .select2-selection__clear{margin-right:6px}
+/* Draw indicators in CSS so they remain visible when icon fonts are unavailable. */
+.mp-select-wrap .mp-select-trigger,.mp-select .trigger,.mp-field-picker>summary,.category-parent-picker>summary {
+  position:relative;cursor:pointer;padding-right:40px!important;
+}
+.mp-select-wrap .mp-select-trigger::after,.mp-select .trigger::after,.mp-field-picker>summary::after,.category-parent-picker>summary::after {
+  content:""!important;display:block!important;position:absolute;right:16px;top:50%;width:8px;height:8px;
+  border:solid #394e45;border-width:0 2px 2px 0;transform:translateY(-70%) rotate(45deg);pointer-events:none;
+}
+.mp-select-wrap.open .mp-select-trigger::after,.mp-select.open .trigger::after,
+.mp-select-trigger[aria-expanded=true]::after,.mp-field-picker[open]>summary::after,.category-parent-picker[open]>summary::after{transform:translateY(-20%) rotate(225deg)}
+.mp-select-trigger .fa-chevron-down,.mp-select-trigger .fa-caret-down,.mp-select .trigger .fa-chevron-down,.mp-select .trigger .fa-caret-down{display:none!important}
+.mp-field-picker>summary,.category-parent-picker>summary{display:block;list-style:none;min-height:44px}
+.mp-field-picker>summary::-webkit-details-marker,.category-parent-picker>summary::-webkit-details-marker{display:none}
+.mp-field-picker{border:1px solid var(--mp-border,#bac9bf);border-radius:8px;background:#fff;color:var(--mp-text,#253c30)}
+.mp-field-picker>summary{padding:12px 14px;font-size:14px;font-weight:600}
+.mp-field-picker[open]>summary{border-bottom:1px solid var(--mp-border,#dce5df)}
+.mp-select-trigger:focus-visible,.mp-select .trigger:focus-visible,.mp-field-picker>summary:focus-visible,.category-parent-picker>summary:focus-visible {
+  outline:3px solid var(--mp-primary,#24563e);outline-offset:2px;
+}
+select:disabled,.mp-select-trigger:disabled,.select2-container--disabled{cursor:not-allowed}
+/* Mobile option panels stay inside the form instead of floating over the app. */
+.mp-select-wrap .mp-select-options,.mp-select .options{position:static!important;max-height:240px!important;overflow-y:auto!important;overscroll-behavior:contain}

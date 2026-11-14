@@ -1,0 +1,405 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Store_profile_model extends CI_Model {
+
+	public function update_store(){
+		$q_id = $this->input->post('q_id', TRUE);
+		$store_code = $this->input->post('store_code', TRUE);
+		$store_name = $this->input->post('store_name', TRUE);
+		$store_website = $this->input->post('store_website', TRUE);
+		$mobile = $this->input->post('mobile', TRUE);
+		$phone = $this->input->post('phone', TRUE);
+		$email = $this->input->post('email', TRUE);
+		$country = $this->input->post('country', TRUE);
+		$state = $this->input->post('state', TRUE);
+		$city = $this->input->post('city', TRUE);
+		$address = $this->input->post('address', TRUE);
+		$postcode = $this->input->post('postcode', TRUE);
+		$bank_details = $this->input->post('bank_details', TRUE);
+		$category_init = $this->input->post('category_init', TRUE);
+		$item_init = $this->input->post('item_init', TRUE);
+		$supplier_init = $this->input->post('supplier_init', TRUE);
+		$purchase_init = $this->input->post('purchase_init', TRUE);
+		$purchase_return_init = $this->input->post('purchase_return_init', TRUE);
+		$customer_init = $this->input->post('customer_init', TRUE);
+		$sales_init = $this->input->post('sales_init', TRUE);
+		$sales_return_init = $this->input->post('sales_return_init', TRUE);
+		$expense_init = $this->input->post('expense_init', TRUE);
+		$quotation_init = $this->input->post('quotation_init', TRUE);
+		$money_transfer_init = $this->input->post('money_transfer_init', TRUE);
+		$accounts_init = $this->input->post('accounts_init', TRUE);
+		$currency = $this->input->post('currency', TRUE);
+		$currency_placement = $this->input->post('currency_placement', TRUE);
+		$timezone = $this->input->post('timezone', TRUE);
+		$date_format = $this->input->post('date_format', TRUE);
+		$time_format = $this->input->post('time_format', TRUE);
+		$sales_discount = $this->input->post('sales_discount', TRUE);
+		$change_return = $this->input->post('change_return', TRUE);
+		$sales_invoice_format_id = $this->input->post('sales_invoice_format_id', TRUE);
+		$pos_invoice_format_id = $this->input->post('pos_invoice_format_id', TRUE);
+		$sales_invoice_footer_text = $this->input->post('sales_invoice_footer_text', TRUE);
+		$invoice_terms = mp_post_text('invoice_terms');
+		$round_off = $this->input->post('round_off', TRUE);
+		$show_tax = $this->input->post('show_tax', TRUE);
+		$language_id = $this->input->post('language_id', TRUE);
+		$decimals = $this->input->post('decimals', TRUE);
+		$qty_decimals = $this->input->post('qty_decimals', TRUE);
+		$sales_payment_init = $this->input->post('sales_payment_init', TRUE);
+		$sales_return_payment_init = $this->input->post('sales_return_payment_init', TRUE);
+		$purchase_payment_init = $this->input->post('purchase_payment_init', TRUE);
+		$purchase_return_payment_init = $this->input->post('purchase_return_payment_init', TRUE);
+		$expense_payment_init = $this->input->post('expense_payment_init', TRUE);
+		$cust_advance_init = $this->input->post('cust_advance_init', TRUE);
+		$t_and_c_status = $this->input->post('t_and_c_status', TRUE);
+		$t_and_c_status_pos = $this->input->post('t_and_c_status_pos', TRUE);
+		$number_to_words = $this->input->post('number_to_words', TRUE);
+		$default_account_id = $this->input->post('default_account_id', TRUE);
+		$weight_scale_mode = strtolower(trim((string)$this->input->post('weight_scale_mode', TRUE)));
+		if(!in_array($weight_scale_mode, array('digital', 'analog', 'hybrid'), true)){
+			$weight_scale_mode = function_exists('mp_get_store_pos_setting')
+				? mp_get_store_pos_setting($q_id, 'weight_scale_mode', 'analog')
+				: 'analog';
+		}
+		$mrp_column = $this->input->post('mrp_column', TRUE);
+		$show_signature = $this->input->post('show_signature', TRUE);
+		$previous_balance_bit = $this->input->post('previous_balance_bit', TRUE);
+		$gst_no = $this->input->post('gst_no', TRUE);
+		$vat_no = $this->input->post('vat_no', TRUE);
+		$pan_no = $this->input->post('pan_no', TRUE);
+		$can_edit_system_settings = get_instance()->permissions('system_settings');
+		$nin_api_enabled = $this->input->post('nin_api_enabled', TRUE);
+		$nin_api_url = $this->input->post('nin_api_url', TRUE);
+		$nin_api_key = $this->input->post('nin_api_key', TRUE);
+		$nin_api_provider = $this->input->post('nin_api_provider', TRUE);
+
+		// Business Profile fields (Phase 2)
+		$industry_type = $this->input->post('industry_type', TRUE);
+		$business_model = $this->input->post('business_model', TRUE);
+		$feature_flags_json = $this->input->post('feature_flags_json', TRUE);
+		$workflow_template_key = $this->input->post('workflow_template_key', TRUE);
+		$dashboard_template_key = $this->input->post('dashboard_template_key', TRUE);
+		$storefront_theme_key = $this->input->post('storefront_theme_key', TRUE);
+		$label_overrides_json = $this->input->post('label_overrides_json', TRUE);
+		$industry_settings_json = $this->input->post('industry_settings_json', TRUE);
+		 	//echo "<pre>";print_r($this->security->xss_clean(html_escape(array_merge($this->data,$_POST))));exit();
+
+		//if not admin
+		if(!is_admin()){
+			if($q_id!=get_current_store_id()){
+				echo "Something Went Wrong";exit();
+			}
+		}
+
+		$this->db->trans_begin();
+		// Modular refactor: core db_store fields only
+		
+		$store_upload_path = FCPATH . 'uploads/store/';
+		if(!is_dir($store_upload_path)){
+			@mkdir($store_upload_path, 0775, true);
+		}
+
+		$store_logo='';
+		if(!empty($_FILES['store_logo']['name'])){
+			$config['upload_path']          = $store_upload_path;
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
+	        $config['max_size']             = 1000;
+	        $config['max_width']            = 1000;
+	        $config['max_height']           = 1000;
+
+	        $this->load->library('upload', $config);
+
+	        if ( ! $this->upload->do_upload('store_logo'))
+	        {
+	                $error = array('error' => $this->upload->display_errors());
+	                return $error['error'];
+	        }
+	        else
+	        {
+	        	   $store_logo='uploads/store/'.$this->upload->data('file_name');
+	        }
+		}
+
+		$idle_flyer='';
+		if($can_edit_system_settings && !empty($_FILES['idle_flyer']['name'])){
+			$config2['upload_path']          = $store_upload_path;
+			$config2['allowed_types']        = 'gif|jpg|jpeg|png|webp';
+			$config2['max_size']             = 2048;
+			$config2['encrypt_name']         = TRUE;
+
+			$this->load->library('upload');
+			$this->upload->initialize($config2);
+
+			if ( ! $this->upload->do_upload('idle_flyer'))
+			{
+					$error = array('error' => $this->upload->display_errors());
+					return $error['error'];
+			}
+			else
+			{
+				   $idle_flyer='uploads/store/'.$this->upload->data('file_name');
+			}
+		}
+
+		$signature='';
+		if(!empty($_FILES['signature']['name'])){
+			$signature_upload_path = FCPATH . 'uploads/signature/';
+			if(!is_dir($signature_upload_path)){
+				@mkdir($signature_upload_path, 0775, true);
+			}
+			$config['upload_path']          = $signature_upload_path;
+	        $config['allowed_types']        = 'gif|jpg|jpeg|png|webp';
+	        $config['max_size']             = 1000;
+	        $config['max_width']            = 1000;
+	        $config['max_height']           = 1000;
+
+	        $this->load->library('upload');
+	        $this->upload->initialize($config);
+
+	        if ( ! $this->upload->do_upload('signature'))
+	        {
+	                $error = array('error' => $this->upload->display_errors());
+	                return $error['error'];
+	        }
+	        else
+	        {
+	        	   $signature='uploads/signature/'.$this->upload->data('file_name');
+	        }
+		}
+
+
+		$change_return = (isset($change_return)) ? 1 : 0;
+		$mrp_column = (isset($mrp_column)) ? 1 : 0;
+		$show_signature = (isset($show_signature)) ? 1 : 0;
+		$previous_balance_bit = (isset($previous_balance_bit)) ? 1 : 0;
+		$round_off = (isset($round_off)) ? 1 : 0;
+		$show_tax = (isset($show_tax)) ? 1 : 0;
+
+		
+
+		// Core db_store fields only
+		$data = array(
+			'store_code'				=> $store_code,
+			'store_name'				=> $store_name,
+			'mobile'					=> $mobile,
+			'phone'						=> $phone,
+			'email'						=> $email,
+			'country'					=> $country,
+			'state'						=> $state,
+			'city'						=> $city,
+			'address'					=> $address,
+			'postcode'					=> $postcode,
+			'currency_id'				=> $currency,
+			'currency_placement'		=> $currency_placement,
+			'timezone'					=> $timezone,
+			'date_format'				=> $date_format,
+			'time_format'				=> $time_format,
+			'decimals'					=> $decimals,
+			'qty_decimals'				=> $qty_decimals,
+		);
+
+		// Signature is stored on db_store; the theme table has no signature column.
+		if($signature !== ''){ $data['signature'] = $signature; }
+
+		// Modular inventory settings
+		$inventory_data = array(
+			'category_init'				=> $category_init,
+			'item_init'					=> $item_init,
+			'supplier_init'				=> $supplier_init,
+			'purchase_init'				=> $purchase_init,
+			'purchase_return_init'	=> $purchase_return_init,
+			'customer_init'				=> $customer_init,
+			'sales_init'				=> $sales_init,
+			'sales_return_init'		=> $sales_return_init,
+			'expense_init'				=> $expense_init,
+			'quotation_init'			=> $quotation_init,
+			'money_transfer_init'		=> $money_transfer_init,
+			'accounts_init'				=> $accounts_init,
+			'sales_payment_init'		=> $sales_payment_init,
+			'sales_return_payment_init'	=> $sales_return_payment_init,
+			'purchase_payment_init'		=> $purchase_payment_init,
+			'purchase_return_payment_init'	=> $purchase_return_payment_init,
+			'expense_payment_init'		=> $expense_payment_init,
+			'cust_advance_init'			=> $cust_advance_init,
+		);
+
+		// Modular receipt settings
+		$receipt_data = array(
+			'sales_invoice_format_id'		=> $sales_invoice_format_id,
+			'pos_invoice_format_id'			=> $pos_invoice_format_id,
+			'sales_invoice_footer_text'	=> $sales_invoice_footer_text,
+			'invoice_terms'				=> $invoice_terms,
+			'previous_balance_bit'		=> $previous_balance_bit,
+			'round_off'					=> $round_off,
+			'change_return'				=> $change_return,
+			'decimals'					=> $decimals,
+			'qty_decimals'				=> $qty_decimals,
+			't_and_c_status'			=> $t_and_c_status,
+			't_and_c_status_pos'		=> $t_and_c_status_pos,
+			'number_to_words'			=> $number_to_words,
+		);
+
+		// Modular POS settings
+		$pos_data = array(
+			'sales_discount'			=> $sales_discount,
+			'mrp_column'				=> $mrp_column,
+			'show_signature'			=> $show_signature,
+			'previous_balance_bit'		=> $previous_balance_bit,
+			'default_account_id'		=> (isset($default_account_id) && !empty($default_account_id))?$default_account_id:null,
+		);
+
+		// Modular industry settings — only include fields actually submitted
+		// so that saving the Store Profile does NOT wipe Business Profile data.
+		// Business Profile fields (industry_type, feature_flags_json, etc.) are
+		// managed exclusively by the Business Profile controller/model.
+		$industry_data = array();
+		if($industry_type !== null)             $industry_data['industry_type']             = $industry_type;
+		if($business_model !== null)            $industry_data['business_model']            = $business_model;
+		if($workflow_template_key !== null)     $industry_data['workflow_template_key']     = $workflow_template_key;
+		if($dashboard_template_key !== null)    $industry_data['dashboard_template_key']    = $dashboard_template_key;
+		if($storefront_theme_key !== null)      $industry_data['storefront_theme_key']      = $storefront_theme_key;
+		if($feature_flags_json !== null)        $industry_data['feature_flags_json']        = $feature_flags_json;
+		if($label_overrides_json !== null)      $industry_data['label_overrides_json']      = $label_overrides_json;
+		if($industry_settings_json !== null)    $industry_data['industry_settings_json']    = $industry_settings_json;
+
+		// Modular tax settings
+		$tax_data = array();
+		if(gst_number()){
+			$tax_data['gst_no'] = $gst_no;
+		}
+		if(vat_number()){
+			$tax_data['vat_no'] = $vat_no;
+		}
+		if(pan_number()){
+			$tax_data['pan_no'] = $pan_no;
+		}
+
+		// Modular theme settings
+		$theme_data = array();
+		if(!empty($store_logo)){
+			$theme_data['store_logo'] = $store_logo;
+		}
+
+		// Modular storefront settings
+		$storefront_data = array(
+			'store_website' => $store_website,
+		);
+		if(!empty($storefront_theme_key)){
+			$storefront_data['storefront_theme_key'] = $storefront_theme_key;
+		}
+
+		// Modular payment settings
+		$payment_data = array(
+			'bank_details' => $bank_details,
+		);
+
+		// NIN API key/value settings — protected by nin_settings permission
+		$can_edit_nin_settings = get_instance()->permissions('nin_settings');
+		$nin_data = array();
+		if($can_edit_nin_settings){
+			$nin_data = array(
+				'nin_api_enabled' => $nin_api_enabled,
+				'nin_api_url' => $nin_api_url,
+				'nin_api_key' => $nin_api_key,
+				'nin_api_provider' => $nin_api_provider,
+			);
+		}
+
+		// Store code uniqueness check
+			$this->db->select("count(*) as store_code_count");
+			$this->db->where("upper(store_code)", strtoupper($store_code));
+			$this->db->where("id !=", $q_id);
+			$store_code_count = $this->db->get('db_store')->row()->store_code_count;
+			if($store_code_count>0){
+				echo "Sorry! Store Code Already Exist!\nPlease Change Store Code";exit();
+			}
+
+			$q1 = $this->db->where('id',$q_id)->update('db_store', $data);
+			if(!$q1){
+				$this->db->trans_rollback();
+				return "failed";
+			}
+
+			// Write to modular tables
+			if($this->db->table_exists('db_store_inventory_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_inventory_settings', $inventory_data);
+			}
+			if($this->db->table_exists('db_store_receipt_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_receipt_settings', $receipt_data);
+			}
+			if($this->db->table_exists('db_store_pos_settings')){
+				if(!_mp_set_structured_setting($q_id, 'db_store_pos_settings', $pos_data)){
+					$this->db->trans_rollback();
+					return 'failed';
+				}
+			}
+			if(function_exists('mp_set_store_pos_setting') && !mp_set_store_pos_setting($q_id, 'weight_scale_mode', $weight_scale_mode)){
+				$this->db->trans_rollback();
+				return 'failed';
+			}
+			if($this->db->table_exists('db_store_industry_settings') && !empty($industry_data)){
+				_mp_set_structured_setting($q_id, 'db_store_industry_settings', $industry_data);
+			}
+			if($this->db->table_exists('db_store_tax_settings') && !empty($tax_data)){
+				_mp_set_structured_setting($q_id, 'db_store_tax_settings', $tax_data);
+			}
+			if($this->db->table_exists('db_store_theme_settings') && !empty($theme_data)){
+				_mp_set_structured_setting($q_id, 'db_store_theme_settings', $theme_data);
+			}
+			if($this->db->table_exists('db_store_storefront_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_storefront_settings', $storefront_data);
+			}
+			if($this->db->table_exists('db_store_payment_settings')){
+				_mp_set_structured_setting($q_id, 'db_store_payment_settings', $payment_data);
+			}
+			if($this->db->table_exists('db_store_settings')){
+				mp_set_store_setting($q_id, 'receipt', 'show_tax', $show_tax, 'int');
+				mp_set_store_setting($q_id, 'general', 'language_id', $language_id, 'int');
+				foreach($nin_data as $k => $v){
+					mp_set_store_setting($q_id, 'nin_api', $k, $v, 'string');
+				}
+				// Session Lock (idle timeout + snooze) settings
+				if($can_edit_system_settings){
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_enabled', $this->input->post('idle_enabled') ? 1 : 0, 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_timeout_minutes', max(1, (int)$this->input->post('idle_timeout_minutes')), 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'idle_warning_seconds', max(10, (int)$this->input->post('idle_warning_seconds')), 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_enabled', $this->input->post('snooze_enabled') ? 1 : 0, 'int');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_title', trim((string)$this->input->post('snooze_title', TRUE)), 'string');
+					mp_set_store_setting($q_id, 'idle_lock', 'snooze_message', trim((string)$this->input->post('snooze_message', TRUE)), 'string');
+					if(!empty($idle_flyer)){
+						mp_set_store_setting($q_id, 'idle_lock', 'snooze_image', $idle_flyer, 'string');
+					}
+				}
+			}
+
+			$this->db->trans_commit();
+			$this->session->unset_userdata('currency');
+			return "success";
+	}
+
+	//Get store_details
+	public function get_details($id){
+		$data=$this->data;
+
+		$query1=$this->db->query("select * from db_store where upper(id)=upper('$id')");
+		if($query1->num_rows()==0){
+			show_404();exit;
+		}
+		else{
+			/* QUERY 1*/
+			$data['q_id']=$query1->row()->id;
+			$all = function_exists('mp_get_store_all_settings') ? mp_get_store_all_settings($id) : [];
+			// sales_target lives in db_sitesettings (global), not db_store
+			$site = $this->db->select('sales_target')->where('id', 1)->get('db_sitesettings')->row();
+			$data['sales_target'] = ($site && isset($site->sales_target)) ? $site->sales_target : 0;
+			$data['show_tax'] = isset($all['show_tax']) ? (int)$all['show_tax'] : (function_exists('mp_get_store_setting') ? mp_get_store_setting($id, 'receipt', 'show_tax', 1) : 1);
+			// Modular settings are the source of truth; they override the legacy db_store row
+			$details = array_merge($data, $query1->row_array(), $all);
+			$details['weight_scale_mode'] = function_exists('mp_get_store_pos_setting')
+				? mp_get_store_pos_setting($id, 'weight_scale_mode', 'analog')
+				: 'analog';
+			return $details;
+		}
+	}
+
+}

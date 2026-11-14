@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nylon &amp; Polythene Manufacturing - MartPoint Customer Guide</title>
+<link rel="stylesheet" href="../martpoint-brand.css">
+<style>
+  .section-head { margin-bottom: calc(var(--space)*2); }
+  .screen-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); margin-bottom: calc(var(--space)*2); }
+  .screen-card .card-title { font-weight: 700; margin-bottom: 6px; }
+  .field-list { display: grid; gap: 8px; margin-top: 8px; }
+  .field { border-left: 3px solid var(--brand); padding-left: 10px; }
+  .field .lbl { font-weight: 700; font-size: 13px; }
+  .field .val { font-size: 12.5px; color: var(--muted); }
+  .blend-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .blend-table th, .blend-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; text-align: left; }
+  .blend-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .chat { display: grid; gap: 10px; margin-top: 8px; }
+  .chat-bubble { border-radius: 12px; padding: 10px 12px; font-size: 12.5px; }
+  .chat-left { background: var(--wash); border: 1px solid var(--stroke); }
+  .chat-right { background: #111; color: #fff; justify-self: end; max-width: 80%; }
+  .chat-avatar { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .tip { border-left: 3px solid var(--brand); padding-left: 10px; margin: calc(var(--space)*2) 0; }
+  .next { border-top: 1px solid var(--stroke); padding-top: calc(var(--space)*1.5); margin-top: calc(var(--space)*2); font-size: 12.5px; color: var(--muted); }
+  .do-dont { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: calc(var(--space)*2); }
+  .do-dont h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
+  .do, .dont { border: 1px solid var(--stroke); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; }
+  .do { background: #f6fbf7; }
+  .dont { background: #fff7f7; }
+  .screen-flow { display: grid; gap: 8px; }
+  .flow-step { border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+  .flow-step .gate { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; background: #fef4e6; color: #b4650b; margin-left: 6px; }
+  .path-card { border: 1px solid var(--stroke); border-radius: 12px; padding: calc(var(--space)*2); }
+  .path-card .path-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 3px 10px; margin-bottom: 6px; }
+  .path-1 .path-badge { background: #eafaf1; color: #148f55; }
+  .path-2 .path-badge { background: #fef4e6; color: #b4650b; }
+  .path-3 .path-badge { background: #efe8fd; color: #6b3ecb; }
+  .role-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .role-table th, .role-table td { border-bottom: 1px solid var(--stroke); padding: 8px; text-align: left; vertical-align: top; }
+  .role-table thead th { background: var(--wash); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .glossary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .glossary-table td { border-bottom: 1px solid var(--stroke); padding: 6px 8px; vertical-align: top; }
+  .glossary-table td:first-child { font-weight: 700; width: 32%; }
+  @media print { .document { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="document">
+
+  <section class="page page-cover">
+    <div class="hero-pattern"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="cover-inner">
+      <div class="cover-top">
+        <img src="../logo-white.png" class="logo" alt="MartPoint" style="filter:none;height:40px;width:auto;">
+        <span class="pill" style="background:rgba(255,255,255,0.14);color:#fff;">Nylon &amp; Polythene Manufacturing</span>
+      </div>
+      <div class="cover-hero">
+        <span class="label" style="color:rgba(255,255,255,0.75);">Use case scenario</span>
+        <h1>Emeka Polythene Works</h1>
+        <p>One factory, three ways to run it &mdash; extrude your own film and convert it to bags, buy film and convert it, or simply sell film rolls wholesale. Every screen, every role, field by field.</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="footer-strip" style="border-top-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);">
+        <span>MartPoint User Guides</span>
+        <span>martpoint.com.ng</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Start here</span>
+      <h2>Choose your factory mode</h2>
+      <p class="lead">Nylon factories come in three flavours. MartPoint&rsquo;s Nylon &amp; Polythene profile supports all three &mdash; and a factory can run more than one at once (extrude for some orders, buy film for others, sell surplus rolls to neighbouring converters).</p>
+    </div>
+    <div class="screen-card path-1">
+      <span class="path-badge">Mode A &mdash; Full line</span>
+      <div class="card-title">Extrude film and convert it to bags</div>
+      <p class="small">You buy resin, masterbatch and ink; the extruder blows film into rolls; the printer brands them; the cutting/sealing machine turns them into vest bags, flat bags or rolls of film. <strong>Full stage chain: allocation &rarr; extrusion &rarr; printing &rarr; cutting &rarr; packing &rarr; QC.</strong></p>
+    </div>
+    <div class="screen-card path-2">
+      <span class="path-badge">Mode B &mdash; Conversion only</span>
+      <div class="card-title">Buy film rolls, convert them to bags</div>
+      <p class="small">No extruder. You purchase finished film rolls from another factory and run them through printing and cutting/sealing. Purchased rolls enter stock at the <strong>roll stage</strong> and get consumed downstream &mdash; never double-deducted.</p>
+    </div>
+    <div class="screen-card path-3">
+      <span class="path-badge">Mode C &mdash; Trading</span>
+      <div class="card-title">Sell film rolls without converting</div>
+      <p class="small">You buy (or produce surplus) film rolls and sell them as goods &mdash; by the roll or by the kg. No job, no stages: a normal sale through POS or an invoice, straight out of roll stock.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The whole picture</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>Set up</strong> materials, film-roll items, finished-bag specs &amp; machines <em>(once)</em></div>
+        <div class="flow-step"><strong>Buy</strong> resin &amp; ink &mdash; or finished film rolls &mdash; through Purchases</div>
+        <div class="flow-step"><strong>Quote &amp; order</strong> &mdash; customer picks a spec, pays a deposit, artwork gets approved</div>
+        <div class="flow-step"><strong>Production job</strong> &mdash; material allocation &rarr; extrusion &rarr; printing &rarr; cutting &rarr; packing &rarr; QC<span class="gate">QC gated</span></div>
+        <div class="flow-step"><strong>Dispatch</strong> &mdash; invoice, delivery note, partial deliveries, balance collection</div>
+        <div class="flow-step"><strong>Report</strong> &mdash; yield, waste, rejects, machine output, margin per job</div>
+      </div>
+    </div>
+    <div class="tip"><strong>Enable the profile:</strong> <em>Settings &rarr; Business Profile &rarr; Nylon &amp; Polythene Manufacturing</em>. While saving, tick the capabilities your factory actually has &mdash; <strong>Extrusion</strong>, <strong>Conversion</strong>, and/or <strong>Roll Trading</strong>. Only the stages and screens you tick appear.</div>
+    <div class="next"><strong>Next &rarr;</strong> one-time setup &mdash; materials, products and machines.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 1</span>
+      <h2>Materials &amp; Products</h2>
+      <p class="lead"><em>Nylon &rarr; Materials &amp; Products.</em> Every item the factory touches gets a record here &mdash; the class decides whether it is consumed, traded or produced. Emeka&rsquo;s factory uses all four classes.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The four item classes</div>
+      <table class="blend-table">
+        <thead><tr><th>Class</th><th>What it is</th><th>Emeka&rsquo;s items</th><th>Base unit</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Raw Material</strong></td><td>Consumed by extrusion/conversion; never sold</td><td>LDPE Resin (Virgin), Masterbatch - Black, Flexo Ink - Red</td><td>kg / litre</td></tr>
+          <tr><td><strong>Film Roll</strong></td><td>Work-in-progress made by extrusion OR bought for conversion/resale</td><td>HDPE Film Roll 30cm, LDPE Film Roll 45cm</td><td>roll</td></tr>
+          <tr><td><strong>Finished Good</strong></td><td>Saleable bags/film that only reach stock through QC</td><td>Printed Vest Bag 30&times;45, Plain Flat Bag 40&times;50</td><td>piece</td></tr>
+          <tr><td><strong>Consumable</strong></td><td>Packing &amp; supplies used at stages</td><td>Packing Tape, Cartons, Rubber Bands</td><td>piece</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Add a finished product &middot; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Name</div><div class="val"><code>Printed Vest Bag 30x45</code> &mdash; include size so order-takers pick the right spec</div></div>
+        <div class="field"><div class="lbl">Class</div><div class="val"><code>Finished Good (bags, packed film)</code></div></div>
+        <div class="field"><div class="lbl">Base (stock) unit</div><div class="val"><code>Piece</code> &mdash; bags count individually</div></div>
+        <div class="field"><div class="lbl">Purchase cost / Sales price / Alert qty</div><div class="val"><code>0</code> cost (costs come from jobs) &middot; sales price per <em>piece</em> &middot; alert <code>500</code></div></div>
+        <div class="field"><div class="lbl">Material</div><div class="val"><code>LDPE</code> (or HDPE / PP / Recycled blend)</div></div>
+        <div class="field"><div class="lbl">Product form</div><div class="val"><code>Bag</code> &mdash; other forms: Film Roll, Sheet, Tubing, Liners</div></div>
+        <div class="field"><div class="lbl">Bag / film type</div><div class="val"><code>Vest / T-shirt</code> &mdash; also Flat, Punch Handle, Zip, Garbage, Bread Bag</div></div>
+        <div class="field"><div class="lbl">Width / Length (cm)</div><div class="val"><code>30</code> / <code>45</code></div></div>
+        <div class="field"><div class="lbl">Thickness (micron)</div><div class="val"><code>40</code></div></div>
+        <div class="field"><div class="lbl">Colour</div><div class="val"><code>White / Clear / Black</code>&hellip;</div></div>
+        <div class="field"><div class="lbl">Print status</div><div class="val"><code>Printed</code> &mdash; Plain items skip the printing stage entirely</div></div>
+        <div class="field"><div class="lbl">Design reference</div><div class="val">Customer design code, e.g. <code>MAMA-PUT-LOGO-V2</code></div></div>
+        <div class="field"><div class="lbl">kg per piece</div><div class="val"><code>0.025</code> &mdash; <strong>your</strong> measured weight. MartPoint never assumes a universal bags-per-kg figure</div></div>
+        <div class="field"><div class="lbl">kg per roll &middot; pieces per roll</div><div class="val">For roll items &mdash; e.g. <code>25</code> kg/roll, <code>1000</code> pcs/roll. Fill whatever your factory measures</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Selling units &mdash; kg, roll, piece, bundle, carton</div>
+      <p class="small">Each item carries <strong>explicit selling units</strong>: <code>Bundle &times;100</code> = 100 pieces, <code>Carton &times;20</code> = 20 bundles, <code>kg &times;1</code> priced by weight. An order can be taken in cartons while stock counts in pieces &mdash; the conversion is declared per product, never guessed. A film roll can sell by <strong>roll</strong> or by <strong>kg</strong> with its declared kg-per-roll conversion.</p>
+    </div>
+    <div class="tip"><strong>Raw materials are &ldquo;stock only&rdquo;:</strong> resin, masterbatch and ink are consumed by stages, so mark them clearly &mdash; they should never be offered to a cashier. The <strong>regrind/scrap item</strong> (next page) is a film-roll-class or raw-material item that reusable scrap gets credited into.</div>
+    <div class="next"><strong>Next &rarr;</strong> machines, factory settings and who can touch what.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Setup &mdash; step 2</span>
+      <h2>Machines, Settings &amp; Roles</h2>
+      <p class="lead">Three small screens finish the setup &mdash; most factories do this once and revisit only when they buy a machine.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Machines &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Code</div><div class="val"><code>EXT-01</code> &mdash; short code operators recognise</div></div>
+        <div class="field"><div class="lbl">Name</div><div class="val"><code>Extruder Line 1 (45cm die)</code></div></div>
+        <div class="field"><div class="lbl">Type</div><div class="val"><code>Extruder</code> &middot; also <code>Printer</code>, <code>Cutting / Sealing</code>, <code>Puncher</code>, <code>Packer</code>, <code>Other</code> &mdash; shift reports only offer machines of the matching type per stage</div></div>
+      </div>
+      <table class="blend-table" style="margin-top:10px;">
+        <thead><tr><th>Emeka&rsquo;s floor</th><th>Code</th><th>Type</th></tr></thead>
+        <tbody>
+          <tr><td>Extruder Line 1</td><td>EXT-01</td><td>Extruder</td></tr>
+          <tr><td>Flexo Printer 2-colour</td><td>PRT-01</td><td>Printer</td></tr>
+          <tr><td>Cutting &amp; Sealing Machine</td><td>CUT-01</td><td>Cutting / Sealing</td></tr>
+          <tr><td>Punching Machine</td><td>PCH-01</td><td>Puncher</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Factory Settings</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Default scrap item</div><div class="val"><code>Regrind / Scrap (recyclable)</code> &mdash; reusable edge-trim gets credited here instead of vanishing</div></div>
+        <div class="field"><div class="lbl">Require deposit before job</div><div class="val"><strong>On</strong> &mdash; a job cannot be raised against an order until the deposit is paid. Emeka turns it on; cash-and-carry factories can leave it off</div></div>
+        <div class="field"><div class="lbl">Due-soon warning window (days)</div><div class="val"><code>3</code> &mdash; jobs due within 3 days flag red on the dashboard</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Users &rarr; Roles &rarr; Nylon permissions</div>
+      <table class="role-table">
+        <thead><tr><th>Permission</th><th>Allows</th><th>Typical role</th></tr></thead>
+        <tbody>
+          <tr><td><code>nylon_view</code></td><td>See the Nylon screens &amp; dashboard</td><td>Everyone in the factory</td></tr>
+          <tr><td><code>nylon_report</code></td><td>Submit shift reports (output, rejects, waste)</td><td>Machine operators</td></tr>
+          <tr><td><code>nylon_approve</code></td><td>Approve/reverse reports, complete stages &amp; jobs</td><td>Supervisor</td></tr>
+          <tr><td><code>nylon_jobs_add / edit / delete</code></td><td>Raise and manage production jobs</td><td>Supervisor / owner</td></tr>
+          <tr><td><code>nylon_artwork</code></td><td>Approve or reject customer designs</td><td>Supervisor / sales lead</td></tr>
+          <tr><td><code>nylon_costing</code></td><td>See job costs &amp; margins</td><td>Owner / accounts</td></tr>
+          <tr><td><code>nylon_settings</code></td><td>Factory settings &amp; machine lists</td><td>Owner only</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Customer orders themselves reuse the existing <code>custom_orders_*</code> permissions, so sales staff keep their usual access.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Ngozi &middot; Supervisor</div><div class="chat-bubble">Operators report output on their phones. I approve each shift report before the stock moves &mdash; nothing inflates the shelf count without my sign-off.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Exactly. Approvals and reversals are the supervisor&rsquo;s job; operators only report.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> buying resin and film rolls &mdash; the purchase flow.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Inventory &mdash; buying stock</span>
+      <h2>Purchase resin, ink &amp; film rolls</h2>
+      <p class="lead">Purchasing uses the normal <em>Purchases &rarr; New Purchase</em> screen &mdash; nothing nylon-specific to learn. What matters is <em>which class of item</em> you buy.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Purchases &rarr; New Purchase &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Supplier</div><div class="val"><code>Indorama Resins Ltd</code> &mdash; or your film-roll supplier for Mode B</div></div>
+        <div class="field"><div class="lbl">Warehouse</div><div class="val">Your factory warehouse &mdash; materials land there, ready for allocation</div></div>
+        <div class="field"><div class="lbl">Items &mdash; quantity is in the item&rsquo;s base unit</div><div class="val">LDPE Resin &times;500 kg @ &#8358;800 &middot; Masterbatch &times;50 kg @ &#8358;2,500 &middot; Flexo Ink - Red &times;20 litre</div></div>
+        <div class="field"><div class="lbl">Mode B example &mdash; buying film</div><div class="val"><code>HDPE Film Roll 30cm</code> &times;20 rolls @ &#8358;20,000 &mdash; rolls enter stock <strong>at the roll stage</strong>, ready for printing/cutting without ever touching an extruder</div></div>
+        <div class="field"><div class="lbl">Mode C example &mdash; rolls for resale</div><div class="val">Same purchase &mdash; the rolls are simply sold later as goods. No job involved</div></div>
+        <div class="field"><div class="lbl">Payment</div><div class="val">Paid now, or credit and pay the supplier later &mdash; supplier balances track normally</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Where every purchase lands</div>
+      <table class="blend-table">
+        <thead><tr><th>You buy</th><th>Stock effect</th><th>How it leaves</th></tr></thead>
+        <tbody>
+          <tr><td>Resin, masterbatch, ink</td><td>Raw-material stock +qty</td><td>Stage reports consume it on jobs</td></tr>
+          <tr><td>Film rolls (film_roll class)</td><td>Roll stock +qty</td><td>Conversion stages consume it &mdash; or it sells directly</td></tr>
+          <tr><td>Cartons, tape (consumable)</td><td>Consumable stock +qty</td><td>Packing stage consumes it</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Kemi &middot; Sales</div><div class="chat-bubble">A converter down the road wants 10 film rolls &mdash; do we have them?</div></div>
+      <div class="chat-right"><div class="chat-bubble">Check roll availability on the Nylon Factory dashboard &mdash; rolls bought for resale sit in the same stock count as extruded ones.</div></div>
+    </div>
+    <div class="tip"><strong>Opening stock vs purchasing:</strong> type opening balances on the item once on day one; every restock after that goes through New Purchase so supplier history and cost basis stay accurate.</div>
+    <div class="next"><strong>Next &rarr;</strong> taking a customer order &mdash; quotation, spec, deposit.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Sales &mdash; the order book</span>
+      <h2>Quotations &amp; customer orders</h2>
+      <p class="lead">Kemi in sales handles everything before production: the quote, the confirmed order, the deposit. A quotation can be raised from <em>Sales &rarr; Quotations</em> first, then the confirmed job order lives in <em>Nylon &rarr; Job Orders</em>.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Job Orders &rarr; New Order &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Customer</div><div class="val"><code>Mama Put Catering</code> &mdash; existing MartPoint customers; walk-ins get a customer record first</div></div>
+        <div class="field"><div class="lbl">Product</div><div class="val"><code>Printed Vest Bag 30x45</code> &mdash; the spec (size, micron, print) rides along automatically</div></div>
+        <div class="field"><div class="lbl">Quantity</div><div class="val"><code>10,000</code></div></div>
+        <div class="field"><div class="lbl">Selling unit</div><div class="val"><code>Piece</code> &mdash; or the product&rsquo;s Bundle/Carton unit; the agreed price should match that unit</div></div>
+        <div class="field"><div class="lbl">Agreed total price</div><div class="val"><code>300,000</code> &mdash; the full job value; per-unit pricing is derived</div></div>
+        <div class="field"><div class="lbl">Deposit required</div><div class="val"><code>150,000</code> &mdash; the production gate when &ldquo;require deposit&rdquo; is on</div></div>
+        <div class="field"><div class="lbl">Deposit paid</div><div class="val"><code>150,000</code> &mdash; recorded here (or collected later through the normal payment flow)</div></div>
+        <div class="field"><div class="lbl">Order date / Due date</div><div class="val">Today &middot; <code>next Friday</code> &mdash; the due-soon window flags it on the dashboard</div></div>
+        <div class="field"><div class="lbl">Design reference</div><div class="val"><code>MAMA-PUT-LOGO-V2</code> &mdash; ties the order to the customer&rsquo;s branded design</div></div>
+        <div class="field"><div class="lbl">Artwork required</div><div class="val"><strong>Ticked</strong> for branded work &mdash; the printing stage is locked until a design file is approved</div></div>
+        <div class="field"><div class="lbl">Status / Notes</div><div class="val"><code>confirmed</code> &middot; &ldquo;Logo prints one side, red ink&rdquo;</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Repeat orders &mdash; one tap</div>
+      <p class="small">Mama Put reorders every month. On the order detail screen, <strong>Repeat Order</strong> clones the full specification &mdash; product, units, pricing structure, design reference <em>and the already-approved artwork</em>. An approved design stays approved on the repeat; nobody re-uploads or re-approves it.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Deposit &amp; balance through existing modules</div>
+      <table class="blend-table">
+        <thead><tr><th>Step</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>Quote the job</td><td>Sales &rarr; Quotations (convert to order on acceptance)</td></tr>
+          <tr><td>Collect deposit</td><td>Order detail &rarr; Deposit paid, via the normal payment entry</td></tr>
+          <tr><td>Dispatch batches</td><td>Order detail &rarr; Record Dispatch (partial deliveries allowed)</td></tr>
+          <tr><td>Invoice / delivery note</td><td>Standard invoice &amp; delivery-note printouts per dispatch</td></tr>
+          <tr><td>Collect balance</td><td>Customer payments &mdash; the order shows outstanding until cleared</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip"><strong>Deposits as a production gate:</strong> with &ldquo;require deposit before job&rdquo; on, the system refuses to raise a job while deposit is outstanding &mdash; the factory never extrudes on a promise.</div>
+    <div class="next"><strong>Next &rarr;</strong> artwork &mdash; the gate before the printing stage.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Sales &mdash; branded work</span>
+      <h2>Artwork upload &amp; approval</h2>
+      <p class="lead">A branded bag is only as good as its approved design. MartPoint keeps every artwork version on the order &mdash; with who approved it and when &mdash; and physically blocks the printing stage until one is approved.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Order detail &rarr; Artwork &amp; Design card</div>
+      <table class="blend-table">
+        <thead><tr><th>Action</th><th>Who</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Upload Artwork</strong> (PDF/JPG/PNG/CDR)</td><td>Sales / designer</td><td>Adds a version row: file, version number, uploader, timestamp &mdash; status <em>pending</em></td></tr>
+          <tr><td><strong>Approve</strong></td><td>Someone with <code>nylon_artwork</code></td><td>That version becomes <em>approved</em>; all other versions return to <em>pending</em> &mdash; only one live approval</td></tr>
+          <tr><td><strong>Reject</strong></td><td>Same permission</td><td>Marked rejected with the reason; customer resubmits a new version</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The printing gate</div>
+      <p class="small">If the order has <strong>artwork required</strong> and nothing is approved, the shift-report button on the printing stage is disabled and the endpoint itself refuses with: <em>&ldquo;Printing cannot start &mdash; the artwork on this order has not been approved.&rdquo;</em> An unapproved design can never reach a cylinder.</p>
+      <table class="blend-table" style="margin-top:8px;">
+        <thead><tr><th>Order state</th><th>Printing stage</th></tr></thead>
+        <tbody>
+          <tr><td>Artwork required, nothing uploaded</td><td>Blocked</td></tr>
+          <tr><td>Uploaded, pending review</td><td>Blocked</td></tr>
+          <tr><td>One version approved</td><td>Report button live</td></tr>
+          <tr><td>Plain (unprinted) product</td><td>No printing stage at all</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Tunde &middot; Printer operator</div><div class="chat-bubble">The Report button on Printing is greyed out &mdash; the design is still pending.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Correct &mdash; get the artwork approved on the order first. Once approved it stays on the repeat orders too.</div></div>
+    </div>
+    <div class="do-dont">
+      <div>
+        <h4>Do</h4>
+        <div class="do">Upload each customer revision as a <strong>new version</strong> &mdash; the history shows exactly which design printed which batch.</div>
+      </div>
+      <div>
+        <h4>Don&rsquo;t</h4>
+        <div class="dont">Never hand a pending design to the printer &ldquo;just to start&rdquo; &mdash; the gate exists because re-printing film costs real resin and ink.</div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> raising the production job and its stage plan.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Production</span>
+      <h2>Raise the production job</h2>
+      <p class="lead">A job links an order (or a stock-replenishment need) to a planned output and a stage plan. Ngozi raises it once; operators then report against it all week.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Production Jobs &rarr; New Job &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Customer order</div><div class="val"><code>CO-2026-0004 &middot; Mama Put</code> &mdash; or leave blank for a stock-replenishment run</div></div>
+        <div class="field"><div class="lbl">Product to produce</div><div class="val"><code>Printed Vest Bag 30x45</code></div></div>
+        <div class="field"><div class="lbl">Planned qty / Planned unit</div><div class="val"><code>10,000</code> &middot; <code>Piece</code> &mdash; bundle/carton units convert through the product&rsquo;s declared selling units</div></div>
+        <div class="field"><div class="lbl">Input material</div><div class="val"><code>LDPE Resin (Virgin)</code> &mdash; for Mode B jobs pick the purchased <em>film roll</em> here instead</div></div>
+        <div class="field"><div class="lbl">Film roll item (extrusion output / conversion input)</div><div class="val"><code>LDPE Film Roll 45cm</code> &mdash; the WIP the extruder produces and cutting later consumes</div></div>
+        <div class="field"><div class="lbl">Planned input qty</div><div class="val"><code>262</code> kg &mdash; the resin budget for this run (10,000 pcs &times; 0.025 kg + process loss)</div></div>
+        <div class="field"><div class="lbl">Factory / warehouse</div><div class="val">Which factory floor &mdash; multi-branch factories filter jobs by it</div></div>
+        <div class="field"><div class="lbl">Due date / Priority</div><div class="val">Inherits the order&rsquo;s date &middot; <code>high</code> because the customer is waiting</div></div>
+        <div class="field"><div class="lbl">Est. material cost / Est. other cost</div><div class="val"><code>209,600</code> &middot; <code>25,000</code> (power, ink, labour allowance) &mdash; the benchmark the actuals get judged against</div></div>
+        <div class="field"><div class="lbl">Print required</div><div class="val"><strong>Ticked</strong> &mdash; adds the printing stage with the artwork gate</div></div>
+        <div class="field"><div class="lbl">Notes</div><div class="val">&ldquo;Run on EXT-01 only; red ink lot 12&rdquo;</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The stage plan is built for you</div>
+      <p class="small">On save, MartPoint snapshots the right stages for this job&rsquo;s mode &mdash; they appear as a timeline on the job screen:</p>
+      <table class="blend-table" style="margin-top:8px;">
+        <thead><tr><th>Stage</th><th>Mode A (extrude+convert)</th><th>Mode B (buy+convert)</th></tr></thead>
+        <tbody>
+          <tr><td>Material Allocation</td><td>Reserve resin for the job</td><td>Reserve purchased rolls</td></tr>
+          <tr><td>Extrusion (Film Roll)</td><td>Resin &rarr; film rolls</td><td>Skipped &mdash; no extruder</td></tr>
+          <tr><td>Printing</td><td>Only if &ldquo;print required&rdquo;, gated on artwork</td><td>Same rule</td></tr>
+          <tr><td>Cutting / Sealing / Punching</td><td>Rolls &rarr; bags</td><td>Rolls &rarr; bags</td></tr>
+          <tr><td>Packing</td><td>Bundle / carton output</td><td>Same</td></tr>
+          <tr><td>Quality Check</td><td>Final gate &mdash; only approved QC adds sellable stock</td><td>Same</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip"><strong>Stages are per-job, not global:</strong> a plain-bag job has no printing stage; a Mode B job has no extrusion stage. Operators only ever see the stages this job actually needs.</div>
+    <div class="next"><strong>Next &rarr;</strong> what operators report each shift &mdash; the heart of the system.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Production</span>
+      <h2>Shift reports &mdash; output, rejects, waste</h2>
+      <p class="lead">Each applicable stage has a <strong>Report</strong> button. Operators file one report per shift &mdash; jobs run across days without ever pretending a shift produced more than it did.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Job &rarr; stage &rarr; Report &rarr; Fill in each field</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Report date / Shift</div><div class="val"><code>Tuesday</code> &middot; <code>Morning / Afternoon / Night</code> &mdash; multiple reports per stage are normal</div></div>
+        <div class="field"><div class="lbl">Machine</div><div class="val">Only machines of the right type list &mdash; extruders at extrusion, cutters at cutting</div></div>
+        <div class="field"><div class="lbl">Operator</div><div class="val">The reporting operator&rsquo;s name &mdash; accountability per shift</div></div>
+        <div class="field"><div class="lbl">Qty in</div><div class="val"><code>60</code> kg resin fed (extrusion) or rolls loaded (printing/cutting)</div></div>
+        <div class="field"><div class="lbl">Good output</div><div class="val"><code>2</code> rolls produced &mdash; or <code>4,900</code> bags cut</div></div>
+        <div class="field"><div class="lbl">Rejects</div><div class="val"><code>600</code> misprinted/mis-cut pieces &mdash; <strong>never</strong> enter saleable stock</div></div>
+        <div class="field"><div class="lbl">Reusable scrap</div><div class="val"><code>1</code> kg edge-trim &rarr; credited to the <em>Regrind/Scrap</em> item for re-extrusion</div></div>
+        <div class="field"><div class="lbl">Unrecoverable waste</div><div class="val"><code>0.5</code> kg burnt film &mdash; written off with its cost shown</div></div>
+        <div class="field"><div class="lbl">Notes</div><div class="val">&ldquo;Die gap drifted in hour 2 &mdash; recalibrated&rdquo;</div></div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Approval &amp; correction</div>
+      <table class="blend-table">
+        <thead><tr><th>Action</th><th>Who</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td>Submit report</td><td>Operator (<code>nylon_report</code>)</td><td>Working-stage stock moves immediately; <strong>QC output waits pending</strong></td></tr>
+          <tr><td>Approve</td><td>Supervisor (<code>nylon_approve</code>)</td><td>QC-approved output is credited &mdash; bags become sellable only now</td></tr>
+          <tr><td>Reverse</td><td>Supervisor</td><td>A counter-adjustment undoes every stock move; the original log stays marked <em>reversed</em> &mdash; full audit trail</td></tr>
+          <tr><td>Done / Skip stage</td><td>Supervisor</td><td>Marks the stage complete or skips an unneeded stage</td></tr>
+          <tr><td>Complete job / Hold job</td><td>Supervisor</td><td>Closes the job for costing, or pauses it</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Partial production across shifts &mdash; Tuesday and Wednesday</div>
+      <table class="blend-table">
+        <thead><tr><th>Shift</th><th>Stage</th><th>In</th><th>Good</th><th>Rejects</th><th>Scrap</th></tr></thead>
+        <tbody>
+          <tr><td>Tue morning</td><td>Extrusion</td><td>60 kg resin</td><td>2 rolls</td><td>&mdash;</td><td>1 kg</td></tr>
+          <tr><td>Tue afternoon</td><td>Extrusion</td><td>60 kg resin</td><td>2 rolls</td><td>&mdash;</td><td>&mdash;</td></tr>
+          <tr><td>Wed morning</td><td>Cutting</td><td>4 rolls</td><td>4,900 bags</td><td>600</td><td>2 kg</td></tr>
+          <tr><td>Wed afternoon</td><td>Packing + QC</td><td>4,900 bags</td><td>4,900 approved</td><td>&mdash;</td><td>&mdash;</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">The job stays <em>in progress</em> at 4,900 of 10,000 &mdash; 4,000 dispatched Thursday, the balance runs next week. Nothing forces false completion.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Tunde &middot; Operator</div><div class="chat-bubble">I file my report from my phone at the machine &mdash; More &rarr; Operations &rarr; Nylon Factory &rarr; the job &rarr; Report.</div></div>
+      <div class="chat-right"><div class="chat-bubble">Every production screen has a mobile version. Shift reporting was built for the floor, not the office.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> what each report does to stock &mdash; and the rules that keep it honest.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Production &mdash; the stock rules</span>
+      <h2>What moves, what doesn&rsquo;t</h2>
+      <p class="lead">Every shift report posts traceable stock transactions. Three rules protect the numbers &mdash; they are why the dashboard can be trusted.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Stage-by-stage stock effects</div>
+      <table class="blend-table">
+        <thead><tr><th>Stage report</th><th>Consumes</th><th>Produces</th><th>Stock timing</th></tr></thead>
+        <tbody>
+          <tr><td>Material Allocation</td><td>&mdash;</td><td>&mdash;</td><td>Reservation only &mdash; no stock move, no cost</td></tr>
+          <tr><td>Extrusion</td><td>Resin / masterbatch / ink (kg)</td><td>Film rolls + scrap regrind</td><td>Immediately on report</td></tr>
+          <tr><td>Printing</td><td>Film rolls + ink</td><td>Printed rolls / rejects</td><td>Immediately on report</td></tr>
+          <tr><td>Cutting / Sealing / Punching</td><td>Film rolls</td><td>Bags (held), rejects, scrap</td><td>Immediately on report</td></tr>
+          <tr><td>Packing</td><td>Bags + cartons/tape</td><td>Packed output</td><td>Immediately on report</td></tr>
+          <tr><td>QC</td><td>&mdash;</td><td><strong>Sellable finished stock</strong></td><td><strong>Only on supervisor approval</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Rule 1 &mdash; no double deduction</div>
+      <p class="small">When extrusion turns 60 kg of resin into 2 film rolls, the resin leaves stock and the rolls arrive. When cutting later consumes those rolls, <strong>the resin is not deducted again</strong> &mdash; and the rolls consumed downstream carry zero material cost into the job&rsquo;s costing. The material is charged once, at the door.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Rule 2 &mdash; QC gates finished stock</div>
+      <p class="small">Cutting produced 5,000 bags but 600 were rejects &mdash; only the QC-approved 1,400 that passed inspection land in saleable stock, and only after the supervisor approves the report. Rejected and unapproved output can never inflate what you can sell.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Rule 3 &mdash; nothing vanishes</div>
+      <table class="blend-table">
+        <thead><tr><th>Output type</th><th>Where it goes</th></tr></thead>
+        <tbody>
+          <tr><td>Good output</td><td>Next stage input / finished stock (after QC approval)</td></tr>
+          <tr><td>Reusable scrap</td><td>Credited to the Regrind item &mdash; re-extrudes later, keeps its value</td></tr>
+          <tr><td>Unrecoverable waste</td><td>Written off, costed, visible in job reports</td></tr>
+          <tr><td>Rejects</td><td>Counted on the job &mdash; excluded from stock entirely</td></tr>
+          <tr><td>Reversed report</td><td>Counter-adjustment rolls every move back; original log preserved as <em>reversed</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip"><strong>Traceability:</strong> every move posts through the stock-adjustment ledger with the job number and stage in the description &mdash; six months later you can still see which shift produced the rolls a customer complained about.</div>
+    <div class="next"><strong>Next &rarr;</strong> selling &mdash; dispatch, invoices and collecting the balance.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Sales &mdash; fulfilment</span>
+      <h2>Dispatch, invoices &amp; balance collection</h2>
+      <p class="lead">Production is half the job &mdash; Kemi&rsquo;s side finishes it. All fulfilment uses the existing commercial screens, so nothing new to learn for the office.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Order detail &rarr; Record Dispatch</div>
+      <div class="field-list">
+        <div class="field"><div class="lbl">Qty dispatched</div><div class="val"><code>4,000</code> of 10,000 &mdash; <strong>partial dispatch is fully supported</strong>; the order tracks produced / dispatched / remaining</div></div>
+        <div class="field"><div class="lbl">Warehouse</div><div class="val">The factory warehouse the QC-approved stock sits in</div></div>
+        <div class="field"><div class="lbl">Notes</div><div class="val">&ldquo;First batch &mdash; delivery van A&rdquo; &mdash; prints on the delivery note</div></div>
+      </div>
+      <p class="small" style="margin-top:8px;">Dispatch deducts the QC-approved finished stock and creates the delivery record &mdash; you cannot dispatch more than QC has released, which is the whole point of the gate.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Money in &mdash; the order lifecycle</div>
+      <table class="blend-table">
+        <thead><tr><th>When</th><th>Screen</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Before production</td><td>Order &rarr; Deposit paid</td><td>Deposit recorded; unlocks job creation when required</td></tr>
+          <tr><td>Each dispatch</td><td>Invoice / delivery note print</td><td>Customer gets paperwork per batch</td></tr>
+          <tr><td>After delivery</td><td>Customer payment entry</td><td>Balance collected; outstanding shrinks to zero</td></tr>
+          <tr><td>Any time</td><td>Nylon Factory dashboard</td><td>Outstanding-balances card lists who still owes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Mode C &mdash; the pure roll sale</div>
+      <p class="small">A converter buys 10 film rolls. No job, no stages: raise a normal sale (POS for walk-in, invoice for account customers), pick <code>HDPE Film Roll 30cm</code>, sell by <strong>roll</strong> or by <strong>kg</strong> using its declared conversion. Roll stock drops by 10; margin reports compare against the purchase/extrusion cost. Roll-only trading needs no production setup at all.</p>
+    </div>
+    <div class="chat">
+      <div class="chat-left"><div class="chat-avatar">Chidi &middot; Accounts</div><div class="chat-bubble">Mama Put owes 150,000 balance on 10,000 bags &mdash; we dispatched 4,000.</div></div>
+      <div class="chat-right"><div class="chat-bubble">The order shows produced/dispatched/balance in one view, and the dashboard keeps the debt visible until paid.</div></div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> dashboards and reports &mdash; what the numbers say.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Management</span>
+      <h2>Dashboard &amp; production reports</h2>
+      <p class="lead">Two screens tell Emeka how the factory is doing without walking the floor: the <em>Nylon Factory</em> dashboard for today, and <em>Production Reports</em> for the analysis.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Nylon Factory (dashboard)</div>
+      <table class="blend-table">
+        <thead><tr><th>Card</th><th>Answers</th></tr></thead>
+        <tbody>
+          <tr><td>Open jobs</td><td>What&rsquo;s running, where each job sits in its stage timeline</td></tr>
+          <tr><td>Due soon</td><td>Jobs inside the warning window (set in Factory Settings) &mdash; flags red</td></tr>
+          <tr><td>Pending QC</td><td>Output reported but awaiting supervisor approval</td></tr>
+          <tr><td>Material availability</td><td>Resin, masterbatch, ink and <strong>film-roll</strong> stock on hand</td></tr>
+          <tr><td>Outstanding balances</td><td>Orders with money still owed</td></tr>
+          <tr><td>Branch filter</td><td>Multi-factory operations scope every view to one floor</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Nylon &rarr; Production Reports</div>
+      <table class="blend-table">
+        <thead><tr><th>Report</th><th>Shows</th></tr></thead>
+        <tbody>
+          <tr><td>Output by machine</td><td>EXT-01 extruded 4 rolls this week; CUT-01 cut 4,900 bags</td></tr>
+          <tr><td>Output by product</td><td>Which specs actually shipped</td></tr>
+          <tr><td>Job profitability</td><td>Estimated vs actual cost, yield %, waste, <strong>gross margin per job</strong></td></tr>
+          <tr><td>Rejects &amp; waste</td><td>Where output is being lost &mdash; by stage and shift</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">A job&rsquo;s cost card &mdash; estimated vs actual</div>
+      <table class="blend-table">
+        <thead><tr><th>Line</th><th>Estimate</th><th>Actual</th></tr></thead>
+        <tbody>
+          <tr><td>Material</td><td>&#8358;209,600</td><td>&#8358;209,600 <em>(resin charged once &mdash; rolls consumed downstream carry no re-cost)</em></td></tr>
+          <tr><td>Other (power, ink, labour)</td><td>&#8358;25,000</td><td>&#8358;25,400</td></tr>
+          <tr><td>Revenue (10,000 bags)</td><td colspan="2">&#8358;300,000</td></tr>
+          <tr><td><strong>Gross margin</strong></td><td colspan="2"><strong>&#8358;90,400 &middot; 30.1%</strong> &middot; yield 96% after 600 rejects</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:8px;">Costs accrue per shift report &mdash; material at consumption, extra costs from the job&rsquo;s cost card. Requires <code>nylon_costing</code> to view.</p>
+    </div>
+    <div class="tip"><strong>Demo mode:</strong> <em>Nylon &rarr; Demo Scenarios</em> seeds a full example factory &mdash; six realistic scenarios with real numbers &mdash; perfect for training staff before going live.</div>
+    <div class="next"><strong>Next &rarr;</strong> who does what &mdash; a day in each role.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Roles</span>
+      <h2>A day at Emeka Polythene Works</h2>
+      <p class="lead">The same factory, seen by the five people who run it.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Kemi &mdash; Sales (morning)</div>
+      <div class="screen-flow">
+        <div class="flow-step">Quote a 10,000-bag job from <em>Sales &rarr; Quotations</em></div>
+        <div class="flow-step">Confirmed &rarr; <em>Nylon &rarr; Job Orders &rarr; New Order</em>: spec, qty, &#8358;300,000, &#8358;150,000 deposit</div>
+        <div class="flow-step">Upload the customer&rsquo;s new logo as artwork v2 &rarr; chase approval</div>
+        <div class="flow-step">Repeat last month&rsquo;s order for the regular customer &mdash; one tap, approved artwork carried over</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Ngozi &mdash; Supervisor</div>
+      <div class="screen-flow">
+        <div class="flow-step">Dashboard check: deposit cleared &rarr; raise the job, assign EXT-01</div>
+        <div class="flow-step">Approve each shift report as it lands &mdash; QC approval releases sellable stock</div>
+        <div class="flow-step">Reverse a misreported quantity &mdash; counter-adjustment corrects stock, log kept as <em>reversed</em></div>
+        <div class="flow-step">Complete stages as they finish; close the job for costing</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Tunde &mdash; Machine operator (phone, at the machine)</div>
+      <div class="screen-flow">
+        <div class="flow-step"><em>More &rarr; Operations &rarr; Nylon Factory</em> &rarr; open today&rsquo;s job</div>
+        <div class="flow-step">Tap <strong>Report</strong> on the current stage: machine, shift, qty in, good output, rejects, scrap</div>
+        <div class="flow-step">Can&rsquo;t touch approvals, costing or settings &mdash; reports only</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Chidi &mdash; Accounts</div>
+      <div class="screen-flow">
+        <div class="flow-step">Outstanding-balances card &rarr; call customers owing on dispatched orders</div>
+        <div class="flow-step">Record balance payments through normal customer payments</div>
+        <div class="flow-step">Review job costing (<code>nylon_costing</code>): margin, waste cost, yield</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">Emeka &mdash; Owner</div>
+      <div class="screen-flow">
+        <div class="flow-step">Morning: dashboard &mdash; open jobs, due-soon flags, pending QC, stock levels</div>
+        <div class="flow-step">Weekly: Production Reports &mdash; output per machine, profit per job, reject trends</div>
+        <div class="flow-step">Rarely: Factory Settings &amp; Machines &mdash; only with <code>nylon_settings</code></div>
+      </div>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> one order end-to-end &mdash; resin in, money out.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Walkthrough</span>
+      <h2>One order, start to finish</h2>
+      <p class="lead">Mama Put orders 10,000 printed vest bags at &#8358;300,000, 50% deposit. Every number below is what the screens actually show.</p>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The complete flow</div>
+      <div class="screen-flow">
+        <div class="flow-step"><strong>1. Order</strong> &mdash; Kemi books CO-2026-0004: 10,000 pcs, deposit &#8358;150,000 paid, due Friday, artwork required</div>
+        <div class="flow-step"><strong>2. Artwork</strong> &mdash; logo uploaded, Ngozi approves v2 &mdash; printing gate opens</div>
+        <div class="flow-step"><strong>3. Job</strong> &mdash; JOB raised: 262 kg resin planned, stages built automatically</div>
+        <div class="flow-step"><strong>4. Extrusion</strong> &mdash; 262 kg resin &rarr; 10 film rolls (+2 kg scrap &rarr; regrind). Resin drops once: 500 &rarr; 238 kg</div>
+        <div class="flow-step"><strong>5. Printing</strong> &mdash; rolls in, red ink consumed; 600 misprints rejected</div>
+        <div class="flow-step"><strong>6. Cutting + Packing</strong> &mdash; rolls &rarr; bags; resin NOT re-deducted</div>
+        <div class="flow-step"><strong>7. QC</strong> &mdash; 9,600 approved on supervisor sign-off &rarr; saleable stock +9,600</div>
+        <div class="flow-step"><strong>8. Dispatch</strong> &mdash; 4,000 delivered on the first van; invoice + delivery note printed</div>
+        <div class="flow-step"><strong>9. Balance</strong> &mdash; &#8358;150,000 collected after final dispatch; order closes</div>
+        <div class="flow-step"><strong>10. Review</strong> &mdash; job report: actual &#8358;235,000 vs estimate &#8358;234,600 &middot; margin 30% &middot; yield 96%</div>
+      </div>
+    </div>
+    <div class="screen-card">
+      <div class="card-title">The other modes, same screens</div>
+      <table class="blend-table">
+        <thead><tr><th>Scenario</th><th>Difference</th></tr></thead>
+        <tbody>
+          <tr><td>Bought-film job</td><td>Purchased rolls enter stock directly; job starts at printing/cutting &mdash; no extrusion stage, no resin</td></tr>
+          <tr><td>Roll-only sale</td><td>No job at all &mdash; sell the film_roll item on an invoice by roll or kg</td></tr>
+          <tr><td>Repeat branded order</td><td>Repeat Order clones the spec; approved artwork carries over &mdash; straight to job</td></tr>
+          <tr><td>Rejected batch</td><td>Rejects counted on the job, scrap to regrind &mdash; saleable stock shows only what QC passed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="next"><strong>Next &rarr;</strong> every term, explained once &mdash; the glossary.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-head">
+      <span class="label">Reference</span>
+      <h2>Terminology</h2>
+      <p class="lead">Every word the Nylon module uses, in plain language.</p>
+    </div>
+    <table class="glossary-table">
+      <tr><td>Item Class</td><td>What an item is in the factory: <strong>Raw Material</strong> (resin, ink &mdash; consumed), <strong>Film Roll</strong> (WIP or traded), <strong>Finished Good</strong> (saleable bags, QC-gated), <strong>Consumable</strong> (cartons, tape).</td></tr>
+      <tr><td>Spec</td><td>The product definition on Materials &amp; Products: material (LDPE/HDPE/PP), form, bag type, width/length, thickness in microns, colour, print status, design reference, and the measured kg-per-piece / kg-per-roll figures.</td></tr>
+      <tr><td>Selling Unit</td><td>A named pack size on a product with an explicit conversion &mdash; <code>Bundle &times;100</code>, <code>Carton &times;20</code>. Orders and sales can be taken in any declared unit; stock always counts in the base unit.</td></tr>
+      <tr><td>kg per piece / kg per roll</td><td>Your measured weight figures on the spec. MartPoint uses <em>yours</em> &mdash; it never assumes a universal bags-per-kg conversion.</td></tr>
+      <tr><td>Job Order</td><td>The commercial record in Nylon &rarr; Job Orders: customer, product spec, qty + selling unit, agreed price, deposit, due date, design reference, artwork files, dispatch history, status.</td></tr>
+      <tr><td>Artwork</td><td>The customer&rsquo;s design file versions attached to an order. Exactly one version can be <em>approved</em> at a time; approved artwork carries over to repeat orders.</td></tr>
+      <tr><td>Printing Gate</td><td>The rule that blocks the printing stage until an order&rsquo;s artwork is approved &mdash; enforced on the screen and on the endpoint.</td></tr>
+      <tr><td>Production Job</td><td>The factory instruction raised from an order (or for stock replenishment): product, planned qty, input material, film-roll item, factory, due date, priority, estimated costs, print flag.</td></tr>
+      <tr><td>Stage Plan</td><td>The job&rsquo;s snapshot timeline: Material Allocation &rarr; Extrusion &rarr; Printing &rarr; Cutting/Sealing/Punching &rarr; Packing &rarr; QC. Only the stages the product needs are generated.</td></tr>
+      <tr><td>Shift Report</td><td>An operator&rsquo;s filed report on a stage: date, shift, machine, operator, qty in, good output, rejects, reusable scrap, unrecoverable waste, notes. Multiple reports per stage track partial production.</td></tr>
+      <tr><td>QC Gate</td><td>QC-stage output only becomes sellable stock when a supervisor approves the report &mdash; the guard that stops unverified output inflating stock.</td></tr>
+      <tr><td>Regrind / Scrap Item</td><td>The item (set in Factory Settings) that reusable edge-trim and scrap get credited into &mdash; it re-enters production later instead of vanishing.</td></tr>
+      <tr><td>Reversal</td><td>Supervisor correction on a report: posts a counter-adjustment undoing every stock move, and keeps the original log marked <em>reversed</em> for audit.</td></tr>
+      <tr><td>Repeat Order</td><td>One-tap clone of an approved order &mdash; spec, pricing, design reference and approved artwork included.</td></tr>
+      <tr><td>Dispatch</td><td>Shipping recorded on the order against QC-approved stock. Partial dispatches are normal; each generates invoice/delivery-note paperwork.</td></tr>
+      <tr><td>Deposit Gate</td><td>Factory Setting: a job cannot be created while the order&rsquo;s required deposit is unpaid.</td></tr>
+      <tr><td>Estimated vs Actual</td><td>The job&rsquo;s cost card &mdash; your est. material/other costs benchmarked against real consumption per report, yielding margin % and yield %.</td></tr>
+    </table>
+    <div class="screen-card" style="margin-top:calc(var(--space)*2);">
+      <div class="card-title">Quick pick</div>
+      <table class="blend-table">
+        <thead><tr><th>Your factory</th><th>Enable</th><th>Set up</th></tr></thead>
+        <tbody>
+          <tr><td>Extrude + convert</td><td>Extrusion + Conversion</td><td>Resin items + roll item + bag specs + all machine types</td></tr>
+          <tr><td>Buy film, convert</td><td>Conversion</td><td>Roll items (purchased) + bag specs + printers/cutters</td></tr>
+          <tr><td>Sell rolls only</td><td>Roll Trading</td><td>Roll items with kg/roll conversion &mdash; nothing else</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="spacer"></div>
+    <div class="footer-strip">
+      <span>MartPoint User Guides</span>
+      <span>martpoint.com.ng</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

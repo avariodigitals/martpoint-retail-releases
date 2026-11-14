@@ -1,0 +1,172 @@
+<?php
+/**
+ * Modern Minimal — Product Detail
+ * Two-column layout with sticky gallery, clean typography and
+ * related products grid.
+ */
+$slug = $settings->store_slug ?? '';
+$cur = $store_currency ?? null;
+$maison = $maison_forme_content ?? [];
+$img = ($product->item_image && file_exists($product->item_image)) ? mp_minified_image_url($product->item_image, 900) : '';
+$hasDiscount = $product->original_price > $product->effective_price;
+?>
+<style>
+  .theme-maison_forme { background:#F4F1E9; color:#22231F; }
+  .theme-maison_forme .mp-footer-space { height:0; }
+  .fm-container { max-width:1400px; margin:0 auto; padding:0 24px; }
+  @media(max-width:767px){ .fm-container { padding:0 16px; } }
+
+  .fm-breadcrumb { padding:20px 0 0; font-size:13px; color:#77776E; }
+  .fm-breadcrumb a { color:#77776E; text-decoration:none; }
+  .fm-breadcrumb a:hover { color:#22231F; }
+  .fm-breadcrumb .sep { margin:0 8px; color:#CCC9C0; }
+
+  .fm-pd { padding:32px 0 64px; }
+  .fm-pd-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:48px; align-items:start; }
+  @media(max-width:1023px){ .fm-pd-layout { grid-template-columns:1fr; gap:32px; } }
+  .fm-pd-gallery { position:sticky; top:90px; border-radius:16px; overflow:hidden; background:#F4F1E9; aspect-ratio:4/5; }
+  @media(max-width:1023px){ .fm-pd-gallery { position:static; } }
+  .fm-pd-gallery img { width:100%; height:100%; object-fit:cover; }
+  .fm-pd-gallery-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#CCC9C0; font-family:'Georgia',serif; font-size:48px; font-weight:700; }
+
+  .fm-pd-meta { padding-top:10px; }
+  .fm-pd-kicker { font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#571E28; font-weight:700; margin-bottom:10px; }
+  .fm-pd-name { font-family:'Georgia',serif; font-size:clamp(28px,3.5vw,42px); font-weight:700; margin-bottom:12px; color:#22231F; letter-spacing:-0.02em; line-height:1.1; }
+  .fm-pd-price { font-size:28px; font-weight:800; margin-bottom:6px; color:#22231F; }
+  .fm-pd-price .old { font-size:18px; color:#77776E; text-decoration:line-through; margin-left:10px; font-weight:500; }
+  .fm-pd-stock { font-size:14px; color:#059669; margin-bottom:20px; font-weight:600; }
+  .fm-pd-stock.out { color:#EF4444; }
+  .fm-pd-desc { color:#475569; line-height:1.7; margin-bottom:28px; font-size:15px; }
+  .fm-pd-qty { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+  .fm-pd-qty button { width:44px; height:44px; border-radius:50%; border:1px solid #CCC9C0; background:#fff; font-size:18px; cursor:pointer; color:#22231F; transition:border-color .2s; }
+  .fm-pd-qty button:hover { border-color:#22231F; }
+  .fm-pd-qty span { font-size:18px; font-weight:700; min-width:30px; text-align:center; color:#22231F; }
+  .fm-pd-actions { display:flex; gap:12px; flex-wrap:wrap; }
+  .fm-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 32px; border-radius:999px; font-size:14px; font-weight:600; transition:transform .15s, background .2s; cursor:pointer; border:none; text-decoration:none; }
+  .fm-btn:active { transform:scale(0.98); }
+  .fm-btn-primary { background:#571E28; color:#fff; }
+  .fm-btn-primary:hover { background:#571E28; }
+  .fm-btn-dark { background:#22231F; color:#fff; }
+  .fm-btn-dark:hover { background:#1E293B; }
+  .fm-btn-outline { background:#fff; color:#22231F; border:1.5px solid #22231F; }
+  .fm-btn-outline:hover { background:#22231F; color:#fff; }
+  .fm-btn-wa { background:#25D366; color:#fff; }
+  .fm-btn-wa:hover { background:#1DA851; }
+  .fm-pd-actions .fm-btn { flex:1; min-width:180px; }
+
+  .fm-pd-variants { margin-top:40px; }
+  .fm-pd-related { margin-top:48px; }
+  .fm-section-label { font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#571E28; font-weight:700; margin-bottom:6px; }
+  .fm-section-title { font-family:'Georgia',serif; font-size:28px; margin:0 0 24px; font-weight:700; letter-spacing:-0.02em; color:#22231F; }
+
+  .fm-product-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+  @media(max-width:1023px){ .fm-product-grid { grid-template-columns:repeat(3,1fr); } }
+  @media(max-width:767px){ .fm-product-grid { grid-template-columns:repeat(2,1fr); gap:14px; } }
+  .fm-product-card { position:relative; background:#fff; border-radius:16px; overflow:hidden; border:1px solid #CCC9C0; transition:transform .2s, box-shadow .2s; cursor:pointer; text-decoration:none; color:inherit; }
+  .fm-product-card:hover { transform:translateY(-4px); box-shadow:0 16px 40px rgba(15,23,42,0.1); }
+  .fm-product-media { aspect-ratio:4/5; overflow:hidden; background:#F4F1E9; }
+  .fm-product-media img { width:100%; height:100%; object-fit:cover; transition:transform .45s ease; }
+  .fm-product-card:hover .fm-product-media img { transform:scale(1.06); }
+  .fm-product-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#F4F1E9; color:#CCC9C0; }
+  .fm-product-placeholder span { font-family:'Georgia',serif; font-size:36px; font-weight:700; }
+  .fm-product-body { padding:18px; }
+  .fm-product-name { font-size:14px; font-weight:600; margin-bottom:8px; line-height:1.35; color:#22231F; }
+  .fm-product-price { font-size:17px; font-weight:700; color:#22231F; }
+</style>
+
+<div class="fm-container">
+  <div class="fm-breadcrumb">
+    <a href="<?= base_url('store/' . $slug); ?>">Home</a>
+    <span class="sep">/</span>
+    <a href="<?= base_url('store/' . $slug . '/products'); ?>">Shop</a>
+    <span class="sep">/</span>
+    <span><?= htmlspecialchars($product->item_name); ?></span>
+  </div>
+
+  <div class="fm-pd">
+    <div class="fm-pd-layout">
+      <div class="fm-pd-gallery">
+        <?php if($img): ?>
+        <img src="<?= $img; ?>" alt="<?= htmlspecialchars($product->item_name); ?>" loading="lazy" decoding="async">
+        <?php else: ?>
+        <div class="fm-pd-gallery-placeholder"><?= htmlspecialchars($product->display_brand ?? ($store->store_name ?? 'Store')); ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="fm-pd-meta">
+        <div class="fm-pd-kicker"><?= htmlspecialchars($product->category_name ?? 'Collection'); ?></div>
+        <h1 class="fm-pd-name"><?= htmlspecialchars($product->item_name); ?></h1>
+        <div class="fm-pd-price">
+          <?= sf_currency($product->effective_price, $cur); ?>
+          <?php if($hasDiscount): ?>
+          <span class="old"><?= sf_currency($product->original_price, $cur); ?></span>
+          <?php endif; ?>
+        </div>
+        <div class="fm-pd-stock <?= (int)$product->stock <= 0 ? 'out' : ''; ?>">
+          <?= (int)$product->stock > 0 ? 'In stock &middot; Ships within 24 hours' : 'Out of stock'; ?>
+        </div>
+        <p class="fm-pd-desc"><?= nl2br(htmlspecialchars($product->description ?? '')); ?></p>
+
+                <?php $this->load->view('themes/shared/variant_picker'); ?>
+
+<div class="fm-pd-qty">
+          <button onclick="adjustDetailQty(-1)">-</button>
+          <span id="detail-qty">1</span>
+          <button onclick="adjustDetailQty(1)">+</button>
+        </div>
+
+        <div class="fm-pd-actions">
+          <button class="fm-btn fm-btn-primary" onclick="addDetailToCart()"><?= htmlspecialchars($maison['product_add'] ?? 'Add to bag'); ?></button>
+          <button class="fm-btn fm-btn-outline" onclick="addDetailToCart();window.location.href='<?= base_url('store/' . $slug . '/cart'); ?>'">Buy It Now</button>
+          <?php if(!empty($settings->whatsapp_number)): ?>
+          <button class="fm-btn fm-btn-wa" onclick="sendDetailWhatsApp()"><?= (int)$product->stock <= 0 && empty($settings->allow_backorder) ? 'Ask about availability' : 'Order via WhatsApp'; ?></button>
+          <?php endif; ?>
+        </div>
+        <?php if((int)$product->stock <= 0 && empty($settings->allow_backorder)) $this->load->view('themes/shared/restock_subscribe', ['sf_item_id' => $product->id]); ?>
+
+        <?php if(!empty($related_products)): ?>
+        <div class="fm-pd-related">
+          <div class="fm-section-label" style="margin-bottom:14px;"><?= htmlspecialchars($maison['related_heading'] ?? 'You may also like'); ?></div>
+          <div class="fm-product-grid" style="grid-template-columns:repeat(2,1fr);gap:14px;">
+            <?php foreach($related_products as $p):
+              $pImg = ($p->item_image && file_exists($p->item_image)) ? mp_minified_image_url($p->item_image, 400) : '';
+            ?>
+            <a href="<?= base_url('store/' . $slug . '/product/' . $p->id); ?>" class="fm-product-card">
+              <div class="fm-product-media">
+                <?php if($pImg): ?>
+                <img src="<?= $pImg; ?>" alt="<?= htmlspecialchars($p->item_name); ?>" loading="lazy" decoding="async">
+                <?php else: ?>
+                <div class="fm-product-placeholder"><span><?= htmlspecialchars($p->display_brand ?? ($store->store_name ?? 'Store')); ?></span></div>
+                <?php endif; ?>
+              </div>
+              <div class="fm-product-body">
+                <div class="fm-product-name"><?= htmlspecialchars($p->item_name); ?></div>
+                <div class="fm-product-price"><?= sf_currency($p->effective_price ?? $p->sales_price, $cur); ?></div>
+              </div>
+            </a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let detailQty = 1;
+  const detailProduct = {
+    id: <?= $product->id; ?>,
+    name: '<?= htmlspecialchars(addslashes($product->item_name)); ?>',
+    price: <?= $product->effective_price; ?>,
+    image: '<?= $product->item_image; ?>',
+    stock: <?= (int)$product->stock; ?>
+  };
+  function adjustDetailQty(d){ detailQty = Math.max(1, detailQty + d); document.getElementById('detail-qty').textContent = detailQty; }
+  function addDetailToCart(){ addToCart(detailProduct.id, 'product', detailProduct.name, detailProduct.price, detailProduct.image, detailQty, detailProduct.stock); }
+  function sendDetailWhatsApp(){
+    if(typeof detailProduct !== 'undefined' && detailProduct.stock !== undefined && detailProduct.stock <= 0 && (!detailProduct.type || detailProduct.type === 'product' || detailProduct.type === 'physical') && !<?= ($settings->allow_backorder ?? false) ? 'true' : 'false'; ?>){ const wnum2 = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>'; if(wnum2) window.open('https://wa.me/' + wnum2 + '?text=' + encodeURIComponent('Hello, is ' + detailProduct.name + ' back in stock?'), '_blank'); return; }
+    let msg = 'Hello, I am interested in: ' + detailProduct.name + ' — ' + formatMoney(detailProduct.price);
+    const wnum = '<?= preg_replace('/[^0-9]/', '', $settings->whatsapp_number ?? ''); ?>';
+    if(wnum) window.open('https://wa.me/' + wnum + '?text=' + encodeURIComponent(msg), '_blank');
+  }
+</script>

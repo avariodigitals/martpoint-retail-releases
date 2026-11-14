@@ -1,0 +1,213 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Resend Email Provider Adapter
+ * Uses Resend REST API (https://resend.com/docs/api-reference/emails/send-email)
+ */
+class Resend_provider implements Email_provider_interface {
+
+	protected $CI;
+	protected $config;
+	protected $apiBase = 'https://api.resend.com/emails';
+
+	public function __construct(array $config = array()){
+		$this->CI =& get_instance();
+		$this->config = $config;
+	}
+
+	/** Mask email for safe logging */
+	protected function _maskEmail($email){
+		if(empty($email) || !strpos($email, '@')) return $email;
+		list($local, $domain) = explode('@', $email, 2);
+		$maskLocal = strlen($local) <= 2 ? $local : substr($local, 0, 1) . str_repeat('*', strlen($local) - 2) . substr($local, -1);
+		$domainParts = explode('.', $domain);
+		$ext = array_pop($domainParts);
+		$dom = implode('.', $domainParts);
+		$maskDom = strlen($dom) <= 2 ? $dom : substr($dom, 0, 1) . str_repeat('*', strlen($dom) - 2) . substr($dom, -1);
+		return $maskLocal . '@' . $maskDom . '.' . $ext;
+	}
+
+	protected function _maskPayloadEmails(array $payload){
+		$masked = $payload;
+		if(!empty($masked['to']) && is_array($masked['to'])){
+			$masked['to'] = array_map([$this, '_maskEmail'], $masked['to']);
+		} elseif(!empty($masked['to'])){
+			$masked['to'] = $this->_maskEmail($masked['to']);
+		}
+		if(!empty($masked['from'])){
+			$masked['from'] = $this->_maskEmail($masked['from']);
+		}
+		if(!empty($masked['reply_to'])){
+			$masked['reply_to'] = $this->_maskEmail($masked['reply_to']);
+		}
+		return $masked;
+	}
+
+	public function validateConfig(){
+		if(empty($this->config['resend_api_key'])){
+			return ['configured' => FALSE, 'message' => 'Missing Resend API Key'];
+		}
+		if(empty($this->config['resend_from_email'])){
+			return ['configured' => FALSE, 'message' => 'Missing Resend From Email'];
+		}
+		return ['configured' => TRUE, 'message' => 'Resend is configured'];
+	}
+
+	public function send(array $params){
+		$validate = $this->validateConfig();
+		if(!$validate['configured']){
+			return ['success' => FALSE, 'error' => $validate['message'], 'provider_response' => NULL];
+		}
+
+		$fromAddr = $this->buildFromAddress($params);
+		// Central validates ownership at setup; the send API still enforces it.
+		// Avoid a second domains-list API request for every campaign recipient.
+		$domainVerify = !empty($this->config['skip_domain_check'])
+			? ['verified'=>TRUE,'message'=>'Domain enforced by the send API'] : $this->checkDomainVerified($fromAddr);
+		if(!$domainVerify['verified']){
+			log_message('warning', 'ResendProvider: Domain not verified - ' . $domainVerify['message']);
+		}
+
+		$payload = [
+			'from'    => $fromAddr,
+			'to'      => is_array($params['to']) ? $params['to'] : [$params['to']],
+			'subject' => $params['subject'],
+		];
+
+		if(!empty($params['html'])){
+			$payload['html'] = $params['html'];
+		}
+		if(!empty($params['text'])){
+			$payload['text'] = $params['text'];
+		}
+
+		// Safety: Resend requires at least html or text
+		if(empty($payload['html']) && empty($payload['text'])){
+			$payload['text'] = $params['subject'];
+		}
+
+		if(!empty($params['replyTo']['email'])){
+			$payload['reply_to'] = $params['replyTo']['email'];
+		}
+
+		$headers = [
+			'Content-Type: application/json',
+			'Authorization: Bearer ' . $this->config['resend_api_key']
+		];
+		if(!empty($params['idempotency_key'])) $headers[]='Idempotency-Key: '.$params['idempotency_key'];
+
+		$maskedPayload = json_encode($this->_maskPayloadEmails($payload));
+		log_message('debug', 'ResendProvider payload: ' . $maskedPayload);
+
+		$ch = curl_init($this->apiBase);
+		curl_setopt_array($ch, [
+			CURLOPT_RETURNTRANSFER => TRUE,
+			CURLOPT_POST           => TRUE,
+			CURLOPT_POSTFIELDS     => json_encode($payload),
+			CURLOPT_HTTPHEADER     => $headers,
+			CURLOPT_TIMEOUT        => 30,
+			CURLOPT_SSL_VERIFYPEER => TRUE,
+			CURLOPT_SSL_VERIFYHOST => 2,
+		]);
+
+		$response = curl_exec($ch);
+		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$curlError = curl_error($ch);
+		curl_close($ch);
+
+		if($curlError){
+			return ['success' => FALSE, 'error' => 'cURL Error: ' . $curlError, 'provider_response' => NULL, 'acceptance_unknown'=>TRUE];
+		}
+
+		log_message('debug', 'ResendProvider response code: ' . $httpCode . ', body: ' . $response);
+
+		if($httpCode >= 200 && $httpCode < 300){
+			$decoded = json_decode($response, TRUE);
+			if(!is_array($decoded) || empty($decoded['id'])) return ['success'=>FALSE,'acceptance_unknown'=>TRUE,'error'=>'Provider acceptance could not be confirmed.','provider_response'=>NULL];
+			$ret = [
+				'success'           => TRUE,
+				'error'             => NULL,
+				'provider_response' => $decoded
+			];
+			if(isset($domainVerify) && !$domainVerify['verified']){
+				$ret['domain_warning'] = $domainVerify['message'];
+			}
+			return $ret;
+		}
+
+		$decoded = json_decode($response, TRUE);
+		$errorMsg = isset($decoded['message']) ? $decoded['message'] : ('HTTP ' . $httpCode . ': ' . $response);
+		log_message('error', 'ResendProvider error: ' . $errorMsg);
+		return [
+			'success'           => FALSE,
+			'acceptance_unknown'=> $httpCode===0 || $httpCode>=500,
+			'error'             => $errorMsg,
+			'provider_response' => $decoded
+		];
+	}
+
+	/**
+	 * Check if the from domain is verified in Resend
+	 */
+	protected function checkDomainVerified($fromAddr){
+		if(empty($this->config['resend_api_key'])){
+			return ['verified' => FALSE, 'message' => 'No API key to verify domain'];
+		}
+		$email = $fromAddr;
+		if(strpos($email, '<') !== FALSE){
+			preg_match('/<([^>]+)>/', $email, $m);
+			$email = $m[1] ?? $email;
+		}
+		$parts = explode('@', $email);
+		$domain = $parts[1] ?? '';
+		if(empty($domain)){
+			return ['verified' => FALSE, 'message' => 'Could not extract domain from: ' . $email];
+		}
+
+		$ch = curl_init('https://api.resend.com/domains');
+		curl_setopt_array($ch, [
+			CURLOPT_RETURNTRANSFER => TRUE,
+			CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $this->config['resend_api_key']],
+			CURLOPT_TIMEOUT        => 10,
+			CURLOPT_SSL_VERIFYPEER => TRUE,
+			CURLOPT_SSL_VERIFYHOST => 2,
+		]);
+		$response = curl_exec($ch);
+		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		if($httpCode !== 200){
+			return ['verified' => FALSE, 'message' => 'Could not check domain status (HTTP ' . $httpCode . ')'];
+		}
+		$data = json_decode($response, TRUE);
+		if(!isset($data['data']) || !is_array($data['data'])){
+			return ['verified' => FALSE, 'message' => 'Unexpected domain check response'];
+		}
+		foreach($data['data'] as $d){
+			if(($d['name'] ?? '') === $domain){
+				if(($d['status'] ?? '') === 'verified'){
+					return ['verified' => TRUE, 'message' => 'Domain verified'];
+				} else {
+					return ['verified' => FALSE, 'message' => 'Domain ' . $domain . ' status: ' . ($d['status'] ?? 'unknown')];
+				}
+			}
+		}
+		return ['verified' => FALSE, 'message' => 'Domain ' . $domain . ' not found in Resend. Add it at https://resend.com/domains'];
+	}
+
+	protected function buildFromAddress(array $params){
+		$email = !empty($params['from']['email'])
+			? $params['from']['email']
+			: $this->config['resend_from_email'];
+
+		$name = !empty($params['from']['name'])
+			? $params['from']['name']
+			: (!empty($this->config['resend_from_name']) ? $this->config['resend_from_name'] : '');
+
+		if(!empty($name)){
+			return $name . ' <' . $email . '>';
+		}
+		return $email;
+	}
+}

@@ -1,0 +1,3776 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Updater — Robust chunked auto-update orchestrator for MartPoint Retail
+ *
+ * Designed for cPanel / shared hosting:
+ * - No single PHP request runs for more than a few seconds
+ * - Progress is persisted to disk so a page refresh can resume
+ * - Each step is split into small batches (download / apply / verify)
+ * - Session lock is never held during long operations
+ * - File downloads have retry logic
+ * - Migrations are idempotent (ignore already-exists errors)
+ */
+class Updater {
+
+    protected $CI;
+    protected $backupManager;
+    protected $updateRecordId = 0;
+    protected $protectedPaths = [
+        'application/config/database.php',
+        'application/config/config.php',
+        'uploads/',
+        'backups/',
+        '.env',
+        'application/config/constants.php',
+    ];
+
+    // How many files to download/verify/apply in one PHP request.
+    //
+    // This used to be a flat 50, which made a full release take ~69 requests.
+    // Driven by cron every 30 minutes that is a 34-hour update — the "why is
+    // nothing happening?" problem. The per-step budget below is what actually
+    // protects against host timeouts, and it is HONOURED: the download loop
+    // breaks out when the budget is spent. So a larger batch does not risk a
+    // killed request — it just gets cut short and resumes, which is the
+    // design working. Raised so a full release is a handful of slices
+    // instead of dozens.
+    protected $batchSize = 400;
+
+    // Wall-clock budget per run_step request. Host request limits (FPM,
+    // LiteSpeed, mod_php) kill a request that runs too long — and a killed
+    // request never writes state, so the batch restarts and dies again in an
+    // infinite "running" loop. Bound every step well under typical limits.
+    protected $stepTimeBudget = 40;
+
+    // State file used to resume across HTTP requests.
+    protected $statePath;
+    protected $tempDir;
+    protected $lastManifestError = null;
+
+    // Reason the last httpGetOnce() attempt failed, for retry/error messages.
+    protected $httpLastDetail = '';
+
+    // How long the channel CDN holds each URL (raw.githubusercontent.com is
+    // fronted by Fastly at cache-control: max-age=300). It caches PER URL and
+    // IGNORES query strings, so a ?rb= cache-buster can never force a fresh
+    // copy — a repair re-download returns the same stale bytes. Recovery has
+    // to wait out this window instead of retrying instantly.
+    protected $channelCacheTtl = 300;
+
+    // Immutable commit SHA for the channel look-up, memoized per request.
+    protected $channelRef = null;
+
+    // Concurrency lock so cron, Central's wake ping and the login-time lazy
+    // check can never race the same state file. Without it two runners can
+    // interleave readState()/writeState(), lose a checkpoint, and re-run the
+    // same migration — the "187 of 123 applied" inflation seen in the field.
+    protected $lockPath;
+    protected $lockHandle = null;
+    protected $lockDepth = 0;
+
+    public function __construct() {
+        $this->CI =& get_instance();
+        $this->CI->load->library('BackupManager');
+        $this->backupManager = $this->CI->backupmanager;
+        $this->CI->load->helper('file');
+        $this->CI->config->load('updater', false, true);
+
+        $this->tempDir = FCPATH . 'updates/temp';
+        if (!is_dir($this->tempDir)) {
+            @mkdir($this->tempDir, 0755, true);
+        }
+        $this->statePath = $this->tempDir . '/update-state.json';
+        $this->lockPath  = $this->tempDir . '/update.lock';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Version / manifest                                                */
+    /* ------------------------------------------------------------------ */
+
+    public function getInstalledVersion(): string {
+        $row = $this->CI->db->select('version')
+            ->from('db_sitesettings')
+            ->where('id', 1)
+            ->get()
+            ->row();
+        return $row ? $row->version : '0.0';
+    }
+
+    /**
+     * The version of the CODE actually on disk — `app_version()` reads
+     * custom_helper.php, so it always reflects what was deployed.
+     *
+     * This is the truthful answer to "what is this install running", and it
+     * is what the fleet registry should show. db_sitesettings.version is a
+     * record of the last COMPLETED migration run, which drifts ahead or
+     * behind whenever an update is interrupted.
+     *
+     * Falls back to the DB value when the helper is unavailable (very old
+     * installs, or a partial update mid-flight).
+     */
+    public function getCodeVersion(): string {
+        try {
+            // Read disk: a worker that replaced this helper still has the old
+            // PHP function loaded until its request ends (and OPcache may lag).
+            $helper = APPPATH . 'helpers/custom_helper.php';
+            $source = @file_get_contents($helper);
+            if ($source !== false && preg_match("/function\\s+app_version\\s*\\(\\s*\\)\\s*\\{\\s*return\\s*'([0-9.]+)'/s", $source, $match)) {
+                return $match[1];
+            }
+            if (!function_exists('app_version')) {
+                $this->CI->load->helper('custom');
+            }
+            if (function_exists('app_version')) {
+                $v = (string) app_version();
+                if ($v !== '' && preg_match('/^\d+(\.\d+)+$/', $v)) {
+                    return $v;
+                }
+            }
+        } catch (Throwable $e) {
+            // fall through to the DB value
+        }
+        return $this->getInstalledVersion();
+    }
+
+    /**
+     * If the code on disk is newer than db_sitesettings.version, the last
+     * update was interrupted before step 7 and the DB was never stamped.
+     * Reconcile it so the two stop disagreeing.
+     *
+     * Deliberately one-way: only advance DB → code, never roll it back. A DB
+     * version ahead of the code means migrations may still be pending, and
+     * pretending otherwise would let the app run against an unmigrated schema.
+     */
+    public function reconcileVersion(): bool {
+        try {
+            $code = $this->getCodeVersion();
+            $db = $this->getInstalledVersion();
+            if ($code === '' || $db === '' || $code === $db) {
+                return false;
+            }
+            if (version_compare($code, $db, '<=')) {
+                return false;
+            }
+            $this->CI->db->where('id', 1)->update('db_sitesettings', ['version' => $code]);
+            log_message('info', "Updater: reconciled db_sitesettings.version {$db} -> {$code} (code was ahead after an interrupted update).");
+            return true;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater reconcileVersion failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function fetchManifest(): ?array {
+        $channel = $this->getUpdateChannelUrl();
+        // Read the manifest at an immutable commit ref wherever possible, so it
+        // can never be a different vintage than the files fetched for the same
+        // update. When no ref is available fall back to the moving path plus a
+        // cache-buster (some proxies honour it even though the GitHub CDN does
+        // not).
+        $ref = $this->resolveChannelRef($channel);
+        $manifestUrl = $this->channelFileUrl($channel, 'release-manifest.json', $ref);
+        if ($ref === '') {
+            $manifestUrl .= '?t=' . time();
+        }
+
+        $json = $this->httpGet($manifestUrl, 60);
+        if ($json === null) {
+            // httpGet() already set $this->lastManifestError with the HTTP status detail
+            return null;
+        }
+
+        $manifest = json_decode($json, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->lastManifestError = "Manifest at {$manifestUrl} is not valid JSON (" . json_last_error_msg() . "). The file may be missing (404) or the channel URL may point at the wrong path.";
+            return null;
+        }
+
+        // Guard against the PWA web-app manifest being served by mistake —
+        // it has no "version" or "files" keys and would silently break updates.
+        if (!isset($manifest['version']) || !isset($manifest['files'])) {
+            $this->lastManifestError = "Manifest at {$manifestUrl} is missing required 'version'/'files' keys. The channel URL may be pointing at the PWA manifest.json instead of release-manifest.json.";
+            return null;
+        }
+
+        // Carried in the job state so every later slice — including repair
+        // downloads — reads files from the SAME commit this manifest describes.
+        $manifest['_channel_ref'] = $ref;
+
+        return $manifest;
+    }
+
+    public function checkForUpdate(): array {
+        $installed = $this->getInstalledVersion();
+        $manifest = $this->fetchManifest();
+
+        if (!$manifest) {
+            return [
+                'available' => false,
+                'error' => $this->lastManifestError
+                    ?? 'Unable to fetch release manifest. Check your update channel URL.',
+                'installed_version' => $installed,
+                'remote_version' => null,
+            ];
+        }
+
+        if (!$this->verifyManifestSignature($manifest)) {
+            return [
+                'available' => false,
+                'error' => 'Release manifest signature verification failed. The update channel may be compromised or misconfigured — update refused.',
+                'installed_version' => $installed,
+                'remote_version' => null,
+            ];
+        }
+
+        // Manifest is trusted at this point — let it (re)point installs at the
+        // central fleet registry so heartbeat endpoints can move without a
+        // per-customer settings change.
+        $this->applyManifestSettings($manifest);
+
+        $remote = $manifest['version'] ?? '0.0';
+        $available = version_compare($remote, $installed, '>');
+
+          // Version equality does NOT mean "up to date".
+          //
+          // getInstalledVersion() reads db_sitesettings.version, which its own
+          // docblock describes as "a record of the last COMPLETED migration run,
+          // which drifts ahead or behind whenever an update is interrupted".
+          // Step 5 advances it before step 6 finishes the migrations, and the
+          // pre-4.0.9.123 finalize wrote it unconditionally. So an install can
+          // report the newest version with its database many releases behind —
+          // and version_compare() then says there is nothing to do, so the
+          // update no-ops for ever.
+          //
+          // That is precisely what stranded fleets on
+          // "Run Database Migrations — Ran migration 1 / 18" while advertising
+          // 4.0.9.123: Central queued the update, the install ran, concluded it
+          // was current, and did nothing. The fleet showed "all up to date" for
+          // the same reason.
+          //
+          // A release that still has migrations this install has not RECORDED is
+          // an update regardless of the version string.
+          //
+          // Guarded on the remote NOT being older. Without that guard the
+          // fallback fires when the channel is BEHIND the install (a build
+          // that was published before this one), and offers a downgrade —
+          // "from 4.0.9.125 to 4.0.9.124". Applying an older release over a
+          // newer one is never wanted, and the migration set difference that
+          // triggered it is just an artefact of the channel lagging.
+          $pendingMigrations = 0;
+          if (!$available && version_compare($remote, $installed, '>=')) {
+              $pendingMigrations = count($this->pendingMigrations($manifest));
+              if ($pendingMigrations > 0) {
+                  $available = true;
+              }
+          }
+
+          $blockReason = null;
+          if ($available) {
+              $blockReason = $this->phpVersionAllowed($manifest);
+              if ($blockReason === null && !$this->licenseAllowsUpdate()) {
+                  $blockReason = 'Subscription expired or suspended — renew the
+subscription to receive updates.';
+              }
+          }
+
+          return [
+              'available' => $available,
+              'blocked' => $blockReason !== null,
+              'block_reason' => $blockReason,
+              'auto_update' => $this->autoUpdateEnabled(),
+              'installed_version' => $installed,
+              'remote_version' => $remote,
+              'pending_migrations' => $pendingMigrations,
+              'release_date' => $manifest['release_date'] ?? null,
+              'changelog' => $manifest['changelog'] ?? 'No changelog provided.',
+              'manifest' => $manifest,
+          ];
+      }
+
+      /**
+       * Which of a release's migrations this install has NOT recorded.
+       *
+       * Compared by FILENAME SET, not by counting rows. Counting is unsafe here:
+       * db_schema_migrations can hold duplicate rows for the same file (this
+       * codebase's own history documents migrations re-running and being
+       * recorded again), so a count can reach — or exceed — the release's total
+       * while migrations are still genuinely missing. A live install reported
+       * "applied: 127" against a 121-migration release with its newest applied
+       * file eight releases old.
+       *
+       * Returns [] on any error, so uncertainty never invents an update.
+       */
+      public function pendingMigrations(array $manifest): array {
+          $list = $manifest['migrations'] ?? [];
+          if (empty($list)) { return []; }
+          try {
+              if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                  return $list;
+              }
+              $done = array_flip(array_column(
+                  $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                  'filename'
+              ));
+
+              // Only migrations released AFTER the newest one this install has
+              // recorded can be outstanding.
+              //
+              // Comparing by SET DIFFERENCE alone is wrong, and two real install
+              // shapes prove it:
+              //
+              //   * FRESH install — the runner resumes above the installer's
+              //     4.0.9.59 stamp, so ~55 older migrations are baked into the
+              //     schema (db.txt) and never recorded. A set difference reports
+              //     all 55 as missing, so every fresh install immediately offers
+              //     itself an update it does not need.
+              //   * the installer also SEEDS a couple of low rows into the
+              //     ledger (4.0.6_b2b_customer_warehouse.sql, db_install_
+              //     extensions.sql), so "oldest recorded version" is not a
+              //     usable baseline either — it reads 4.0.6 on a brand new box.
+              //
+              // The newest RECORDED version is a boundary that holds for both
+              // shapes: a fresh install's newest is the release itself (nothing
+              // pending), while a stalled one — newest recorded 4.0.9.115 against
+              // a 4.0.9.123 release — still reports .116-.123.
+              //
+              // A mid-chain gap would be missed here, but the update it triggers
+              // re-runs the normal previewChanges() path, which diffs on filename
+              // and so picks those up too.
+              $newest = null;
+              foreach ($list as $m) {
+                  if (!isset($done[$m])) { continue; }
+                  $v = $this->migrationVersion($m);
+                  if ($v === '') { continue; }
+                  if ($newest === null || version_compare($v, $newest, '>')) {
+                      $newest = $v;
+                  }
+              }
+
+              $pending = [];
+              foreach ($list as $m) {
+                  if (isset($done[$m])) { continue; }
+                  // Nothing recorded yet: report everything (a ledger-less
+                  // install genuinely has nothing applied).
+                  if ($newest === null) { $pending[] = $m; continue; }
+                  $v = $this->migrationVersion($m);
+                  // Unparseable names are kept — an unreadable filename is not
+                  // a reason to silently skip a migration.
+                  if ($v === '' || version_compare($v, $newest, '>')) { $pending[] = $m; }
+              }
+              return $pending;
+          } catch (Throwable $e) {
+              return [];
+          }
+      }
+
+      /** Leading version from a migration filename, or '' if there isn't one. */
+      protected function migrationVersion(string $filename): string {
+          if (!preg_match('/(\d+\.\d+\.\d+(?:\.\d+)?)/', $filename, $m)) { return ''; }
+          return $m[1];
+      }
+
+      /* ------------------------------------------------------------------ */
+      /*  Auto-update orchestration (cron / lazy login check)               */
+      /* ------------------------------------------------------------------ */
+
+    /**
+     * Acquire an exclusive, non-blocking lock on the updater.
+     *
+     * cron (auto_update), Central's wake ping (fleet_ping → update_now) and
+     * the login-time lazy check can all fire in the same minute. The state
+     * file is a read-modify-write checkpoint, so two runners interleaving it
+     * can lose a batch, double-run a migration, or corrupt the JSON — the
+     * "187 of 123 applied" inflation seen on live installs.
+     *
+     * Non-blocking on purpose: a request that cannot win the lock bails
+     * immediately instead of stacking 110-second requests against a shared
+     * host's process limit. Re-entrant, so runUpdateToCompletion() can call
+     * the slice runner, which locks again without self-deadlocking.
+     */
+    protected function acquireLock(): bool {
+        if ($this->lockDepth > 0) {
+            $this->lockDepth++;
+            return true;
+        }
+        $handle = @fopen($this->lockPath, 'c');
+        if (!$handle) {
+            return false;
+        }
+        if (!@flock($handle, LOCK_EX | LOCK_NB)) {
+            @fclose($handle);
+            return false;
+        }
+        $this->lockHandle = $handle;
+        $this->lockDepth = 1;
+        return true;
+    }
+
+    /**
+     * Release the updater lock. Balanced calls only — the handle is closed
+     * when the outermost acquire is released.
+     */
+    protected function releaseLock(): void {
+        if ($this->lockDepth <= 0) {
+            return;
+        }
+        $this->lockDepth--;
+        if ($this->lockDepth === 0 && is_resource($this->lockHandle)) {
+            @flock($this->lockHandle, LOCK_UN);
+            @fclose($this->lockHandle);
+            $this->lockHandle = null;
+        }
+    }
+
+    /**
+     * Drive an update to COMPLETION within this request, chaining internally.
+     *
+     * runAutoUpdate() runs a bounded slice and returns — which is correct for
+     * a cron tick, but means a large release needs many ticks. With a 30-min
+     * schedule that is hours per install, and it looks identical to "nothing
+     * is happening".
+     *
+     * This loops the slice runner back-to-back until the update finishes,
+     * fails, or the wall-clock budget runs out — so one call does as much as
+     * the host will allow. Callers that can afford the time (a wake ping from
+     * Central, an admin-triggered update) use this instead.
+     *
+     * Safe to interrupt: every slice checkpoints to the state file, so a
+     * request killed at the budget resumes exactly where it stopped.
+     *
+     * @return array{status:string,done:bool,message:string,step?:int,slices?:int}
+     */
+    public function runUpdateToCompletion(int $budgetSeconds = 110): array {
+        if (!$this->acquireLock()) {
+            return ['status' => 'busy', 'done' => false, 'message' => 'Another update is already running on this install.'];
+        }
+        try {
+        $started = microtime(true);
+        $slices = 0;
+        $last = ['status' => 'ok', 'done' => false, 'message' => 'Nothing to do.'];
+
+        // Keep going while there is time for another meaningful slice. 12s is
+        // the floor — below that a slice cannot finish even one download pass
+        // and we would spend the budget on setup.
+        while ((microtime(true) - $started) < ($budgetSeconds - 12)) {
+            $remaining = (int) ($budgetSeconds - (microtime(true) - $started));
+            $slice = $this->runAutoUpdate(max(12, min(35, $remaining)));
+            $slices++;
+            $last = $slice;
+
+            if (!empty($slice['done'])) {
+                return $slice + ['done' => true, 'slices' => $slices];
+            }
+            // A hard stop — blocked licence, PHP gate, exhausted retries.
+            // Chaining would just repeat the same failure.
+            if (in_array($slice['status'] ?? '', ['error', 'blocked', 'skipped'], true)) {
+                return $slice + ['slices' => $slices];
+            }
+            // No progress recorded between slices means we are spinning.
+            // Bail rather than burn the whole budget going nowhere.
+            if (empty($slice['step']) && empty($slice['step_label'])) {
+                return $slice + ['done' => false, 'slices' => $slices,
+                    'message' => ($slice['message'] ?? '') . ' (no further progress this run)'];
+            }
+        }
+
+        return $last + ['done' => false, 'slices' => $slices];
+        } finally {
+            $this->releaseLock();
+        }
+    }
+
+    /**
+     * Run the whole update pipeline server-side within a wall-clock budget.
+     * Safe to call repeatedly — the persisted state resumes mid-update, so a
+     * daily cron or the login-time lazy check can each do a slice of work.
+     */
+    public function runAutoUpdate(int $budgetSeconds = 45): array {
+        if (!$this->acquireLock()) {
+            return ['status' => 'busy', 'done' => false, 'message' => 'Another update is already running on this install.'];
+        }
+        try {
+        if (!$this->autoUpdateEnabled()) {
+            return ['status' => 'skipped', 'message' => 'Auto-update is disabled.'];
+        }
+
+        $check = $this->checkForUpdate();
+        if (!empty($check['error'])) {
+            return ['status' => 'error', 'message' => $check['error']];
+        }
+        $state = $this->readState();
+        // A `failed` state file is NOT a reason to refuse work.
+        //
+        // It is set by a thrown step, and nothing ever cleared it. So an
+        // install that hit ONE transient error mid-update was stranded for
+        // ever: `available` stayed true (the update never actually finished)
+        // while `resuming` was false, and this guard returned "No update
+        // available." on every tick. Central's "Update now" did nothing, cron
+        // did nothing, and the only escape was a human clicking Repair.
+        //
+        // The step runner is idempotent and resumes from its checkpoint, so
+        // retrying is safe. Attempts are bounded inside runStep(), which is
+        // what stops a genuinely broken release from looping for ever.
+        $resuming = !empty($state) && empty($state['done']);
+
+        if (empty($check['available']) && !$resuming) {
+            return ['status' => 'ok', 'done' => true, 'message' => 'No update available.'];
+        }
+        if (!$resuming && !empty($check['blocked'])) {
+            return ['status' => 'blocked', 'message' => $check['block_reason']];
+        }
+
+        $manifest = $check['manifest'] ?? ($state['manifest'] ?? []);
+        if (empty($manifest)) {
+            return ['status' => 'error', 'message' => 'No manifest available to run update.'];
+        }
+        $preview = $this->previewChanges($manifest);
+
+        $deadline = microtime(true) + $budgetSeconds;
+        $last = null;
+        for ($i = 0; $i < 2000; $i++) {
+            $state = $this->readState();
+            $step = (!empty($state['step'])) ? (int) $state['step'] : 1;
+            $last = $this->runStep($step, $manifest, $preview);
+
+            if (($last['status'] ?? '') === 'error' || !empty($last['failed'])) {
+                return ['status' => !empty($last['failed']) ? 'error' : 'retry',
+                    'message' => $last['message'] ?? 'Update failed.', 'step' => $step];
+            }
+            if (!empty($last['done']) && (int) ($last['step'] ?? $step) >= 8) {
+                $this->sendHeartbeat();
+                return ['status' => 'ok', 'done' => true, 'message' => 'Updated to ' . ($check['remote_version'] ?? ($state['to_version'] ?? 'latest')) . '.'];
+            }
+            if (microtime(true) >= $deadline) {
+                return [
+                    'status' => 'ok',
+                    'done' => false,
+                    'message' => 'Update in progress — will resume on the next run.',
+                    'step' => (int) ($last['step'] ?? $step),
+                    'step_label' => $last['step_label'] ?? '',
+                ];
+            }
+            usleep(100000);
+        }
+        return ['status' => 'ok', 'done' => false, 'message' => 'Update still in progress.'];
+        } finally {
+            $this->releaseLock();
+        }
+    }
+
+    /**
+     * Whether unattended updates are allowed on this install.
+     * Defaults to enabled; missing column (pre-migration install) is treated
+     * as enabled so an update delivering this code is never self-blocking.
+     */
+    public function autoUpdateEnabled(): bool {
+        try {
+            if (!$this->CI->db->field_exists('auto_update_enabled', 'db_sitesettings')) {
+                return true;
+            }
+            $row = $this->CI->db->select('auto_update_enabled')
+                ->from('db_sitesettings')->where('id', 1)->get()->row();
+            return !$row || (int) $row->auto_update_enabled === 1;
+        } catch (Throwable $e) {
+            return true;
+        }
+    }
+
+    /**
+     * Throttle for the login-time lazy check (default: every 6 hours).
+     * Returns true immediately when an update is mid-flight so it resumes.
+     */
+    public function shouldAutoCheck(int $intervalSeconds = 21600, string $stampName = 'auto-check.stamp'): bool {
+        $state = $this->readState();
+        // Unfinished work — including a job whose state file says `failed` —
+        // must resume on the next login rather than sitting until the 6-hour
+        // stamp expires. Same reason as the $resuming guard in runAutoUpdate.
+        if (!empty($state) && empty($state['done'])) {
+            return true;
+        }
+        $stamp = $this->tempDir . '/' . $stampName;
+        if (!file_exists($stamp)) {
+            return true;
+        }
+        return (time() - (int) @file_get_contents($stamp)) >= $intervalSeconds;
+    }
+
+    public function touchAutoCheck(string $stampName = 'auto-check.stamp'): void {
+        if (!is_dir($this->tempDir)) {
+            @mkdir($this->tempDir, 0755, true);
+        }
+        @file_put_contents($this->tempDir . '/' . $stampName, (string) time());
+    }
+
+    /**
+     * Fetch this install's fleet_key from Central, proving who we are with our
+     * own per-install install_key (generated here, never published).
+     *
+     * This is the only way the key reaches an install: the release manifest is
+     * public, so the key must not travel in it. It is also the self-heal after
+     * a rotation — Central rejects a heartbeat carrying the old key, the
+     * install re-enrols, and the next heartbeat succeeds.
+     */
+    protected function enrolFleet(): bool {
+        try {
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            if ($fleetUrl === '') {
+                return false;
+            }
+            $payload = [
+                'install_url' => base_url(),
+                'install_key' => $this->installKey(),
+            ];
+            $existing = $this->getSitesetting('fleet_key');
+            if ($existing !== '') {
+                $payload['key'] = $existing;
+            }
+
+            $resp = $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/enroll', $payload, 10);
+            if ($resp === null) {
+                return false;
+            }
+            $data = json_decode($resp, true);
+            if (!is_array($data) || ($data['status'] ?? '') !== 'ok') {
+                log_message('error', 'Updater enrolFleet rejected: ' . substr((string) ($data['message'] ?? $resp), 0, 200));
+                return false;
+            }
+
+            return $this->adoptFleetSettings($data);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater enrolFleet failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Store the fleet callback details Central told us about. Used by both
+     * /fleet/enroll and the heartbeat response — the heartbeat is the routine
+     * path, and it is what carries a ROTATED fleet_key out to every install
+     * without anyone noticing their copy went stale.
+     */
+    protected function adoptFleetSettings(array $data): bool {
+        $updates = [];
+        if (!empty($data['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
+            $updates['fleet_url'] = $data['fleet_url'];
+        }
+        if (!empty($data['fleet_key']) && $this->CI->db->field_exists('fleet_key', 'db_sitesettings')) {
+            $updates['fleet_key'] = $data['fleet_key'];
+        }
+        if ($updates) {
+            $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
+        }
+        return !empty($data['fleet_key']);
+    }
+
+    /**
+     * Replace only the obsolete bundled hostname with this install's real
+     * host. The field is retained for old integrations; never overwrite a
+     * merchant-configured value.
+     */
+    protected function repairLegacyInstallDomain(): void {
+        try {
+            if (!$this->CI->db->table_exists('db_sitesettings')
+                || !$this->CI->db->field_exists('domain', 'db_sitesettings')) {
+                return;
+            }
+            $row = $this->CI->db->select('domain')->where('id', 1)->get('db_sitesettings')->row();
+            if (!$row || strcasecmp(trim((string) $row->domain), 'pointofsale.ozonepos.com') !== 0) {
+                return;
+            }
+            $host = strtolower(trim((string) parse_url(base_url(), PHP_URL_HOST)));
+            if ($host === '' || !preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host)) {
+                return;
+            }
+            $this->CI->db->where('id', 1)->where('domain', 'pointofsale.ozonepos.com')
+                ->update('db_sitesettings', ['domain' => $host]);
+        } catch (Throwable $e) {
+            log_message('debug', 'Updater could not refresh legacy install domain: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Report this install to the central fleet registry. Fire-and-forget —
+     * failures are logged but never affect the caller.
+     */
+    public function sendHeartbeat(): void {
+        // Status feed sync is independent of fleet config — installs with no
+        // fleet_url still get incident banners from the status backend.
+        $this->syncStatusFeed();
+        // Heal a DB version left stale by an interrupted update, so the
+        // registry and the install stop disagreeing. Runs before the payload
+        // is built so both fields report the same, correct value.
+        // Database version is stamped only after migrations complete.
+        try {
+            // Central is the registry, not a member — never register itself.
+            //
+            // mp_is_central() ALONE IS NOT ENOUGH here, and relying on it alone is
+            // why the vendor's own dev box appeared in the live fleet. It requires
+            // the request host to equal central_domain, so on
+            // martpointretailapp.test — or a staging clone, or a restored dump —
+            // it is false. The box then believes it is a customer, adopts
+            // fleet_url from the release manifest, and registers.
+            //
+            // mp_is_vendor_box() keys off config/central.php, which is vendor-only
+            // and never ships, so it is correct on every hostname.
+            if ((function_exists('mp_is_central') && mp_is_central())
+                || (function_exists('mp_is_vendor_box') && mp_is_vendor_box())) {
+                return;
+            }
+            $this->repairLegacyInstallDomain();
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            if (empty($fleetUrl)) {
+                return;
+            }
+            // The fleet key arrives out of band (mp_provision.php) or from
+            // /fleet/enroll — never from the public release manifest. If we do
+            // not hold one, go and fetch it before trying to phone home.
+            if ($this->getSitesetting('fleet_key') === '') {
+                $this->enrolFleet();
+            }
+            $payload = [
+                'key'         => $this->getSitesetting('fleet_key'),
+                'install_url' => base_url(),
+                'install_key' => $this->installKey(),
+                'version'     => $this->getInstalledVersion(),
+                // The CODE version, read from custom_helper.php rather than
+                // db_sitesettings.version. The DB column is only stamped at
+                // step 7 of an update, so an interrupted run (timeout, a
+                // skipped file, a killed request) leaves the code ahead of the
+                // DB for ever — the install shows v4.0.9.102 locally while the
+                // fleet list sticks on the old number. Sending the code version
+                // lets the registry reflect what is actually deployed.
+                'code_version' => $this->getCodeVersion(),
+                'updater_hash' => is_file(APPPATH . 'libraries/Updater.php')
+                    ? hash_file('sha256', APPPATH . 'libraries/Updater.php') : '',
+                'php_version' => PHP_VERSION,
+                'license_code' => $this->getLicenseCode(),
+                'cron_key'    => $this->cronKey(),
+            ];
+            // Where this install is in its update — lets Central show which
+            // installs are stuck and at which step, instead of only which are
+            // outdated. Derived from the persisted state file, so it survives
+            // the killed requests that cause most stalls.
+            $stage = $this->updateStage();
+            $payload['update_stage']  = $stage['stage'];
+            $payload['update_step']   = (string) $stage['step'];
+            $payload['update_detail'] = $stage['detail'];
+
+            // Migration progress — a stalled chain is the worst failure and
+            // was previously invisible from Central.
+            $mig = $this->migrationProgress();
+            $payload['migrations_applied'] = (string) $mig['applied'];
+            $payload['migration_newest']   = $mig['newest'];
+
+            // The last failed job, so Central can show WHY an install is stuck
+            // instead of only that it is outdated. Without this the only way to
+            // find a failed backup or migration was to log into the install.
+            $payload['last_fail_label'] = '';
+            $payload['last_fail_message'] = '';
+            $payload['last_fail_at'] = '';
+            $fail = $this->lastFailure();
+            if ($fail) {
+                $payload['last_fail_label']   = $fail['label'];
+                $payload['last_fail_message'] = $fail['message'];
+                $payload['last_fail_at']      = $fail['at'];
+            }
+            $meta = $this->storeMeta();
+            $payload['store_name']    = $meta['store_name'];
+            $payload['store_city']    = $meta['city'];
+            $payload['store_state']   = $meta['state'];
+            $payload['store_country'] = $meta['country'];
+            $summary = $this->licenseUsageSummary();
+            if ($summary) {
+                $payload['license_status'] = $summary['status'] ?? '';
+                $payload['plan_name']      = $summary['plan_name'] ?? '';
+                $payload['days_left']      = (string) ($summary['days_left'] ?? '');
+                $payload['usage_json']     = json_encode($summary['quotas'] ?? []);
+            }
+            $resp = $this->httpPost(rtrim($fleetUrl, '/') . '/fleet/heartbeat', $payload, 8);
+            if ($resp !== null) {
+                $rj = json_decode($resp, true);
+                if (is_array($rj) && ($rj['status'] ?? '') === 'ok') {
+                    // Central answers with its current callback details, so a
+                    // ROTATED fleet_key arrives here on the next heartbeat. This
+                    // matters because a stale key no longer fails authentication
+                    // (install_key is accepted too) — without this the install
+                    // would keep its old key for ever and then reject every
+                    // licence proof, which is HMACed with the current one.
+                    $this->adoptFleetSettings($rj);
+                    // Health and automatic private-token enrolment never count as user activity.
+                    try{$this->CI->load->library('Usage_reporter');$this->CI->usage_reporter->reportSystem(base_url());}catch(Throwable $ignored){}
+                } elseif (is_array($rj) && ($rj['status'] ?? '') === 'error'
+                    && stripos((string) ($rj['message'] ?? ''), 'fleet key') !== false) {
+                    // Rejected outright: re-enrol with our own per-install key.
+                    $this->enrolFleet();
+                }
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater heartbeat failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Poll the public status API on the MartPoint backend (martpoint.com.ng —
+     * a Next.js service, not this codebase) and mirror its incident state
+     * into db_sitesettings. This is the ONLY remote trigger for the banner —
+     * a real incident must exist on the status backend for it to show.
+     * Runs inside sendHeartbeat() so it rides the existing ~15-min check-in
+     * (auto_tick + cron fleet_ping) with no extra schedule; self-throttled
+     * via its own stamp file.
+     * Fail-open: an unreachable API keeps the last known state — a backend
+     * outage is exactly when the banner should keep showing.
+     * Contract: GET {feed} → 200 JSON { incident: { active, severity,
+     * message, url, started_at } } — see AGENTS.md "Service status".
+     */
+    public function syncStatusFeed(): void {
+        try {
+            if (!$this->shouldAutoCheck(900, 'status-feed.stamp')) {
+                return;
+            }
+            $this->touchAutoCheck('status-feed.stamp');
+            $url = $this->getSitesetting('status_feed_url');
+            if ($url === '') {
+                $url = 'https://www.martpoint.com.ng/api/status';
+            }
+            $resp = $this->httpGet($url, 6);
+            if ($resp === null) {
+                return;
+            }
+            $data = json_decode($resp, true);
+            if (is_array($data) && isset($data['incident']) && is_array($data['incident'])) {
+                $this->applyIncidentState($data['incident']);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater syncStatusFeed failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mirror the status backend's incident/banner state into db_sitesettings.
+     * active=1 always wins (platform notice outranks a local one); active=0
+     * only clears an incident this install got from the feed — a store's own
+     * locally-set notice is left alone.
+     */
+    public function applyIncidentState(array $inc): array {
+        try {
+            if (!function_exists('mp_get_incident') || !function_exists('mp_set_incident')) {
+                return ['ok' => false, 'message' => 'Incident helpers missing on this build.'];
+            }
+            $cur = mp_get_incident();
+            $active = !empty($inc['active']);
+            if (!$active && $cur['source'] !== 'central') {
+                return ['ok' => true, 'message' => 'All clear (local notice untouched).'];
+            }
+            $ok = mp_set_incident([
+                'active'     => $active ? 1 : 0,
+                'severity'   => (string) ($inc['severity'] ?? 'investigating'),
+                'message'    => (string) ($inc['message'] ?? ''),
+                'url'        => (string) ($inc['url'] ?? ''),
+                'started_at' => (string) ($inc['started_at'] ?? ''),
+            ], 'central');
+            return ['ok' => (bool) $ok, 'message' => $ok
+                ? ($active ? 'Incident banner activated.' : 'Incident cleared.')
+                : 'Could not write incident state.'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Incident apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Store identity + location for the fleet registry — read straight from
+     * db_store. city/state/country power Central's installs-by-region stats.
+     */
+    protected function storeMeta(): array {
+        $meta = ['store_name' => '', 'city' => '', 'state' => '', 'country' => ''];
+        try {
+            if ($this->CI->db->table_exists('db_store')) {
+                $cols = array_intersect(
+                    ['store_name', 'city', 'state', 'country'],
+                    $this->CI->db->list_fields('db_store')
+                );
+                if ($cols) {
+                    $storeId = $this->resolveStoreId(); // before the chain — it runs its own query
+                    $s = $this->CI->db->select(implode(',', $cols))
+                        ->where('id', $storeId)->get('db_store')->row();
+                    if ($s) {
+                        foreach ($cols as $c) {
+                            $meta[$c] = substr((string) ($s->{$c} ?? ''), 0, 150);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        return $meta;
+    }
+
+    /**
+     * Per-install secret — generated once and kept in db_sitesettings. Sent
+     * with the heartbeat so central can authenticate command polling; it is
+     * never exposed in the UI or the (public) release manifest.
+     */
+    protected function installKey(): string {
+        $key = $this->getSitesetting('install_key');
+        if ($key !== '') {
+            return $key;
+        }
+        try {
+            if (!$this->CI->db->field_exists('install_key', 'db_sitesettings')) {
+                return '';
+            }
+            $key = 'ik_' . bin2hex(random_bytes(20));
+            $this->CI->db->where('id', 1)->update('db_sitesettings', ['install_key' => $key]);
+            return $key;
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Ask central for pending commands for this install, execute them, and
+     * post the results back. Lets the vendor trigger actions (e.g. update now)
+     * from the Fleet panel without logging into this install.
+     */
+    public function pollFleetCommands(): array {
+        try {
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return [];
+            }
+            $fleetUrl = $this->getSitesetting('fleet_url');
+            $installKey = $this->installKey();
+            // fleet_key alone is sufficient auth — installs missing the
+            // install_key column/value must still be able to poll.
+            if (empty($fleetUrl) || $this->getSitesetting('fleet_key') === '') {
+                return [];
+            }
+            $base = rtrim($fleetUrl, '/');
+            $resp = $this->httpPost($base . '/fleet/commands', [
+                'key'         => $this->getSitesetting('fleet_key'),
+                'install_url' => base_url(),
+                'install_key' => $installKey,
+            ], 8);
+            if ($resp === null) {
+                return [];
+            }
+            $data = json_decode($resp, true);
+            $results = [];
+            foreach (($data['commands'] ?? []) as $cmd) {
+                $id = (int) ($cmd['id'] ?? 0);
+                $command = (string) ($cmd['command'] ?? '');
+                try {
+                    $result = $this->executeFleetCommand($command, (string) ($cmd['payload'] ?? ''));
+                } catch (Throwable $e) {
+                    // One faulty command must never take down the whole poll
+                    // (or blank-500 the wake ping) — report it and move on.
+                    $result = ['ok' => false, 'message' => get_class($e) . ': ' . $e->getMessage()
+                        . ' @ ' . basename($e->getFile()) . ':' . $e->getLine()];
+                }
+                $this->httpPost($base . '/fleet/command_result', [
+                    'key'         => $this->getSitesetting('fleet_key'),
+                    'install_url' => base_url(),
+                    'install_key' => $installKey,
+                    'command_id'  => $id,
+                    // Three outcomes, not two. A long job that checkpointed
+                    // and ran out of budget is neither done nor failed — it
+                    // is RESUME. Reporting it as failed (or as done) is what
+                    // let an install sit half-updated while Central showed
+                    // success, or showed an error that never went away.
+                    'status'      => !empty($result['resume']) ? 'resume'
+                        : (!empty($result['final']) && !empty($result['ok']) ? 'done'
+                        : ($result['ok'] ? 'done' : 'failed')),
+                    'result'      => substr((string) $result['message'], 0, 2000),
+                ], 8);
+                $results[] = ['command' => $command] + $result;
+            }
+            return $results;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater pollFleetCommands failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * How many migrations this install has applied, and the newest one.
+     *
+     * Central can ask for this via the `report_status` fleet command to answer
+     * "did every migration run?" without SSH. A count well below the release's
+     * migration total means the chain stopped part-way — the usual cause of an
+     * install that looks updated but is missing schema.
+     *
+     * @return array{applied:int,newest:?string,last:array<int,string>}
+     */
+    public function migrationStatus(): array {
+        $out = ['applied' => 0, 'newest' => null, 'last' => []];
+        try {
+            if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                return $out;
+            }
+            $out['applied'] = (int) $this->CI->db->count_all_results('db_schema_migrations');
+            $rows = $this->CI->db->select('filename, version')
+                ->order_by('id', 'desc')->limit(10)
+                ->get('db_schema_migrations')->result();
+            foreach ($rows as $r) {
+                $out['last'][] = (string) $r->filename;
+            }
+            $out['newest'] = $out['last'][0] ?? null;
+        } catch (Throwable $e) {
+            log_message('error', 'Updater migrationStatus failed: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Migration progress, for the fleet heartbeat.
+     *
+     * A stuck migration is the worst failure in the system: the chain breaks
+     * at one file, every later migration queues behind it, and the install can
+     * never advance. From Central it looked identical to a healthy install
+     * that was simply behind — the only way to find it was to log in.
+     *
+     * Reporting "42 of 103 applied, newest <file>" makes the stall visible:
+     * a count that stops moving while the release ships 103 files is the
+     * signal.
+     */
+    public function migrationProgress(): array {
+        $out = ['applied' => 0, 'newest' => ''];
+        try {
+            if (!$this->CI->db->table_exists('db_schema_migrations')) {
+                return $out;
+            }
+            $out['applied'] = (int) $this->CI->db->count_all_results('db_schema_migrations');
+            $row = $this->CI->db->select('filename')->order_by('id', 'DESC')->limit(1)
+                ->get('db_schema_migrations')->row();
+            $out['newest'] = $row ? (string) $row->filename : '';
+        } catch (Throwable $e) {
+            // Non-fatal — the heartbeat simply reports 0.
+        }
+        return $out;
+    }
+
+    /**
+     * The last FAILED job from db_system_updates, for the fleet heartbeat.
+     *
+     * An install whose update died at step 1 (a failed DB backup, a bad
+     * migration) looks identical to a healthy-but-outdated one from Central:
+     * both just read "outdated". The reason lives in db_system_updates on the
+     * install, visible only by logging in — which is exactly the per-install
+     * hunting this is meant to remove.
+     *
+     * Reporting it lets the fleet show WHY an install is stuck, not just that
+     * it is.
+     */
+    public function lastFailure(): ?array {
+        try {
+            if (!$this->CI->db->table_exists('db_system_updates')) {
+                return null;
+            }
+            // A later successful update resolves an earlier failure. Keep the
+            // history locally, but do not report it as a current fleet blocker.
+            $job = $this->CI->db->where_in('status', ['failed', 'success'])
+                ->order_by('id', 'DESC')->limit(1)
+                ->get('db_system_updates')->row();
+            if (!$job || ($job->status ?? '') !== 'failed') {
+                return null;
+            }
+            return [
+                'step'    => (int) ($job->current_step ?? 0),
+                'label'   => substr((string) ($job->step_label ?? ''), 0, 120),
+                'message' => substr((string) ($job->error_message ?? ''), 0, 200),
+                'at'      => (string) ($job->completed_at ?? ''),
+                'from'    => (string) ($job->from_version ?? ''),
+                'to'      => (string) ($job->to_version ?? ''),
+            ];
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Where this install is in its update, for the fleet heartbeat.
+     *
+     * The persisted state file is the only truthful source: it is written at
+     * every step boundary and survives the killed requests that make an update
+     * stall. Reading it lets Central see "stuck at migrating / hash mismatch on
+     * PAYROLL_model.php" instead of only "outdated" — which is the difference
+     * between knowing an install needs attention and knowing WHY.
+     *
+     * Returns:
+     *   stage  — idle | ready | downloading | verifying | applying | migrating
+     *            | finalizing | cleanup | failed | stalled
+     *   step   — 1-8, or 0 when idle
+     *   detail — one short sentence naming the cause
+     *
+     * Deliberately never writes to the DB or the state file — it is a reader,
+     * called on every heartbeat, and must not perturb an in-flight update.
+     *
+     * @return array{stage:string,step:int,detail:string}
+     */
+    public function updateStage(): array {
+        $idle = ['stage' => 'idle', 'step' => 0, 'detail' => 'No update in progress.'];
+
+        try {
+            $state = $this->readState();
+            if (empty($state)) {
+                // No state file, but the DB may record a failed run whose
+                // state was already cleared — report that rather than "idle".
+                $job = $this->CI->db->order_by('id', 'DESC')->limit(1)
+                    ->get('db_system_updates')->row();
+                if ($job && ($job->status ?? '') === 'failed') {
+                    return [
+                        'stage'  => 'failed',
+                        'step'   => (int) ($job->current_step ?? 0),
+                        'detail' => substr((string) ($job->error_message ?? 'Update failed.'), 0, 200),
+                    ];
+                }
+                return $idle;
+            }
+
+            $step = (int) ($state['step'] ?? 1);
+
+            if (!empty($state['failed'])) {
+                return [
+                    'stage'  => 'failed',
+                    'step'   => $step,
+                    'detail' => substr((string) ($state['message'] ?? 'Update failed.'), 0, 200),
+                ];
+            }
+            if (!empty($state['done']) && $step >= 8) {
+                return $idle;
+            }
+
+            // A state file that has not changed in 15+ minutes means the
+            // request that was running it died (host timeout, killed worker).
+            // The state is still valid and resumable, so this is "stalled" —
+            // not "failed" — and clears itself on the next cron or login.
+            $stamp = @filemtime($this->statePath) ?: 0;
+            $ageSeconds = $stamp > 0 ? (time() - $stamp) : 0;
+            // Same cadence rule as failStalledJobs(): a slice runs every */30,
+            // so a healthy in-flight update is quiet for up to 30 minutes.
+            // Reporting "stalled" at 15 min made Central show a red stalled
+            // badge on installs that were progressing normally — which is why
+            // every fleet looked broken and the instinct was to click Repair.
+            if ($ageSeconds > 3600) {
+                return [
+                    'stage'  => 'stalled',
+                    'step'   => $step,
+                    'detail' => 'No progress for ' . round($ageSeconds / 60) . ' min at step '
+                        . $step . ' (' . $this->stepLabel($step) . ') — resumes on the next check-in.',
+                ];
+            }
+
+            $map = [
+                1 => 'ready', 2 => 'ready',
+                3 => 'downloading', 4 => 'verifying', 5 => 'applying',
+                6 => 'migrating', 7 => 'finalizing', 8 => 'cleanup',
+            ];
+            $total = (int) ($state['total'] ?? 0);
+            $batch = (int) ($state['batch'] ?? 0);
+            $detail = $this->stepLabel($step);
+            if ($total > 0 && in_array($step, [3, 4, 5, 6], true)) {
+                $detail .= ' (' . min($batch, $total) . '/' . $total . ')';
+            }
+            if (!empty($state['message'])) {
+                // The step's own message names the concrete cause (a failing
+                // file, a stalled migration) — far more useful than the label.
+                $detail = substr((string) $state['message'], 0, 180);
+            }
+
+            return [
+                'stage'  => $map[$step] ?? 'ready',
+                'step'   => $step,
+                'detail' => $detail,
+            ];
+        } catch (Throwable $e) {
+            return $idle;
+        }
+    }
+
+    protected function executeFleetCommand(string $command, string $payload = ''): array {
+        switch ($command) {
+            case 'update_now':
+                // Run to completion within this request rather than a single
+                // bounded slice. A fleet-triggered update should finish in
+                // minutes, not wait for the next 30-minute cron tick.
+                $r = $this->runUpdateToCompletion(110);
+                $finished = !empty($r['done']);
+                $msg = ($r['status'] ?? '?') . ': ' . ($r['message'] ?? '');
+                if (!empty($r['slices'])) {
+                    $msg .= ' (' . (int) $r['slices'] . ' slice' . ($r['slices'] == 1 ? '' : 's') . ')';
+                }
+                if (!empty($r['step']) && !empty($r['step_label'])) {
+                    $msg .= ' [step ' . (int) $r['step'] . '/8 — ' . $r['step_label'] . ']';
+                }
+                if ($finished) {
+                    return ['ok' => true, 'message' => $msg, 'final' => true];
+                }
+                if (in_array($r['status'] ?? '', ['error', 'blocked', 'skipped'], true)) {
+                    return ['ok' => false, 'message' => $msg, 'final' => true];
+                }
+                // Not finished: hand the command back so Central re-queues it
+                // rather than believing the install is up to date.
+                return ['ok' => false, 'message' => $msg, 'final' => false, 'resume' => true];
+            case 'report_status':
+                // Include migration state so Central can see whether the DB
+                // chain actually completed, not just what version the code is.
+                $ms = $this->migrationStatus();
+                return [
+                    'ok' => true,
+                    'message' => 'v' . $this->getCodeVersion() . ' (db ' . $this->getInstalledVersion() . ')'
+                        . ' / PHP ' . PHP_VERSION
+                        . ' / migrations applied: ' . $ms['applied']
+                        . ($ms['newest'] ? ' (newest ' . $ms['newest'] . ')' : ''),
+                ];
+            case 'set_license':
+                return $this->applyPushedLicense($payload);
+            case 'request_license_otp':
+                return $this->pushLicenseOtp();
+            case 'suspend':
+                return $this->setSubscriptionSuspended(true, $payload);
+            case 'resume':
+                return $this->setSubscriptionSuspended(false);
+            case 'set_email':
+                return $this->applyEmailSettings($payload);
+            case 'set_cron_key':
+                return $this->applyCronKey($payload);
+            case 'set_settings':
+                return $this->applyPushedSettings($payload);
+            case 'run_backup':
+                return $this->runDatabaseBackup();
+            case 'push_file':
+                return $this->applyPushedFile($payload);
+            case 'repair_schema':
+                return $this->applySchemaRepair();
+            default:
+                return ['ok' => false, 'message' => 'Unknown command: ' . $command];
+        }
+    }
+
+    /** Report only a configured cron secret; never synthesize a shared key. */
+    protected function cronKey(): string {
+        $k = (string) $this->CI->config->item('cron_secret_key');
+        return $k === 'martpoint_cron_2024' ? '' : $k;
+    }
+
+    /**
+     * Apply email/provider settings pushed from central. Writes whichever
+     * whitelisted columns exist in db_email_settings (and mirrors legacy
+     * smtp_* columns in db_store_notification_settings when present).
+     */
+    protected function applyEmailSettings(string $payload): array {
+        $fields = json_decode($payload, true);
+        if (!is_array($fields) || empty($fields)) {
+            return ['ok' => false, 'message' => 'Invalid email payload.'];
+        }
+        $allowed = [
+            'email_provider', 'email_from_name', 'email_from_email', 'email_reply_to',
+            'smtp_crypto', 'resend_api_key', 'resend_from_email', 'resend_from_name',
+            'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_status',
+        ];
+        $storeId = $this->resolveStoreId();
+        $written = 0;
+        try {
+            foreach (['db_email_settings', 'db_store_notification_settings'] as $table) {
+                if (!$this->CI->db->table_exists($table)) {
+                    continue;
+                }
+                $data = [];
+                foreach ($allowed as $k) {
+                    if (isset($fields[$k]) && $fields[$k] !== '' && $this->CI->db->field_exists($k, $table)) {
+                        $data[$k] = $fields[$k];
+                    }
+                }
+                if (empty($data)) {
+                    continue;
+                }
+                $exists = $this->CI->db->where('store_id', $storeId)->get($table)->row();
+                if ($exists) {
+                    $this->CI->db->where('store_id', $storeId)->update($table, $data);
+                } else {
+                    $data['store_id'] = $storeId;
+                    $this->CI->db->insert($table, $data);
+                }
+                $written++;
+            }
+            return [
+                'ok' => $written > 0,
+                'message' => $written > 0
+                    ? 'Email settings applied (' . ($fields['email_provider'] ?? 'resend') . ').'
+                    : 'No matching email columns on this install.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Email apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Set this install's cron_secret_key in config.php — central generates a
+     * unique key per install so it can schedule the cPanel cron lines.
+     */
+    protected function applyCronKey(string $payload): array {
+        $key = trim($payload);
+        if ($key === 'martpoint_cron_2024' || !preg_match('/^[A-Za-z0-9_\-]{6,64}$/', $key)) {
+            return ['ok' => false, 'message' => 'Invalid cron key format.'];
+        }
+        $path = FCPATH . 'application/config/config.php';
+        try {
+            if (!is_writable($path)) {
+                return ['ok' => false, 'message' => 'config.php not writable — set permissions and retry.'];
+            }
+            $code = (string) file_get_contents($path);
+            $line = "\$config['cron_secret_key'] = '" . $key . "';";
+            if (strpos($code, "cron_secret_key") !== false) {
+                $code = preg_replace("/\\\$config\['cron_secret_key'\]\s*=\s*'[^']*';/", $line, $code, 1);
+            } else {
+                $code = rtrim($code) . "\n\n" . $line . "\n";
+            }
+            $ok = file_put_contents($path, $code) !== false;
+            return ['ok' => $ok, 'message' => $ok ? 'Cron key set.' : 'Could not write config.php.'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Cron key error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Push a group of operational settings from Central — payload:
+     * {"scope":"assist|monnify|nin|debt_reminder|audit","fields":{...}}
+     * Each scope maps to a whitelisted table + column set; anything else is
+     * rejected. Store-keyed tables upsert on this install's store row.
+     */
+    protected function applyPushedSettings(string $payload): array {
+        $in = json_decode($payload, true);
+        $scope = is_array($in) ? (string) ($in['scope'] ?? '') : '';
+        $fields = is_array($in) && is_array($in['fields'] ?? null) ? $in['fields'] : [];
+        if ($fields === []) {
+            return ['ok' => false, 'message' => 'No settings fields in payload.'];
+        }
+        $storeId = $this->resolveStoreId();
+        try {
+            switch ($scope) {
+                case 'assist':
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1], [
+                        'assist_ai_enabled', 'assist_ai_provider', 'assist_ai_endpoint',
+                        'assist_ai_model', 'assist_ai_key',
+                    ], $fields, 'Assist AI');
+
+                case 'paystack':
+                    return ['ok' => false, 'message' => 'Paystack credentials are provided securely by Central; do not push them to a fleet.'];
+
+                case 'monnify':
+                    if ($this->CI->db->table_exists('db_payment_gateway_accounts')) {
+                        return $this->writeSettingFields('db_payment_gateway_accounts', ['provider' => 'monnify'], [
+                            'enabled', 'api_key', 'secret_key', 'contract_code', 'wallet_account_number',
+                            'disbursements_enabled', 'access_token', 'token_expires_at', 'test_mode', 'platform_fee_type',
+                            'platform_fee_value', 'fee_bearer', 'callback_url',
+                        ], $fields, 'Monnify central account', true);
+                    }
+                    return $this->writeSettingFields('db_monnify_settings', ['store_id' => $storeId], [
+                        'enabled', 'api_key', 'secret_key', 'contract_code',
+                        'wallet_account_number', 'disbursements_enabled', 'test_mode',
+                    ], $fields, 'Monnify', true);
+
+                case 'nin':
+                    return $this->writeSettingFields('db_store', ['id' => $storeId], [
+                        'nin_api_enabled', 'nin_api_url', 'nin_api_key', 'nin_api_provider',
+                        'nin_provider', 'bvn_provider',
+                        'interswitch_client_id', 'interswitch_client_secret',
+                    ], $fields, 'NIN verification');
+
+                case 'debt_reminder':
+                    return $this->writeSettingFields('db_debt_reminder_settings',
+                        ['store_id' => $storeId, 'customer_id' => 0], [
+                        'enabled', 'frequency', 'max_reminders', 'send_email', 'send_sms',
+                    ], $fields, 'Debt reminders', true);
+
+                case 'audit':
+                    // Column self-heals so this works even before the audit
+                    // toggle migration reaches this install.
+                    if (!$this->CI->db->field_exists('audit_trail_enabled', 'db_sitesettings')) {
+                        $this->CI->db->query("ALTER TABLE `db_sitesettings` ADD COLUMN `audit_trail_enabled` TINYINT(1) NOT NULL DEFAULT 1");
+                    }
+                    return $this->writeSettingFields('db_sitesettings', ['id' => 1],
+                        ['audit_trail_enabled'], $fields, 'Audit trail');
+            }
+            return ['ok' => false, 'message' => 'Unknown settings scope: ' . $scope];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Settings error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Filter the pushed fields to a whitelist of existing columns and write
+     * them — update when the row exists, insert (with the where values) when
+     * the table is keyed per-store and has none yet.
+     */
+    protected function writeSettingFields(string $table, array $where, array $allowed, array $fields, string $label, bool $upsert = false): array {
+        if (!$this->CI->db->table_exists($table)) {
+            return ['ok' => false, 'message' => $label . ' table missing on this install.'];
+        }
+        $data = [];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $fields) && $this->CI->db->field_exists($col, $table)) {
+                $v = $fields[$col];
+                $data[$col] = is_scalar($v) ? substr((string) $v, 0, 2000) : (string) json_encode($v);
+            }
+        }
+        if ($data === []) {
+            return ['ok' => false, 'message' => 'No writable ' . $label . ' fields — the install may need an update for these settings.'];
+        }
+        $exists = $this->CI->db->where($where)->get($table)->num_rows() > 0;
+        if ($exists) {
+            $this->CI->db->where($where)->update($table, $data);
+        } elseif ($upsert) {
+            $this->CI->db->insert($table, $where + $data);
+        } else {
+            return ['ok' => false, 'message' => $label . ' row not found.'];
+        }
+        if (function_exists('mp_audit_log')) {
+            // Column names only — never log pushed values (keys/secrets).
+            mp_audit_log('fleet', 'settings_push', null,
+                'Central pushed ' . $label . ' settings: ' . implode(', ', array_keys($data)));
+        }
+        return ['ok' => true, 'message' => $label . ' settings updated (' . count($data) . ' fields).'];
+    }
+
+    /**
+     * Write a single file pushed from Central — payload {"path","content_b64"}.
+     * Paths are restricted to application/ and theme/ and config, lock and
+     * root files are refused, so a push can never take the install offline
+     * or overwrite credentials. Writes are atomic (tmp file + rename).
+     */
+    /**
+     * Apply the schema-repair file shipped with the release.
+     *
+     * Adds tables and columns that an install is missing, for installs already
+     * in service. Purely additive — the file contains only
+     * `CREATE TABLE IF NOT EXISTS` and guarded `ADD COLUMN`, and deliberately
+     * no ledger writes and no version stamp, so it can never make an
+     * incomplete install look complete.
+     *
+     * Runs the LOCAL copy from setup/install/, which ships with every release,
+     * rather than accepting SQL in the command payload: no size limits, no
+     * chance of a truncated transfer, and it is exactly the file the release
+     * was tested with.
+     *
+     * Safe to run repeatedly — every statement in it is idempotent.
+     */
+    protected function applySchemaRepair(): array {
+        try {
+            $file = FCPATH . 'setup/install/db_schema_repair.sql';
+            if (!is_file($file)) {
+                return ['ok' => false, 'message' => 'Repair file not present on this install '
+                    . '(setup/install/db_schema_repair.sql). Update the install first, then retry.'];
+            }
+            $sql = (string) @file_get_contents($file);
+            if (trim($sql) === '') {
+                return ['ok' => false, 'message' => 'Repair file is empty.'];
+            }
+
+            $before = $this->schemaCounts();
+            $statements = $this->splitSql($sql);
+            $ran = 0;
+            foreach ($statements as $stmt) {
+                $stmt = trim($stmt);
+                if ($stmt === '') { continue; }
+                $ran++;
+                // NOT wrapped in a transaction: the file is DDL, which commits
+                // implicitly in MySQL, so a transaction would give a false sense
+                // of atomicity. Every statement is guarded instead, which is
+                // what actually makes a partial run safe to repeat.
+                if (@$this->CI->db->query($stmt) === false) {
+                    $err = $this->CI->db->error();
+                    $msg = (string) ($err['message'] ?? '');
+                    $benign = (stripos($msg, 'Duplicate') !== false)
+                           || (stripos($msg, 'already exists') !== false)
+                           || (stripos($msg, 'Duplicate entry') !== false);
+                    if (!$benign) {
+                        return ['ok' => false, 'message' => 'Repair failed at statement ' . $ran . ': ' . $msg];
+                    }
+                }
+            }
+
+            $after = $this->schemaCounts();
+            return [
+                'ok' => true,
+                'message' => 'Schema repair applied (' . $ran . ' statements). '
+                    . 'Tables ' . $before['tables'] . ' -> ' . $after['tables'] . ', '
+                    . 'columns ' . $before['columns'] . ' -> ' . $after['columns'] . '. '
+                    . 'Ledger and version untouched.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Repair error: ' . $e->getMessage()];
+        }
+    }
+
+    /** Table and column counts for this database — used to report repair deltas. */
+    protected function schemaCounts(): array {
+        $out = ['tables' => 0, 'columns' => 0];
+        try {
+            $db = $this->CI->db->database;
+            $q = $this->CI->db->query(
+                "SELECT COUNT(*) n FROM information_schema.TABLES
+                  WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'", [$db]);
+            if ($q) { $out['tables'] = (int) $q->row()->n; }
+            $q = $this->CI->db->query(
+                "SELECT COUNT(*) n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$db]);
+            if ($q) { $out['columns'] = (int) $q->row()->n; }
+        } catch (Throwable $e) {}
+        return $out;
+    }
+
+    protected function applyPushedFile(string $payload): array {
+        $f = json_decode($payload, true);
+        $path = trim(str_replace('\\', '/', (string) ($f['path'] ?? '')));
+        $b64  = (string) ($f['content_b64'] ?? '');
+        if ($path === '' || strpos($path, '..') !== false || strpos($path, "\0") !== false
+            || !preg_match('#^(application|theme)/#i', $path)) {
+            return ['ok' => false, 'message' => 'Path not allowed (must be under application/ or theme/): ' . $path];
+        }
+        static $deny = [
+            'application/config/config.php', 'application/config/database.php',
+            'application/config/constants.php', 'application/config/installed.lock',
+            'index.php', '.htaccess',
+        ];
+        if (in_array(strtolower($path), $deny, true)) {
+            return ['ok' => false, 'message' => 'Refusing to overwrite protected file: ' . $path];
+        }
+        if (!preg_match('/\.(php|js|css|sql|json|htm|html|txt|xml|map|png|jpe?g|gif|svg|ico|woff2?|ttf|eot)$/i', $path)) {
+            return ['ok' => false, 'message' => 'File type not allowed: ' . $path];
+        }
+        $content = base64_decode($b64, true);
+        if ($content === false) {
+            return ['ok' => false, 'message' => 'Bad content payload.'];
+        }
+        $abs = FCPATH . $path;
+        try {
+            $dir = dirname($abs);
+            if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+                return ['ok' => false, 'message' => 'Cannot create directory: ' . dirname($path)];
+            }
+            $tmp = $abs . '.fleet-tmp';
+            if (file_put_contents($tmp, $content) === false || !rename($tmp, $abs)) {
+                @unlink($tmp);
+                return ['ok' => false, 'message' => 'Write failed — check permissions on ' . dirname($path)];
+            }
+            @chmod($abs, 0644);
+            if (function_exists('mp_audit_log')) {
+                mp_audit_log('fleet', 'file_push', null,
+                    'Central pushed file: ' . $path . ' (' . strlen($content) . ' B)');
+            }
+            return ['ok' => true, 'message' => $path . ' written (' . round(strlen($content) / 1024, 1) . ' KB).'];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'File write error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Run a full database backup on this install via the existing
+     * BackupManager — lands in dbbackup/ like the update-time backups.
+     */
+    protected function runDatabaseBackup(): array {
+        try {
+            $this->CI->load->library('BackupManager');
+            $path = $this->CI->backupmanager->backupDatabase();
+            if (!$path || !is_file($path)) {
+                return ['ok' => false, 'message' => 'Backup produced no file.'];
+            }
+            return [
+                'ok' => true,
+                'message' => basename($path) . ' (' . round(filesize($path) / 1048576, 1) . ' MB)',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Backup error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * License status + quota usage for the fleet heartbeat. Returns null when
+     * the helper or license tables aren't present on this install.
+     */
+    protected function licenseUsageSummary(): ?array {
+        try {
+            $this->healMisplacedLicense();
+            if (function_exists('mp_get_license_usage_summary')) {
+                $storeId = $this->resolveStoreId();
+                $s = mp_get_license_usage_summary($storeId);
+                // NOT_ACTIVATED for the resolved store while a license row
+                // exists elsewhere (single-store installs whose license sits
+                // on another store_id) — report the store that has it.
+                if (is_array($s) && empty($s['has_license']) && $this->CI->db->table_exists('db_subscription_license')) {
+                    $lic = $this->CI->db->query('SELECT store_id FROM db_subscription_license WHERE license_code IS NOT NULL AND license_code <> "" ORDER BY id DESC LIMIT 1')->row();
+                    if ($lic && (int) $lic->store_id !== $storeId) {
+                        $alt = mp_get_license_usage_summary((int) $lic->store_id);
+                        if (is_array($alt) && !empty($alt['has_license'])) { $s = $alt; }
+                    }
+                }
+                if (is_array($s)) {
+                    return $s;
+                }
+            }
+            // Fallback — installs whose custom_helper.php predates the summary
+            // helper would otherwise report nothing and show "unknown" in the
+            // fleet. Read the license record directly; quotas stay empty.
+            if ($this->CI->db->table_exists('db_subscription_license')) {
+                $storeId = $this->resolveStoreId();
+                $rec = $this->CI->db->where('store_id', $storeId)
+                    ->get('db_subscription_license')->row();
+                if (!$rec) {
+                    // License may sit on another store_id on this install —
+                    // report the most recent row rather than nothing.
+                    $rec = $this->CI->db->order_by('id', 'desc')->limit(1)
+                        ->get('db_subscription_license')->row();
+                }
+                if ($rec) {
+                    $status = (string) ($rec->subscription_status ?? 'NOT_ACTIVATED');
+                    $daysLeft = null;
+                    if (!empty($rec->subscription_end_date)) {
+                        $daysLeft = (int) floor((strtotime($rec->subscription_end_date) - time()) / 86400);
+                        if ($status === 'ACTIVE' && $daysLeft < 0) {
+                            $status = 'EXPIRED';
+                        } elseif ($status === 'ACTIVE' && $daysLeft <= 30) {
+                            $status = 'EXPIRING_SOON';
+                        }
+                    }
+                    return [
+                        'status' => $status,
+                        'days_left' => max(0, (int) $daysLeft),
+                        'end_date' => $rec->subscription_end_date ?? null,
+                        'plan_name' => (string) ($rec->plan_name ?? ''),
+                        'license_code' => $rec->license_code ?? null,
+                        'has_license' => !empty($rec->license_code),
+                        'quotas' => [],
+                    ];
+                }
+            }
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Suspend/resume this install's subscription from a central fleet command.
+     * SUSPENDED is enforced by MY_Controller::enforce_subscription() — every
+     * page except dashboard/subscription/login is blocked.
+     */
+    protected function setSubscriptionSuspended(bool $suspend, string $payload = ''): array {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            $data = [
+                'store_id'            => $this->resolveStoreId(),
+                'subscription_status' => $suspend ? 'SUSPENDED' : 'ACTIVE',
+            ];
+            if ($this->CI->db->field_exists('suspension_reason', 'db_subscription_license')) {
+                $reason = trim($payload);
+                $data['suspension_reason'] = $suspend
+                    ? ($reason !== '' ? substr($reason, 0, 255) : 'Suspended by vendor.')
+                    : null;
+            }
+            if ($suspend) {
+                // get_status() returns NOT_ACTIVATED when no end date exists —
+                // stamp one so the SUSPENDED flag actually gates the install.
+                $this->CI->load->model('subscription_license_model', 'mp_lic_susp');
+                $rec = $this->CI->mp_lic_susp->get_by_store($data['store_id']);
+                if (!$rec || empty($rec->subscription_end_date)) {
+                    $data['subscription_end_date'] = date('Y-m-d');
+                }
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+            $ok = $this->CI->mp_lic_cmd->save($data);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? ($suspend ? 'Subscription suspended.' : 'Subscription resumed.')
+                    : 'Status save failed.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'Suspend error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Apply a license/subscription pushed from central. Replicates the local
+     * Subscription_license::activate flow — decode the MP- key (authoritative
+     * quotas), domain-check it, archive the replaced license to history, then
+     * activate(). Columns are still field_exists-filtered so older installs
+     * can't SQL-error.
+     */
+    protected function applyPushedLicense(string $payload): array {
+        $lic = json_decode($payload, true);
+        if (!is_array($lic) || empty($lic['subscription_end_date'])) {
+            return ['ok' => false, 'message' => 'Invalid license payload.'];
+        }
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return ['ok' => false, 'message' => 'License table missing on this install.'];
+            }
+            if (!function_exists('decode_license_key')) {
+                $this->CI->load->helper('custom');
+            }
+            $this->healMisplacedLicense();
+            $storeId = $this->resolveStoreId();
+            $this->CI->load->model('subscription_license_model', 'mp_lic_cmd');
+
+            // OTP gate — two accepted forms:
+            //  a) otp_proof — HMAC(otp|domain, fleet_key) from Central's own
+            //     OTP generator (Central emails it to the vendor address).
+            //  b) a local 'activate' OTP row in db_license_otps (the flow the
+            //     install's Subscription page uses).
+            $otp = strtoupper(trim((string) ($lic['otp_code'] ?? '')));
+            $proof = (string) ($lic['otp_proof'] ?? '');
+            $ownDomain = (string) parse_url(base_url(), PHP_URL_HOST);
+            if ($proof !== '') {
+                $expected = hash_hmac('sha256', $otp . '|' . $ownDomain, $this->getSitesetting('fleet_key'));
+                if ($otp === '' || !hash_equals($expected, $proof)) {
+                    return ['ok' => false, 'message' => 'OTP rejected: invalid vendor proof.'];
+                }
+            } else {
+                if ($otp === '') {
+                    return ['ok' => false, 'message' => 'OTP required. Use Request OTP to send a code to the authorized email address.'];
+                }
+                $otpCheck = $this->CI->mp_lic_cmd->validate_otp($storeId, $otp, 'activate');
+                if ($otpCheck !== true) {
+                    return ['ok' => false, 'message' => 'OTP rejected: ' . $otpCheck];
+                }
+            }
+
+            // Prefer the signed key's own decoded data — same source of truth
+            // a store admin gets when pasting the key locally.
+            $decoded = (!empty($lic['license_code']) && function_exists('decode_license_key'))
+                ? decode_license_key($lic['license_code'])
+                : false;
+            if ($decoded !== false && !empty($decoded['domain'])) {
+                $own = (string) parse_url(base_url(), PHP_URL_HOST);
+                if ($decoded['domain'] !== $own) {
+                    return ['ok' => false, 'message' => 'License key is locked to ' . $decoded['domain'] . ' — this install is ' . $own . '.'];
+                }
+            }
+
+            $saveData = ['store_id' => $storeId];
+            if ($decoded !== false) {
+                foreach ([
+                    'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number',
+                    'renewal_amount', 'client_name',
+                ] as $k) {
+                    $saveData[$k] = $decoded[$k];
+                }
+                $saveData['license_code'] = $lic['license_code'];
+            } else {
+                // Legacy payload without a usable key — honour posted fields.
+                foreach ([
+                    'license_code', 'plan_name', 'subscription_start_date', 'subscription_end_date',
+                    'branch_limit', 'user_limit', 'product_limit', 'sku_limit',
+                    'invoice_limit', 'online_product_limit', 'service_limit', 'media_storage_limit_mb',
+                    'storefront_limit', 'custom_domain_limit', 'whatsapp_number', 'renewal_amount',
+                    'client_name',
+                ] as $k) {
+                    if (isset($lic[$k])) {
+                        $saveData[$k] = $lic[$k];
+                    }
+                }
+            }
+            $saveData['domain'] = (string) parse_url(base_url(), PHP_URL_HOST);
+            $saveData['last_renewal_date'] = date('Y-m-d');
+            $saveData['suspension_reason'] = null;
+            foreach ($saveData as $k => $v) {
+                if ($k !== 'store_id' && !$this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    unset($saveData[$k]);
+                }
+            }
+
+            // Archive the license being replaced — mirrors activate()/extend().
+            $existing = $this->CI->mp_lic_cmd->get_by_store($storeId);
+            if ($existing && !empty($existing->license_code)) {
+                $this->CI->mp_lic_cmd->add_history(
+                    $storeId, $existing->license_code,
+                    $existing->plan_name ?? '', $existing->domain ?? '', 'active'
+                );
+            }
+
+            // Reset reminder flags like the renew flow does.
+            $reset = [
+                'reminder_90_sent' => 0, 'reminder_60_sent' => 0,
+                'reminder_30_last_sent' => null, 'reminder_10_last_sent' => null,
+                'expiry_notice_sent' => 0, 'expired_followup_count' => 0,
+                'expired_followup_last_sent' => null,
+            ];
+            foreach ($reset as $k => $v) {
+                if ($this->CI->db->field_exists($k, 'db_subscription_license')) {
+                    $this->CI->db->where('store_id', $storeId)->update('db_subscription_license', [$k => $v]);
+                }
+            }
+
+            $ok = $this->CI->mp_lic_cmd->activate($storeId, $saveData);
+            return [
+                'ok' => (bool) $ok,
+                'message' => $ok
+                    ? 'License activated: ' . ($saveData['plan_name'] ?? '') . ' until ' . $saveData['subscription_end_date']
+                    : 'License activation failed.',
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'License apply error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Generate a license-activation OTP on this install and email it to the
+     * authorized vendor address — mirrors Subscription_license::request_otp
+     * + _send_otp_email, but triggered by a Central fleet command instead of
+     * a logged-in session. The returned OTP is what a set_license payload
+     * must carry to activate.
+     */
+    protected function pushLicenseOtp(): array {
+        try {
+            if (!$this->CI->db->table_exists('db_license_otps')) {
+                return ['ok' => false, 'message' => 'OTP table missing on this install — run the database update.'];
+            }
+            $storeId = $this->resolveStoreId();
+
+            // Same 60-second rate limit as the local request_otp endpoint.
+            $recent = $this->CI->db->where('store_id', $storeId)
+                ->where('otp_type', 'activate')
+                ->where('created_at >', date('Y-m-d H:i:s', strtotime('-60 seconds')))
+                ->get('db_license_otps')->row();
+            if ($recent) {
+                return ['ok' => false, 'message' => 'An OTP was already sent less than 60 seconds ago — check the authorized email.'];
+            }
+
+            $this->CI->load->model('subscription_license_model', 'mp_lic_otp');
+            $otp = $this->CI->mp_lic_otp->generate_otp($storeId, 'activate');
+
+            // Same recipient + audit body as _send_otp_email().
+            $storeName = '';
+            if ($this->CI->db->table_exists('db_store')) {
+                $s = $this->CI->db->where('id', $storeId)->get('db_store')->row();
+                $storeName = (string) ($s->store_name ?? '');
+            }
+            $domain = (string) parse_url(base_url(), PHP_URL_HOST);
+            $subject = "MartPoint License OTP: Activate - {$storeName}";
+            $html = "<h3>MartPoint Retail License OTP</h3>
+<p><strong>Business:</strong> " . htmlspecialchars($storeName) . "</p>
+<p><strong>Domain:</strong> {$domain}</p>
+<p><strong>Action:</strong> Activate</p>
+<p><strong>OTP:</strong> <span style='font-size:24px; font-weight:bold; color:#2563EB;'>{$otp}</span></p>
+<p><em>This OTP expires in 10 minutes and can only be used once.</em></p>
+<hr>
+<p><strong>Request Details (Audit)</strong></p>
+<ul>
+  <li><strong>User:</strong> MartPoint Central (fleet command)</li>
+  <li><strong>IP Address:</strong> " . htmlspecialchars($_SERVER['REMOTE_ADDR'] ?? 'cron') . "</li>
+  <li><strong>Time:</strong> " . date('Y-m-d H:i:s') . "</li>
+</ul>
+<hr>
+<p style='color:#94A3B8; font-size:12px;'>MartPoint Retail License Security</p>";
+            $text = "MartPoint Retail License OTP\nBusiness: {$storeName}\nDomain: {$domain}\nAction: Activate\nOTP: {$otp}\nExpires in 10 minutes, single use.\nRequested by: MartPoint Central (fleet command)\nTime: " . date('Y-m-d H:i:s');
+
+            $this->CI->load->model('email_service');
+            $result = $this->CI->email_service->sendRaw('rapheal@avariodigitals.com', $subject, $html, $text, [
+                'template_key' => 'license_otp',
+                'platform_data'=>array('otp_code'=>$otp),
+                'from_name' => 'MartPoint Retail',
+                'send_copy_to_owner' => false,
+            ]);
+            // Always surface the OTP in the command result — Central is a
+            // vendor-only panel, it can display/forward it even when this
+            // install's email isn't configured.
+            if (!empty($result['success'])) {
+                return ['ok' => true, 'message' => "OTP {$otp} — emailed to the authorized address."];
+            }
+            return ['ok' => true, 'message' => "OTP {$otp} — install email failed, MartPoint Support will forward it."];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => 'OTP error: ' . $e->getMessage()];
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Gates                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Returns null when the host PHP satisfies the manifest's declared bounds,
+     * otherwise a human-readable refusal reason.
+     */
+    protected function phpVersionAllowed(array $manifest): ?string {
+        $min = $manifest['requires_php_min'] ?? null;
+        $max = $manifest['requires_php_max'] ?? null;
+        if ($min && version_compare(PHP_VERSION, $min, '<')) {
+            return "This release requires PHP {$min}+; this server runs " . PHP_VERSION . '. Change the PHP handler first.';
+        }
+        if ($max && version_compare(PHP_VERSION, $max, '>')) {
+            return "This release requires PHP up to {$max}; this server runs " . PHP_VERSION . ' (e.g. PHP 8 breaks the CI3 core — set the handler to 7.4).';
+        }
+        return null;
+    }
+
+    /**
+     * License gate for updates. Expired/suspended subscriptions stop receiving
+     * code; NOT_ACTIVATED and missing tables stay allowed so fresh or very old
+     * installs can always reach the version that introduced licensing.
+     */
+    protected function licenseAllowsUpdate(): bool {
+        try {
+            // The vendor's own console must always take updates — it ships them.
+            if (function_exists('mp_is_central') && mp_is_central()) {
+                return true;
+            }
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return true;
+            }
+            $this->CI->load->model('subscription_license_model', 'mp_lic_upd');
+            $status = $this->CI->mp_lic_upd->get_status($this->resolveStoreId());
+            $s = strtoupper($status['status'] ?? '');
+            return !in_array($s, ['EXPIRED', 'SUSPENDED'], true);
+        } catch (Throwable $e) {
+            return true;
+        }
+    }
+
+    // Session store in web context; the primary store when run from cron/CLI
+    // where no session exists.
+    protected function resolveStoreId(): int {
+        $storeId = (int) get_current_store_id();
+        if ($storeId > 0) {
+            return $storeId;
+        }
+        static $primary = null;
+        if ($primary !== null) {
+            return $primary;
+        }
+        try {
+            // Plain queries (not query-builder) so this can never merge into a
+            // caller's pending select chain.
+            $db = $this->CI->db;
+            $primary = 0;
+            // Store id 1 is the installer's placeholder row. Newer installers
+            // name row 1 after the customer's own store, so a name match is no
+            // longer a reliable way to spot a placeholder — the id is. Row 1 is
+            // only the real store on a single-store install.
+            $cnt = $db->query('SELECT COUNT(*) AS c FROM db_store')->row();
+            $multi = (int) ($cnt->c ?? 0) > 1;
+            // 1. The store that holds the subscription license — the client's
+            //    store by definition on a licensed install.
+            if ($db->table_exists('db_subscription_license')) {
+                $sql = 'SELECT store_id FROM db_subscription_license' . ($multi ? ' WHERE store_id > 1' : '') . ' ORDER BY id DESC LIMIT 1';
+                $row = $db->query($sql)->row();
+                $primary = (int) ($row->store_id ?? 0);
+            }
+            // 2. Otherwise the first real store. Legacy installs still carry the
+            //    literal 'SAAS ADMIN' placeholder, so that name is skipped in
+            //    both spellings rather than assumed.
+            if ($primary <= 0 && $multi) {
+                $row = $db->query("SELECT MIN(id) AS id FROM db_store WHERE id > 1 AND store_name NOT IN ('SAAS ADMIN', 'My Store')")->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+            if ($primary <= 0 && $multi) {
+                $row = $db->query('SELECT MIN(id) AS id FROM db_store WHERE id > 1')->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+            if ($primary <= 0) {
+                $row = $db->query('SELECT MIN(id) AS id FROM db_store')->row();
+                $primary = (int) ($row->id ?? 0);
+            }
+        } catch (Throwable $e) {
+            $primary = 0;
+        }
+        return $primary;
+    }
+
+    /**
+     * Older builds resolved the placeholder store (id 1) on cron runs and
+     * activated pushed licenses there — the client's store stayed EXPIRED.
+     * Move such a stray license onto the real store when it is the newer one.
+     */
+    protected function healMisplacedLicense(): void {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
+        try {
+            $db = $this->CI->db;
+            if (!$db->table_exists('db_subscription_license')) { return; }
+            $client = $this->resolveStoreId();
+            if ($client <= 1) { return; }
+            $stray = $db->query('SELECT * FROM db_subscription_license WHERE store_id = 1 ORDER BY id DESC LIMIT 1')->row();
+            if (!$stray) { return; }
+            $own = $db->query('SELECT * FROM db_subscription_license WHERE store_id = ' . (int) $client . ' ORDER BY id DESC LIMIT 1')->row();
+            $strayEnd = strtotime((string) ($stray->subscription_end_date ?? '')) ?: 0;
+            $ownEnd = $own ? (strtotime((string) ($own->subscription_end_date ?? '')) ?: 0) : 0;
+            if ($strayEnd <= $ownEnd) { return; } // nothing better on the placeholder
+            if (!$own) {
+                $db->where('id', $stray->id)->update('db_subscription_license', ['store_id' => $client]);
+                $licId = (int) $stray->id;
+            } else {
+                $data = (array) $stray;
+                unset($data['id'], $data['store_id'], $data['created_date'], $data['created_time']);
+                $data['updated_date'] = date('Y-m-d');
+                $data['updated_time'] = date('H:i:s');
+                $db->where('id', $own->id)->update('db_subscription_license', $data);
+                $db->where('id', $stray->id)->delete('db_subscription_license');
+                $licId = (int) $own->id;
+            }
+            if ($db->field_exists('current_subscriptionlist_id', 'db_store')) {
+                $db->where('id', $client)->update('db_store', ['current_subscriptionlist_id' => $licId]);
+            }
+            log_message('info', 'Updater: moved misplaced license from placeholder store to store ' . $client);
+        } catch (Throwable $e) {
+            log_message('error', 'Updater healMisplacedLicense: ' . $e->getMessage());
+        }
+    }
+
+    protected function getLicenseCode(): string {
+        try {
+            if (!$this->CI->db->table_exists('db_subscription_license')) {
+                return '';
+            }
+            // Resolve first: resolveStoreId() runs its own query, and calling it
+            // inside the chain merges into the pending select (fatal 500).
+            $storeId = $this->resolveStoreId();
+            $rec = $this->CI->db->select('license_code')
+                ->where('store_id', $storeId)
+                ->get('db_subscription_license')->row();
+            if (!$rec) {
+                // Single-store installs may carry the license on a different
+                // store_id — fall back to the most recent license row.
+                $rec = $this->CI->db->select('license_code')
+                    ->order_by('id', 'desc')->limit(1)
+                    ->get('db_subscription_license')->row();
+            }
+            return $rec ? (string) ($rec->license_code ?? '') : '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Verify the manifest's ed25519 signature against the public key in
+     * config/updater.php. When no public key is configured the check passes —
+     * signing is opt-in hardening; once configured it is strictly enforced.
+     */
+    protected function verifyManifestSignature(array $manifest): bool {
+        $pubkey = (string) $this->CI->config->item('update_pubkey');
+        if ($pubkey === '') {
+            return true;
+        }
+
+        // A host without PHP sodium cannot verify anything. Refusing would
+        // permanently strand that install — there is nothing it can do about a
+        // missing extension — and no remote attacker can induce the condition,
+        // so proceed but say so loudly instead of pretending it was checked.
+        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+            log_message('error', 'Updater: manifest signatures are enforced but the PHP sodium extension is unavailable on this host — the update was applied UNVERIFIED. Enable php-sodium.');
+            return true;
+        }
+
+        $sig = $manifest['signature'] ?? null;
+        if (empty($sig)) {
+            return false;
+        }
+        try {
+            return sodium_crypto_sign_verify_detached(
+                sodium_hex2bin($sig),
+                $this->manifestPayload($manifest),
+                sodium_hex2bin($pubkey)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Canonical payload that gets signed: the manifest without its signature.
+     * Key order is stable because the generator writes the same structure.
+     */
+    protected function manifestPayload(array $manifest): string {
+        unset($manifest['signature']);
+        // _channel_ref is stamped on by fetchManifest() after the HTTP read — it
+        // is a client-side download pin, never part of the bytes Central signed.
+        // Leaving it in here made the verified payload differ from the signed one
+        // and every enforcing install refused the release as "compromised".
+        unset($manifest['_channel_ref']);
+        return json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Let the (verified) manifest point installs at the fleet registry —
+     * fleet_url ships inside the manifest so a channel move or a first-time
+     * rollout reaches every install without manual settings edits.
+     *
+     * fleet_key is NEVER taken from here, even if a manifest carries one. The
+     * manifest is published to a public repository, so anything in it is
+     * world-readable — and that key authenticates heartbeats and signs licence
+     * proofs. Installs hold their own copy (from mp_provision.php) and refresh
+     * it from {fleet_url}/fleet/enroll when needed, which is authenticated by
+     * this install's per-install install_key instead.
+     */
+    protected function applyManifestSettings(array $manifest): void {
+        try {
+            $updates = [];
+            // A VENDOR box must never adopt the fleet callback.
+            //
+            // config/central.php means this is our own code — a dev host, a
+            // staging clone, a restored dump. It is not a customer install, so it
+            // must not be pointed at the registry and must not register. The host
+            // that happens to serve the channel is irrelevant: the vendor's tree
+            // is never a fleet member, on any hostname.
+            if (function_exists('mp_is_vendor_box') && mp_is_vendor_box()) {
+                return;
+            }
+            if (!empty($manifest['fleet_url']) && $this->CI->db->field_exists('fleet_url', 'db_sitesettings')) {
+                $updates['fleet_url'] = $manifest['fleet_url'];
+            }
+            if (!empty($updates)) {
+                $this->CI->db->where('id', 1)->update('db_sitesettings', $updates);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Updater applyManifestSettings failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function getSitesetting(string $col): string {
+        try {
+            if (!$this->CI->db->field_exists($col, 'db_sitesettings')) {
+                return '';
+            }
+            $row = $this->CI->db->select($col)->from('db_sitesettings')->where('id', 1)->get()->row();
+            return $row ? (string) ($row->{$col} ?? '') : '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Preview diff                                                      */
+    /* ------------------------------------------------------------------ */
+
+    public function previewChanges(array $manifest): array {
+        $files = $manifest['files'] ?? [];
+        $toDownload = [];
+        $toAdd = [];
+
+        foreach ($files as $file) {
+            $path = $file['path'];
+            if ($this->isProtected($path)) {
+                continue;
+            }
+            $abs = FCPATH . $path;
+            if (!file_exists($abs)) {
+                $toAdd[] = $path;
+            } else {
+                $localHash = hash_file('sha256', $abs);
+                if ($localHash !== $file['hash']) {
+                    $toDownload[] = $path;
+                }
+            }
+        }
+
+        $migrations = $manifest['migrations'] ?? [];
+        if(!empty($migrations) && $this->CI->db->table_exists('db_schema_migrations')){
+            $applied = array_column(
+                $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                'filename'
+            );
+            $migrations = array_values(array_diff($migrations, $applied));
+        }
+
+        return [
+            'files_to_update' => $toDownload,
+            'files_to_add' => $toAdd,
+            'migrations' => $migrations,
+            'total_operations' => count($toDownload) + count($toAdd) + count($migrations),
+        ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Job / database state                                              */
+    /* ------------------------------------------------------------------ */
+
+    public function startJob(string $fromVersion, string $toVersion): int {
+        $this->CI->db->insert('db_system_updates', [
+            'store_id' => $this->resolveStoreId(),
+            'from_version' => $fromVersion,
+            'to_version' => $toVersion,
+            'status' => 'running',
+            'current_step' => 1,
+            'total_steps' => 8,
+            'step_label' => 'Initializing...',
+            'log' => "Update started: {$fromVersion} → {$toVersion}\n",
+        ]);
+        $this->updateRecordId = $this->CI->db->insert_id();
+        $this->clearState();
+        $this->writeState([
+            'record_id' => $this->updateRecordId,
+            'from_version' => $fromVersion,
+            'to_version' => $toVersion,
+            'step' => 1,
+            'step_label' => 'Initializing...',
+            'message' => '',
+            'done' => false,
+            'failed' => false,
+            'batch' => 0,
+            'total' => 0,
+            'files_to_update' => [],
+            'files_to_add' => [],
+            'migrations' => [],
+            'manifest' => [],
+        ]);
+        return $this->updateRecordId;
+    }
+
+    public function getProgress(): ?object {
+        $this->failStalledJobs();
+        // Prefer the latest DB record; fallback to state file
+        $job = $this->CI->db->order_by('id', 'DESC')
+            ->limit(1)
+            ->get('db_system_updates')
+            ->row();
+
+        if (!$job) {
+            $state = $this->readState();
+            if ($state) {
+                return (object) [
+                    'status' => $state['failed'] ? 'failed' : ($state['done'] ? 'success' : 'running'),
+                    'current_step' => $state['step'],
+                    'total_steps' => 8,
+                    'step_label' => $state['step_label'] . ($state['message'] ? ' — ' . $state['message'] : ''),
+                    'from_version' => $state['from_version'],
+                    'to_version' => $state['to_version'],
+                    'error_message' => $state['failed'] ? $state['message'] : '',
+                    'log' => $state['message'],
+                    'completed_at' => null,
+                ];
+            }
+            return null;
+        }
+
+        return $job;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Main step runner (chunked / resumable)                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Run (or resume) a step. Each call processes one small batch then returns.
+     * The frontend keeps calling with the same step until the returned `done` is true.
+     *
+     * @param int $step 1-8
+     * @param array $manifest Fetched remote manifest
+     * @param array $preview Output of previewChanges()
+     * @return array {status, message, step, done, failed, progress, total}
+     */
+    public function runStep(int $step, array $manifest, array $preview): array {
+        $this->resetTimer();
+        $this->failStalledJobs();
+
+        // We always need a record id. If none, this is the first call to step 1.
+        $state = $this->readState();
+        if (empty($state)) {
+            // A request for any step other than 1 with no stored state means a
+            // stray/retried call arrived after cleanup cleared the state.
+            // Report done — never spawn a second update job for it.
+            if ($step > 1) {
+                return [
+                    'status' => 'ok',
+                    'message' => 'Update already completed.',
+                    'step_label' => $this->stepLabel($step),
+                    'done' => true,
+                    'step' => $step,
+                ];
+            }
+            $this->updateRecordId = 0;
+        } else {
+            $this->updateRecordId = $state['record_id'] ?? 0;
+        }
+        $this->ensureJobExists();
+
+        // If the manifest/preview changed (new call), store them in state.
+        if (!empty($state)) {
+            if (empty($state['manifest'])) {
+                $state['manifest'] = $manifest;
+                $state['files_to_update'] = $preview['files_to_update'];
+                $state['files_to_add'] = $preview['files_to_add'];
+                $state['migrations'] = $preview['migrations'];
+                $state['total'] = count($preview['files_to_update']) + count($preview['files_to_add']) + count($preview['migrations']);
+                $this->writeState($state);
+            }
+        } else {
+            $this->startJob($this->getInstalledVersion(), $manifest['version'] ?? '0.0');
+            $state = $this->readState();
+            $state['manifest'] = $manifest;
+            $state['files_to_update'] = $preview['files_to_update'];
+            $state['files_to_add'] = $preview['files_to_add'];
+            $state['migrations'] = $preview['migrations'];
+            $state['total'] = count($preview['files_to_update']) + count($preview['files_to_add']) + count($preview['migrations']);
+            $this->writeState($state);
+        }
+
+        // Step mismatch: if frontend is asking for a different step than stored,
+        // it usually means the previous step just completed. Move to next.
+        if ($state['step'] !== $step) {
+            $step = $state['step'];
+        }
+
+        try {
+            switch ($step) {
+                case 1:
+                    $result = $this->step1BackupDb($state);
+                    break;
+                case 2:
+                    $result = $this->step2BackupFiles($state);
+                    break;
+                case 3:
+                    $result = $this->step3DownloadFiles($state);
+                    break;
+                case 4:
+                    $result = $this->step4VerifyFiles($state);
+                    break;
+                case 5:
+                    $result = $this->step5ApplyFiles($state);
+                    break;
+                case 6:
+                    $result = $this->step6RunMigrations($state);
+                    break;
+                case 7:
+                    $result = $this->step7Finalize($state);
+                    break;
+                case 8:
+                    $result = $this->step8Cleanup($state);
+                    break;
+                default:
+                    return ['status' => 'error', 'message' => 'Invalid step number'];
+            }
+
+            $this->logJob($step, $result['step_label'] ?? $this->stepLabel($step), $result['message'] ?? '');
+            $this->updateStateFromResult($state, $result);
+
+            return $result;
+
+        } catch (Throwable $e) {
+            // A thrown step is usually TRANSIENT: a channel fetch that timed
+            // out, a 5xx from raw.githubusercontent.com, a request killed by
+            // the host, a shared-host CPU stall. Marking the job terminally
+            // failed on the first throw is what made these installs need a
+            // human — `state['failed']` was never cleared, so auto-update
+            // refused to resume for ever.
+            //
+            // Retry a bounded number of times, then fail for real, so a
+            // genuinely broken release still surfaces instead of looping.
+            //
+            // Returning status 'error' is deliberate: it stops THIS run from
+            // spinning on the same failing step (runAutoUpdate and
+            // runUpdateToCompletion both bail on 'error'), while leaving the
+            // attempt counter below the cap so the next cron tick or Central
+            // wake retries from the checkpoint.
+            $attempts    = (int) ($state['attempts'] ?? 0) + 1;
+            $maxAttempts = 5;
+            $state['attempts'] = $attempts;
+            $state['message']  = $e->getMessage();
+
+            if ($attempts >= $maxAttempts) {
+                $this->markJobFailed($e->getMessage());
+                $state['failed'] = true;
+                $this->writeState($state);
+                return [
+                    'status'  => 'error',
+                    'message' => $e->getMessage() . ' (gave up after ' . $attempts . ' attempts)',
+                    'failed'  => true,
+                    'step'    => $step,
+                ];
+            }
+
+            // Not terminal. Deliberately leave db_system_updates.status alone:
+            // logJob already reported the progress, and the watchdog owns the
+            // abandoned case.
+            $this->writeState($state);
+            return [
+                'status'  => 'error',
+                'message' => $e->getMessage() . ' — transient, will retry automatically (' . $attempts . '/' . $maxAttempts . ').',
+                'failed'  => false,
+                'step'    => $step,
+            ];
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  RESTORE                                                           */
+    /* ------------------------------------------------------------------ */
+
+    public function restore(): array {
+        // Latest job with a backup (failed, running, or success)
+        $job = $this->CI->db->where('status', 'failed')
+            ->or_where('status', 'running')
+            ->or_where('status', 'success')
+            ->order_by('id', 'DESC')
+            ->limit(1)
+            ->get('db_system_updates')
+            ->row();
+
+        if (!$job) {
+            return ['status' => 'error', 'message' => 'No recent update job to restore from.'];
+        }
+
+        $errors = [];
+
+        // Restore DB
+        if (!empty($job->backup_db_path) && file_exists($job->backup_db_path)) {
+            if (!$this->backupManager->restoreDatabase($job->backup_db_path)) {
+                $errors[] = 'Database restore failed.';
+            }
+        } else {
+            $errors[] = 'Database backup not found. Cannot restore DB.';
+        }
+
+        // Restore files
+        if (!empty($job->backup_files_path) && file_exists($job->backup_files_path)) {
+            if (!$this->backupManager->restoreFiles($job->backup_files_path)) {
+                $errors[] = 'File restore failed.';
+            }
+        } else {
+            $errors[] = 'File backup not found. Cannot restore files.';
+        }
+
+        if (empty($errors)) {
+            $this->CI->db->where('id', $job->id)->update('db_system_updates', [
+                'status' => 'restored',
+                'completed_at' => date('Y-m-d H:i:s'),
+                'error_message' => 'Restored to pre-update state.',
+            ]);
+            $this->clearState();
+            return ['status' => 'success', 'message' => 'System restored successfully.'];
+        }
+
+        return ['status' => 'error', 'message' => implode(' ', $errors)];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  STEP HANDLERS                                                     */
+    /* ------------------------------------------------------------------ */
+
+    protected function step1BackupDb(array &$state): array {
+        $this->resetTimer();
+        $this->logJob(1, 'Backup Database', 'Creating SQL dump...');
+
+        $path = $this->backupManager->backupDatabase();
+        if (!$path) {
+            // Say what is actually knowable instead of guessing. The old text
+            // blamed folder permissions, but the real cause on a live store is
+            // almost always the dump exceeding memory/time — which sent
+            // diagnosis in the wrong direction.
+            $last = error_get_last();
+            $why = ($last && !empty($last['message'])) ? ' Last PHP error: ' . $last['message'] : '';
+            throw new Exception(
+                'Database backup failed — the updater cannot proceed without one. '
+                . 'Most common cause: the dump ran out of memory or time on a large database.'
+                . $why
+            );
+        }
+
+        // Save the backup path in the job record for restore
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'backup_db_path' => $path,
+        ]);
+
+        return [
+            'status' => 'ok',
+            'message' => 'Database backed up: ' . basename($path),
+            'step_label' => 'Backup Database',
+            'done' => true,
+            'step' => 1,
+        ];
+    }
+
+    protected function step2BackupFiles(array &$state): array {
+        $this->resetTimer();
+        $this->logJob(2, 'Backup Files', 'Zipping files to be changed...');
+
+        $files = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+        $path = $this->backupManager->backupFiles($files);
+
+        if (!$path) {
+            // File backup is not fatal; we still have DB backup.
+            $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+                'backup_files_path' => '',
+            ]);
+            return [
+                'status' => 'ok',
+                'message' => 'Files backup skipped (ZipArchive not available).',
+                'step_label' => 'Backup Files',
+                'done' => true,
+                'step' => 2,
+            ];
+        }
+
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'backup_files_path' => $path,
+        ]);
+
+        return [
+            'status' => 'ok',
+            'message' => 'Files backed up.',
+            'step_label' => 'Backup Files',
+            'done' => true,
+            'step' => 2,
+        ];
+    }
+
+    protected function step3DownloadFiles(array &$state): array {
+        $this->resetTimer();
+
+        $channel = $this->getUpdateChannelUrl();
+        // Immutable ref recorded by fetchManifest(), so the files match the
+        // manifest this job is verifying against.
+        $channelRef = (string) ($state['manifest']['_channel_ref'] ?? '');
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+
+        // Drop paths the CURRENT manifest no longer lists. A persisted state
+        // from an earlier run can reference files that have since been removed
+        // from the release (e.g. application/logs/log-*.php after logs were
+        // excluded). Replaying those 404s forever and the update never
+        // advances past step 3.
+        $manifestPaths = [];
+        foreach (($state['manifest']['files'] ?? []) as $f) {
+            if (!empty($f['path'])) { $manifestPaths[$f['path']] = true; }
+        }
+        if (!empty($manifestPaths)) {
+            $before = count($allFiles);
+            $allFiles = array_values(array_filter($allFiles, function ($p) use ($manifestPaths) {
+                return isset($manifestPaths[$p]);
+            }));
+            if (count($allFiles) !== $before) {
+                // A shrunk list invalidates any saved offset.
+                $state['files_to_update'] = array_values(array_filter(
+                    $state['files_to_update'] ?? [], function ($p) use ($manifestPaths) { return isset($manifestPaths[$p]); }
+                ));
+                $state['files_to_add'] = array_values(array_filter(
+                    $state['files_to_add'] ?? [], function ($p) use ($manifestPaths) { return isset($manifestPaths[$p]); }
+                ));
+                $state['batch'] = 0;
+                $this->writeState($state);
+            }
+        }
+
+        // Determine resume offset
+        $offset = $state['batch'] ?? 0;
+        $total = count($allFiles);
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'All files downloaded.',
+                'step_label' => 'Download Changed Files',
+                'done' => true,
+                'step' => 3,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        $deadline = microtime(true) + $this->stepTimeBudget;
+        $processed = 0;
+
+        foreach ($batch as $relPath) {
+            // Hand control back to the browser before the host kills us —
+            // the next call resumes from $state['batch'].
+            if (microtime(true) >= $deadline) {
+                break;
+            }
+            $this->resetTimer();
+            $processed++;
+            $remoteUrl = $this->channelFileUrl($channel, $relPath, $channelRef);
+            $localTemp = $this->tempDir . '/' . $relPath;
+            $dir = dirname($localTemp);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
+            }
+
+            // Download with retry
+            $data = $this->httpGet($remoteUrl, 30);
+            if ($data === null) {
+                if ($this->isNonCritical($relPath)) {
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
+                throw new Exception("Failed to download after retries: {$relPath}");
+            }
+
+            if (@file_put_contents($localTemp, $data) === false) {
+                if ($this->isNonCritical($relPath)) {
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
+                throw new Exception("Failed to write temp file: {$relPath}");
+            }
+        }
+
+        $batchEnd = $offset + $processed;
+        $state['batch'] = $batchEnd;
+        $this->writeState($state);
+
+        $message = "Downloaded {$batchEnd} / {$total} files";
+        $this->logJob(3, 'Download Changed Files', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Download Changed Files',
+            'done' => ($batchEnd >= $total),
+            'step' => 3,
+            'progress' => $batchEnd,
+            'total' => $total,
+        ];
+    }
+
+    protected function step4VerifyFiles(array &$state): array {
+        $this->resetTimer();
+
+        $manifest = $state['manifest'] ?? [];
+        // Immutable ref recorded by fetchManifest(); repair downloads must use
+        // the same commit the manifest came from.
+        $channelRef = (string) ($manifest['_channel_ref'] ?? '');
+        $manifestMap = [];
+        foreach ($manifest['files'] ?? [] as $f) {
+            $manifestMap[$f['path']] = $f['hash'];
+        }
+
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+
+        // Files that mismatched on earlier passes wait here for the channel's
+        // CDN cache to expire (raw.githubusercontent.com caches each URL for
+        // ~5 minutes and ignores query strings, so an instant retry serves the
+        // same stale bytes — the failure must be deferred, not fatal).
+        $pendingMap = $state['hash_pending'] ?? [];
+        $total = count($allFiles);
+
+        $queue = $allFiles;
+        if (!empty($pendingMap)) {
+            // Only retry a pending file once its cache window has elapsed.
+            // Retrying sooner just re-reads the same stale copy and burns the
+            // retry budget — which is how a couple of stale files used to reach
+            // the give-up threshold and fail an otherwise healthy job.
+            $now = time();
+            $queue = [];
+            foreach (array_keys($pendingMap) as $p) {
+                if ((int) ($state['hash_retry_at'][$p] ?? 0) <= $now) {
+                    $queue[] = $p;
+                }
+            }
+            if (empty($queue)) {
+                $wait = 1;
+                foreach (array_keys($pendingMap) as $p) {
+                    $wait = max($wait, (int) ($state['hash_retry_at'][$p] ?? 0) - $now);
+                }
+                $verified = $total - count($pendingMap);
+                return [
+                    'status' => 'ok',
+                    'message' => "Verified {$verified} / {$total} files — waiting "
+                        . (int) ceil($wait / 60)
+                        . ' min for the update channel cache to refresh before retrying '
+                        . count($pendingMap) . ' file(s)',
+                    'step_label' => 'Verify File Integrity',
+                    'done' => false,
+                    'step' => 4,
+                    'progress' => $verified,
+                    'total' => $total,
+                ];
+            }
+        }
+        $queueTotal = count($queue);
+
+        $offset = !empty($pendingMap) ? 0 : ($state['batch'] ?? 0);
+
+        // For step 4, we start from the beginning (we just finished step 3 at $total)
+        if ($offset === $total && $state['step'] === 3) {
+            $offset = 0;
+            $state['batch'] = 0;
+        }
+
+        if ($offset >= $queueTotal && empty($pendingMap)) {
+            return [
+                'status' => 'ok',
+                'message' => 'All hashes verified.',
+                'step_label' => 'Verify File Integrity',
+                'done' => true,
+                'step' => 4,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $batch = array_slice($queue, $offset, $this->batchSize);
+        foreach ($batch as $relPath) {
+            $this->resetTimer();
+            $tempPath = $this->tempDir . '/' . $relPath;
+            $expected = $manifestMap[$relPath] ?? null;
+
+            $ok = file_exists($tempPath)
+                && (!$expected || hash_file('sha256', $tempPath) === $expected);
+
+            // Self-heal: a stale or truncated temp file from an earlier failed
+            // run must not doom every retry — re-fetch before deciding. A few
+            // short-spaced attempts inside this request cover a corrupted local
+            // copy; anything still wrong defers to a later pass via hash_pending
+            // so the channel's cache window can elapse first.
+            for ($attempt = 0; !$ok && $attempt < 3; $attempt++) {
+                if ($attempt > 0) sleep(2);
+                if ($this->redownloadFile($relPath, $tempPath, $channelRef)) {
+                    $ok = file_exists($tempPath)
+                        && (!$expected || hash_file('sha256', $tempPath) === $expected);
+                }
+            }
+
+            if (!$ok) {
+                if ($this->isNonCritical($relPath)) {
+                    @unlink($tempPath);
+                    unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath], $state['hash_retry_at'][$relPath]);
+                    $state['files_skipped'][] = $relPath;
+                    $this->writeState($state);
+                    continue;
+                }
+                if (!file_exists($tempPath)) {
+                    throw new Exception("Missing downloaded file: {$relPath}");
+                }
+                $retries = ($state['hash_retry'][$relPath] ?? 0) + 1;
+                $state['hash_retry'][$relPath] = $retries;
+                if ($retries > 60) {
+                    unset($state['hash_pending'][$relPath], $state['hash_retry_at'][$relPath]);
+                    // With an immutable ref the bytes cannot be stale, so a
+                    // persistent mismatch means the published release really is
+                    // wrong — say that instead of blaming the cache.
+                    $hint = ($channelRef !== '')
+                        ? 'the release on the update channel is internally inconsistent (this file does not match the hash in its manifest) — ask your MartPoint administrator to republish the release, then press Resume.'
+                        : 'the update channel is still serving a cached copy. Wait a few minutes and press Resume; the update continues from this checkpoint.';
+                    throw new Exception("Hash mismatch for: {$relPath} — {$hint}");
+                }
+                $state['hash_pending'][$relPath] = true;
+                // Not eligible again until the CDN cache window has elapsed.
+                $state['hash_retry_at'][$relPath] = time() + $this->channelCacheTtl + 15;
+                continue;
+            }
+            unset($state['hash_pending'][$relPath], $state['hash_retry'][$relPath], $state['hash_retry_at'][$relPath]);
+        }
+
+        $stillPending = !empty($state['hash_pending']);
+        // Advance the main-pass offset only while draining the full list —
+        // pending-mode passes must not move it or the unverified tail of
+        // $allFiles would be skipped once the pending files finally match.
+        $batchEnd = $total;
+        if (empty($pendingMap)) {
+            $batchEnd = min($offset + count($batch), $total);
+            $state['batch'] = $batchEnd;
+        }
+        $this->writeState($state);
+
+        $verifiedCount = $total - count($state['hash_pending'] ?? []);
+        $message = $stillPending
+            ? "Verified {$verifiedCount} / {$total} files — waiting for the update channel cache to refresh (this clears itself; keep this page open)"
+            : "Verified {$batchEnd} / {$total} files";
+        $this->logJob(4, 'Verify File Integrity', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Verify File Integrity',
+            'done' => false,
+            'step' => 4,
+            'progress' => $verifiedCount,
+            'total' => $total,
+        ];
+    }
+
+    protected function step5ApplyFiles(array &$state): array {
+        $this->resetTimer();
+
+        $allFiles = array_merge($state['files_to_update'] ?? [], $state['files_to_add'] ?? []);
+        $total = count($allFiles);
+
+        // Reset offset if we just finished step 4 at $total
+        $offset = $state['batch'] ?? 0;
+        if ($offset === $total && $state['step'] === 4) {
+            $offset = 0;
+            $state['batch'] = 0;
+        }
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'All file changes applied.',
+                'step_label' => 'Apply File Changes',
+                'done' => true,
+                'step' => 5,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $skipped = array_flip($state['files_skipped'] ?? []);
+        $batch = array_slice($allFiles, $offset, $this->batchSize);
+        foreach ($batch as $relPath) {
+            $this->resetTimer();
+            if ($this->isProtected($relPath) || isset($skipped[$relPath])) {
+                continue;
+            }
+            $source = $this->tempDir . '/' . $relPath;
+            $target = FCPATH . $relPath;
+            $dir = dirname($target);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
+            }
+            if (!@copy($source, $target)) {
+                throw new Exception("Failed to apply file: {$relPath}");
+            }
+        }
+
+        $batchEnd = min($offset + count($batch), $total);
+        $state['batch'] = $batchEnd;
+        $this->writeState($state);
+
+        $message = "Applied {$batchEnd} / {$total} files";
+        $this->logJob(5, 'Apply File Changes', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Apply File Changes',
+            'done' => ($batchEnd >= $total),
+            'step' => 5,
+            'progress' => $batchEnd,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * One-time schema reconciliation, run before migrations.
+     *
+     * WHY THIS EXISTS
+     *
+     * A migration's guarded ALTER (the `information_schema.columns` +
+     * `DO 0` pattern) is safe when the column is missing — but it is NOT
+     * safe when the whole TABLE is missing. The guard counts columns of
+     * `table_name='X'`, sees 0, and builds `ALTER TABLE X ADD COLUMN ...`,
+     * which fatals with "Table 'X' doesn't exist". That fatal is
+     * deterministic: the runner retries 5 times, gives up, and the install
+     * is wedged at that migration FOREVER — it can never reach the later
+     * repair migrations. Observed live:
+     *
+     *   Migration failed [4.0.9.107_printing_machines.sql]:
+     *   Table 'elitewor_rollin_db.db_print_stage_logs' doesn't exist
+     *
+     * The install's ledger recorded 4.0.9.84 (which creates that table) as
+     * applied, but the table itself was missing — so 4.0.9.84 was skipped,
+     * and 4.0.9.107's ALTER died on a table that no longer exists.
+     *
+     * The fix is to reconcile the schema BEFORE running any migration:
+     * replay the canonical `CREATE TABLE IF NOT EXISTS` definitions shipped
+     * with the release (setup/install/includes/db_schema_catchup.sql). Each
+     * is the FULL final table definition, so a missing table is recreated
+     * with every column — after which the later migrations' guarded ALTERs
+     * all become `DO 0` no-ops and can no longer fatal.
+     *
+     * - Idempotent: `IF NOT EXISTS` everywhere, zero `DROP TABLE`.
+     * - Non-destructive and re-runnable.
+     * - Only the CREATE TABLE statements are replayed (the file's raw ALTERs
+     *   assume a fresh install and would duplicate columns on a live one).
+     * - Chunked with a wall-clock budget and checkpointed, so a large schema
+     *   never exceeds a single request's lifetime.
+     *
+     * @return array|null A progress result when chunking (resume next tick),
+     *                    or null when reconciliation is complete/not needed.
+     */
+    protected function reconcileSchema(array &$state): ?array {
+        $relative = 'setup/install/includes/db_schema_catchup.sql';
+        $file = FCPATH . $relative;
+        $sql = @file_get_contents($file);
+        // Old interrupted releases may never have shipped setup/. Fetch the
+        // canonical source from the release channel and verify its manifest hash.
+        if ($sql === false) {
+            $file = $this->tempDir . '/schema-catchup.sql';
+            $sql = @file_get_contents($file);
+            if ($sql === false) {
+                $manifest = $this->fetchManifest();
+                $hash = null;
+                foreach (($manifest['files'] ?? []) as $entry) {
+                    if (($entry['path'] ?? '') === $relative) { $hash = $entry['hash'] ?? null; break; }
+                }
+                if (!$hash) { throw new Exception('Release does not provide the canonical schema required to resume migrations.'); }
+                $sql = $this->httpGet(rtrim($this->getUpdateChannelUrl(), '/') . '/' . $relative, 30);
+                if ($sql === null || !hash_equals($hash, hash('sha256', $sql))) {
+                    throw new Exception('Canonical schema download failed or did not match the release hash.');
+                }
+                if (@file_put_contents($file, $sql) === false) {
+                    throw new Exception('Cannot save canonical schema in updates/temp.');
+                }
+            }
+        }
+        $schemaHash = hash('sha256', $sql);
+        if (!empty($state['schema_reconciled']) && ($state['schema_hash'] ?? '') === $schemaHash) {
+            return null;
+        }
+        if (($state['schema_hash'] ?? '') !== $schemaHash) {
+            $state['schema_hash'] = $schemaHash;
+            $state['reconcile_offset'] = 0;
+            $state['schema_reconciled'] = false;
+        }
+
+        // Keep ONLY the CREATE TABLE statements. They are the full final
+        // definitions and are idempotent. The file's raw ALTERs, ledger
+        // INSERTs and version UPDATE are deliberately skipped (see docblock).
+        $creates = [];
+        foreach ($this->splitSql($sql) as $stmt) {
+            if (stripos(trim($stmt), 'CREATE TABLE') === 0) {
+                $creates[] = $this->sanitizeCollation(trim($stmt));
+            }
+        }
+
+        $total  = count($creates);
+        $offset = (int) ($state['reconcile_offset'] ?? 0);
+
+        $this->resetTimer();
+        // FK checks are session-scoped and each request is a fresh connection,
+        // so re-assert per slice.
+        @$this->CI->db->query('SET FOREIGN_KEY_CHECKS = 0');
+
+        $started = microtime(true);
+        $budget  = 20; // seconds of this slice
+
+        try {
+        while ($offset < $total) {
+            if ((microtime(true) - $started) > $budget) {
+                $state['reconcile_offset'] = $offset;
+                $this->writeState($state);
+                return [
+                    'status'     => 'ok',
+                    'message'    => 'Reconciling schema… ' . $offset . '/' . $total,
+                    'step_label' => 'Run Database Migrations',
+                    'done'       => false,
+                    'step'       => 6,
+                    'progress'   => $offset,
+                    'total'      => $total,
+                ];
+            }
+
+            $stmt = $creates[$offset];
+            $offset++;
+
+            $result = @$this->CI->db->query($stmt);
+            if ($result === false) {
+                $err = $this->CI->db->error();
+                $state['reconcile_offset'] = $offset - 1;
+                $this->writeState($state);
+                throw new Exception('Schema reconciliation failed: ' . ($err['message'] ?? 'unknown error')
+                    . ' [' . substr($stmt, 0, 100) . ']');
+            }
+        }
+
+        } finally {
+            @$this->CI->db->query('SET FOREIGN_KEY_CHECKS = 1');
+        }
+
+        $state['reconcile_offset'] = $total;
+        $state['schema_reconciled'] = true;
+        $this->writeState($state);
+        return null;
+    }
+
+    /**
+     * Rewrite MySQL 8.0-only collations/charsets to portable equivalents.
+     *
+     * The canonical schema was generated from a MySQL 8.0 database, so it
+     * carries `utf8mb4_0900_*` (and `utf8mb3`) — neither of which exists on
+     * MySQL 5.7 or MariaDB. A fresh install died with:
+     *
+     *   SQL error #1273: Unknown collation: 'utf8mb4_0900_ai_ci'
+     *
+     * This is defence-in-depth on top of sanitizing the shipped files: a
+     * fleet whose local db_schema_catchup.sql is still the poisoned copy
+     * (its update was interrupted before step 5 applied setup/) is healed
+     * here, in memory, at execution time.
+     */
+    protected function sanitizeCollation(string $sql): string {
+        $sql = str_replace('utf8mb4_0900_ai_ci', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_as_ci', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_as_cs', 'utf8mb4_unicode_ci', $sql);
+        $sql = str_replace('utf8mb4_0900_bin', 'utf8mb4_bin', $sql);
+        $sql = str_replace('utf8mb3', 'utf8', $sql);
+        return $sql;
+    }
+
+    protected function step6RunMigrations(array &$state): array {
+        $this->resetTimer();
+
+        // Reconcile the schema once per update, before any migration runs.
+        $recon = $this->reconcileSchema($state);
+        if ($recon !== null) {
+            return $recon;
+        }
+
+        $manifest = $state['manifest'] ?? [];
+        $migrations = $state['migrations'] ?? [];
+        $channel = $this->getUpdateChannelUrl();
+
+        $offset = $state['batch'] ?? 0;
+        $total = count($migrations);
+
+        if ($offset >= $total) {
+            return [
+                'status' => 'ok',
+                'message' => 'Migrations completed.',
+                'step_label' => 'Run Database Migrations',
+                'done' => true,
+                'step' => 6,
+                'progress' => $total,
+                'total' => $total,
+            ];
+        }
+
+        $migrationFile = $migrations[$offset];
+
+        // Skip if already applied.
+        //
+        // Matches by FILENAME ONLY — a migration file applies once, ever,
+        // whichever release happened to carry it. This must agree with
+        // previewChanges(), which already diffs on filename alone.
+        //
+        // The previous check also matched `version` (the release that ran it),
+        // so a migration recorded under an earlier release was NOT recognised
+        // when a later release listed it again — it re-ran, hit
+        // "Duplicate column name", and the benign-error filter swallowed it.
+        // Harmless with idempotent SQL, but it logged a wall of errors and
+        // re-executed DDL on every update.
+        $already = $this->CI->db->where('filename', $migrationFile)
+            ->get('db_schema_migrations')
+            ->num_rows();
+        if ($already > 0) {
+            $state['batch'] = $offset + 1;
+            $this->writeState($state);
+            return [
+                'status' => 'ok',
+                'message' => 'Skipped ' . $migrationFile . ' (already applied).',
+                'step_label' => 'Run Database Migrations',
+                'done' => false,
+                'step' => 6,
+                'progress' => $offset + 1,
+                'total' => $total,
+            ];
+        }
+
+        // Migrations change the DATABASE, so a stale cached copy here is far
+        // worse than a stale file — pin to the same commit the manifest came
+        // from, exactly as the file downloads do.
+        $sqlUrl = $this->channelFileUrl(
+            $channel,
+            'migrations/' . $migrationFile,
+            (string) ($state['manifest']['_channel_ref'] ?? '')
+        );
+        $sql = $this->httpGet($sqlUrl, 60);
+        if ($sql === null) {
+            throw new Exception("Failed to fetch migration: {$migrationFile}");
+        }
+
+        $this->CI->db->trans_start();
+        $statements = $this->splitSql($sql);
+        foreach ($statements as $stmt) {
+            $stmt = trim($stmt);
+            if (empty($stmt)) continue;
+            $result = @$this->CI->db->query($stmt);
+            if ($result === false) {
+                $error = $this->CI->db->error();
+                $benign = (stripos($error['message'], 'Duplicate') !== false)
+                       || (stripos($error['message'], 'already exists') !== false)
+                       || (stripos($error['message'], 'Duplicate entry') !== false);
+                if (!$benign) {
+                    $this->CI->db->trans_rollback();
+                    throw new Exception("Migration failed [{$migrationFile}]: " . $error['message']);
+                }
+            }
+        }
+        $this->CI->db->trans_complete();
+
+        $this->CI->db->insert('db_schema_migrations', [
+            'version' => $manifest['version'],
+            'filename' => $migrationFile,
+        ]);
+
+        $state['batch'] = $offset + 1;
+        $this->writeState($state);
+
+        $message = 'Ran migration ' . ($offset + 1) . ' / ' . $total . ': ' . $migrationFile;
+        $this->logJob(6, 'Run Database Migrations', $message);
+
+        return [
+            'status' => 'ok',
+            'message' => $message,
+            'step_label' => 'Run Database Migrations',
+            'done' => ($offset + 1 >= $total),
+            'step' => 6,
+            'progress' => $offset + 1,
+            'total' => $total,
+        ];
+    }
+
+    protected function step7Finalize(array &$state): array {
+        $this->resetTimer();
+
+        // REFUSE TO FINALIZE WHILE MIGRATIONS ARE OUTSTANDING.
+        //
+        // This closes the worst failure mode seen in the field. An install
+        // applies its files (step 5), stalls part-way through the migration
+        // chain (step 6) — and still reached here, which stamped `version` and
+        // `status = 'success'` unconditionally. The install then looked
+        // perfectly up to date in the fleet, because the heartbeat reports the
+        // CODE version and step 5 had already advanced that to the new release.
+        // Meanwhile its database silently stayed as many releases behind as the
+        // chain had failed to cover, and NOTHING reported it: not the fleet
+        // list, not the update log, not the install's own Status column.
+        //
+        // Observed for real: three installs parked on
+        //   "Run Database Migrations — Ran migration 1 / 18"
+        // while advertising the newest version and a clean status.
+        //
+        // The pending list is already in state, so this is a local DB check —
+        // no channel fetch. Throwing is deliberate: the caller treats it as a
+        // transient failure, records the reason, and retries from the
+        // checkpoint. So the update can NOT be marked done until the database
+        // is actually current, and if it never gets there the fleet shows a
+        // real failure instead of a false success.
+        $migrations = $state['migrations'] ?? [];
+        $pending = 0;
+        if (!empty($migrations) && $this->CI->db->table_exists('db_schema_migrations')) {
+            $done = array_flip(array_column(
+                $this->CI->db->select('filename')->get('db_schema_migrations')->result_array(),
+                'filename'
+            ));
+            foreach ($migrations as $m) {
+                if (!isset($done[$m])) { $pending++; }
+            }
+        }
+        if ($pending > 0) {
+            throw new Exception(
+                'Refusing to finalize: ' . $pending . ' of ' . count($migrations)
+                . ' migration(s) have not run, so the database would be left behind the code. '
+                . 'Retrying from the checkpoint.'
+            );
+        }
+
+        $newVersion = $state['to_version'] ?? '0.0';
+        $this->CI->db->where('id', 1)->update('db_sitesettings', [
+            'version' => $newVersion,
+        ]);
+
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'status' => 'success',
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return [
+            'status' => 'ok',
+            'message' => "Updated to {$newVersion}.",
+            'step_label' => 'Finalize Update',
+            'done' => true,
+            'step' => 7,
+        ];
+    }
+
+    protected function step8Cleanup(array &$state): array {
+        $this->resetTimer();
+
+        if (is_dir($this->tempDir)) {
+            $this->rrmdir($this->tempDir);
+        }
+        $this->backupManager->cleanup(3);
+
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'status' => 'success',
+            'current_step' => 8,
+            'step_label' => 'Update complete',
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->clearState();
+
+        return [
+            'status' => 'ok',
+            'message' => 'Update complete',
+            'step_label' => 'Cleanup',
+            'done' => true,
+            'step' => 8,
+        ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  STATE HELPERS                                                     */
+    /* ------------------------------------------------------------------ */
+
+    public function getPersistedState(): ?array {
+        return $this->readState();
+    }
+
+    protected function readState(): ?array {
+        if (file_exists($this->statePath)) {
+            $json = file_get_contents($this->statePath);
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+        return null;
+    }
+
+    protected function writeState(array $state): void {
+        @file_put_contents($this->statePath, json_encode($state, JSON_PRETTY_PRINT));
+    }
+
+    protected function clearState(): void {
+        if (file_exists($this->statePath)) {
+            @unlink($this->statePath);
+        }
+    }
+
+    protected function updateStateFromResult(array &$state, array $result): void {
+        $state['step'] = $result['step'] ?? $state['step'];
+        $state['step_label'] = $result['step_label'] ?? $this->stepLabel($state['step']);
+        $state['message'] = $result['message'] ?? '';
+        $state['done'] = $result['done'] ?? false;
+
+        // Reaching here means the step completed without throwing, so clear the
+        // transient-failure counter. Without this a step that fails once per
+        // run would accumulate attempts across a long, otherwise healthy
+        // update and eventually give up on a release that is fine.
+        $state['attempts'] = 0;
+
+        // Also clear a stale `failed` flag. A job can be marked failed and then
+        // still make progress (the browser-driven run_step path ignores the
+        // flag, and so does any build that predates the $resuming fix). If the
+        // flag survives that progress, cron keeps believing the job is dead
+        // and only a human can restart it — the exact loop we are removing.
+        $state['failed'] = false;
+
+        if ($result['done']) {
+            $state['batch'] = 0; // Reset batch for next step
+            $state['step'] = min($state['step'] + 1, 8);
+        }
+
+        $this->writeState($state);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  DB job helpers                                                    */
+    /* ------------------------------------------------------------------ */
+
+    protected function logJob(int $step, string $label, string $message = ''): void {
+        if ($this->updateRecordId <= 0) {
+            return;
+        }
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'current_step' => $step,
+            'step_label' => $label . ($message ? " — {$message}" : ''),
+            'log' => $message,
+        ]);
+        // Terminal steps (finalize/cleanup) already wrote success — never
+        // regress a finished job back to running, or the watchdog will mark
+        // it failed ten minutes after it actually completed.
+        $this->CI->db->where('id', $this->updateRecordId)
+            ->where_not_in('status', ['success', 'restored'])
+            ->update('db_system_updates', ['status' => 'running']);
+    }
+
+    protected function ensureJobExists(): void {
+        if ($this->updateRecordId > 0) {
+            return;
+        }
+        $job = $this->CI->db->order_by('id', 'DESC')
+            ->limit(1)
+            ->get('db_system_updates')
+            ->row();
+        if ($job) {
+            $this->updateRecordId = $job->id;
+        }
+    }
+
+    protected function markJobFailed(string $message): void {
+        if ($this->updateRecordId <= 0) {
+            return;
+        }
+        $this->CI->db->where('id', $this->updateRecordId)->update('db_system_updates', [
+            'status' => 'failed',
+            'error_message' => $message,
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    protected function stepLabel(int $step): string {
+        $map = [
+            1 => 'Backup Database',
+            2 => 'Backup Files',
+            3 => 'Download Changed Files',
+            4 => 'Verify File Integrity',
+            5 => 'Apply File Changes',
+            6 => 'Run Database Migrations',
+            7 => 'Finalize Update',
+            8 => 'Cleanup',
+        ];
+        return $map[$step] ?? 'Unknown';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Network / misc                                                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * One HTTP GET attempt. Prefers cURL: on many hosts (cPanel in particular)
+     * allow_url_fopen fetches fail with "operation failed" while cURL works
+     * fine — the same split deploy.php documents. Falls back to
+     * file_get_contents when cURL is unavailable.
+     *
+     * On failure returns null and leaves the reason in $this->httpLastDetail.
+     */
+    protected function httpGetOnce(string $url, int $timeout): ?string {
+        $this->httpLastDetail = '';
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min($timeout, 30),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_FAILONERROR    => false,
+                CURLOPT_USERAGENT      => 'MartPointUpdater/1.0',
+            ]);
+            $data = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err  = curl_error($ch);
+            curl_close($ch);
+
+            if ($data !== false && $code >= 200 && $code < 300) {
+                return (string) $data;
+            }
+            $this->httpLastDetail = $data === false
+                ? ('cURL error: ' . ($err !== '' ? $err : 'unknown'))
+                : ('HTTP ' . $code);
+            return null;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout' => $timeout,
+                'user_agent' => 'MartPointUpdater/1.0',
+                'follow_location' => 1,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+        $data = @file_get_contents($url, false, $ctx);
+        if ($data !== false) {
+            return $data;
+        }
+        if (isset($http_response_header) && is_array($http_response_header) && !empty($http_response_header[0])) {
+            $this->httpLastDetail = $http_response_header[0];
+        } else {
+            $this->httpLastDetail = error_get_last()['message'] ?? 'unknown';
+        }
+        return null;
+    }
+
+    protected function httpGet(string $url, int $timeout = 30): ?string {
+        $attempts = 0;
+        $maxAttempts = 3;
+        $lastError = '';
+
+        while ($attempts < $maxAttempts) {
+            $attempts++;
+            $data = $this->httpGetOnce($url, $timeout);
+            if ($data !== null) {
+                return $data;
+            }
+            $lastError = $this->httpLastDetail ?: 'unknown';
+            if ($attempts < $maxAttempts) {
+                sleep(min($attempts, 3)); // Backoff: 1s, 2s, 3s
+            }
+        }
+
+        $detail = $lastError;
+        log_message('error', "Updater httpGet failed for {$url}: {$detail}");
+        $this->lastManifestError = "Could not download {$url} — {$detail}";
+        return null;
+    }
+
+    // Minimal POST helper for the fleet heartbeat — no retry loop, telemetry
+    // must never hold up the request that triggered it.
+    //
+    // Uses the same cURL-first path as httpGetOnce(): on cPanel hosts
+    // allow_url_fopen fetches fail with "operation failed" while cURL works,
+    // and a heartbeat/enrolment that silently never arrives is exactly how an
+    // install disappears from the fleet registry.
+    protected function httpPost(string $url, array $payload, int $timeout = 8): ?string {
+        $body = http_build_query($payload);
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min($timeout, 10),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_FAILONERROR    => false,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $body,
+                CURLOPT_USERAGENT      => 'MartPointUpdater/1.0',
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+            ]);
+            $data = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            return ($data !== false && $code >= 200 && $code < 300) ? (string) $data : null;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => $timeout,
+                'user_agent' => 'MartPointUpdater/1.0',
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'content' => $body,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+        $data = @file_get_contents($url, false, $ctx);
+        return $data === false ? null : $data;
+    }
+
+    protected function getUpdateChannelUrl(): string {
+        try {
+            $row = $this->CI->db->select('update_channel_url')
+                ->from('db_sitesettings')
+                ->where('id', 1)
+                ->get()
+                ->row();
+            $url = $row ? ($row->update_channel_url ?? '') : '';
+        } catch (Throwable $e) {
+            $url = '';
+        }
+        if (empty($url)) {
+            return 'https://raw.githubusercontent.com/avariodigitals/martpoint-retail-releases/main/releases/latest';
+        }
+        return $url;
+    }
+
+    /**
+     * Split a GitHub raw channel URL into owner / repo / ref / subpath.
+     * Returns null for any other host, so callers fall back to the plain URL.
+     */
+    protected function channelRepoInfo(string $channel): ?array {
+        if (!preg_match(
+            '#^https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$#i',
+            rtrim($channel, '/'),
+            $m
+        )) {
+            return null;
+        }
+        return ['owner' => $m[1], 'repo' => $m[2], 'ref' => $m[3], 'subpath' => $m[4]];
+    }
+
+    /**
+     * Resolve the channel's current commit SHA so an update reads its manifest
+     * and every file from ONE immutable point.
+     *
+     * The manifest and the files live at the same moving path (releases/latest),
+     * and the CDN caches each URL independently — so right after a release is
+     * published a client can pair a fresh manifest with cached files and fail
+     * hashes that are perfectly correct upstream. Pinning to the commit SHA
+     * removes the race outright: a SHA URL never changes, so caching it is
+     * always safe and the manifest can never disagree with its files.
+     *
+     * Returns '' when the channel is not GitHub-hosted or the lookup fails;
+     * callers then fall back to the moving URL (and rely on the TTL-gated
+     * retry in step4 to wait out any staleness).
+     */
+    protected function resolveChannelRef(string $channel): string {
+        if ($this->channelRef !== null) {
+            return $this->channelRef;
+        }
+        $this->channelRef = '';
+
+        $info = $this->channelRepoInfo($channel);
+        if ($info === null) {
+            return '';
+        }
+
+        $api = 'https://api.github.com/repos/' . rawurlencode($info['owner'])
+            . '/' . rawurlencode($info['repo'])
+            . '/commits/' . rawurlencode($info['ref']);
+
+        // This lookup must not overwrite lastManifestError — a failed ref
+        // resolution is non-fatal, a failed manifest fetch is not.
+        $saved = $this->lastManifestError;
+        $json = $this->httpGet($api, 15);
+        $this->lastManifestError = $saved;
+
+        if ($json === null) {
+            return '';
+        }
+        $data = json_decode($json, true);
+        $sha = is_array($data) ? (string) ($data['sha'] ?? '') : '';
+        if (preg_match('/^[0-9a-f]{40}$/', $sha)) {
+            $this->channelRef = $sha;
+        }
+        return $this->channelRef;
+    }
+
+    /**
+     * Build the URL for a channel file, pinned to an immutable ref when one is
+     * available. Falls back to the moving channel path otherwise.
+     */
+    protected function channelFileUrl(string $channel, string $relPath, string $ref = ''): string {
+        $base = rtrim($channel, '/');
+        if ($ref !== '' && ($info = $this->channelRepoInfo($channel)) !== null) {
+            $base = 'https://raw.githubusercontent.com/' . $info['owner'] . '/' . $info['repo']
+                . '/' . $ref . '/' . $info['subpath'];
+        }
+        return $base . '/' . ltrim($relPath, '/');
+    }
+
+    protected function isProtected(string $path): bool {
+        foreach ($this->protectedPaths as $protected) {
+            if (strpos($path, $protected) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Non-executable content (docs/guides) must never block a code update:
+    // a stale or missing doc is skipped with a warning, not fatal.
+    /**
+     * Files whose absence must NOT fail an update.
+     *
+     * If a path cannot be downloaded or written, a critical file means the
+     * release is broken and we abort. But runtime-generated paths (logs,
+     * cache) and documentation are never essential to run the app — aborting
+     * the whole release because one log file 404s is how installs got stuck
+     * failing forever on "Failed to download ... application/logs/log-*.php".
+     *
+     * Logs are the important case: an install running an older build has a
+     * persisted update-state.json that still lists a log file the channel no
+     * longer publishes (logs are excluded from manifests now). Without this,
+     * the resume replays the dead path on every retry and never advances.
+     */
+    protected function isNonCritical(string $path): bool {
+        foreach ([
+            'docs/',
+            'application/logs/',
+            'application/cache/',
+            'application/sessions/',
+        ] as $prefix) {
+            if (strpos($path, $prefix) === 0) {
+                return true;
+            }
+        }
+        // Any stray log file anywhere (e.g. an old manifest listed one).
+        if (preg_match('#(^|/)log-[0-9]{4}-[0-9]{2}-[0-9]{2}\.php$#', $path)) {
+            return true;
+        }
+        return false;
+    }
+
+    // A killed request leaves status='running' forever (state was never
+    // written). Any "running" job with no DB write for 10+ minutes is dead —
+    // mark it failed so the UI shows the truth; the persisted state file lets
+    // a retry resume from the last checkpoint.
+    protected function failStalledJobs(): void {
+        if (!$this->CI->db->field_exists('updated_at', 'db_system_updates')) {
+            return;
+        }
+        // The window MUST exceed the cadence that resumes a job.
+        //
+        // An in-flight update advances one slice at a time: ~110s of work per
+        // call, and the next call arrives from the */30 cron or Central's wake
+        // ping. So a perfectly healthy job is legitimately idle for up to 30
+        // minutes between slices.
+        //
+        // The old 600s (10 min) window was SHORTER than that cadence, so every
+        // multi-slice fleet update was marked "Update stalled — the server
+        // stopped responding mid-step" before it could take its next step. The
+        // job then sat failed at whatever step it had reached — classically
+        // step 2, "Backup Files — Files backed up." — and needed a manual
+        // retry. A real release is thousands of files and always needs many
+        // slices, so it always tripped.
+        //
+        // 3600s (60 min) is 2x the cron period: long enough that only a
+        // genuinely abandoned job is caught, short enough to still notice one.
+        $staleBefore = date('Y-m-d H:i:s', time() - 3600);
+        $this->CI->db->where('status', 'running')
+            ->where('updated_at <', $staleBefore)
+            ->update('db_system_updates', [
+                'status' => 'failed',
+                'error_message' => 'Update stalled — no progress for over an hour. It resumes automatically on the next check-in; retry only if it stays here.',
+            ]);
+    }
+
+    // Re-fetch a single file from the update channel into the temp dir.
+    // Used by verify to repair stale/truncated downloads from earlier runs.
+    //
+    // The URL is pinned to the immutable commit ref recorded in the job state,
+    // which is what actually makes the repair work: that URL never changes, so
+    // it can only ever hold the bytes this job expects.
+    //
+    // The old repair appended ?rb=<random> to dodge the CDN cache. That does
+    // NOT work — the GitHub CDN (Fastly) ignores query strings in its cache
+    // key, so the "fresh" request was served the same stale bytes that just
+    // failed the hash check. Only when no ref is available do we still try the
+    // buster, since some other proxies do honour it.
+    protected function redownloadFile(string $relPath, string $tempPath, string $ref = ''): bool {
+        $channel = $this->getUpdateChannelUrl();
+        $url = $this->channelFileUrl($channel, $relPath, $ref);
+        if ($ref === '') {
+            $url .= '?rb=' . time() . mt_rand(1000, 9999);
+        }
+        $data = $this->httpGet($url, 30);
+        if ($data === null) {
+            return false;
+        }
+        $dir = dirname($tempPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        return @file_put_contents($tempPath, $data) !== false;
+    }
+
+    protected function resetTimer(): void {
+        @set_time_limit(120);
+        @ini_set('max_execution_time', 120);
+        // Tell the browser we are still alive
+        if (function_exists('flush') && !headers_sent()) {
+            @ob_flush();
+            @flush();
+        }
+    }
+
+    protected function splitSql(string $sql): array {
+        $statements = [];
+        $current = '';
+        $len = strlen($sql);
+
+        $inQuote = false;
+        $quoteChar = '';
+        $inLineComment = false;
+        $inBlockComment = false;
+        $delimiter = ';';
+        $delimLen = strlen($delimiter);
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $sql[$i];
+            $nextChar = ($i + 1 < $len) ? $sql[$i + 1] : '';
+
+            // End of line comment
+            if ($inLineComment) {
+                if ($char === "\n") {
+                    $inLineComment = false;
+                }
+                continue;
+            }
+
+            // End of block comment
+            if ($inBlockComment) {
+                if ($char === '*' && $nextChar === '/') {
+                    $inBlockComment = false;
+                    $i++; // skip the '/'
+                }
+                continue;
+            }
+
+            // Start of comments (not inside a quote)
+            if (!$inQuote) {
+                if ($char === '-' && $nextChar === '-') {
+                    $inLineComment = true;
+                    $i++; // skip second '-'
+                    continue;
+                }
+                if ($char === '/' && $nextChar === '*') {
+                    $inBlockComment = true;
+                    $i++; // skip the '*'
+                    continue;
+                }
+            }
+
+            // Quote handling
+            if (!$inQuote && ($char === "'" || $char === '`' || $char === '"')) {
+                $inQuote = true;
+                $quoteChar = $char;
+            } elseif ($inQuote && $char === $quoteChar) {
+                // SQL escapes quotes by doubling them (e.g. '' inside '' or `` inside ``)
+                if ($nextChar === $quoteChar) {
+                    $current .= $char . $nextChar;
+                    $i++; // skip doubled quote
+                    continue;
+                }
+                $inQuote = false;
+                $quoteChar = '';
+            }
+
+            $current .= $char;
+
+            // DELIMITER is a mysql client command (not a server statement).
+            // When a complete DELIMITER line is seen, switch terminator and discard.
+            if (!$inQuote && !$inLineComment && !$inBlockComment && $char === "\n") {
+                $line = trim(substr($current, 0, -1)); // drop the newline
+                if (preg_match('/^\s*DELIMITER\s+(\S+)\s*$/i', $line, $m)) {
+                    $delimiter = $m[1];
+                    $delimLen = strlen($delimiter);
+                    $current = '';
+                    continue;
+                }
+            }
+
+            // Statement split when the current delimiter is found outside quotes/comments
+            if (!$inQuote && !$inLineComment && !$inBlockComment && $delimLen > 0) {
+                if (substr($current, -$delimLen) === $delimiter) {
+                    $stmt = substr($current, 0, -$delimLen);
+                    $stmt = trim($stmt);
+                    if ($stmt !== '') {
+                        $statements[] = $stmt;
+                    }
+                    $current = '';
+                    continue;
+                }
+            }
+        }
+
+        if (trim($current) !== '') {
+            $statements[] = $current;
+        }
+        return $statements;
+    }
+
+    protected function rrmdir(string $dir) {
+        if (is_dir($dir)) {
+            $objects = scandir($dir);
+            foreach ($objects as $object) {
+                if ($object === '.' || $object === '..') continue;
+                $path = $dir . '/' . $object;
+                if (is_dir($path)) {
+                    $this->rrmdir($path);
+                } else {
+                    @unlink($path);
+                }
+            }
+            @rmdir($dir);
+        }
+    }
+}
