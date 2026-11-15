@@ -17,6 +17,39 @@ class Communication_template_model extends CI_Model {
 
     public function ready() { return $this->db->table_exists('db_communication_templates'); }
 
+    /** Published online products available to the email editor and send renderer. */
+    public function emailProducts($storeId, array $ids=null, $limit=80) {
+        $storeId=(int)$storeId;
+        if($storeId<1 || !$this->db->table_exists('db_items')) return array();
+        if($ids!==null){$ids=array_values(array_unique(array_filter(array_map('intval',$ids))));if(!$ids)return array();}
+        $this->load->model('storefront_model');
+        $storefront=$this->storefront_model;
+        if($ids!==null){$rows=array();foreach($ids as $productId){$product=$storefront->getOnlineProduct($productId,$storeId);if($product)$rows[]=$product;}}
+        else $rows=$storefront->getOnlineProducts($storeId,null,'',max(1,min(100,(int)$limit)));
+        $settings=$this->db->table_exists('db_storefront_settings')
+            ?$this->db->select('store_slug')->where('store_id',$storeId)->get('db_storefront_settings')->row_array():array();
+        $slug=(string)($settings['store_slug']??'');
+        if($slug===''){$store=$this->db->select('store_name')->where('id',$storeId)->get('db_store')->row_array();$slug=strtolower(trim(preg_replace('/[^a-z0-9]+/i','-',(string)($store['store_name']??'store')),'-'));}
+        $currency=$this->db->query('SELECT c.currency,s.currency_placement FROM db_store s LEFT JOIN db_currency c ON c.id=s.currency_id WHERE s.id=? LIMIT 1',array($storeId))->row_array();
+        $symbol=trim((string)($currency['currency']??''));$placement=(string)($currency['currency_placement']??'Left');
+        $out=array();
+        foreach((array)$rows as $product){
+            $id=(int)($product->id??0);
+            if($id<1 || ($ids!==null && !in_array($id,$ids,true)))continue;
+            $image='';$path=trim((string)($product->item_image??''));
+            if($path!=='' && preg_match('#^https://#i',$path))$image=$path;
+            elseif($path!=='' && file_exists(FCPATH.ltrim($path,'/')))$image=base_url(ltrim($path,'/'));
+            $price=(float)$storefront->getProductEffectivePrice($product);
+            if($price<=0)$price=(float)($product->online_price??0);
+            if($price<=0)$price=(float)($product->mrp??0);
+            if($price<=0)$price=(float)($product->sales_price??0);
+            $out[$id]=array('id'=>$id,'name'=>trim((string)($product->item_name??'')),
+                'price'=>$price>0?($placement==='Right'?number_format($price,2,'.',',').' '.$symbol:$symbol.' '.number_format($price,2,'.',',')):'',
+                'image'=>$image,'url'=>$slug!==''?base_url('store/'.$slug.'/product/'.$id):'');
+        }
+        return $out;
+    }
+
     /** Designs this store can send with. */
     public function forStore($storeId, $limit=self::STORE_CAP) {
         if (!$this->ready() || (int)$storeId < 1) return array();
@@ -63,6 +96,15 @@ class Communication_template_model extends CI_Model {
         if (!$this->ready()) throw new RuntimeException('Email designs need an application update. Contact your Administrator.');
         $row=Communication_designs::sanitize($p);
         $storeId=(int)$storeId;
+        if($storeId>0){
+            $productIds=array();
+            foreach(Communication_designs::blocks($row['blocks_json']) as $block)if($block['type']==='product'){
+                if((int)($block['product_id']??0)<1)throw new RuntimeException('Choose an online store product for every product block.');
+                $productIds[]=(int)$block['product_id'];
+            }
+            $productIds=array_values(array_unique($productIds));
+            if($productIds && count($this->emailProducts($storeId,$productIds))!==count($productIds))throw new RuntimeException('One of the selected products is no longer published in your online store. Choose another product.');
+        }
         $existing=$storeId > 0 ? $this->get($storeId,$id) : $this->getHub($id);
         if ((int)$id > 0 && !$existing) throw new RuntimeException('That design is not yours to change.');
         if ($storeId > 0 && !$existing && $this->count($storeId) >= self::STORE_CAP) {

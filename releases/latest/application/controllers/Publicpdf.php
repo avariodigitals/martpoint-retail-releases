@@ -52,6 +52,11 @@ class Publicpdf extends MY_Controller {
         $data = $this->build_invoice_data('sales', $sales_id, $invoice);
         $data['sales_id'] = $sales_id;
 
+        // Signed invoice copies should also carry the public online-payment
+        // link when this store has MartPoint Pay enabled. The payment token is
+        // independent from the expiring PDF token so customers can pay later.
+        $data['invoice_payment_url'] = $this->sales_invoice_payment_url($invoice);
+
         if ($this->input->get('download')) {
             unset($data['download_url'], $data['og_url'], $data['og_image']);
             $html = $this->load->view('print-sales-invoice-whatsapp', $data, true);
@@ -162,6 +167,43 @@ class Publicpdf extends MY_Controller {
             'theme_link' => base_url().'theme/',
             'base_url' => base_url(),
         );
+    }
+
+    private function sales_invoice_payment_url($invoice){
+        if(!$invoice || $invoice->sales_status !== 'Final'
+            || !$this->db->field_exists('invoice_payment_token', 'db_sales')) return '';
+
+        $paid = $this->db->query(
+            'SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1',
+            array((int)$invoice->id)
+        )->row();
+        if(round((float)$invoice->grand_total - (float)($paid->paid ?? 0), 2) <= 0) return '';
+
+        $this->load->model('paystack_model', 'publicpdf_paystack');
+        if(!$this->publicpdf_paystack->is_enabled((int)$invoice->store_id)) return '';
+
+        $tokenRow = $this->db->select('invoice_payment_token')
+            ->where('id', (int)$invoice->id)
+            ->where('store_id', (int)$invoice->store_id)
+            ->get('db_sales')->row();
+        $token = trim((string)($tokenRow->invoice_payment_token ?? ''));
+        if($token === ''){
+            try { $token = bin2hex(random_bytes(32)); }
+            catch (Throwable $e) { $token = hash('sha256', uniqid((string)mt_rand(), true) . microtime(true)); }
+            $this->db->where('id', (int)$invoice->id)
+                ->where('store_id', (int)$invoice->store_id)
+                ->where('invoice_payment_token IS NULL', null, false)
+                ->update('db_sales', array('invoice_payment_token' => $token));
+            $tokenRow = $this->db->select('invoice_payment_token')
+                ->where('id', (int)$invoice->id)
+                ->where('store_id', (int)$invoice->store_id)
+                ->get('db_sales')->row();
+            $token = trim((string)($tokenRow->invoice_payment_token ?? ''));
+        }
+
+        return preg_match('/^[a-f0-9]{64}$/D', $token)
+            ? site_url('invoice/pay/' . rawurlencode($token))
+            : '';
     }
 
     private function generate_pdf($html, $filename){

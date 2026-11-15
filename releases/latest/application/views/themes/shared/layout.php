@@ -181,17 +181,6 @@
     'parent_id' => !empty($product_addons) ? (int)$product->id : (int)$service->id,
   ]); ?>
 <?php endif; ?>
-<?php if(!empty($product_reviews_enabled)): ?>
-  <?php $this->load->view('themes/shared/product_reviews', [
-    'reviews' => $product_reviews ?? [],
-    'aggregate' => $product_review_aggregate ?? ['count' => 0, 'average' => null],
-    'post_url' => $product_review_post_url ?? '',
-    'csrf_name' => $review_csrf_name ?? '',
-    'csrf_hash' => $review_csrf_hash ?? '',
-    'product' => $product ?? null,
-  ]); ?>
-<?php endif; ?>
-
 <?php if(($theme_key ?? '') === 'botanical_elegance'): ?>
   <?php $this->load->view('themes/botanical_elegance/footer'); ?>
 <?php elseif(($theme_key ?? '') === 'lumiere'): ?>

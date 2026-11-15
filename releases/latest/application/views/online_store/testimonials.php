@@ -54,6 +54,35 @@
   </div>
 </div>
 
+<div class="mp-table-wrap" style="margin-top:22px;">
+  <div class="mp-card-head">
+    <div><h3>Product reviews</h3><p style="margin:5px 0 0;color:var(--mp-muted);font-size:13px;">Approve a review to show it on that product page across your storefront themes.</p></div>
+  </div>
+  <div class="box-body">
+    <div class="mp-dt-scroll">
+      <table id="os-product-reviews-table" class="table mp-dt-table" width="100%">
+        <thead><tr><th>Product</th><th>Customer</th><th>Review</th><th>Rating</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          <?php foreach(($product_reviews ?? []) as $review): $reviewStatus = (string)($review->status ?? 'pending'); $reviewRating = max(1, min(5, (int)($review->rating ?? 5))); ?>
+          <tr>
+            <td><?= htmlspecialchars($review->item_name ?? 'Product', ENT_QUOTES, 'UTF-8'); ?></td>
+            <td><?= htmlspecialchars($review->reviewer_name ?? 'Customer', ENT_QUOTES, 'UTF-8'); ?><?php if(!empty($review->is_verified)): ?><br><small>Verified purchase</small><?php endif; ?></td>
+            <td><?php if(!empty($review->title)): ?><strong><?= htmlspecialchars($review->title, ENT_QUOTES, 'UTF-8'); ?></strong><br><?php endif; ?><?= nl2br(htmlspecialchars(mb_substr((string)($review->review_text ?? ''), 0, 220), ENT_QUOTES, 'UTF-8')); ?></td>
+            <td><span class="os-stars"><?= str_repeat('&#9733;', $reviewRating) . '<span class="empty">' . str_repeat('&#9734;', 5 - $reviewRating) . '</span>'; ?></span></td>
+            <td><span class="label label-<?= $reviewStatus === 'approved' ? 'success' : ($reviewStatus === 'rejected' ? 'danger' : 'warning'); ?>"><?= htmlspecialchars(ucfirst($reviewStatus), ENT_QUOTES, 'UTF-8'); ?></span></td>
+            <td><div class="mp-actions">
+              <?php if($reviewStatus !== 'approved'): ?><button type="button" class="mp-edit" title="Approve" onclick="moderateProductReview(<?= (int)$review->id; ?>,'approve')"><i class="fa fa-check"></i></button><?php endif; ?>
+              <?php if($reviewStatus !== 'rejected'): ?><button type="button" class="mp-delete" title="Reject" onclick="moderateProductReview(<?= (int)$review->id; ?>,'reject')"><i class="fa fa-ban"></i></button><?php endif; ?>
+            </div></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($product_reviews)): ?><tr><td colspan="6" class="mp-empty-state">No product reviews yet.</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="testimonialModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -120,6 +149,13 @@ function deleteTestimonial(id){
 function doDeleteTestimonial(id){
   $.post('<?= base_url('online_store/delete_testimonial/'); ?>'+id, { '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>' }, function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 800); } else { toastr.error(res.message || 'Failed to delete'); } }, 'json');
 }
+function moderateProductReview(id, decision){
+  $.post('<?= base_url('online_store/moderate_product_review/'); ?>'+id, {
+    decision:decision,
+    '<?= $this->security->get_csrf_token_name(); ?>':'<?= $this->security->get_csrf_hash(); ?>'
+  }, function(res){ if(res.status==='success'){ toastr.success(res.message); setTimeout(()=>location.reload(), 700); } else { toastr.error(res.message || 'Could not update review'); } }, 'json')
+    .fail(function(){ toastr.error('Could not update review. Please retry.'); });
+}
 $(document).ready(function(){
   $('#os-testimonials-table').DataTable({
     "aLengthMenu": [[10,25,50,100],[10,25,50,100]],
@@ -127,6 +163,13 @@ $(document).ready(function(){
     "order": [[1,"asc"]],
     "responsive": false,
     "columnDefs": [{ "targets": [0,3,5], "orderable": false }]
+  });
+  $('#os-product-reviews-table').DataTable({
+    "aLengthMenu": [[10,25,50,100],[10,25,50,100]],
+    dom: '<"row margin-bottom-12"<"col-sm-12"<"pull-left"l><"pull-right"fr>>>t<"row mp-dt-footer"<"col-sm-5"i><"col-sm-7"p>>',
+    "order": [[4,"asc"]],
+    "responsive": false,
+    "columnDefs": [{ "targets": [5], "orderable": false }]
   });
 });
 </script>

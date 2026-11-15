@@ -677,4 +677,6 @@ return [
 		  '4.0.9.279v' => '4.0.9.279_electronics_storefront_cart.sql',
 		  // Keep uploaded-theme inner pages consistent and validate MartPoint Pay checkout availability.
 		  '4.0.9.280v' => '4.0.9.280_storefront_theme_pages_and_payments.sql',
+		  // Consolidated post-.280 storefront domains/reviews, email designs and payment reconciliation.
+		  '4.0.9.281v' => '4.0.9.281_recent_storefront_email_payment_updates.sql',
 ];

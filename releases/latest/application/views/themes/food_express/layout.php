@@ -145,17 +145,6 @@
     'parent_id' => !empty($product_addons) ? (int)$product->id : (int)$service->id,
   ]); ?>
 <?php endif; ?>
-<?php if(!empty($product_reviews_enabled)): ?>
-  <?php $this->load->view('themes/shared/product_reviews', [
-    'reviews' => $product_reviews ?? [],
-    'aggregate' => $product_review_aggregate ?? ['count' => 0, 'average' => null],
-    'post_url' => $product_review_post_url ?? '',
-    'csrf_name' => $review_csrf_name ?? '',
-    'csrf_hash' => $review_csrf_hash ?? '',
-    'product' => $product ?? null,
-    'restaurant_review' => true,
-  ]); ?>
-<?php endif; ?>
 <?php if(!empty($product)): $this->load->view('themes/food_express/_feedback_css'); endif; ?>
 
 <?php $this->load->view('themes/food_express/footer'); ?>

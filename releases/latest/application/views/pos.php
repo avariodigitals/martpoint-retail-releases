@@ -2032,6 +2032,10 @@ $(document).ready(function(){
 // On change of payment mode
 $(document).on('change', '.payment-mode-select', function(){
   updatePaymentModeFields($(this).closest('.payments_div, .box'));
+  var suffix = ($(this).attr('id') || '').match(/_(\d+)$/);
+  if($(this).val() === 'paystack' && suffix && $('#confirmation_status_' + suffix[1]).length){
+    $('#confirmation_status_' + suffix[1]).val('0');
+  }
   togglePaystackButton();
   toggleMoniepointButton();
 });
@@ -2057,11 +2061,40 @@ function togglePaystackButton(){
 }
 
 // Generate Paystack Payment Link
-function generatePaystackLink(){
+function generatePaystackLink(savedSalesId, requestedAmount, requestedCustomerId){
   var base_url = $('#base_url').val();
   var grand_total = $('.sales_div_tot_payble').text().replace(/,/g,'').trim();
-  var amount = parseFloat(grand_total) || 0;
-  var customer_id = $('#customer_id').val();
+  var outstanding = $('.sales_div_tot_balance').text().replace(/,/g,'').trim();
+  var $selectedPaystackMode = $('.payment-mode-select').filter(function(){ return $(this).val() === 'paystack'; }).first();
+  var selectedSuffix = ($selectedPaystackMode.attr('id') || '').match(/_(\d+)$/);
+  var selectedPaymentAmount = selectedSuffix
+    ? parseFloat(String($('#amount_' + selectedSuffix[1]).val() || '').replace(/,/g,'')) : 0;
+  var amount = parseFloat(requestedAmount) || selectedPaymentAmount || parseFloat(outstanding) || parseFloat(grand_total) || 0;
+  var customer_id = requestedCustomerId || $('#customer_id').val();
+  if(!savedSalesId && $('#sales_id').length){ savedSalesId = $('#sales_id').val(); }
+  if(!$selectedPaystackMode.length){
+    toastr['error']('Select MartPoint Pay as the payment method first.');
+    return;
+  }
+
+  // A Paystack charge needs a saved sale reference to post against. For a new
+  // POS sale, save it as pending first, then create the payment link.
+  if(!savedSalesId){
+    if(pendingPaystackLinkRequest){ return; }
+    var $paystackMode = $selectedPaystackMode;
+    if(!$paystackMode.length){
+      toastr['error']('Select MartPoint Pay as the payment method first.');
+      return;
+    }
+    var suffix = ($paystackMode.attr('id') || '').match(/_(\d+)$/);
+    var row = suffix ? suffix[1] : '1';
+    var selectedAmount = selectedPaymentAmount || amount;
+    if($('#confirmation_status_' + row).length){ $('#confirmation_status_' + row).val('0'); }
+    pendingPaystackLinkRequest = { amount: selectedAmount, customer_id: customer_id };
+    toastr.info('Saving the sale before creating its payment link…');
+    save(false, false);
+    return;
+  }
 
   if(amount <= 0){
     toastr['error']('Total amount must be greater than zero');
@@ -2097,7 +2130,8 @@ function generatePaystackLink(){
           amount: amount,
           email: email,
           phone: phone,
-          customer_id: customer_id
+          customer_id: customer_id,
+          sales_id: savedSalesId
         },
         dataType: 'json',
         success: function(res){

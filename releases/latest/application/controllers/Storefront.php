@@ -14,7 +14,7 @@ class Storefront extends CI_Controller {
 		header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 		header('Pragma: no-cache');
 		header('Expires: Sat, 01 Jan 2000 00:00:00 GMT');
-		$this->load->helper(['url','custom','currency','image']);
+		$this->load->helper(['url','custom','currency','image','storefront_url']);
 		$this->load->model('storefront_model');
 		$this->load->model('customers_model');
 		$this->load->model('paystack_model','paystack');
@@ -64,7 +64,7 @@ class Storefront extends CI_Controller {
 			// The pharmacy experience is a separate presentation, but resolves the
 			// same store slug and MartPoint data. The flag keeps every other store
 			// on its existing storefront route.
-			redirect(base_url('store/'.rawurlencode((string)$settings->store_slug).'/pharmacy'));
+			redirect(mp_storefront_url($settings->store_slug, 'pharmacy'));
 			return;
 		}
 		$store = get_store_details($storeId);
@@ -579,6 +579,7 @@ class Storefront extends CI_Controller {
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
+			'testimonials' => $this->theme_engine->storefrontTestimonials(),
 			'store_currency' => $this->theme_engine->getStoreCurrency(),
 			'seo_title' => $product->item_name,
 			'seo_description' => substr(strip_tags($product->description ?? ''), 0, 160) ?: ('Buy ' . $product->item_name . ' at ' . ($store->store_name ?? 'our store')),
@@ -742,7 +743,7 @@ class Storefront extends CI_Controller {
 		}
 		// If not enabled, fall back to the online store products page
 		if(empty($cat_settings['enabled'])){
-			redirect(base_url('store/' . ($settings->store_slug ?? '') . '/products'));
+			redirect(mp_storefront_url($settings->store_slug ?? '', 'products'));
 			return;
 		}
 
@@ -835,7 +836,7 @@ class Storefront extends CI_Controller {
 			$target = $buildingTheme
 				? ($this->theme_engine->sellsProducts() ? '/products' : '/services')
 				: ($printTheme ? '#quote' : '/services');
-			redirect(base_url('store/' . rawurlencode($settings->store_slug) . $target));
+			redirect(mp_storefront_url($settings->store_slug, $target));
 			return;
 		}
 		$lumiereCheckout = $page === 'checkout' && in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['lumiere', 'skinora', 'botanical_elegance', 'food_express'], true);
@@ -1251,7 +1252,10 @@ class Storefront extends CI_Controller {
 
 		$testimonialSubmitted = false;
 		if(!empty($order->customer_name)){
-			$testimonialSubmitted = $this->db->where('store_id', $storeId)->where('customer_name', $order->customer_name)->where('is_enabled', 0)->get('db_storefront_testimonials')->num_rows() > 0;
+			$testimonialSubmitted = $this->db->where('store_id', $storeId)
+				->where('customer_name', $order->customer_name)
+				->where('testimonial_text IS NOT NULL', null, false)
+				->get('db_storefront_testimonials')->num_rows() > 0;
 		}
 
 		// The confirmation page hands the customer /track?code=…; nothing about the
@@ -1271,6 +1275,7 @@ class Storefront extends CI_Controller {
 			'prefill_code' => $prefillCode,
 			'can_testimonial' => !empty($order) && ($order->order_status ?? '') === 'completed',
 			'testimonial_submitted' => $testimonialSubmitted,
+			'testimonial_post_url' => base_url('store/' . rawurlencode($settings->store_slug) . '/track/testimonial'),
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
 			'social_links' => $this->theme_engine->socialLinks(),
@@ -1300,17 +1305,17 @@ class Storefront extends CI_Controller {
 		$rating = (int)($this->input->post('rating', TRUE) ?: 5);
 
 		if(empty($orderCode) || empty($customerName) || empty($testimonialText)){
-			echo json_encode(['status' => false, 'message' => 'All fields are required', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			$this->output->set_content_type('application/json')->set_output(json_encode(['status' => false, 'message' => 'All fields are required', 'csrf_hash' => $this->security->get_csrf_hash()]));
 			return;
 		}
 
 		$order = $this->storefront_model->getOrderByCode($orderCode, $storeId);
 		if(!$order || $order->customer_phone !== $customerPhone || $order->order_status !== 'completed'){
-			echo json_encode(['status' => false, 'message' => 'Order not found or not completed', 'csrf_hash' => $this->security->get_csrf_hash()]);
+			$this->output->set_content_type('application/json')->set_output(json_encode(['status' => false, 'message' => 'Order not found or not completed', 'csrf_hash' => $this->security->get_csrf_hash()]));
 			return;
 		}
 
-		$this->storefront_model->saveStorefrontTestimonial([
+		$saved = $this->storefront_model->saveStorefrontTestimonial([
 			'store_id' => $storeId,
 			'customer_name' => $customerName,
 			'testimonial_text' => $testimonialText,
@@ -1319,7 +1324,11 @@ class Storefront extends CI_Controller {
 			'is_enabled' => 0
 		]);
 
-		echo json_encode(['status' => true, 'message' => 'Testimonial submitted for approval', 'csrf_hash' => $this->security->get_csrf_hash()]);
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'status' => $saved !== false,
+			'message' => $saved !== false ? 'Thank you. Your review was submitted and is awaiting approval.' : 'We could not save your review. Please try again.',
+			'csrf_hash' => $this->security->get_csrf_hash()
+		]));
 	}
 
 	/**
@@ -2484,7 +2493,7 @@ class Storefront extends CI_Controller {
 			'payment_required' => false,
 			'order_id' => $orderId,
 			'order_code' => $order->order_code,
-			'redirect_url' => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
+			'redirect_url' => mp_storefront_url($settings->store_slug ?? '', 'order_received/' . $order->order_code),
 			'message' => $appointmentRequest ? 'Appointment request received.' : 'Order placed successfully!',
 			'csrf_hash' => $this->security->get_csrf_hash(),
 		]);
@@ -2877,7 +2886,7 @@ class Storefront extends CI_Controller {
 				if($item->item_type === 'digital' && !empty($item->download_token)){
 					$downloadLinks[] = [
 						'name' => $item->item_name,
-						'url' => base_url('store/' . $settings->store_slug . '/download/' . $item->download_token)
+						'url' => mp_storefront_url($settings->store_slug, 'download/' . $item->download_token)
 					];
 				}
 			}
@@ -3388,7 +3397,7 @@ class Storefront extends CI_Controller {
 
 	private function _orderReceivedUrl($order){
 		$settings = $this->storefront_model->getSettings($order->store_id);
-		return base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code);
+		return mp_storefront_url($settings->store_slug ?? '', 'order_received/' . $order->order_code);
 	}
 
 	/**
@@ -3436,22 +3445,22 @@ class Storefront extends CI_Controller {
 
 		switch($qr->qr_type){
 			case 'product':
-				redirect(base_url('store/' . $settings->store_slug . '/product/' . $qr->related_id));
+				redirect(mp_storefront_url($settings->store_slug, 'product/' . $qr->related_id));
 				break;
 			case 'service':
-				redirect(base_url('store/' . $settings->store_slug . '/service/' . $qr->related_id));
+				redirect(mp_storefront_url($settings->store_slug, 'service/' . $qr->related_id));
 				break;
 			case 'category':
-				redirect(base_url('store/' . $settings->store_slug . '/products?category=' . $qr->related_id));
+				redirect(mp_storefront_url($settings->store_slug, 'products?category=' . $qr->related_id));
 				break;
 			case 'table':
-				redirect(base_url('store/' . $settings->store_slug . '?table=' . urlencode($qr->table_number)));
+				redirect(mp_storefront_url($settings->store_slug, '?table=' . urlencode($qr->table_number)));
 				break;
 			case 'attendance':
 				redirect(base_url('attendance/clockin'));
 				break;
 			default:
-				redirect(base_url('store/' . $settings->store_slug));
+				redirect(mp_storefront_url($settings->store_slug));
 				break;
 		}
 	}
@@ -4291,7 +4300,7 @@ class Storefront extends CI_Controller {
 				'tax_amount'       => $displayTax > 0 ? $currency . number_format($displayTax, 2) : 'None',
 				'delivery_fee'      => $displayShipping > 0 ? $currency . number_format($displayShipping, 2) : 'Free',
 				'grand_total'       => $currency . number_format($displayGrandTotal, 2),
-				'order_link'        => base_url('store/' . ($settings->store_slug ?? '') . '/order_received/' . $order->order_code),
+				'order_link'        => mp_storefront_url($settings->store_slug ?? '', 'order_received/' . $order->order_code),
 				'dashboard_link'    => base_url('online_store/order_detail/' . (int)$order->id),
 				'fulfilment_branch' => 'Store team',
 				'prescription_link' => !empty($order->prescription_file) ? base_url($order->prescription_file) : 'Not attached',

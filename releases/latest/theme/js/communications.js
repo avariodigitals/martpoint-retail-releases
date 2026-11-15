@@ -74,10 +74,10 @@ var builder=document.getElementById('comm-builder');if(builder){
  var builderPreview=document.getElementById('comm-builder-preview');
  var limit=Number(blockList.dataset.blockLimit)||12;
  var rows=function(){return Array.from(blockList.querySelectorAll('[data-block-row]'));};
- var fields=function(row){return{type:row.querySelector('.comm-block-type'),text:row.querySelector('.comm-block-text'),label:row.querySelector('.comm-block-label'),url:row.querySelector('.comm-block-url')};};
+ var fields=function(row){return{type:row.querySelector('.comm-block-type'),text:row.querySelector('.comm-block-text'),label:row.querySelector('.comm-block-label'),url:row.querySelector('.comm-block-url'),product:row.querySelector('.comm-block-product')};};
  var modeOf=function(row){var f=fields(row),option=f.type.querySelector('option[value="'+f.type.value+'"]');return option&&option.dataset.field?option.dataset.field:'text';};
- function syncBlock(row){var mode=modeOf(row);row.querySelector('.comm-block-text-field').hidden=mode==='none'||mode==='both';row.querySelector('.comm-block-cta').hidden=mode!=='both';}
- function blocks(){return rows().map(function(row){var f=fields(row),item={type:f.type.value,text:f.text.value};if(modeOf(row)==='both'){item.label=f.label.value;item.url=f.url.value;}return item;});}
+ function syncBlock(row){var mode=modeOf(row);row.querySelector('.comm-block-text-field').hidden=mode==='none'||mode==='both'||mode==='product';row.querySelector('.comm-block-cta').hidden=mode!=='both';row.querySelector('.comm-block-product-field').hidden=mode!=='product';}
+ function blocks(){return rows().map(function(row){var f=fields(row),mode=modeOf(row),item={type:f.type.value,text:f.text?f.text.value:''};if(mode==='both'){item.label=f.label.value;item.url=f.url.value;}if(mode==='product')item.product_id=f.product?Number(f.product.value)||0:0;return item;});}
  function refreshBlocks(){var list=rows();if(blockCount)blockCount.textContent=list.length+' of '+limit+' blocks';if(blockAdd)blockAdd.disabled=list.length>=limit;list.forEach(function(row,i){row.querySelector('[data-block-up]').disabled=i===0;row.querySelector('[data-block-down]').disabled=i===list.length-1;});}
  var refreshBuilder=debouncePreview(builder,builderPreview,function(){
   var value=function(name){var el=builder.querySelector('[name="'+name+'"]');return el?el.value:'';};

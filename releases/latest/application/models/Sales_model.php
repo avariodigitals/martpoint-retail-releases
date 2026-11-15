@@ -1151,7 +1151,7 @@ class Sales_model extends CI_Model {
 
 			//is total advance payment enabled ?
 			$advance_adjusted=0;
-			if(isset($allow_tot_advance)){
+			if(isset($allow_tot_advance) && (int)($confirmation_status ?? 1) === 1){
 				$tot_advance = get_customer_details($customer_id)->tot_advance;
 				if($tot_advance>0){
 					if($amount==$tot_advance){
@@ -1188,7 +1188,7 @@ class Sales_model extends CI_Model {
     				'created_by' 		=> $CUR_USERNAME,
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
-    				'status' 			=> 1,
+					'status' 			=> (($confirmation_status ?? 1) == 1 ? 1 : 0),
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
     				'customer_id' 		=> $customer_id,
     				'advance_adjusted' 	=> $advance_adjusted,
@@ -1211,7 +1211,7 @@ class Sales_model extends CI_Model {
 			return "Failed to save sales payment at line " . __LINE__ . ": " . ($err['message'] ?? 'unknown error');
 		}
 			//Set the payment to specified account
-			if(!empty($account_id)){
+			if(!empty($account_id) && (int)($confirmation_status ?? 1) === 1){
 				//ACCOUNT INSERT
 				$insert_bit = insert_account_transaction(array(
 															'transaction_type'  	=> 'SALES PAYMENT',
@@ -1429,7 +1429,7 @@ class Sales_model extends CI_Model {
 	}
 
 	function update_sales_payment_status_by_sales_id($sales_id,$customer_id){
-		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id' AND status=1");
+		$q8=$this->db->query("select COALESCE(SUM(payment),0) as payment from db_salespayments where sales_id='$sales_id' AND status=1 AND COALESCE(confirmation_status,1)=1");
 		$sum_of_payments=$q8->row()->payment;
 		
 
@@ -2421,7 +2421,7 @@ class Sales_model extends CI_Model {
 				}
 			}
 
-			$paidRow=$this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1',array((int)$sales_id))->row();
+			$paidRow=$this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1',array((int)$sales_id))->row();
 			$dueKobo=(int)round((float)$saleDetails->grand_total*100)-(int)round((float)$paidRow->paid*100);
 			if(!is_finite($amount) || $amount<=0 || (int)round($amount*100)>$dueKobo)return 'Payment cannot exceed the outstanding invoice balance.';
 

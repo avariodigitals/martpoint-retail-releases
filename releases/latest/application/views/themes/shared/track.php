@@ -161,68 +161,6 @@ if($prefill === '') $prefill = (string)($this->input->post('order_code') ?? '');
           </div>
         <?php endif; ?>
 
-        <?php if(!empty($can_testimonial) && $can_testimonial): ?>
-        <div class="mp-track-testimonial" style="margin-top:28px;padding:24px;background:#F0FDF4;border-radius:var(--mp-radius-sm);border:1px solid #BBF7D0;">
-          <?php if(!empty($testimonial_submitted) && $testimonial_submitted): ?>
-            <div style="font-weight:700;color:#166534;font-size:15px;">Thank you! Your review has been submitted and is pending approval.</div>
-          <?php else: ?>
-            <h2 style="font-size:16px;font-weight:700;margin-bottom:6px;">How was your experience?</h2>
-            <p style="font-size:13px;color:var(--mp-gray);margin-bottom:16px;">Leave a quick review. It will appear on the store after approval.</p>
-            <form id="track-testimonial-form" onsubmit="submitTrackTestimonial(event)">
-              <input type="hidden" name="<?= $csrf_name; ?>" value="<?= $csrf_hash; ?>">
-              <input type="hidden" name="order_code" value="<?= htmlspecialchars($order->order_code ?? ''); ?>">
-              <input type="hidden" name="customer_phone" value="<?= htmlspecialchars($order->customer_phone ?? ''); ?>">
-              <div style="margin-bottom:12px;">
-                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Your Name</label>
-                <input type="text" name="customer_name" value="<?= htmlspecialchars($order->customer_name ?? ''); ?>" required style="width:100%;padding:10px;border:1px solid var(--mp-border);border-radius:8px;font-size:14px;">
-              </div>
-              <div style="margin-bottom:12px;">
-                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Rating</label>
-                <select name="rating" required style="width:100%;padding:10px;border:1px solid var(--mp-border);border-radius:8px;font-size:14px;">
-                  <?php for($i=5;$i>=1;$i--): ?>
-                  <option value="<?= $i; ?>"><?= $i; ?> Star<?= $i>1 ? 's' : ''; ?></option>
-                  <?php endfor; ?>
-                </select>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Your Review</label>
-                <textarea name="testimonial_text" required rows="3" style="width:100%;padding:10px;border:1px solid var(--mp-border);border-radius:8px;font-size:14px;resize:vertical;"></textarea>
-              </div>
-              <button type="submit" class="mp-track-btn" id="track-testimonial-btn" style="background:#059669;">Submit Review</button>
-              <div id="track-testimonial-message" style="margin-top:10px;font-size:13px;"></div>
-            </form>
-            <script>
-            function submitTrackTestimonial(e){
-              e.preventDefault();
-              const btn = document.getElementById('track-testimonial-btn');
-              const msg = document.getElementById('track-testimonial-message');
-              const form = document.getElementById('track-testimonial-form');
-              const data = new FormData(form);
-              btn.disabled = true; btn.textContent = 'Submitting...'; msg.textContent = '';
-              fetch('<?= base_url('store/' . $slug . '/track/testimonial'); ?>', {
-                method:'POST',
-                body: new URLSearchParams(data)
-              })
-              .then(r => r.json())
-              .then(res => {
-                if(res.csrf_hash) form.querySelector('input[type=hidden][name=<?= $csrf_name; ?>]').value = res.csrf_hash;
-                if(res.status){
-                  msg.innerHTML = '<span style="color:#166534;font-weight:600;">Thank you! Your review has been submitted and is pending approval.</span>';
-                  form.reset();
-                } else {
-                  msg.innerHTML = '<span style="color:#991B1B;">' + (res.message || 'Could not submit review. Try again.') + '</span>';
-                  btn.disabled = false; btn.textContent = 'Submit Review';
-                }
-              })
-              .catch(() => {
-                msg.innerHTML = '<span style="color:#991B1B;">Network error. Try again.</span>';
-                btn.disabled = false; btn.textContent = 'Submit Review';
-              });
-            }
-            </script>
-          <?php endif; ?>
-        </div>
-        <?php endif; ?>
       </div>
     <?php endif; ?>
   </div>

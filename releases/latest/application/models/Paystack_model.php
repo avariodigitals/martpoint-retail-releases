@@ -559,45 +559,90 @@ class Paystack_model extends CI_Model {
 		$paystack_payment = $this->db->where('paystack_reference', $reference)->get('db_paystack_payments')->row();
 		if(!$paystack_payment) { return false; }
 
-		$sales_id = $paystack_payment->sales_id;
-		if(empty($sales_id)) { return false; }
+		$sales_id = (int)$paystack_payment->sales_id;
+		$store_id = (int)$paystack_payment->store_id;
+		if($sales_id <= 0 || $store_id <= 0 || (string)$paystack_payment->payment_status !== 'success') { return false; }
 
 		$this->db->trans_begin();
 		try {
 			$meta = json_decode((string)($paystack_payment->meta_data ?? ''), true);
-			$isInvoiceCheckout = is_array($meta) && ($meta['purpose'] ?? '') === 'fleet_invoice_payment';
-			$alreadyConfirmed = $isInvoiceCheckout && $this->db->where('sales_id',(int)$sales_id)
+			$sale = $this->db->query('SELECT id,store_id,customer_id,grand_total FROM db_sales WHERE id=? AND store_id=? FOR UPDATE', array($sales_id,$store_id))->row();
+			if(!$sale){ $this->db->trans_rollback(); return false; }
+			$alreadyConfirmed = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
 				->where('payment_type','Paystack')->where('payment_reference',$reference)
 				->where('confirmation_status',1)->where('status',1)->count_all_results('db_salespayments') > 0;
-			if($isInvoiceCheckout && !$alreadyConfirmed){
-				$sale = $this->db->query('SELECT id,store_id,grand_total FROM db_sales WHERE id=? AND store_id=? FOR UPDATE', array((int)$sales_id,(int)$paystack_payment->store_id))->row();
-				$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS amount FROM db_salespayments WHERE sales_id=? AND status=1', array((int)$sales_id))->row();
-				if(!$sale || round((float)$paid->amount + (float)$paystack_payment->amount,2) > round((float)$sale->grand_total,2)){
+			if(!$alreadyConfirmed){
+				$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS amount FROM db_salespayments WHERE sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1', array($sales_id))->row();
+				if(round((float)$paid->amount + (float)$paystack_payment->amount,2) > round((float)$sale->grand_total,2)){
 					$this->db->trans_rollback();
-					log_message('error','Verified invoice payment was not applied because it exceeds the remaining invoice balance. Reference: '.$reference);
+					log_message('error','Verified Paystack payment was not applied because it exceeds the remaining sale balance. Reference: '.$reference);
 					return false;
 				}
+
+				$ledger = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+					->where('payment_type','Paystack')->where('payment_reference',$reference)
+					->where('confirmation_status',0)->get('db_salespayments')->row();
+				if(!$ledger){
+					// Attach a legacy unreferenced POS reservation only when its amount
+					// matches this exact verified transaction.
+					$ledger = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+						->where('payment_type','Paystack')->where('payment_reference','')
+						->where('confirmation_status',0)->where('status',0)
+						->where('payment',round((float)$paystack_payment->amount,2))
+						->order_by('id','ASC')->get('db_salespayments')->row();
+					if($ledger){
+						$this->db->where('id',(int)$ledger->id)->update('db_salespayments',array('payment_reference'=>$reference));
+					} else {
+						$entry = array(
+							'store_id'=>$store_id, 'sales_id'=>$sales_id, 'customer_id'=>(int)$sale->customer_id,
+							'payment_code'=>function_exists('get_init_code') ? get_init_code('sales_payment',$store_id) : ('MP-'.$reference),
+							'count_id'=>function_exists('get_count_id') ? get_count_id('db_salespayments',$store_id) : 0,
+							'payment_date'=>date('Y-m-d'),
+							'payment_type'=>'Paystack', 'payment_mode_id'=>null, 'payment'=>(float)$paystack_payment->amount,
+							'payment_note'=>'Customer payment via MartPoint Pay', 'payment_reference'=>$reference,
+							'confirmation_status'=>0, 'created_date'=>date('Y-m-d'), 'created_time'=>date('h:i:s a'),
+							'created_by'=>'MartPoint Pay', 'system_ip'=>'', 'system_name'=>'MartPoint',
+							'status'=>0, 'account_id'=>null, 'advance_adjusted'=>0
+						);
+						foreach(array_keys($entry) as $column){ if(!$this->db->field_exists($column,'db_salespayments')) unset($entry[$column]); }
+						if(!$this->db->insert('db_salespayments',$entry)){
+							$this->db->trans_rollback(); return false;
+						}
+					}
 			}
-			$paymentUpdate = $this->db->where('sales_id', $sales_id)
-					  ->where('payment_type', 'Paystack')
-					  ->where('confirmation_status', 0);
-			if($isInvoiceCheckout) $paymentUpdate->where('payment_reference', $reference);
-			if(!$alreadyConfirmed) $paymentUpdate->update('db_salespayments', array(
-						  'confirmation_status' => 1,
-						  'payment_reference' => $reference,
-						  'confirmed_by' => 'Paystack Webhook',
-						  'confirmed_date' => date('Y-m-d H:i:s'),
-						  'status' => 1
-					  ));
+			}
+			$ledgerExact = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+				->where('payment_type','Paystack')->where('payment_reference',$reference)->get('db_salespayments')->row();
+			if(!$ledgerExact || abs((float)$ledgerExact->payment - (float)$paystack_payment->amount) > 0.01){
+				$this->db->trans_rollback();
+				log_message('error','Paystack ledger amount does not match the verified transaction. Reference: '.$reference);
+				return false;
+			}
+			if(!$alreadyConfirmed){
+				$confirm = array('confirmation_status'=>1, 'payment_reference'=>$reference, 'status'=>1);
+				if($this->db->field_exists('confirmed_by','db_salespayments')) $confirm['confirmed_by']='Paystack';
+				if($this->db->field_exists('confirmed_date','db_salespayments')) $confirm['confirmed_date']=date('Y-m-d H:i:s');
+				$this->db->where('store_id',$store_id)->where('sales_id',$sales_id)->where('payment_type','Paystack')
+					->where('payment_reference',$reference)->where('confirmation_status',0)->update('db_salespayments',$confirm);
+				if($this->db->affected_rows() < 1){ $this->db->trans_rollback(); return false; }
+				$confirmedRow = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+					->where('payment_type','Paystack')->where('payment_reference',$reference)->get('db_salespayments')->row();
+				if($confirmedRow && !empty($confirmedRow->account_id) && function_exists('insert_account_transaction')){
+					$posted = insert_account_transaction(array(
+						'transaction_type'=>'SALES PAYMENT', 'reference_table_id'=>(int)$confirmedRow->id,
+						'debit_account_id'=>null, 'credit_account_id'=>(int)$confirmedRow->account_id,
+						'debit_amt'=>0, 'credit_amt'=>(float)$confirmedRow->payment,
+						'process'=>'SAVE', 'note'=>(string)($confirmedRow->payment_note ?? 'MartPoint Pay'),
+						'transaction_date'=>$confirmedRow->payment_date, 'payment_code'=>$confirmedRow->payment_code,
+						'customer_id'=>(int)$sale->customer_id, 'supplier_id'=>null
+					));
+					if(!$posted){ $this->db->trans_rollback(); return false; }
+				}
+			}
 
 			// Update sales payment status
 			$this->load->model('sales_model');
-			$sales = $this->db->where('id', $sales_id)->get('db_sales')->row();
-			if(!$sales){
-				$this->db->trans_rollback();
-				return false;
-			}
-			if(!$this->sales_model->update_sales_payment_status($sales_id, $sales->customer_id)){
+			if(!$this->sales_model->update_sales_payment_status($sales_id, $sale->customer_id)){
 				$this->db->trans_rollback();
 				return false;
 			}

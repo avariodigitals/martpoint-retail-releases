@@ -23,7 +23,8 @@ class Communication_designs {
         'callout'=>array('label'=>'Highlight box','field'=>'text'),
         'button'=>array('label'=>'Button','field'=>'both'),
         'divider'=>array('label'=>'Divider','field'=>'none'),
-        'terms'=>array('label'=>'Fine print','field'=>'text'));
+        'terms'=>array('label'=>'Fine print','field'=>'text'),
+        'product'=>array('label'=>'Online store product','field'=>'product'));
 
     /**
      * Curated MartPoint designs. Central edits or adds to these in its own
@@ -65,9 +66,26 @@ class Communication_designs {
                 array('type'=>'callout','text'=>'Need help? Reply to this email and we will answer.'))),
             'launch'=>$set('launch','New stock and launches','html','offer','retail','launch','#c2410c','Just landed at {store}','Fresh on the shelf — while stock lasts',array(
                 array('type'=>'heading','text'=>'Just landed'),
+                array('type'=>'product','product_id'=>0),
                 array('type'=>'body'),
                 array('type'=>'bullets','text'=>'What is new\nWhy it is worth a look\nWhat it costs'),
                 array('type'=>'button','label'=>'See the arrival','url'=>''))),
+            'product_spotlight'=>$set('product_spotlight','Product spotlight','html','offer','retail','restock','#c2410c','A closer look at this week’s pick','A product your customers will want to see',array(
+                array('type'=>'heading','text'=>'Picked for you'),
+                array('type'=>'product','product_id'=>0),
+                array('type'=>'body'),
+                array('type'=>'button','label'=>'Shop this item','url'=>''))),
+            'new_arrivals'=>$set('new_arrivals','New arrivals','html','offer','retail','launch','#0f766e','Just arrived at {store}','Meet the latest additions to our store',array(
+                array('type'=>'heading','text'=>'New arrivals'),
+                array('type'=>'product','product_id'=>0),
+                array('type'=>'body'),
+                array('type'=>'button','label'=>'Shop new arrivals','url'=>''))),
+            'sale_spotlight'=>$set('sale_spotlight','Sale spotlight','html','offer','retail','seasonal','#be123c','A special find from {store}','Take a look at this featured offer',array(
+                array('type'=>'heading','text'=>'A special for you'),
+                array('type'=>'product','product_id'=>0),
+                array('type'=>'body'),
+                array('type'=>'terms','text'=>'Offer availability and terms may change.'),
+                array('type'=>'button','label'=>'Shop the offer','url'=>''))),
             'menu_feature'=>$set('menu_feature','Menu feature','html','offer','food','restock','#b45309','New on the menu','Made this week, ready today',array(
                 array('type'=>'heading','text'=>'On the menu this week'),
                 array('type'=>'callout','text'=>'Tell customers what makes this dish worth ordering.'),
@@ -182,6 +200,7 @@ class Communication_designs {
                 $item['label']=mb_substr(trim((string)($block['label']??'')),0,80);
                 $item['url']=self::url($block['url']??'');
             }
+            if ($type==='product') $item['product_id']=max(0,(int)($block['product_id']??0));
             $out[]=$item;
         }
         return $out ?: array(array('type'=>'body','text'=>''));
@@ -220,11 +239,12 @@ class Communication_designs {
     }
 
     /** Sample render used by galleries and editors — the same code the send uses. */
-    public static function preview(array $row, $storeName, $recipient='Ada') {
+    public static function preview(array $row, $storeName, $recipient='Ada', array $products=array()) {
         $t=self::normalize($row);
+        if($products){$first=(int)key($products);foreach($t['blocks'] as &$block)if($block['type']==='product' && (int)($block['product_id']??0)<1)$block['product_id']=$first;unset($block);}
         return self::render($t,array('store'=>$storeName?:'Our store','name'=>$recipient,
             'subject'=>$t['subject'] ?: 'Your subject line goes here','message'=>'We are glad to have you with us. This is where your message reads best — two short paragraphs, then the one thing you want your customer to do.',
-            'unsubscribe'=>'https://example.com/unsubscribe'));
+            'unsubscribe'=>'https://example.com/unsubscribe','products'=>$products,'preview'=>true));
     }
 
     /**
@@ -248,6 +268,8 @@ class Communication_designs {
         $accent = $t['accent'];
         $c = array('t'=>$t,'tokens'=>$tokens,'unsub'=>$unsub,'store'=>$store,
             'accent'=>$accent,'tint'=>self::mix($accent,'#ffffff',.90),'ink'=>self::contrast($accent),
+            'products'=>(array)($ctx['products']??array()),
+            'preview'=>!empty($ctx['preview']),
             'label'=>trim((string)($ctx['cta_label'] ?? '')) ?: $t['cta_label'],
             'url'=>self::url($ctx['cta_url'] ?? '') ?: $t['cta_url'],
             'body'=>($body === '' ? '' : sprintf($greeting,'#2a3040').$body),
@@ -293,6 +315,7 @@ class Communication_designs {
                 case 'divider': $blocks .= '<p style="margin:0 0 16px;color:#c3c9d8">&mdash; &mdash; &mdash;</p>'; break;
                 case 'terms': if ($text !== '') $blocks .= '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#68708a">'.nl2br(self::fill($text,$c['tokens'])).'</p>'; break;
                 case 'button': $blocks .= self::plainButton($block,$c); break;
+                case 'product': $blocks .= self::productBlock($block,$c,true); break;
             }
         }
         if (trim($blocks) === '') $blocks = '<p style="'.$line.'">'.self::fill('Your message will appear here.',$c['tokens']).'</p>';
@@ -331,8 +354,19 @@ class Communication_designs {
                 $url = self::url($b['url'] ?? '') ?: $c['url'];
                 if ($label === '' || $url === '') return '';
                 return '<p style="margin:28px 0 6px"><a href="'.self::e($url).'" style="background:'.$c['accent'].';color:'.$c['ink'].';display:inline-block;padding:15px 28px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:bold">'.self::e($label).'</a></p>';
+            case 'product': return self::productBlock($b,$c,false);
         }
         return '';
+    }
+
+    /** Product details are resolved from the store's public catalogue at render time. */
+    private static function productBlock(array $b, array $c, $plain=false) {
+        $id=(int)($b['product_id']??0);$product=$c['products'][$id]??null;
+        if(!is_array($product))return !empty($c['preview'])?'<p style="margin:0 0 20px;padding:18px;border:1px dashed #d7dce7;border-radius:10px;color:#68708a;font-size:14px">Choose an online store product to show it here.</p>':'';
+        $name=self::e($product['name']??'');$price=self::e($product['price']??'');$url=self::url($product['url']??'');$image=self::link($product['image']??'');
+        if($plain)return '<p style="margin:0 0 16px;font-size:16px;line-height:1.7"><strong>'.$name.'</strong>'.($price!==''?' · '.$price:'').($url!==''?' · <a href="'.self::e($url).'">View product</a>':'').'</p>';
+        $visual=$image!==''?'<a href="'.self::e($url?:'#').'" style="text-decoration:none"><img src="'.self::e($image).'" alt="'.$name.'" width="520" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:12px 12px 0 0"></a>':'';
+        return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e5e8ef;border-radius:12px;border-collapse:separate"><tr><td style="padding:0">'.$visual.'<div style="padding:18px 20px"><div style="font-size:19px;line-height:1.4;font-weight:bold;color:#202638">'.$name.'</div>'.($price!==''?'<div style="margin-top:7px;font-size:17px;font-weight:bold;color:'.$c['accent'].'">'.$price.'</div>':'').($url!==''?'<p style="margin:14px 0 0"><a href="'.self::e($url).'" style="color:'.$c['accent'].';font-weight:bold">View product &rarr;</a></p>':'').'</div></td></tr></table>';
     }
 
     /** Plain designs show the button as a normal underlined link. */

@@ -3934,12 +3934,34 @@ class Online_store extends MY_Controller {
 	public function testimonials(){
 		if(!$this->_can_edit()){ $this->show_access_denied_page(); exit; }
 		$storeId = get_current_store_id();
+		$this->load->model('Reviews_model', 'product_reviews_model');
 		$data = array_merge($this->data, [
 			'page_title' => 'Storefront Testimonials',
-			'testimonials' => $this->storefront_model->getStorefrontTestimonials($storeId, false)
+			'testimonials' => $this->storefront_model->getStorefrontTestimonials($storeId, false),
+			'product_reviews' => $this->db->table_exists('db_product_reviews')
+				? $this->product_reviews_model->listForModeration($storeId, null, 500, 0) : []
 		]);
 		$data['content'] = $this->load->view('online_store/testimonials', $data, TRUE);
 		$this->load->view('mp_layout', $data);
+	}
+
+	public function moderate_product_review($id = 0){
+		$this->output->set_content_type('application/json');
+		if(!$this->_can_edit()){
+			$this->output->set_status_header(403)->set_output(json_encode(['status'=>'error','message'=>'Access denied']));
+			return;
+		}
+		$decision = trim((string)$this->input->post('decision', TRUE));
+		if(!in_array($decision, ['approve','reject'], true)){
+			$this->output->set_output(json_encode(['status'=>'error','message'=>'Choose approve or reject.']));
+			return;
+		}
+		$this->load->model('Reviews_model', 'product_reviews_model');
+		$saved = $this->product_reviews_model->moderate((int)$id, (int)get_current_store_id(), $decision,
+			(int)get_current_user_id());
+		$this->output->set_output(json_encode($saved
+			? ['status'=>'success','message'=>$decision === 'approve' ? 'Review approved and now visible on its product page.' : 'Review rejected and hidden from the storefront.']
+			: ['status'=>'error','message'=>'Review could not be updated. Refresh and try again.']));
 	}
 
 	public function save_testimonial(){

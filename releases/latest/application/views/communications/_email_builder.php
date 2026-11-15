@@ -33,6 +33,7 @@ $option=function($map,$selected,$field)use($h){
         <label>Occasion<?php $option(Communication_designs::OCCASIONS,$t['occasion']??'any','occasion'); ?></label>
     </div>
     <p class="muted">Purpose, best-for and occasion only help you find the design again in your gallery. The email itself is built from the blocks below.</p>
+<?php if(isset($email_products) && empty($email_products)): ?><div class="notice">No published online products are available to add yet. Publish a product in your online store first; product blocks require a live catalog item before this store design can be saved.</div><?php endif; ?>
 
     <h3 style="margin-top:22px">Words inside the design</h3>
     <label>Example subject line<input name="subject" maxlength="255" value="<?= $h($t['subject']??''); ?>" placeholder="e.g. Fresh stock is in, {name}"></label>
@@ -57,6 +58,7 @@ $option=function($map,$selected,$field)use($h){
                 <label>Button text<input name="block_label" class="comm-block-label" maxlength="80" value="<?= $h($row['label']??''); ?>" placeholder="Book an appointment"></label>
                 <label>Button link<input name="block_url" class="comm-block-url" type="url" value="<?= $h($row['url']??''); ?>" placeholder="https://your-store.com/booking"></label>
             </div>
+            <label class="comm-block-field comm-block-product-field">Choose an online store product<select name="block_product" class="comm-block-product"><option value="0">Choose a product…</option><?php foreach(($email_products??array()) as $product): ?><option value="<?= (int)$product['id']; ?>" <?= (int)($row['product_id']??0)===(int)$product['id']?'selected':''; ?>><?= $h($product['name']); ?><?= $product['price']!==''?' · '.$h($product['price']):''; ?></option><?php endforeach; ?></select><small class="muted"><?php if(isset($email_products)): ?>Only published products from this store are listed. Name, price, image and product link refresh from your catalog when the email is previewed or sent.<?php else: ?>Store owners choose a product from their own online catalog after adding this design.<?php endif; ?></small></label>
         </div>
 <?php endforeach; ?>
     </div>
@@ -109,6 +111,7 @@ $option=function($map,$selected,$field)use($h){
             <label>Button text<input name="block_label" class="comm-block-label" maxlength="80" placeholder="Book an appointment"></label>
             <label>Button link<input name="block_url" class="comm-block-url" type="url" placeholder="https://your-store.com/booking"></label>
         </div>
+        <label class="comm-block-field comm-block-product-field">Choose an online store product<select name="block_product" class="comm-block-product"><option value="0">Choose a product…</option><?php foreach(($email_products??array()) as $product): ?><option value="<?= (int)$product['id']; ?>"><?= $h($product['name']); ?><?= $product['price']!==''?' · '.$h($product['price']):''; ?></option><?php endforeach; ?></select><small class="muted"><?php if(isset($email_products)): ?>Only published products from this store are listed. Product details refresh from your catalog.<?php else: ?>Store owners choose a product from their own online catalog after adding this design.<?php endif; ?></small></label>
     </div>
 </script>
 <script>window.COMM_PREVIEW_URL=<?= json_encode($builderPreview,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;</script>

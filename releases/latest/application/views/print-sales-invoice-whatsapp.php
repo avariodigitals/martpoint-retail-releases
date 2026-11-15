@@ -260,7 +260,10 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     </td>
     <td style="text-align: right;">
       <div class="party-title" style="font-size:8pt; color:#6b7280; text-transform:uppercase;"><?= $this->lang->line('payment_status'); ?></div>
-      <div class="party-name" style="font-size:11pt; font-weight:bold; color:#111827; margin-top:2px;"><?= $payment_status; ?> : <?= $payment_method; ?></div>
+      <?php $status_text = trim((string)$payment_status); $method_text = trim((string)$payment_method); ?>
+      <div class="party-name" style="font-size:11pt; font-weight:bold; color:#111827; margin-top:2px;">
+        <?= htmlspecialchars($status_text, ENT_QUOTES, 'UTF-8'); ?><?php if($method_text !== '' && strcasecmp($method_text, $status_text) !== 0): ?> : <?= htmlspecialchars($method_text, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
+      </div>
       <?php if(!empty($payment_note_display)): ?>
       <div class="party-detail" style="font-size:8pt; color:#6b7280; margin-top:2px;">Note: <?= $payment_note_display; ?></div>
       <?php endif; ?>
@@ -357,6 +360,18 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
     </td>
   </tr>
 </table>
+
+<?php if(!empty($invoice_payment_url) && $sales_status === 'Final' && ($grand_total - $paid_amount) > 0): ?>
+<table class="note-table" style="margin-top: 14px;">
+  <tr><td style="background:#eff6ff; border-color:#bfdbfe;">
+    <strong>Pay online with MartPoint Pay</strong><br>
+    <span>Pay the outstanding balance securely online:</span><br>
+    <a href="<?= htmlspecialchars($invoice_payment_url, ENT_QUOTES, 'UTF-8'); ?>" style="display:inline-block; margin-top:6px; padding:8px 14px; background:#155eef; color:#ffffff; font-weight:bold; text-decoration:none; border-radius:4px;">
+      Pay now with MartPoint Pay
+    </a>
+  </td></tr>
+</table>
+<?php endif; ?>
 
 <?php if(!empty($download_url) && $q_payments->num_rows() > 0): ?>
 <table class="items" style="margin-top: 14px;">

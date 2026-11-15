@@ -32,7 +32,7 @@ if(empty($designs_saved)): ?>
 <div class="comm-template-grid">
 <?php foreach($designs as $design):$t=Communication_designs::normalize($design); ?>
 <article class="comm-template-card" data-design-card data-category="<?= $h($t['category']); ?>" data-format="<?= $h($t['format']); ?>" data-industry="<?= $h($t['industry']); ?>" data-occasion="<?= $h($t['occasion']); ?>" data-name="<?= $h($t['name']); ?>">
-    <div class="comm-template-thumb"><iframe srcdoc="<?= $h(Communication_designs::preview($design,$store_name)); ?>" title="<?= $h($t['name']); ?> email design preview" sandbox tabindex="-1" loading="lazy"></iframe></div>
+    <div class="comm-template-thumb"><iframe srcdoc="<?= $h(Communication_designs::preview($design,$store_name,'Ada',$email_products??array())); ?>" title="<?= $h($t['name']); ?> email design preview" sandbox tabindex="-1" loading="lazy"></iframe></div>
     <div class="comm-template-caption">
         <div class="row"><h3><?= $h($t['name']); ?></h3><span class="comm-badge"><?= $h(Communication_designs::label(Communication_designs::FORMATS,$t['format'])); ?></span></div>
         <p class="muted"><?= $h(Communication_designs::label(Communication_designs::CATEGORIES,$t['category'])); ?> · <?= $h(Communication_designs::label(Communication_designs::INDUSTRIES,$t['industry'])); ?> · <?= $h(Communication_designs::label(Communication_designs::OCCASIONS,$t['occasion'])); ?><?php if($design_family!=='any' && $t['industry']===$design_family): ?> · <b>Matched to your business</b><?php endif; ?></p>
@@ -56,7 +56,7 @@ if(empty($designs_saved)): ?>
 <div class="comm-template-grid">
 <?php foreach($hub_designs as $hubDesign):$t=Communication_designs::normalize($hubDesign); ?>
 <article class="comm-template-card" data-design-card data-category="<?= $h($t['category']); ?>" data-format="<?= $h($t['format']); ?>" data-industry="<?= $h($t['industry']); ?>" data-occasion="<?= $h($t['occasion']); ?>" data-name="<?= $h($t['name']); ?>">
-    <div class="comm-template-thumb"><iframe srcdoc="<?= $h(Communication_designs::preview($hubDesign,$store_name)); ?>" title="<?= $h($t['name']); ?> MartPoint design preview" sandbox tabindex="-1" loading="lazy"></iframe></div>
+    <div class="comm-template-thumb"><iframe srcdoc="<?= $h(Communication_designs::preview($hubDesign,$store_name,'Ada',$email_products??array())); ?>" title="<?= $h($t['name']); ?> MartPoint design preview" sandbox tabindex="-1" loading="lazy"></iframe></div>
     <div class="comm-template-caption">
         <div class="row"><h3><?= $h($t['name']); ?></h3><span class="comm-badge"><?= $h(Communication_designs::label(Communication_designs::FORMATS,$t['format'])); ?></span></div>
         <p class="muted"><?= $h(Communication_designs::label(Communication_designs::CATEGORIES,$t['category'])); ?> · <?= $h(Communication_designs::label(Communication_designs::INDUSTRIES,$t['industry'])); ?> · <?= $h(Communication_designs::label(Communication_designs::OCCASIONS,$t['occasion'])); ?></p>

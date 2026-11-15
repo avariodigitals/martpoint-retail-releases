@@ -740,6 +740,14 @@ class Theme_engine {
             // this library, so reading $this->html_theme_renderer here resolved
             // to nothing and every uploaded-theme page died.
             $html = $this->CI->html_theme_renderer->render($this->theme, $view, $merged, ['preview' => $merged['html_theme_preview']]);
+            if($view === 'track' && !empty($merged['can_testimonial'])){
+                $trackReview = $this->CI->load->view('themes/shared/track_testimonial', $merged, true);
+                if($trackReview !== ''){
+                    if(preg_match('~<footer\b~i', $html)) $html = preg_replace_callback('~(<footer\b[^>]*>)~i', function($m) use ($trackReview){ return $trackReview . $m[1]; }, $html, 1);
+                    elseif(stripos($html, '</body>') !== false) $html = preg_replace_callback('~</body>~i', function() use ($trackReview){ return $trackReview . "\n</body>"; }, $html, 1);
+                    else $html .= $trackReview;
+                }
+            }
             // Uploaded themes control their checkout layout, but the shared
             // cart connector reports the items subtotal only. Make that
             // distinction explicit in every theme's order-summary sidebar so
@@ -791,6 +799,20 @@ class Theme_engine {
                     if (preg_match('~<footer\b~i', $html)) $html = preg_replace('~<footer\b~i', $share . "\n<footer", $html, 1);
                     elseif (stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $share . "\n</body>", $html, 1);
                     else $html .= $share;
+                }
+                $feedback = '';
+                if(!empty($merged['product_reviews_enabled'])){
+                    $reviewData = $merged;
+                    $reviewData['restaurant_review'] = $themeKey === 'food_express';
+                    $feedback .= $this->CI->load->view('themes/shared/product_reviews', $reviewData, true);
+                }
+                if(!empty($merged['testimonials'])){
+                    $feedback .= $this->CI->load->view('themes/shared/product_testimonials', $merged, true);
+                }
+                if($feedback !== ''){
+                    if(preg_match('~<footer\b[^>]*>~i', $html)) $html = preg_replace_callback('~(<footer\b[^>]*>)~i', function($m) use ($feedback){ return $feedback . $m[1]; }, $html, 1);
+                    elseif(stripos($html, '</body>') !== false) $html = preg_replace('~</body>~i', $feedback . "\n</body>", $html, 1);
+                    else $html .= $feedback;
                 }
             }
             // Event ticketing widget for uploaded HTML themes (same shared
@@ -918,6 +940,9 @@ class Theme_engine {
             if($view==='product_detail' && $merged['garden_product_experience']) {$merged['public_branches']=$this->branches();$merged['product_checkout_supported']=!$isPrintDesign;}
             // Buffer content for layout wrapping
             $merged['content'] = $this->CI->load->view($viewPath, $merged, true);
+            if($view === 'track' && !empty($merged['can_testimonial'])){
+                $merged['content'] .= $this->CI->load->view('themes/shared/track_testimonial', $merged, true);
+            }
             if (in_array($view, ['verify','account','account_orders','order_received'], true)
                 && $viewPath === 'themes/shared/' . $view) {
                 $merged['content'] = '<link rel="stylesheet" href="' . base_url('theme/css/html_theme_inner_pages.css') . '"><div class="mp-html-inner">' . $merged['content'] . '</div>';
@@ -928,6 +953,14 @@ class Theme_engine {
                 $merged['content'] .= $this->CI->load->view('themes/shared/product_gallery', $merged, true);
                 $merged['restaurant_share'] = $themeKey === 'food_express';
                 $merged['content'] .= $this->CI->load->view('themes/shared/product_share', $merged, true);
+                if(!empty($merged['product_reviews_enabled'])){
+                    $reviewData = $merged;
+                    $reviewData['restaurant_review'] = $themeKey === 'food_express';
+                    $merged['content'] .= $this->CI->load->view('themes/shared/product_reviews', $reviewData, true);
+                }
+                if(!empty($merged['testimonials'])){
+                    $merged['content'] .= $this->CI->load->view('themes/shared/product_testimonials', $merged, true);
+                }
             }
             // Event ticketing widget — anchored in the page for PHP themes.
             $eventWidget = $this->eventWidgetHtml($view, $merged);

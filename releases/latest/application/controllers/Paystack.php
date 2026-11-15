@@ -43,7 +43,7 @@ class Paystack extends MY_Controller {
 			$this->db->query('SELECT id FROM db_store WHERE id=? FOR UPDATE', array($storeId));
 			$locked = $this->db->query('SELECT * FROM db_sales WHERE id=? AND store_id=? AND invoice_payment_token=? FOR UPDATE', array((int)$invoice->id, $storeId, $token))->row();
 			if(!$locked || $locked->sales_status !== 'Final') throw new RuntimeException('This invoice is not available for payment.');
-			$paidRow = $this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1', array((int)$locked->id))->row();
+			$paidRow = $this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1', array((int)$locked->id))->row();
 			$due = round((float)$locked->grand_total - (float)($paidRow->paid ?? 0), 2);
 			if($due <= 0){ $this->db->trans_commit(); redirect('invoice/pay/'.rawurlencode($token)); return; }
 
@@ -128,7 +128,7 @@ class Paystack extends MY_Controller {
 
 	private function _invoicePageData($invoice, $token)
 	{
-		$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1',array((int)$invoice->id))->row();
+		$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS paid FROM db_salespayments WHERE sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1',array((int)$invoice->id))->row();
 		$items = $this->db->select("COALESCE(NULLIF(TRIM(i.item_name),''),NULLIF(TRIM(si.description),''),'Item') AS item_name, si.sales_qty, si.unit_total_cost, si.total_cost")
 			->from('db_salesitems si')->join('db_items i','i.id=si.item_id','left')->where('si.sales_id',(int)$invoice->id)->get()->result();
 		$store = function_exists('get_store_details') ? get_store_details((int)$invoice->store_id) : null;
@@ -270,6 +270,7 @@ class Paystack extends MY_Controller {
 		$sales_id = intval($this->input->post('sales_id'));
 		$customer_id = intval($this->input->post('customer_id'));
 		$phone = $this->input->post('phone');
+		$store_id = (int)get_current_store_id();
 
 		if($amount <= 0){
 			echo json_encode(array('status'=>false, 'message'=>'Invalid amount'));
@@ -279,22 +280,83 @@ class Paystack extends MY_Controller {
 			echo json_encode(array('status'=>false, 'message'=>'Customer email is required'));
 			return;
 		}
+		if($sales_id <= 0 || $store_id <= 0){
+			echo json_encode(array('status'=>false, 'message'=>'Save the sale first so the payment can be applied automatically.'));
+			return;
+		}
+		$sale = $this->db->where('id',$sales_id)->where('store_id',$store_id)->where('sales_status','Final')->get('db_sales')->row();
+		if(!$sale){
+			echo json_encode(array('status'=>false, 'message'=>'The sale could not be found for this store.'));
+			return;
+		}
+		$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS amount FROM db_salespayments WHERE sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1', array($sales_id))->row();
+		$due = round((float)$sale->grand_total - (float)($paid->amount ?? 0), 2);
+		if($due <= 0 || round($amount,2) > $due){
+			echo json_encode(array('status'=>false, 'message'=>'The link amount exceeds this sale’s outstanding balance.'));
+			return;
+		}
+		$customer_id = (int)$sale->customer_id;
+		$openLinks = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+			->where('payment_status','pending')->get('db_paystack_payments')->result();
+		foreach($openLinks as $openLink){
+			$openMeta = json_decode((string)($openLink->meta_data ?? ''), true);
+			if(!is_array($openMeta) || ($openMeta['purpose'] ?? '') !== 'pos_sale_payment') continue;
+			if(abs((float)$openLink->amount - $amount) < 0.01 && !empty($openLink->paystack_authorization_url)){
+				echo json_encode(array('status'=>true, 'reference'=>$openLink->paystack_reference,
+					'authorization_url'=>$openLink->paystack_authorization_url,
+					'access_code'=>$openLink->paystack_access_code ?? '', 'platform_fee'=>$openLink->platform_fee ?? 0));
+				return;
+			}
+			echo json_encode(array('status'=>false, 'message'=>'A MartPoint Pay link is already awaiting payment for this sale. Use that link before creating another.'));
+			return;
+		}
 
 		$metadata = array(
 			'sales_id' => $sales_id,
 			'customer_id' => $customer_id,
-			'store_id' => get_current_store_id(),
+			'store_id' => $store_id,
+			'purpose' => 'pos_sale_payment',
 			'phone' => $phone
 		);
 
-		$result = $this->paystack->generate_payment_link($amount, $email, $metadata);
+		$result = $this->paystack->generate_payment_link($amount, $email, $metadata, $store_id);
 		if($result['status']){
-			// Update the paystack record with sales_id and customer_id
-			$this->db->where('paystack_reference', $result['reference'])->update('db_paystack_payments', array(
-				'sales_id' => $sales_id,
-				'customer_id' => $customer_id,
-				'customer_phone' => $phone
+			$this->db->trans_begin();
+			$linked = $this->db->where('paystack_reference', $result['reference'])->where('store_id',$store_id)->update('db_paystack_payments', array(
+				'sales_id' => $sales_id, 'customer_id' => $customer_id, 'customer_phone' => $phone
 			));
+			if($linked){
+				// Reuse the pending Paystack row saved with the POS sale when possible.
+				$pending = $this->db->where('store_id',$store_id)->where('sales_id',$sales_id)
+					->where('payment_type','Paystack')->where('confirmation_status',0)
+					->where('payment_reference','')->where('status',0)->where('payment',round($amount,2))
+					->order_by('id','ASC')->get('db_salespayments')->row();
+				if($pending){
+					$linked = $this->db->where('id',(int)$pending->id)->update('db_salespayments', array('payment_reference'=>$result['reference']));
+				} else {
+					$entry = array(
+						'store_id'=>$store_id, 'sales_id'=>$sales_id, 'customer_id'=>$customer_id,
+						'payment_code'=>function_exists('get_init_code') ? get_init_code('sales_payment',$store_id) : ('MP-'.$result['reference']),
+						'count_id'=>function_exists('get_count_id') ? get_count_id('db_salespayments',$store_id) : 0,
+						'payment_date'=>date('Y-m-d'), 'payment_type'=>'Paystack', 'payment_mode_id'=>null,
+						'payment'=>round($amount,2), 'payment_note'=>'Customer payment via MartPoint Pay',
+						'payment_reference'=>$result['reference'], 'confirmation_status'=>0,
+						'created_date'=>date('Y-m-d'), 'created_time'=>date('h:i:s a'),
+						'created_by'=>'MartPoint Pay', 'system_ip'=>$this->input->ip_address(),
+						'system_name'=>gethostname() ?: 'MartPoint', 'status'=>0,
+						'account_id'=>null, 'advance_adjusted'=>0
+					);
+					foreach(array_keys($entry) as $column){ if(!$this->db->field_exists($column,'db_salespayments')) unset($entry[$column]); }
+					$linked = $this->db->insert('db_salespayments',$entry);
+				}
+			}
+			if(!$linked || !$this->db->trans_status()){
+				$this->db->trans_rollback();
+				log_message('error','Paystack payment link '.$result['reference'].' could not be linked to sale '.$sales_id.'.');
+				echo json_encode(array('status'=>false, 'message'=>'Paystack created the link but MartPoint could not attach it to the sale. Do not share this link; contact support.'));
+				return;
+			}
+			$this->db->trans_commit();
 		}
 		echo json_encode($result);
 	}
@@ -327,7 +389,9 @@ class Paystack extends MY_Controller {
 				return;
 			}
 
-			$data['message'] = 'Payment successful!';
+			$data['message'] = $ledgerConfirmed
+				? 'Payment successful and applied to the sale automatically.'
+				: 'Payment successful at Paystack, but MartPoint could not match it to the sale balance. Please contact support; do not request another payment.';
 			$data['reference'] = $ref;
 			$this->load->view('paystack_callback', $data);
 		} else {
@@ -514,8 +578,9 @@ class Paystack extends MY_Controller {
 
 				// Confirm only an exact local amount/currency match. A webhook is
 				// not allowed to turn an under/over-payment into a paid sale.
+				$ledgerConfirmed = false;
 				if($known && $this->paystack->payment_matches($reference, $amount, $data['currency'] ?? 'NGN')){
-					$this->paystack->confirm_sales_payment($reference);
+					$ledgerConfirmed = $this->paystack->confirm_sales_payment($reference);
 				} elseif($known && $status === 'failed'){
 					$this->paystack->release_failed_invoice_payment($reference);
 				}
@@ -552,6 +617,15 @@ class Paystack extends MY_Controller {
 									? 'Settled currency differs from initiated currency'
 									: 'Settled amount differs from initiated amount',
 								'detected_by'     => 'webhook',
+							));
+						} elseif(!$ledgerConfirmed) {
+							$this->recon->queue((int)$known->store_id, array(
+								'exception_type'=>!empty($known->sales_id) ? 'discrepancy' : 'unmatched', 'provider'=>'paystack',
+								'reference'=>$reference, 'sales_id'=>!empty($known->sales_id) ? (int)$known->sales_id : null,
+								'amount'=>$amount, 'expected_amount'=>$known->amount,
+								'currency'=>$data['currency'] ?? $known->currency,
+								'detail'=>'Paystack confirmed the charge but MartPoint could not apply it to the linked sale automatically.',
+								'detected_by'=>'webhook', 'payload'=>$data
 							));
 						}
 					}

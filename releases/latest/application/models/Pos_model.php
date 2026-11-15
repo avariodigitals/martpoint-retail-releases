@@ -1257,7 +1257,7 @@ class Pos_model extends CI_Model {
     				'system_ip' 		=> $SYSTEM_IP,
     				'system_name' 		=> $SYSTEM_NAME,
     				'change_return' 	=> $change_return,
-    				'status' 			=> 1,
+					'status' 			=> (($confirmation_status ?? 1) == 1 ? 1 : 0),
     				'customer_id' 		=> $customer_id,
     				'account_id' 		=> (empty($account_id)) ? null : $account_id,
 				);
@@ -1265,7 +1265,7 @@ class Pos_model extends CI_Model {
 
 				//is total advance payment enabled ?
 				$advance_adjusted=0;
-				if(isset($allow_tot_advance)){
+				if(isset($allow_tot_advance) && (int)($confirmation_status ?? 1) === 1){
 					$tot_advance = get_customer_details($customer_id)->tot_advance;
 					if($tot_advance>0){
 						if($amount==$tot_advance){
@@ -1297,11 +1297,11 @@ class Pos_model extends CI_Model {
 					return "failed";
 				}
 
-				if(!set_customer_tot_advance($customer_id)){
+				if((int)($confirmation_status ?? 1) === 1 && !set_customer_tot_advance($customer_id)){
 		        	return 'failed';
 		        }
 				//Set the payment to specified account
-				if(!empty($account_id)){
+				if(!empty($account_id) && (int)($confirmation_status ?? 1) === 1){
 					//ACCOUNT INSERT
 					$insert_bit = insert_account_transaction(array(
 																'transaction_type'  	=> 'SALES PAYMENT',

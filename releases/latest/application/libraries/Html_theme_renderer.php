@@ -100,6 +100,10 @@ class Html_theme_renderer {
             if($selector!=='' && stripos($html,'<body')!==false) $html=preg_replace('~(<body\b[^>]*>)~i','$1'.$selector,$html,1);
         }
         $headInjection = implode("\n", $css);
+        // Shared reviews appended by Theme_engine inherit the active package's
+        // palette too; they sit outside the optional inner-page wrapper.
+        $widgetPrimary = htmlspecialchars((string)$context['theme']['primary_color'], ENT_QUOTES, 'UTF-8');
+        $headInjection .= '<style>.mp-track-review,.mp-store-testimonials,.mp-product-reviews{--mp-primary:' . $widgetPrimary . ';--mp-primary-dark:' . $widgetPrimary . ';--mp-soft:var(--soft,#f7f8fa);--mp-dark:var(--ink,#222127);--mp-gray:var(--muted,#667085);--mp-border:var(--line,#e4e7ec)}</style>';
         if($headInjection !== '' && stripos($html, '</head>') !== false) $html = preg_replace('~</head>~i', $headInjection . "\n</head>", $html, 1);
         if(($manifest['theme_key'] ?? '') === 'martpoint_gadgets' && stripos($html, '</head>') !== false){
             // The uploaded 1.2.2 package used a 640px breakpoint. That left

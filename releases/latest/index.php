@@ -352,6 +352,9 @@ try {
 				}
 				$mp_conn->close();
 				if ($mp_slug) {
+					// Keep the resolved tenant available to the output layer so
+					// storefront HTML can publish clean paths on this domain.
+					$_SERVER['MP_CUSTOM_DOMAIN_STORE_SLUG'] = (string)$mp_slug;
 					$mp_uri = (string)(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/');
 					$mp_qs = '';
 					$mp_qpos = strpos($mp_uri, '?');
@@ -361,6 +364,16 @@ try {
 					if ($mp_base !== '' && strpos($mp_uri, $mp_base.'/') === 0) { $mp_uri = substr($mp_uri, strlen($mp_base)); }
 					elseif ($mp_base !== '' && $mp_uri === $mp_base) { $mp_uri = '/'; }
 					$mp_path = '/'.ltrim($mp_uri, '/');
+
+					// Canonicalize old slug-based links on the custom domain. The
+					// shared MartPoint host still needs /store/{slug}; this domain
+					// already identifies the tenant, so keep the browser URL clean.
+					require_once APPPATH.'helpers/storefront_url_helper.php';
+					$mp_redirect = mp_storefront_legacy_redirect($mp_slug, $mp_path, $mp_qs, $mp_base, $_SERVER['REQUEST_METHOD'] ?? 'GET');
+					if ($mp_redirect) {
+						header('Location: '.$mp_redirect['location'], TRUE, $mp_redirect['status']);
+						exit;
+					}
 
 					// Paths that must keep their existing routes on a custom domain
 					$mp_skip = array('store/', 'storefront/', 'pay/', 'image/', 'qr/', 'sitemap.xml', 'robots.txt', 'favicon', 'uploads/', 'assets/', 'themes/', 'setup/', 'install', 'index.php', 'api/', 'cron');

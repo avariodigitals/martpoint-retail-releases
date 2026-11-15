@@ -4,6 +4,7 @@ var pos_sale_just_saved = false;
 var pos_saved_customer_id = '';
 var pos_saved_warehouse_id = '';
 var pos_saved_advance = '0';
+var pendingPaystackLinkRequest = null;
 
 // Populate staff assignment when payment modal opens
 $('#multiple-payments-modal').on('shown.bs.modal', function(){
@@ -154,11 +155,13 @@ function processSaveSuccess(result, print, command, customer_id){
   $('#multiple-payments-modal').modal('hide');
   result = result.split("<<<###>>>");
   if(result[0]=="success"){
+    var paystackLinkRequest = pendingPaystackLinkRequest;
+    pendingPaystackLinkRequest = null;
     toastr['success']("Record Saved Successfully!!");
     success.currentTime = 0;
     success.play();
 	var warehouse_id = $("#posOutletSelector").val();
-    if(command=='update'){
+    if(command=='update' && !paystackLinkRequest){
       window.location = base_url+"sales";
     } else {
       var grandTotal = $(".sales_div_tot_payble").text();
@@ -190,14 +193,19 @@ function processSaveSuccess(result, print, command, customer_id){
       if(typeof bnplActive !== 'undefined' && bnplActive && typeof createInstallmentPlan === 'function'){
         createInstallmentPlan(result[1], customer_id);
       }
+      if(paystackLinkRequest){
+        generatePaystackLink(result[1], paystackLinkRequest.amount, paystackLinkRequest.customer_id);
+      }
     }
     $("#init_code").val(result[2]);
     $("#count_id").val(result[3]);
   }
   else if(result[0]=="failed"){
+    pendingPaystackLinkRequest = null;
     toastr['error']("Sorry! Failed to save Record.Try again");
   }
   else {
+    pendingPaystackLinkRequest = null;
     toastr.error(result);
   }
   $("#make_sale").attr('disabled',false);
@@ -431,6 +439,7 @@ function doSave(print=false,pay_all=false){
 		error: function(xhr){
 			// Network failed mid-request — offer to queue
 			$(".overlay").remove();
+			pendingPaystackLinkRequest = null;
 			$("#make_sale").attr('disabled',false);
 			console.error("POS Save Error:", xhr.status, xhr.statusText);
 			console.error("Response:", xhr.responseText);

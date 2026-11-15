@@ -42,6 +42,7 @@ class Communications extends MY_Controller {
                 $industry='';
                 if(function_exists('mp_get_store_profile')){try{$profile=mp_get_store_profile($storeId);$industry=(string)($profile['industry_type']??'');}catch(Throwable $e){$industry='';}}
                 $d['design_family']=Communication_designs::family($industry);
+                if($section==='templates')$d['email_products']=$this->communication_template_model->emailProducts($storeId,null,80);
                 if($section==='templates'){
                     if(mp_is_central())$d['hub_designs']=$this->communication_template_model->hub();
                     else{
@@ -50,7 +51,10 @@ class Communications extends MY_Controller {
                         else $d['hub_message']=(string)($hub['message']??'Your MartPoint designs are unavailable right now.');
                     }
                 }
-                if($section==='build' && ($id=(int)$this->input->get('design'))>0)$d['editing']=$this->communication_template_model->get($storeId,$id);
+                if($section==='build'){
+                    $d['email_products']=$this->communication_template_model->emailProducts($storeId,null,80);
+                    if(($id=(int)$this->input->get('design'))>0)$d['editing']=$this->communication_template_model->get($storeId,$id);
+                }
             }
             $d['selected_design']='k:'.$d['selected_template'];
             $useDesign=(int)$this->input->get('use_design');
@@ -263,15 +267,16 @@ class Communications extends MY_Controller {
     }
     /** Take a copy of a MartPoint design, so your own version is never changed under you. */
     public function design_adopt(){
-        $this->post();$this->guard('email');$storeId=get_current_store_id();
+        $this->post();$this->guard('email');$storeId=get_current_store_id();$adoptedId=0;
         try{
             $hubId=(int)$this->input->post('hub_template_id');
             if(mp_is_central()){$design=$this->communication_template_model->getHub($hubId);$hub=array('success'=>(bool)$design,'designs'=>$design?array($design):array());}
             else $hub=$this->messaging_client->request('template_hub',$storeId,array('id'=>$hubId));
             if(empty($hub['designs'][0]))throw new RuntimeException(!empty($hub['success'])?'That MartPoint design is no longer available.':(string)($hub['message']??'Your MartPoint designs are unavailable right now.'));
-            $this->communication_template_model->adopt($storeId,$hub['designs'][0],(string)$this->session->userdata('inv_username'));
+            $adoptedId=$this->communication_template_model->adopt($storeId,$hub['designs'][0],(string)$this->session->userdata('inv_username'));
             $this->session->set_flashdata('success','MartPoint design added to your templates. Edit it whenever you like.');
         }catch(Throwable $e){$this->session->set_flashdata('failed',$e->getMessage());}
+        if($adoptedId>0){$query=array('section'=>'build','design'=>$adoptedId);if($this->mobile())$query['screen']='mobile';redirect('communications/channel/email?'.http_build_query($query));return;}
         $this->go('email','templates');
     }
     /** The same email the send would build, for the preview pane. */
@@ -284,7 +289,9 @@ class Communications extends MY_Controller {
             if(trim($p['name'])==='')$p['name']='Email design';
             $blocks=json_decode((string)$this->input->post('blocks'),true);
             $p['blocks']=is_array($blocks)?$blocks:array();
-            $html=Communication_designs::preview($p,get_store_name());
+            $productIds=array();foreach($p['blocks'] as $block)if(($block['type']??'')==='product' && !empty($block['product_id']))$productIds[]=(int)$block['product_id'];
+            $products=$this->communication_template_model->emailProducts(get_current_store_id(),$productIds);
+            $html=Communication_designs::preview($p,get_store_name(),'Ada',$products);
         }else{
             $html=$this->previewHtml((string)$this->input->post('design'),
                 mb_substr((string)$this->input->post('subject'),0,255),mb_substr((string)$this->input->post('message'),0,20000),
@@ -298,8 +305,13 @@ class Communications extends MY_Controller {
         $unsub=base_url('storefront/campaign_unsubscribe/preview');
         if(preg_match('/^d:([1-9]\d{0,9})$/D',$design,$m)){
             $stored=$this->communication_template_model->get($storeId,(int)$m[1]);
-            if($stored && !empty($stored['enabled']))return Communication_designs::render($stored,array('store'=>$store,'name'=>$name,'subject'=>$subject,
-                'message'=>$message,'unsubscribe'=>$unsub,'cta_label'=>$label,'cta_url'=>$url));
+            if($stored && !empty($stored['enabled'])){
+                $normalized=Communication_designs::normalize($stored);$productIds=array();
+                foreach($normalized['blocks'] as $block)if($block['type']==='product' && !empty($block['product_id']))$productIds[]=(int)$block['product_id'];
+                $products=$this->communication_template_model->emailProducts($storeId,$productIds);
+                return Communication_designs::render($stored,array('store'=>$store,'name'=>$name,'subject'=>$subject,
+                    'message'=>$message,'unsubscribe'=>$unsub,'cta_label'=>$label,'cta_url'=>$url,'products'=>$products,'preview'=>true));
+            }
         }
         $key=preg_match('/^k:([a-z][a-z0-9_]{1,19})$/D',$design,$m) && isset(Communication_templates::catalogue()[$m[1]])?$m[1]:'letter';
         return Communication_templates::render($key,$store,$name,$message,$subject,'#6554c0',$label,$url,$unsub);
