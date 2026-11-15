@@ -340,23 +340,32 @@ function selectTheme(id){
   document.querySelectorAll('.os-theme-card').forEach(c => c.classList.remove('selected'));
   document.querySelector('.os-theme-card[data-theme-id="'+id+'"]').classList.add('selected');
 }
-function saveAppearance(){
+async function saveAppearance(){
   const btn = document.querySelector('#appearance-form .mp-btn-primary');
+  if(btn.disabled) return;
+  const originalLabel = btn.innerHTML;
   btn.disabled = true; btn.textContent = 'Saving...';
-  const fd = new FormData(document.getElementById('appearance-form'));
-  fd.append('theme_id', document.getElementById('theme_id').value);
-  // Tell the controller these swatches were reverted rather than chosen, so it
-  // can store NULL and let the theme's palette govern again. Without this the
-  // colour input's current value would be saved as a deliberate override.
-  document.queryAll('#primary_color, #secondary_color').forEach(function(input){
-    if(input.dataset.reverted === '1') fd.append(input.id + '_reverted', '1');
-  });
-  fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd})
-  .then(r=>r.json()).then(res=>{
-    if(res.status === 'success'){ toastr.success(res.message); }
-    else { toastr.error(res.message || 'Failed to save'); }
-    btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance';
-  }).catch(()=>{ toastr.error('Error saving appearance'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Save Appearance'; });
+  try {
+    const fd = new FormData(document.getElementById('appearance-form'));
+    fd.append('theme_id', document.getElementById('theme_id').value);
+    // A reverted swatch is stored as NULL so the theme palette governs again.
+    document.querySelectorAll('#primary_color, #secondary_color').forEach(function(input){
+      if(input.dataset.reverted === '1') fd.append(input.id + '_reverted', '1');
+    });
+    const response = await fetch('<?= base_url('online_store/save_appearance'); ?>', {method:'POST', body:fd});
+    const res = await response.json();
+    if(!response.ok || res.status !== 'success'){
+      throw new Error(res.message || 'Failed to save appearance');
+    }
+    toastr.success(res.message || 'Appearance saved');
+  } catch(error) {
+    const message = error.message || 'Error saving appearance';
+    if(window.toastr) toastr.error(message);
+    else window.alert(message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalLabel;
+  }
 }
 
 /**

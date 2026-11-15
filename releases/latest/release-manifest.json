@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.277",
-    "previous_version": "4.0.9.255",
-    "release_date": "2026-11-14",
+    "version": "4.0.9.278",
+    "previous_version": "4.0.9.277",
+    "release_date": "2026-11-15",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -4126,8 +4126,8 @@
         },
         {
             "path": "application/views/online_store/appearance.php",
-            "hash": "d9c2d22a8cc59807fea31eea15bd64b2857f4d9fce9218bd581080de9df52b6c",
-            "size": 34355
+            "hash": "4b7e898d5dcb5ff733404628690759842e84835054dfc4ae6c9bcfd937d28ad4",
+            "size": 34386
         },
         {
             "path": "application/views/online_store/messaging_inbox.php",
@@ -7136,8 +7136,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "75c3dc96efa91a9029dca4c49b767efc05fedbe2912a5f88a14c1537fbf6b84e",
-            "size": 44771
+            "hash": "cb3b3f6c826559ee68c402c33413086c249be7ba1054c19f90aace23998450b2",
+            "size": 44918
         },
         {
             "path": "application/config/routes.php",
@@ -13631,7 +13631,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "77f228b581d97d2cb38dcfe7f01d7758fd7dbdc70b53dec36156d70b76d03f57",
+            "hash": "e2a952f9eccaa6cde5a3bb6d0164691ca824a6a680431649e87227ec418eda7f",
             "size": 137223
         },
         {
@@ -20689,7 +20689,8 @@
         "4.0.9.274_storefront_customer_wishlists.sql",
         "4.0.9.275_product_media_library_reuse.sql",
         "4.0.9.276_retail_price_defaults_and_electronics_theme.sql",
-        "4.0.9.277_invoice_online_payment_links.sql"
+        "4.0.9.277_invoice_online_payment_links.sql",
+        "4.0.9.278_storefront_appearance_save.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20698,6 +20699,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "2cf3e85d226932923341cfb3f0c7872b403b2025f622c05ed7df845269dce82951f212f21bf70db1e29d9f9ca39ed9152a7ba2267213b556dd2df8cb7ed6b80f",
-    "changelog": "Release 4.0.9.277"
+    "signature": "8bf4512a81aad32f03db565f163359d475dc60ac7bf401961fb5c639793f36d2a15398b34f6291b88d33e379435d48c76c9883dd3ecf2f209c9a9657f80a730c",
+    "changelog": "Release 4.0.9.278"
 }

@@ -671,4 +671,6 @@ return [
 		  '4.0.9.276v' => '4.0.9.276_retail_price_defaults_and_electronics_theme.sql',
 		  // Secure public checkout links for issued fleet invoices.
 		  '4.0.9.277v' => '4.0.9.277_invoice_online_payment_links.sql',
+		  // Appearance saves must submit successfully and restore the button on errors.
+		  '4.0.9.278v' => '4.0.9.278_storefront_appearance_save.sql',
 ];
