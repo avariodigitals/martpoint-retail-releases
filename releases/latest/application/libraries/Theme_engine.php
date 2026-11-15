@@ -364,7 +364,10 @@ class Theme_engine {
     /**
      * Should the storefront show a cart?
      *
-     * Three gates, all of which must pass:
+     * Product storefronts must include products in their catalogue. Electronics
+     * then follows the explicit selling mode, including imported themes whose
+     * generated keys differ from their package key. Other industries retain
+     * their legacy gates:
      *  1. the catalogue mode must include products;
      *  2. the store must allow products online at all
      *     (allow_products_online — how a service business sells a few goods);
@@ -395,13 +398,13 @@ class Theme_engine {
         if (!$this->sellsProducts()) {
             return false;
         }
-        // The electronics storefront includes its own online cart and checkout.
-        // Legacy stores can retain allow_products_online=0 from before the
-        // selling-mode setting existed; when the merchant has not selected
-        // catalogue-only mode, that stale flag must not remove every purchase
-        // control from the gadget theme.
-        if ($key === 'martpoint_gadgets' && $this->sellingMode() !== 'catalogue') {
-            return true;
+        // Apply the merchant's order mode to the entire electronics industry.
+        // Imported themes use generated upload_<store>_<hash> row keys, not
+        // their package's martpoint_gadgets key. A literal-key exception missed
+        // those cloud installs and let a stale allow_products_online=0 hide
+        // every cart and checkout control despite ecommerce/hybrid being saved.
+        if ($this->CI->storefront_model->normalizeThemeIndustry($this->industry) === 'electronics') {
+            return $this->sellingMode() !== 'catalogue';
         }
         // Skinora's Products/Products + Services modes have their own bag and
         // checkout. Existing stores can carry a stale allow_products_online=0
@@ -708,7 +711,11 @@ class Theme_engine {
         // not enter CodeIgniter's PHP view loader, so a package can style the
         // storefront without gaining PHP execution privileges. Commerce
         // bindings still come from the controller data assembled above.
-        $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout', 'track'];
+        // Shared inner-page content must retain the uploaded theme's shell even
+        // when its package predates optional Contact/account templates.
+        $htmlThemeViews = ['store', 'products', 'product_detail', 'cart', 'checkout', 'track',
+            'about', 'privacy', 'contact', 'blog', 'services', 'service_detail',
+            'wishlist', 'verify', 'account', 'account_orders', 'order_received'];
         $htmlManifest = json_decode((string)($this->theme->manifest_json ?? ''), true);
         foreach(['about','privacy','contact','blog','services','service_detail','branches'] as $optionalView){
             if(isset($htmlManifest['templates'][$optionalView])) $htmlThemeViews[] = $optionalView;
@@ -911,6 +918,10 @@ class Theme_engine {
             if($view==='product_detail' && $merged['garden_product_experience']) {$merged['public_branches']=$this->branches();$merged['product_checkout_supported']=!$isPrintDesign;}
             // Buffer content for layout wrapping
             $merged['content'] = $this->CI->load->view($viewPath, $merged, true);
+            if (in_array($view, ['verify','account','account_orders','order_received'], true)
+                && $viewPath === 'themes/shared/' . $view) {
+                $merged['content'] = '<link rel="stylesheet" href="' . base_url('theme/css/html_theme_inner_pages.css') . '"><div class="mp-html-inner">' . $merged['content'] . '</div>';
+            }
             // One shared share panel for every built-in theme. Theme-specific
             // product-detail templates remain focused on their own layout.
             if ($view === 'product_detail' && !empty($merged['product']->id)) {

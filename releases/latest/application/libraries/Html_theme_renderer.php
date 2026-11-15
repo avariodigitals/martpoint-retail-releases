@@ -30,19 +30,25 @@ class Html_theme_renderer {
         $header = $this->renderTemplate($read('header'), $context);
         if(isset($templates[$templateKey])){
             $body = $this->renderTemplate($read($templateKey), $context);
-        } elseif($view === 'track') {
-            // Tracking is a shared MartPoint flow, but uploaded themes still
-            // own the page chrome and stylesheet. Render the shared tracking
-            // content inside that theme's shell when no custom track template
-            // was included in the package.
-            $body = $this->CI->load->view('themes/shared/track', $data, true);
-            $body = '<style>.mp-track-page{--mp-white:#fff;--mp-border:var(--line,#e9e7eb);--mp-radius:10px;--mp-radius-sm:8px;--mp-dark:var(--ink,#222127);--mp-gray:var(--muted,#79777f);--mp-light-gray:var(--soft,#f7f6f8);--mp-primary:var(--purple,#7356d3);--mp-primary-dark:var(--purple,#7356d3);--mp-success:#16845b}</style>' . $body;
+        } elseif(in_array($view, ['track','about','privacy','contact','blog','services','service_detail',
+            'wishlist','verify','account','account_orders','order_received'], true)) {
+            // Only application-owned PHP partials are allowed here. Uploaded
+            // package paths still go through the inert HTML reader above.
+            $data['html_theme_embedded'] = true;
+            $data['html_theme_preview'] = !empty($options['preview']);
+            $body = $this->CI->load->view('themes/shared/' . $view, $data, true);
+            // Package headers own the main landmark. Shared partials may have
+            // a main element for native themes, so use a section inside it.
+            $body = preg_replace('~<(\/?)main(\b[^>]*)>~i', '<$1section$2>', $body);
+            $primary = htmlspecialchars((string)$context['theme']['primary_color'], ENT_QUOTES, 'UTF-8');
+            $body = '<div class="mp-html-inner" style="--mp-primary:' . $primary . ';--mp-primary-dark:' . $primary . '">' . $body . '</div>';
         } else {
             throw new RuntimeException('Theme template is missing: ' . $templateKey);
         }
         $footer = $this->renderTemplate($read('footer'), $context);
         $css = [];
         foreach((array)($manifest['assets']['css'] ?? []) as $asset) $css[] = '<link rel="stylesheet" href="' . htmlspecialchars($this->assetUrl($theme, $asset), ENT_QUOTES, 'UTF-8') . '">';
+        $css[] = '<link rel="stylesheet" href="' . base_url('theme/css/html_theme_inner_pages.css') . '?v=4.0.9.280">';
         $js = [];
         foreach((array)($manifest['assets']['js'] ?? []) as $asset) $js[] = '<script src="' . htmlspecialchars($this->assetUrl($theme, $asset), ENT_QUOTES, 'UTF-8') . '" defer></script>';
         $runtime = $this->runtime($theme, $data, !empty($options['preview']));
@@ -280,7 +286,7 @@ HTML;
         $currency = (array)($data['store_currency'] ?? []);
         $feeSymbol = trim(html_entity_decode((string)($currency['symbol'] ?? $currency['currency_symbol'] ?? $currency['code'] ?? ''), ENT_QUOTES, 'UTF-8'));
         $out['checkout']['currency_symbol'] = $feeSymbol;
-        foreach(['pay_on_delivery'=>'Pay on delivery','whatsapp'=>'Confirm on WhatsApp','paystack'=>'Pay online','paypal'=>'PayPal'] as $key=>$label){
+        foreach(['pay_on_delivery'=>'Pay on delivery','whatsapp'=>'Confirm on WhatsApp','paystack'=>'MartPoint Pay','paypal'=>'PayPal'] as $key=>$label){
             $enabled = $key === 'paypal' ? !empty($data['paypal_enabled']) : !empty($settings['allow_'.$key]);
             if($key === 'paystack') $enabled = $enabled && !empty($data['paystack_enabled']) && (($currency['code'] ?? '') === 'NGN');
             if($enabled && !empty($data['cart_enabled'])) $out['checkout']['payment_methods'][] = ['value'=>$key, 'label'=>$label];

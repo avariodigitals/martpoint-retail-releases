@@ -1,0 +1,20 @@
+<?php
+$root=base_url('store/'.($settings->store_slug ?? ''));
+$paid=($order->payment_status ?? '')==='paid';
+$currency=(string)($order->transaction_currency ?? $order->base_currency ?? $store_currency['code'] ?? 'NGN');
+$money=function($amount) use ($currency){return htmlspecialchars($currency).' '.number_format((float)$amount,2);};
+?>
+<section class="mp-portal"><p class="mp-portal-kicker"><?= htmlspecialchars($store->store_name ?? 'Your store'); ?> · Order received</p><h1>Thank you, <?= htmlspecialchars($order->customer_name ?? 'Customer'); ?>.</h1><p class="mp-portal-intro">Order #<?= htmlspecialchars($order->order_code); ?> has been received. <?= $paid?'Your payment is confirmed.':'Payment has not yet been confirmed.'; ?></p>
+<div class="mp-portal-grid"><section class="mp-portal-card"><h2>Your order</h2>
+<?php foreach((array)$items as $item): ?><div class="mp-portal-row"><div><?= htmlspecialchars($item->item_name ?? ''); ?><small>Quantity: <?= (int)($item->quantity ?? $item->qty ?? 1); ?></small></div><strong><?= $money($item->transaction_total_price ?? $item->total_price ?? $item->total ?? 0); ?></strong></div><?php endforeach; ?>
+<?php foreach(['subtotal'=>'Items subtotal','delivery_fee'=>'Delivery','tax_amount'=>'Tax','coupon_discount'=>'Discount'] as $field=>$label): $amount=$order->{'transaction_'.$field} ?? $order->$field ?? 0; if(!$amount) continue; ?><div class="mp-portal-row"><span><?= $label; ?></span><span><?= $field==='coupon_discount'?'−':''; ?><?= $money($amount); ?></span></div><?php endforeach; ?>
+<?php if(!empty($order->delivery_quote_pending)): ?><p class="mp-portal-notice">Delivery requires a quote. Contact the store to confirm the final delivery charge.</p><?php endif; ?>
+<div class="mp-portal-row"><strong>Total</strong><strong><?= $money($order->transaction_grand_total ?? $order->grand_total); ?></strong></div>
+<p>Payment: <strong><?= htmlspecialchars(ucfirst($order->payment_status ?? 'unpaid')); ?></strong> · Order: <?= htmlspecialchars(ucfirst($order->order_status ?? 'pending')); ?></p>
+<?php if(($order->payment_method ?? '')==='whatsapp'): ?><p>Please contact the store on WhatsApp to confirm payment and fulfilment.</p><?php endif; ?>
+</section><aside class="mp-portal-card"><h2>Delivery & contact</h2><p><?= htmlspecialchars($order->customer_name ?? ''); ?><br><?= htmlspecialchars($order->customer_phone ?? ''); ?><br><?= htmlspecialchars($order->customer_email ?? ''); ?></p><address><?= htmlspecialchars($order->customer_address ?? ''); ?></address><p><?= htmlspecialchars($order->shipping_method ?? 'Contact the store to confirm fulfilment.'); ?></p><a href="<?= $root.'/contact'; ?>">Need help with your order? ↗</a></aside></div>
+<nav class="mp-portal-actions"><a class="mp-portal-button" href="<?= $root.'/track?code='.rawurlencode($order->order_code); ?>">Track order</a><a class="mp-portal-button mp-portal-secondary" href="<?= $root.'/account'; ?>">Your account</a><a class="mp-portal-button mp-portal-secondary" href="<?= $root.'/products'; ?>">Continue shopping</a></nav>
+<?php if($paid && !empty($download_links)): ?><section class="mp-portal-card"><h2>Your downloads</h2><?php foreach($download_links as $link): ?><p><a href="<?= htmlspecialchars($link['url'],ENT_QUOTES); ?>"><?= htmlspecialchars($link['name']); ?> ↗</a></p><?php endforeach; ?></section><?php endif; ?>
+<?php if(!empty($has_event_line)): ?><section class="mp-portal-card"><h2>Your tickets</h2><?php if($paid && !empty($event_tickets)): ?><?php foreach($event_tickets as $ticket): ?><div class="mp-portal-row"><span><?= htmlspecialchars($ticket['event'] ?? ''); ?><small><?= htmlspecialchars(trim(($ticket['date'] ?? '').' '.($ticket['time'] ?? '').' '.($ticket['venue'] ?? ''))); ?></small></span><strong><?= htmlspecialchars($ticket['code'] ?? ''); ?></strong></div><?php endforeach; ?><?php else: ?><p>Ticket codes appear here after payment is confirmed.</p><?php endif; ?></section><?php endif; ?>
+</section>
+<?php $this->load->view('themes/shared/order_purchase_tracking', ['order'=>$order,'settings'=>$settings]); ?>

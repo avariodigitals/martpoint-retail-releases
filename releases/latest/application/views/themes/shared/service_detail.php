@@ -26,7 +26,10 @@
       <div style="font-size:15px; line-height:1.7; color:#334155; margin-bottom:32px;">
         <?= nl2br(htmlspecialchars($service->description ?? '')); ?>
       </div>
-      <button onclick="addServiceToCart()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px;">Book This Service</button>
+      <?php if(!empty($html_theme_embedded)): ?>
+        <?php if(!empty($cart_enabled)): ?><button class="mp-portal-button" data-mp-add-to-cart data-product-id="<?= (int)$service->id; ?>" data-product-type="service" data-product-kind="service" data-product-name="<?= htmlspecialchars($service->service_name,ENT_QUOTES); ?>" data-product-price="<?= (float)$service->effective_price; ?>">Add service to cart</button>
+        <?php else: ?><a class="mp-portal-button" href="<?= base_url('store/'.($settings->store_slug ?? '').'/contact?service_id='.(int)$service->id); ?>">Enquire about this service ↗</a><?php endif; ?>
+      <?php else: ?><button onclick="addServiceToCart()" style="width:100%; padding:16px; border-radius:var(--mp-radius-sm); background:var(--mp-primary); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:16px; margin-bottom:12px;">Book This Service</button><?php endif; ?>
     </div>
   </div>
 </div>
@@ -52,6 +55,7 @@
 </div>
 <?php endif; ?>
 
+<?php if(empty($html_theme_embedded)): ?>
 <script>
   const serviceDetail = {
     id: <?= $service->id; ?>,
@@ -78,3 +82,4 @@
   // Funnel event — consent-gated inside mpTrackEvent.
   if(typeof mpTrackEvent === 'function') mpTrackEvent('view_item', serviceDetail.id, serviceDetail.price);
 </script>
+<?php endif; ?>

@@ -101,7 +101,7 @@ class Storefront extends CI_Controller {
 			'featured_services' => $settings->allow_services ? $this->storefront_model->getOnlineServices($storeId, null, '', 8) : [],
 			'best_sellers' => $this->storefront_model->getBestSellers($storeId, 8),
 			'new_arrivals' => $this->storefront_model->getNewArrivals($storeId, 10, !$isLumiere, $isLumiere),
-			'paystack_enabled' => $this->paystack->is_enabled($storeId),
+			'paystack_enabled' => $this->_storefrontPaystackReady($storeId),
 			'paystack_public_key' => '',
 			'active_banners' => $this->theme_engine->activeBanners(),
 			'hero_banners' => $this->theme_engine->activeBanners(5, 'hero'),
@@ -809,7 +809,11 @@ class Storefront extends CI_Controller {
 			'seo_canonical' => base_url('store/' . ($settings->store_slug ?? '') . '/catalogue'),
 			'seo_type' => 'website',
 		];
-		$this->load->view('storefront/catalogue', $data);
+		if ($this->_usesThemedCustomerPages()) {
+			$this->theme_engine->view($showProducts ? 'products' : 'services', $data);
+		} else {
+			$this->load->view('storefront/catalogue', $data);
+		}
 	}
 
 	/**
@@ -851,7 +855,7 @@ class Storefront extends CI_Controller {
 			'settings' => $settings,
 			'store' => $store,
 			'categories' => $this->storefront_model->getCategoriesWithItems($storeId),
-			'paystack_enabled' => $this->paystack->is_enabled($storeId) && $storeCurrencyCode==='NGN' && $baseCurrencyCode==='NGN',
+			'paystack_enabled' => $this->_storefrontPaystackReady($storeId) && $storeCurrencyCode==='NGN' && $baseCurrencyCode==='NGN',
 			'paypal_enabled' => $paypalEnabled,
 			'logo_url' => $this->theme_engine->logoUrl(),
 			'favicon_url' => $this->theme_engine->faviconUrl(),
@@ -875,6 +879,46 @@ class Storefront extends CI_Controller {
 			}
 		}
 		$this->theme_engine->view(($lumiereCheckout || $mediqCheckout || $htmlThemeCheckout) ? 'checkout' : 'cart', $data);
+	}
+
+	/** Only offer checkout when Central can supply the configured gateway. */
+	private function _storefrontPaystackReady($storeId){
+		$gateway = $this->paystack->get_settings($storeId);
+		if (!$gateway || (int)($gateway->enabled ?? 0) !== 1 || empty($gateway->public_key)) return false;
+		// Fleet settings contain a safe configured flag instead of the secret.
+		return isset($gateway->configured) ? !empty($gateway->configured) : !empty($gateway->secret_key);
+	}
+
+	/** The same saved-order payment contract is used for first checkout and retry. */
+	private function _storefrontPaystackCheckout($order){
+		$csrf = $this->security->get_csrf_hash();
+		if (in_array((string)($order->payment_status ?? ''), ['paid','refunded'], true)
+			|| in_array((string)($order->order_status ?? ''), ['cancelled','completed'], true)
+			|| (float)$order->grand_total <= 0) {
+			return ['status'=>false, 'message'=>'This order cannot start another payment. Please check its status or contact the store.', 'csrf_hash'=>$csrf];
+		}
+		if (!$this->_storefrontPaystackReady((int)$order->store_id)) {
+			return ['status'=>false, 'message'=>'MartPoint Pay is currently unavailable. Your order remains unpaid; please retry later or contact the store.', 'csrf_hash'=>$csrf];
+		}
+		$gateway = $this->paystack->get_settings((int)$order->store_id);
+		$split = $this->paystack->get_split_config((float)$order->grand_total, (int)$order->store_id);
+		if (empty($split['status'])) return ['status'=>false, 'message'=>$split['message'] ?? 'MartPoint Pay could not prepare this payment.', 'csrf_hash'=>$csrf];
+		$settings = $this->storefront_model->getSettings((int)$order->store_id);
+		return [
+			'status'=>true, 'payment_required'=>true, 'gateway'=>'paystack',
+			'order_id'=>(int)$order->id, 'order_code'=>$order->order_code,
+			'amount_kobo'=>(int)round((float)$order->grand_total * 100),
+			'public_key'=>$gateway->public_key,
+			'email'=>$order->customer_email ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
+			'reference'=>$order->order_code, 'paystack_split'=>$split['config'],
+			'currency'=>'NGN', 'csrf_hash'=>$csrf,
+		];
+	}
+
+	/** Customer flows use the active shell for uploaded and electronics themes. */
+	private function _usesThemedCustomerPages(){
+		return ($this->theme_engine->currentTheme()->theme_source ?? '') === 'html_zip'
+			|| $this->storefront_model->normalizeThemeIndustry($this->theme_engine->getIndustry()) === 'electronics';
 	}
 
 	/**
@@ -1555,6 +1599,21 @@ class Storefront extends CI_Controller {
 			return;
 		}
 
+		// Never silently substitute a payment method or create/reserve an order
+		// for a gateway that checkout cannot open.
+		$paymentMethod = $this->input->post('payment_method');
+		if (!in_array($paymentMethod, ['paystack','paypal','whatsapp','pay_on_delivery','appointment'], true)
+			|| ($paymentMethod === 'paystack' && empty($settings->allow_paystack))
+			|| ($paymentMethod === 'whatsapp' && empty($settings->allow_whatsapp))
+			|| ($paymentMethod === 'pay_on_delivery' && empty($settings->allow_pay_on_delivery))) {
+			echo json_encode(['status'=>false, 'message'=>'Selected payment method is not available. Please choose an available method.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+		if ($paymentMethod === 'paystack' && !$this->_storefrontPaystackReady($storeId)) {
+			echo json_encode(['status'=>false, 'message'=>'MartPoint Pay is currently unavailable. Please retry later or choose another available payment method.', 'csrf_hash'=>$this->security->get_csrf_hash()]);
+			return;
+		}
+
 		// Housekeeping: release stock reserved by abandoned online payments
 		// (paystack orders still unpaid/pending past the TTL). WhatsApp and
 		// pay-on-delivery reservations are merchant-managed and never expire.
@@ -1564,7 +1623,6 @@ class Storefront extends CI_Controller {
 		$customerEmail = trim($this->input->post('customer_email'));
 		$customerPhone = trim($this->input->post('customer_phone'));
 		$customerAddress = trim($this->input->post('customer_address'));
-		$paymentMethod = $this->input->post('payment_method'); // paystack, paypal, whatsapp, pay_on_delivery, appointment
 		$baseCurrency=$this->storefront_currency->baseCode($storeId);
 		$transactionCurrency=$this->storefront_currency->selectedCode($storeId);
 		try{$exchangeRate=$this->storefront_currency->rate($storeId,$transactionCurrency);}catch(Throwable $e){
@@ -1687,18 +1745,6 @@ class Storefront extends CI_Controller {
 				echo json_encode(['status' => false, 'message' => 'Please choose a valid treatment and future appointment time', 'csrf_hash' => $this->security->get_csrf_hash()]);
 				return;
 			}
-		}
-
-		// Validate payment method against settings
-		if($paymentMethod == 'paystack' && !$settings->allow_paystack){
-			$paymentMethod = 'pay_on_delivery';
-		}
-		if($paymentMethod == 'whatsapp' && !$settings->allow_whatsapp){
-			$paymentMethod = 'pay_on_delivery';
-		}
-		if($paymentMethod == 'pay_on_delivery' && !$settings->allow_pay_on_delivery){
-			echo json_encode(['status' => false, 'message' => 'Selected payment method is not available', 'csrf_hash' => $this->security->get_csrf_hash()]);
-			return;
 		}
 
 		$subtotal = 0;
@@ -2204,6 +2250,12 @@ class Storefront extends CI_Controller {
 		if($this->storefront_model->last_order_duplicate){
 			$this->db->trans_commit();
 			$existing = $this->storefront_model->getOrder($orderId);
+			if ($existing && $existing->payment_method === 'paystack' && $existing->payment_status !== 'paid') {
+				$payment = $this->_storefrontPaystackCheckout($existing);
+				$payment['duplicate'] = true;
+				echo json_encode($payment);
+				return;
+			}
 			if($existing && $existing->payment_method==='paypal' && $existing->payment_status!=='paid'
 				&& strtoupper((string)($existing->transaction_currency??''))!==$this->storefront_currency->selectedCode($storeId)){
 				echo json_encode(['status'=>false,'message'=>'This order already has a payment quote in '.strtoupper((string)$existing->transaction_currency).'. Continue or cancel that payment before starting checkout in another currency.','csrf_hash'=>$this->security->get_csrf_hash()]);return;
@@ -2412,29 +2464,9 @@ class Storefront extends CI_Controller {
 		}
 
 		// If Paystack, return payment initialization data
-		if($paymentMethod == 'paystack' && $settings->allow_paystack){
-			$ps = $this->paystack->get_settings($storeId);
-			if($ps && $ps->public_key){
-				$split = $this->paystack->get_split_config($grandTotal, $storeId);
-				if(!$split['status']){
-					echo json_encode(['status'=>false, 'message'=>$split['message']]);
-					return;
-				}
-				echo json_encode([
-					'status' => true,
-					'payment_required' => true,
-					'order_id' => $orderId,
-					'order_code' => $order->order_code,
-					'amount_kobo' => (int)($grandTotal * 100),
-					'public_key' => $ps->public_key,
-					'email' => $customerEmail ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
-					'reference' => $order->order_code,
-					'paystack_split' => $split['config'],
-					'currency' => $this->_storeCurrencyCode($storeId) ?: 'NGN',
-					'csrf_hash' => $this->security->get_csrf_hash(),
-				]);
-				return;
-			}
+		if($paymentMethod === 'paystack'){
+			echo json_encode($this->_storefrontPaystackCheckout($order));
+			return;
 		}
 		if($paymentMethod==='paypal'){
 			try{
@@ -2886,7 +2918,11 @@ class Storefront extends CI_Controller {
 			$this->theme_engine->view('appointment_received', $data);
 			return;
 		}
-		$this->load->view('storefront/order_received', $data);
+		if ($this->_usesThemedCustomerPages()) {
+			$this->theme_engine->view('order_received', $data);
+		} else {
+			$this->load->view('storefront/order_received', $data);
+		}
 	}
 
 	/**
@@ -3524,7 +3560,7 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance' || $this->_usesThemedCustomerPages()){
 			$data['seo_title'] = 'Sign in';
 			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
 			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);
@@ -3840,7 +3876,7 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance'){
+		if(($this->theme_engine->currentTheme()->theme_key ?? '')==='botanical_elegance' || $this->_usesThemedCustomerPages()){
 			$data['seo_title'] = 'Your account';
 			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
 			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);
@@ -3884,7 +3920,7 @@ class Storefront extends CI_Controller {
 			'csrf_name' => $this->security->get_csrf_token_name(),
 			'csrf_hash' => $this->security->get_csrf_hash()
 		];
-		if(in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['botanical_elegance', 'food_express'], true)){
+		if(in_array(($this->theme_engine->currentTheme()->theme_key ?? ''), ['botanical_elegance', 'food_express'], true) || $this->_usesThemedCustomerPages()){
 			$data['seo_title'] = 'Your orders';
 			$data['store_currency'] = $this->theme_engine->getStoreCurrency();
 			$data['categories'] = $this->storefront_model->getCategoriesWithItems($storeId);

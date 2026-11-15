@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.278",
-    "previous_version": "4.0.9.277",
+    "version": "4.0.9.280",
+    "previous_version": "4.0.9.255",
     "release_date": "2026-11-15",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -471,8 +471,8 @@
         },
         {
             "path": "application/views/storefront/order_received.php",
-            "hash": "ae4b997d6c32a1375c6b8597db532b4e4f5280388feb9287e5ed1d61d740e4a3",
-            "size": 27142
+            "hash": "c5494cc1e6970bdc3fc4f7212589bd42db80bd1ed83e98eb5f77a27b4d831a45",
+            "size": 23607
         },
         {
             "path": "application/views/storefront/store.php",
@@ -1845,14 +1845,24 @@
             "size": 2263
         },
         {
+            "path": "application/views/themes/shared/account_orders.php",
+            "hash": "f7c2cf2af172b2f97d6fe9c2d22c126117455bf1ff5e1c26ff6862c0dfaeb61c",
+            "size": 1286
+        },
+        {
             "path": "application/views/themes/shared/service_detail.php",
-            "hash": "8098a882adc8c0b1d966656d12af88478d3b8a52e39742555cb4b197ecf65282",
-            "size": 4588
+            "hash": "a769ec4ae4d8ffa2c55442d0a130ae84c315ae8cac8af77725ecb14c22ed3637",
+            "size": 5296
         },
         {
             "path": "application/views/themes/shared/services.php",
             "hash": "8ef125e4c97d1f0ef532f497031096f2c1521690ad5abcf7272a3e40844b7a72",
             "size": 3746
+        },
+        {
+            "path": "application/views/themes/shared/verify.php",
+            "hash": "bfce3843c931b8820a25b5fb11b11054ae80a94cc802780b90019391f5d35122",
+            "size": 2930
         },
         {
             "path": "application/views/themes/shared/_shared_css.php",
@@ -1980,9 +1990,19 @@
             "size": 1841
         },
         {
+            "path": "application/views/themes/shared/order_purchase_tracking.php",
+            "hash": "e62e76b0ea97480af57bb2880c15e26e8fd37713f4baf391bc10c046ff2f76d1",
+            "size": 3645
+        },
+        {
             "path": "application/views/themes/shared/product_reviews.php",
             "hash": "4ed6beb2d9a126ef60264e3b906e2b9eb8157c9e385bc15dbe3423d62f5d87a0",
             "size": 16008
+        },
+        {
+            "path": "application/views/themes/shared/order_received.php",
+            "hash": "f6fe5115ff6b7739d105a332f7792602ca3497a1387b2fe21e85d32464e46881",
+            "size": 4078
         },
         {
             "path": "application/views/themes/shared/category_navigation.php",
@@ -2053,6 +2073,11 @@
             "path": "application/views/themes/shared/footer.php",
             "hash": "f0c6714a7444c2d8ab61f3ffc28f743d9a65898f2f1b7f37208794021e3803f6",
             "size": 17021
+        },
+        {
+            "path": "application/views/themes/shared/account.php",
+            "hash": "2fc25b40d5f0a7c64ed59547f419f6df4a11e1eab139a827a7389147b1259c59",
+            "size": 2680
         },
         {
             "path": "application/views/themes/shared/appointment.php",
@@ -7136,8 +7161,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "cb3b3f6c826559ee68c402c33413086c249be7ba1054c19f90aace23998450b2",
-            "size": 44918
+            "hash": "fcd9370d9cd4aad61da4a1fc31ec8d629542bbc24eb9696bc1ba55b07fa4d652",
+            "size": 45247
         },
         {
             "path": "application/config/routes.php",
@@ -8986,8 +9011,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "15933819aeb9e2c686523b5891ca32bf87523a85e9d24498038614fa0e1eddd1",
-            "size": 219647
+            "hash": "bf16284ee671c3af6609a1b6e40d92b68740bad620f40187be7cc5afebf863b6",
+            "size": 222319
         },
         {
             "path": "application/controllers/Sh4_import.php",
@@ -9781,8 +9806,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "1ab7d1c9e0f2c06702a506b802ea8bb96b39302efa0d81ace7059b4a53e6ad69",
-            "size": 78755
+            "hash": "2c47fba059992822cb41170b4fdd061d09699dd0fac839ba2edaa3e55cdd98f0",
+            "size": 79738
         },
         {
             "path": "application/libraries/Communication_documents.php",
@@ -10911,8 +10936,8 @@
         },
         {
             "path": "application/libraries/Html_theme_renderer.php",
-            "hash": "4fa43bbd23beaf0058c22d66a6d8f62f1899c8c27e779470f55a0d6d89b5fb1b",
-            "size": 43200
+            "hash": "e8bbcf58c88898f94dfbe70a2163d35bc5d685cea69c288f9036f22561ebd26c",
+            "size": 43627
         },
         {
             "path": "application/libraries/Support_chat_transport.php",
@@ -13631,7 +13656,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "e2a952f9eccaa6cde5a3bb6d0164691ca824a6a680431649e87227ec418eda7f",
+            "hash": "cda0e4bb7a6700c17dc60dfd2f906e34a4861581c91f2e4aa48f0a2b17a6a327",
             "size": 137223
         },
         {
@@ -13933,6 +13958,11 @@
             "path": "theme/css/skinora-reference.css",
             "hash": "357b52c08875c6046c2ccbf72f68489606f81f7c7342eed144d6a7e258952dcf",
             "size": 14369
+        },
+        {
+            "path": "theme/css/html_theme_inner_pages.css",
+            "hash": "9039df6ee391ed58f4fc4417eb7997625c9105b4feb849229d97c470b9438aa2",
+            "size": 5927
         },
         {
             "path": "theme/css/pos.css",
@@ -14608,6 +14638,11 @@
             "path": "theme/js/state.js",
             "hash": "751ab26693b23d084d7b1f2cbd3a5bbf337825b37aa268d32e669c27111a210a",
             "size": 5632
+        },
+        {
+            "path": "theme/js/html_theme_auth.js",
+            "hash": "d4232b4d202b2c4fe790092ab33904b3e3d5451506e4c1e2f10ffa7fdb52400c",
+            "size": 3132
         },
         {
             "path": "theme/js/services/services.js",
@@ -20690,7 +20725,9 @@
         "4.0.9.275_product_media_library_reuse.sql",
         "4.0.9.276_retail_price_defaults_and_electronics_theme.sql",
         "4.0.9.277_invoice_online_payment_links.sql",
-        "4.0.9.278_storefront_appearance_save.sql"
+        "4.0.9.278_storefront_appearance_save.sql",
+        "4.0.9.279_electronics_storefront_cart.sql",
+        "4.0.9.280_storefront_theme_pages_and_payments.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20699,6 +20736,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "8bf4512a81aad32f03db565f163359d475dc60ac7bf401961fb5c639793f36d2a15398b34f6291b88d33e379435d48c76c9883dd3ecf2f209c9a9657f80a730c",
-    "changelog": "Release 4.0.9.278"
+    "signature": "796d5b8719eb0da1d5be3aee2c0035cf1e991c28b0457b8028e2a402d282c892769f14bc920dd02cc89f7d1a9b0341762b0cd3145252bbd667608e1d3873830d",
+    "changelog": "Release 4.0.9.280"
 }

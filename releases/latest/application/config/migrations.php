@@ -673,4 +673,8 @@ return [
 		  '4.0.9.277v' => '4.0.9.277_invoice_online_payment_links.sql',
 		  // Appearance saves must submit successfully and restore the button on errors.
 		  '4.0.9.278v' => '4.0.9.278_storefront_appearance_save.sql',
+		  // Electronics themes honor the selected online order mode, including imported copies.
+		  '4.0.9.279v' => '4.0.9.279_electronics_storefront_cart.sql',
+		  // Keep uploaded-theme inner pages consistent and validate MartPoint Pay checkout availability.
+		  '4.0.9.280v' => '4.0.9.280_storefront_theme_pages_and_payments.sql',
 ];
