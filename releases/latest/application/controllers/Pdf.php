@@ -30,6 +30,8 @@ class Pdf extends MY_Controller {
 		$data=$this->data;
 		$data['page_title']=$this->lang->line('sales_invoice');
         $data=array_merge($data,array('sales_id'=>$sales_id));
+		$this->load->library('invoice_payment_link');
+		$data['invoice_payment_url']=$this->invoice_payment_link->forSales((int)$sales_id,(int)get_current_store_id());
 
 		$this->load->view('print-sales-invoice-whatsapp',$data);
 

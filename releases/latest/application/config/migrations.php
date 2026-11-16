@@ -679,4 +679,6 @@ return [
 		  '4.0.9.280v' => '4.0.9.280_storefront_theme_pages_and_payments.sql',
 		  // Consolidated post-.280 storefront domains/reviews, email designs and payment reconciliation.
 		  '4.0.9.281v' => '4.0.9.281_recent_storefront_email_payment_updates.sql',
+		  // Shared secure payment links and confirmed balances on every sales PDF route.
+		  '4.0.9.282v' => '4.0.9.282_invoice_pdf_martpoint_pay.sql',
 ];

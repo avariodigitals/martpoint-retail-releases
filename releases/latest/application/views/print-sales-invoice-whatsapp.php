@@ -46,12 +46,12 @@ body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; color: #1f2937; 
 .items .qty { text-align: center; }
 .items .sl { width: 5%; text-align: center; }
 
-.totals { width: 100%; margin-top: 12px; }
+.totals { width: 100%; margin-top: 12px; page-break-inside: avoid; }
 .totals td { padding: 4px; }
 .totals-inner { width: 100%; border-collapse: collapse; }
 .totals-inner td { padding: 5px 4px; font-size: 9.5pt; border-bottom: 0.5pt solid #e5e7eb; }
-.totals-inner .label { text-align: right; color: #374151; white-space: nowrap; }
-.totals-inner .value { text-align: right; font-weight: bold; width: 100%; min-width: 120px; white-space: nowrap; }
+.totals-inner .label { text-align: right; color: #374151; width: 55%; white-space: nowrap; }
+.totals-inner .value { text-align: right; font-weight: bold; width: 45%; min-width: 100px; white-space: nowrap; }
 .totals-inner .grand td { font-size: 12pt; color: #111827; border-top: 1pt solid #111827; border-bottom: none; padding-top: 8px; }
 
 .note-table { margin-top: 14px; }
@@ -181,7 +181,8 @@ $tot_discount_to_all_amt = $res3->tot_discount_to_all_amt;
 $round_off = $res3->round_off;
 $payment_status = $res3->payment_status;
 
-$q_payments = $this->db->query("SELECT * FROM db_salespayments WHERE sales_id='$sales_id' ORDER BY id");
+$confirmed_payment_filter = $this->db->field_exists('confirmation_status','db_salespayments') ? ' AND COALESCE(confirmation_status,1)=1' : '';
+$q_payments = $this->db->query('SELECT * FROM db_salespayments WHERE sales_id=? AND store_id=? AND status=1'.$confirmed_payment_filter.' ORDER BY id', [(int)$sales_id,(int)$res1->id]);
 $first_payment = $q_payments->row();
 
 // Map payment-mode codes (and legacy names) to human-readable names
@@ -198,6 +199,7 @@ if($q_payments->num_rows() > 0 && !empty($first_payment->payment_note)){
 }
 $paid_amount = 0;
 foreach($q_payments->result() as $p){ $paid_amount += $p->payment; }
+if($sales_status==='Final') $payment_status = $paid_amount >= $grand_total ? 'Paid' : ($paid_amount > 0 ? 'Partial' : 'Unpaid');
 
 $logo_data = mp_store_logo_round_base64($store_logo, 120);
 ?>
@@ -335,7 +337,7 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
       <?php endif; ?>
     </td>
     <td align="right" valign="top" style="white-space: nowrap; text-align: right; width: 50%; vertical-align: top;">
-      <table class="totals-inner" align="right">
+      <table class="totals-inner">
         <tr><td class="label"><?= $this->lang->line('subtotal'); ?></td><td class="value"><?= $CI->currency($subtotal); ?></td></tr>
         <tr><td class="label"><?= $this->lang->line('other_charges'); ?></td><td class="value"><?= $CI->currency($other_charges_amt); ?></td></tr>
         <?php if(!empty($coupon_code)): ?>
@@ -362,12 +364,12 @@ $logo_data = mp_store_logo_round_base64($store_logo, 120);
 </table>
 
 <?php if(!empty($invoice_payment_url) && $sales_status === 'Final' && ($grand_total - $paid_amount) > 0): ?>
-<table class="note-table" style="margin-top: 14px;">
+<table class="note-table" style="margin-top: 14px; page-break-inside: avoid;">
   <tr><td style="background:#eff6ff; border-color:#bfdbfe;">
-    <strong>Pay online with MartPoint Pay</strong><br>
+    <strong>Pay your outstanding balance</strong><br>
     <span>Pay the outstanding balance securely online:</span><br>
     <a href="<?= htmlspecialchars($invoice_payment_url, ENT_QUOTES, 'UTF-8'); ?>" style="display:inline-block; margin-top:6px; padding:8px 14px; background:#155eef; color:#ffffff; font-weight:bold; text-decoration:none; border-radius:4px;">
-      Pay now with MartPoint Pay
+      Pay with MartPoint
     </a>
   </td></tr>
 </table>

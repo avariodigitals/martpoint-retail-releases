@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.281",
-    "previous_version": "4.0.9.277",
-    "release_date": "2026-11-15",
+    "version": "4.0.9.282",
+    "previous_version": "4.0.9.281",
+    "release_date": "2026-11-16",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -4391,8 +4391,8 @@
         },
         {
             "path": "application/views/print-sales-invoice-whatsapp.php",
-            "hash": "cd47a6abcc38c85b8492c231068bb944ef51de40b2bc2f8958f777ef07794a23",
-            "size": 23299
+            "hash": "c68c9711ead9a3feef15239fe33b1b5b24fc460ac5b2ee95ab1c346d8416cd60",
+            "size": 23691
         },
         {
             "path": "application/views/purchase_return.php",
@@ -7171,8 +7171,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "58d2e2fa19a38773e702e8ce80cb7b11e8e47fc65bdc2dcd9fd3b5976aab3ff9",
-            "size": 45424
+            "hash": "0ad2889a75a8bbfdb21416a30fe21997bfd9dccec94d8352435d4fa49f340b68",
+            "size": 45571
         },
         {
             "path": "application/config/routes.php",
@@ -8426,8 +8426,8 @@
         },
         {
             "path": "application/controllers/Pdf.php",
-            "hash": "1779af6b9b75af707a5932f54bbddf422ce2d3ddb66f1e73399aa828bda25c12",
-            "size": 1606
+            "hash": "7e043a5fdc5248deb7203e551fd03230def7fbd08b48247d374546224e8e68b6",
+            "size": 1709
         },
         {
             "path": "application/controllers/Email.php",
@@ -8936,8 +8936,8 @@
         },
         {
             "path": "application/controllers/Sales.php",
-            "hash": "be3e5b3bb9f955453551680015cc97c2dd197cd4ed00b77ad4889db40c1831b9",
-            "size": 20755
+            "hash": "7f3286c0cbfa1528e845bf416451049be888008060a53b0d26c37d6777f8e373",
+            "size": 20932
         },
         {
             "path": "application/controllers/Account_transactions.php",
@@ -9091,8 +9091,8 @@
         },
         {
             "path": "application/controllers/Publicpdf.php",
-            "hash": "e79e6338e0da84b0c4eca80020c91034d958a7245cac91935a78320b674dde19",
-            "size": 9769
+            "hash": "24242d976725ec3cbf50c468c2144b0b268ad1ac086b61888e958bd4bd875d4e",
+            "size": 8177
         },
         {
             "path": "application/controllers/Cashier_shifts.php",
@@ -10968,6 +10968,11 @@
             "path": "application/libraries/Usage_reporter.php",
             "hash": "18f69743a74c1ea997b5732fde002853793eee53f3428127c39b737bb310048b",
             "size": 7827
+        },
+        {
+            "path": "application/libraries/Invoice_payment_link.php",
+            "hash": "e7a80e06d27b9f717a57bad68e7c6c81b27bc298974ab6a04918d5c9382d3e29",
+            "size": 2748
         },
         {
             "path": "application/libraries/Messaging_client.php",
@@ -13671,7 +13676,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "31b8217fa66f7cc0a7684d50cb1c72c24d1fa3ac1da7c6983ab2dcdeb6432642",
+            "hash": "64f6f6bd704a651566c10bed817a0ed38d6959c205c6598437d045fc876a8cc7",
             "size": 137223
         },
         {
@@ -20748,7 +20753,8 @@
         "4.0.9.278_storefront_appearance_save.sql",
         "4.0.9.279_electronics_storefront_cart.sql",
         "4.0.9.280_storefront_theme_pages_and_payments.sql",
-        "4.0.9.281_recent_storefront_email_payment_updates.sql"
+        "4.0.9.281_recent_storefront_email_payment_updates.sql",
+        "4.0.9.282_invoice_pdf_martpoint_pay.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20757,6 +20763,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "83e1f38c3f3ecf5b584f88ce545042e901fb6d640b1aa6cec86af038e6411f052bf1fc89ac64903d82dffb5ded9152c8cc53aee920dbcd6182bb41cae908a40a",
-    "changelog": "Release 4.0.9.281"
+    "signature": "607420fafde9af22aeb9d325cb1a063974313e183885115c4b6d55d40a23bde6cbb5a11bed2e62518d66cb41a0c0fd0543da7e17cdd64d628b4fb15c84c8080d",
+    "changelog": "Release 4.0.9.282"
 }

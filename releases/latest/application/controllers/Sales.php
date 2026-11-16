@@ -437,6 +437,8 @@ class Sales extends MY_Controller {
 	}
 
 	public function get_html_invoice($data){
+		$this->load->library('invoice_payment_link');
+		$data['invoice_payment_url']=$this->invoice_payment_link->forSales((int)($data['sales_id'] ?? 0),(int)get_current_store_id());
 		$this->load->view('print-sales-invoice-whatsapp',$data);
         // Get output html
         return $this->output->get_output();
