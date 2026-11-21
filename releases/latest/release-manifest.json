@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.291",
+    "version": "4.0.9.293",
     "previous_version": "4.0.9.288",
     "release_date": "2026-11-21",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -3501,8 +3501,8 @@
         },
         {
             "path": "application/views/mobile/ai_ads.php",
-            "hash": "ce161fffcc9e470642149d48994bfd4811b928a5654b7246af702ed71fc765c4",
-            "size": 10408
+            "hash": "aa16ba923773b4d60de7ca7293ba85c78f3afc30265d8fd89a03eede2b2e45c0",
+            "size": 10823
         },
         {
             "path": "application/views/mobile/attribute_form.php",
@@ -3731,8 +3731,8 @@
         },
         {
             "path": "application/views/communications/_email_builder.php",
-            "hash": "2bab14f57dc71018e45bb525e268e57d92cf67a044712a01606aacc700d1156c",
-            "size": 14657
+            "hash": "e5bdce29d61e6e0b04ff26eef2c8ed59f3109ee08ab7a4f12dd390ab97794bb4",
+            "size": 15072
         },
         {
             "path": "application/views/communications/_central_automation.php",
@@ -3886,8 +3886,8 @@
         },
         {
             "path": "application/views/communications/styles.php",
-            "hash": "c2d4c7a3bbfef37c094b78ce247c6d7259c38215c885d72d62a37faaf8274ba2",
-            "size": 13845
+            "hash": "414d5716b1e2545fab3994890b09a24e28180af683806c4fa654107d54152f10",
+            "size": 14081
         },
         {
             "path": "application/views/communications/_frame_end.php",
@@ -3916,8 +3916,8 @@
         },
         {
             "path": "application/views/communications/scripts.php",
-            "hash": "0a09dd49c78166d7be19ffe7c5811c4ba8f8228cbb397d6fdd123eb5acef8e52",
-            "size": 540
+            "hash": "9b9b276a01597e3605943f3663abbd11397fc985bb19108cc9a66bcddf4c275f",
+            "size": 539
         },
         {
             "path": "application/views/communications/_subscription.php",
@@ -5426,8 +5426,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "c17931af343ca73206ec4d19a159f06e52c910233356f3c597ca022daca740ae",
-            "size": 126746
+            "hash": "b2157b55c1f08f97f6956972d46a49a2fb8df71a16cb4984e7c4be924aff8334",
+            "size": 126812
         },
         {
             "path": "application/views/report-stock.php",
@@ -6236,8 +6236,8 @@
         },
         {
             "path": "application/views/ai_ads/index.php",
-            "hash": "d5f0e4af374ec0a8644ee6bc43943edff33ab99c1261358793b515b8c35ed3d4",
-            "size": 9646
+            "hash": "c0e9b04aa406f25212c7b03967ff2612908a0b37968c89cd71bcd24f9e1eaf94",
+            "size": 9790
         },
         {
             "path": "application/views/expired_items_report.php",
@@ -7191,13 +7191,13 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "d4889f2e546b2c89630f4d55d23539ec8557e09282bc373cc00d3b6346d7d4de",
-            "size": 46166
+            "hash": "8c149113bd860ae5fc031c006431eb219cd8c19e9d7b21945c3012480753debd",
+            "size": 46450
         },
         {
             "path": "application/config/routes.php",
-            "hash": "e90b404ce352f00a1674c778773c0f5fb2822cadf9892f99f13bdc2d064b95b2",
-            "size": 18120
+            "hash": "20dfa75d01ea60f4e94fbab596d59edebcec56dea276c043a5836f3973094a90",
+            "size": 18213
         },
         {
             "path": "application/config/smileys.php",
@@ -8606,8 +8606,8 @@
         },
         {
             "path": "application/controllers/Ai_ads.php",
-            "hash": "9e27ce7a7d755be98a482f4b62877ce6db8aaaadd520575e01a6a6bdd6ae0acc",
-            "size": 56787
+            "hash": "492ebc5ea8d3f3e4d6a84cac0a19056d8e9adb8b1ab53ee2427fa73daf88cd96",
+            "size": 62658
         },
         {
             "path": "application/controllers/Expired_items_report.php",
@@ -11021,8 +11021,8 @@
         },
         {
             "path": "application/libraries/Communication_designs.php",
-            "hash": "a7e1d96e3153b73a4dd20c8806980204071d872acd2ff8066770a472dcee031d",
-            "size": 39032
+            "hash": "7d3227f390db19f386cdc0dd14943f64af8f1baa887a23ad722543aebd0c6b08",
+            "size": 41375
         },
         {
             "path": "application/libraries/Communication_tracking.php",
@@ -13706,8 +13706,8 @@
         },
         {
             "path": "application/core/MY_Security.php",
-            "hash": "ac6ccb4b6f1ceedb75d08ed699d00e9058d8e0fd28c77af363ef98b30a40202d",
-            "size": 6538
+            "hash": "502ac7ab84f6dda194230718bd94c4b800553276f8111f7ba3779ea9de106aa2",
+            "size": 6565
         },
         {
             "path": "application/core/MY_Controller.php",
@@ -13716,7 +13716,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "330cafc4ceb6e2045834e0ebda863c17a08ebd48e11d9afd08b99c3ba5af2a70",
+            "hash": "f1a67babd07b2f19fc6904ff888621d4b90f692965eac55d05cf57a9c98974d1",
             "size": 137223
         },
         {
@@ -14721,8 +14721,8 @@
         },
         {
             "path": "theme/js/communications.js",
-            "hash": "362a889c78d9472e576bd475cffa20d33375848227313306b82d2c687b65c4ea",
-            "size": 25992
+            "hash": "b6b81b3f4769cf15230d139b9776d471a67efdc20dd1fba82f90da857ab76d59",
+            "size": 27107
         },
         {
             "path": "theme/js/customers_advance/advance.js",
@@ -20801,7 +20801,9 @@
         "4.0.9.286_ai_ads_oauth_broker.sql",
         "4.0.9.287_ai_ads_meta_callbacks.sql",
         "4.0.9.288_ai_ads_paid_subscriptions.sql",
-        "4.0.9.291_central_sidebar_order.sql"
+        "4.0.9.291_central_sidebar_order.sql",
+        "4.0.9.292_ai_ads_sidebar_permissions.sql",
+        "4.0.9.293_ai_ads_customer_plans.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20810,6 +20812,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "5ea1c5917393475954126ee69ef0ecd38356dd1eb97e80f7ec79179ae2ee83301613b4dc474cd5b687cdc6e7073c3720e64824e6669b20d9b8b53729b1bd820a",
-    "changelog": "Release 4.0.9.291"
+    "signature": "301d4dee350deb6464b1fa18b2e7c29abf78cec35786f32257c5cf52070dbab7b7befe67f117f1cb4d67258c269763996aa7d76863b4e5e881191652aba22a0e",
+    "changelog": "Release 4.0.9.293"
 }

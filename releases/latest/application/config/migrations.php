@@ -690,4 +690,8 @@ return [
 	'4.0.9.288v' => '4.0.9.288_ai_ads_paid_subscriptions.sql',
 	// Code-only Central navigation/access refinements; SELECT 1 preserves version lockstep.
 	'4.0.9.291v' => '4.0.9.291_central_sidebar_order.sql',
+	// Keep the AI Ads sidebar visible to the same messaging roles allowed into its workspace.
+	'4.0.9.292v' => '4.0.9.292_ai_ads_sidebar_permissions.sql',
+	// Customer-safe AI Ads messaging and price display; schema is unchanged.
+	'4.0.9.293v' => '4.0.9.293_ai_ads_customer_plans.sql',
 ];

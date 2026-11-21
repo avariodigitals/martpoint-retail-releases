@@ -290,6 +290,7 @@ $route['marketing/ai_ads/callback'] = 'ai_ads/callback';
 $route['marketing/ai_ads/broker_start'] = 'ai_ads/broker_start';
 $route['marketing/ai_ads/broker_encryption_key'] = 'ai_ads/broker_encryption_key';
 $route['marketing/ai_ads/broker_subscription_checkout'] = 'ai_ads/broker_subscription_checkout';
+$route['marketing/ai_ads/broker_subscription_offers'] = 'ai_ads/broker_subscription_offers';
 $route['marketing/ai_ads/broker_verify_subscription'] = 'ai_ads/broker_verify_subscription';
 $route['marketing/ai_ads/broker_apply_subscription'] = 'ai_ads/broker_apply_subscription';
 $route['marketing/ai_ads/subscribe'] = 'ai_ads/subscribe';

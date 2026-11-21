@@ -13,6 +13,28 @@ class Ai_ads extends MY_Controller {
     private function isMobile() { return $this->input->get('screen')==='mobile' || is_mobile(); }
     private function storeId() { return (int)get_current_store_id(); }
     private function actorId() { return (int)($this->session->userdata('inv_userid') ?: $this->session->userdata('user_id')); }
+    /** Read only the customer-safe, currently purchasable plan prices through Central. */
+    private function subscriptionOffers() {
+        $offers=array();
+        if(mp_is_central()||!function_exists('curl_init')) return $offers;
+        $identity=$this->db->select('fleet_url,install_key')->where('id',1)->get('db_sitesettings')->row_array()?:array();
+        $central=rtrim((string)($identity['fleet_url']??''),'/'); $key=(string)($identity['install_key']??'');
+        if(parse_url($central,PHP_URL_SCHEME)!=='https'||strlen($key)<32) return $offers;
+        try {
+            $this->load->library('messaging_pricing'); $installUrl=rtrim(base_url(),'/').'/';
+            $payload=json_encode(array('store_id'=>$this->storeId()),JSON_UNESCAPED_SLASHES); $timestamp=(string)time();
+            $envelope=array('install_url'=>$installUrl,'timestamp'=>$timestamp,'payload'=>$payload,
+                'signature'=>Messaging_pricing::signature('ai_ads_subscription_offers',$timestamp,$installUrl,$payload,$key));
+            $ch=curl_init($central.'/marketing/ai_ads/broker_subscription_offers');
+            curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($envelope),CURLOPT_RETURNTRANSFER=>true,
+                CURLOPT_CONNECTTIMEOUT=>3,CURLOPT_TIMEOUT=>8,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,
+                CURLOPT_FOLLOWLOCATION=>false,CURLOPT_HTTPHEADER=>array('Accept: application/json')));
+            $body=curl_exec($ch); $http=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
+            $result=is_string($body)?json_decode($body,true):null;
+            if($http===200&&is_array($result)&&!empty($result['success'])&&is_array($result['offers']??null)) $offers=$result['offers'];
+        } catch(Throwable $e) { log_message('error','AI Ads plan prices could not be loaded.'); }
+        return $offers;
+    }
 
     public function index() {
         if (!$this->requireAccess()) return;
@@ -24,7 +46,7 @@ class Ai_ads extends MY_Controller {
         $data=array_merge($this->data,array(
             'page_title'=>'AI Ads','SITE_TITLE'=>get_store_name() ?: 'MartPoint','store_name'=>get_store_name() ?: 'MartPoint',
             'connection'=>$connection,'connection_error'=>$connectionError,'accounts'=>$accounts,'pages'=>$pages,
-            'subscription'=>$this->ads->subscription($storeId),'has_ads_access'=>$this->ads->hasAccess($storeId),
+            'subscription'=>$this->ads->subscription($storeId),'has_ads_access'=>$this->ads->hasAccess($storeId),'subscription_offers'=>$this->subscriptionOffers(),
             'campaigns'=>$this->ads->campaigns($storeId),'products'=>$this->ads->products($storeId),
             'billing_history'=>$this->db->table_exists('db_ai_ads_billing')?$this->db->where('store_id',$storeId)->order_by('id','desc')->limit(5)->get('db_ai_ads_billing')->result_array():array(),
             'meta_ready'=>mp_is_central()?$this->meta_ads_api->ready():$this->meta_ads_api->tokenEncryptionReady(),'flash_success'=>$this->session->flashdata('success'),'flash_error'=>$this->session->flashdata('error')
@@ -89,7 +111,7 @@ class Ai_ads extends MY_Controller {
                 'amount_kobo'=>(int)$result['amount_kobo'],'expires_at'=>$expires);
             $this->db->insert('db_ai_ads_billing',$row);
             redirect($result['checkout_url']); return;
-        } catch(Throwable $e) { log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error',$e->getMessage()); redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':'')); }
+        } catch(Throwable $e) { log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error','We couldn’t start checkout. Please try again later or contact MartPoint support. No payment has been taken.'); redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':'')); }
     }
 
     /** Paystack returns here; Central verifies payment and sends a signed fulfilment back. */
@@ -107,7 +129,7 @@ class Ai_ads extends MY_Controller {
             $ch=curl_init($central.'/marketing/ai_ads/broker_verify_subscription'); curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($envelope),CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>25,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_HTTPHEADER=>array('Accept: application/json'))); $raw=curl_exec($ch); $http=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch); $result=is_string($raw)?json_decode($raw,true):null;
             if($http!==200||!is_array($result)||empty($result['success'])) throw new RuntimeException('Payment verification is pending. Your access will activate after Central confirms the payment; do not pay again.');
             $this->session->set_flashdata('success',!empty($result['fulfillment'])?'Payment confirmed. Your AI Ads access is active.':'Payment confirmed. Your AI Ads access is being activated.');
-        } catch(Throwable $e) { $this->session->set_flashdata('error',$e->getMessage()); }
+        } catch(Throwable $e) { log_message('error','AI Ads payment return pending: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t confirm this payment yet. Please wait a few minutes and refresh. Do not pay again; contact MartPoint support if access does not activate.'); }
         redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
     }
 
@@ -119,7 +141,7 @@ class Ai_ads extends MY_Controller {
             if (!$this->meta_ads_api->oauthReady()) throw new RuntimeException('Meta OAuth is not configured on Central.');
             $state=bin2hex(random_bytes(32)); $this->session->set_userdata('ai_ads_oauth',array('state'=>$state,'store_id'=>$this->storeId(),'created'=>time(),'mobile'=>$this->isMobile()));
             redirect($this->meta_ads_api->authorizationUrl($state));
-        } catch(Throwable $e) { $this->session->set_flashdata('error',$e->getMessage()); redirect('marketing/ai_ads'); }
+        } catch(Throwable $e) { log_message('error','AI Ads Meta connection could not start: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t start the Meta connection. Please try again later or contact MartPoint support.'); redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':'')); }
     }
 
     /** Fleet begins OAuth on Central; its own Meta token is saved back to this Fleet. */
@@ -195,6 +217,34 @@ class Ai_ads extends MY_Controller {
     }
 
     /** Fleet billing handoff: Central creates the Next invoice and initializes Paystack. */
+    public function broker_subscription_offers() {
+        if(!mp_is_central()) show_404();
+        $this->output->set_content_type('application/json','UTF-8')->set_header('Cache-Control','no-store');
+        try {
+            if(strtoupper($this->input->method())!=='POST') throw new RuntimeException('POST is required.');
+            $this->load->library('messaging_pricing');
+            $installUrl=(string)$this->input->post('install_url'); $timestamp=(string)$this->input->post('timestamp');
+            $raw=(string)$this->input->post('payload'); $signature=(string)$this->input->post('signature');
+            if(parse_url($installUrl,PHP_URL_SCHEME)!=='https'||rtrim($installUrl,'/').'/'!==$installUrl
+                ||!ctype_digit($timestamp)||abs(time()-(int)$timestamp)>300||strlen($raw)>1000
+                ||!preg_match('/^[a-f0-9]{64}$/D',$signature)||!$this->db->table_exists('db_fleet_installs')) throw new RuntimeException('Fleet authentication failed.');
+            $fleet=$this->db->where('install_url',$installUrl)->get('db_fleet_installs')->row_array();
+            if(!$fleet||strlen((string)($fleet['install_key']??''))<32||!hash_equals(Messaging_pricing::signature('ai_ads_subscription_offers',$timestamp,$installUrl,$raw,$fleet['install_key']),$signature)) throw new RuntimeException('Fleet authentication failed.');
+            $request=json_decode($raw,true);
+            if(!is_array($request)||(int)($request['store_id']??0)<1) throw new RuntimeException('Invalid plan request.');
+            $this->load->library('central_billing_client'); $health=$this->central_billing_client->health();
+            $offers=array();
+            foreach(array('monthly','annual') as $period) {
+                $offer=$health['ai_ads_offers'][$period]??array();
+                if(!empty($offer['enabled'])&&(int)($offer['total_kobo']??0)>0) $offers[$period]=array('enabled'=>true,'total_kobo'=>(int)$offer['total_kobo'],'tax_included'=>!empty($offer['tax_included']));
+            }
+            return $this->output->set_output(json_encode(array('success'=>true,'offers'=>$offers)));
+        } catch(Throwable $e) {
+            log_message('error','AI Ads offer lookup rejected: '.mb_substr(strip_tags($e->getMessage()),0,180));
+            return $this->output->set_status_header(403)->set_output(json_encode(array('success'=>false,'offers'=>array())));
+        }
+    }
+
     public function broker_subscription_checkout() {
         if(!mp_is_central()) show_404();
         $this->output->set_content_type('application/json','UTF-8')->set_header('Cache-Control','no-store');
@@ -481,18 +531,19 @@ class Ai_ads extends MY_Controller {
             $state=(string)$this->input->get('state'); $code=(string)$this->input->get('code');
             $oauthError=trim((string)$this->input->get('error_description'));
             if ($oauthError==='') $oauthError=trim((string)$this->input->get('error_reason'));
-            if ($oauthError!=='') throw new RuntimeException('Meta authorization was not completed: '.mb_substr($oauthError,0,250));
+            if ($oauthError!=='') throw new RuntimeException('Meta authorization was not completed. Please try connecting again.');
             if (!$saved || empty($saved['created']) || time()-(int)$saved['created']>600 || empty($saved['store_id']) || !hash_equals((string)$saved['state'],$state) || $code==='') throw new RuntimeException('Meta connection expired or was cancelled. Please connect again.');
             $token=$this->meta_ads_api->exchangeCode($code); $profile=$this->meta_ads_api->profile($token['access_token']);
             $expires=$token['expires_in']>0?date('Y-m-d H:i:s',time()+$token['expires_in']):null;
-            if (empty($profile['client_business_id'])) throw new RuntimeException('Meta did not identify the connected business portfolio. Make sure you used the MartAds Business Login configuration.');
+            if (empty($profile['client_business_id'])) throw new RuntimeException('Meta did not return a business portfolio. Check your Meta account access and try again.');
             $row=array('store_id'=>(int)$saved['store_id'],'meta_user_id'=>(string)($profile['id']??''),'meta_business_id'=>(string)$profile['client_business_id'],'access_token_ciphertext'=>$this->meta_ads_api->encryptToken($token['access_token']),'token_expires_at'=>$expires,'status'=>'connected','last_checked_at'=>date('Y-m-d H:i:s'),'last_error'=>null);
             $existing=$this->ads->connection((int)$saved['store_id']);
             if ($existing) $this->db->where('store_id',(int)$saved['store_id'])->update('db_ai_ads_connections',$row); else $this->db->insert('db_ai_ads_connections',$row);
             $this->ads->audit((int)$saved['store_id'],null,$this->actorId(),'meta_connected','Merchant authorized a Meta connection.');
             $this->session->set_flashdata('success','Meta is connected. Choose the advertising account and Page you want MartPoint to use.');
         } catch(Throwable $e) {
-            $this->session->set_flashdata('error',$e->getMessage());
+            log_message('error','AI Ads Meta callback failed: '.mb_substr(strip_tags($e->getMessage()),0,220));
+            $this->session->set_flashdata('error','We couldn’t complete the Meta connection. Please try again or contact MartPoint support.');
             if (isset($saved['store_id'])) { $this->db->where('store_id',(int)$saved['store_id'])->update('db_ai_ads_connections',array('status'=>'error','last_error'=>mb_substr($e->getMessage(),0,500),'last_checked_at'=>date('Y-m-d H:i:s'))); }
         }
         redirect('marketing/ai_ads'.(!empty($saved['mobile'])?'?screen=mobile':''));
@@ -512,7 +563,7 @@ class Ai_ads extends MY_Controller {
             $this->db->where('store_id',$storeId)->update('db_ai_ads_connections',array('ad_account_id'=>$accountId,'ad_account_name'=>mb_substr((string)($account['name']??$accountId),0,190),'page_id'=>$pageId,'page_name'=>mb_substr((string)($page['name']??$pageId),0,190),'last_checked_at'=>date('Y-m-d H:i:s'),'last_error'=>null));
             $this->ads->audit($storeId,null,$this->actorId(),'assets_selected','Merchant selected an ad account and Page.');
             $this->session->set_flashdata('success','Meta assets saved.');
-        } catch(Throwable $e) { $this->session->set_flashdata('error',$e->getMessage()); }
+        } catch(Throwable $e) { log_message('error','AI Ads Meta asset selection failed: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t save those Meta assets. Please choose an account and Page available to your Facebook account.'); }
         redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
     }
 
@@ -538,7 +589,7 @@ class Ai_ads extends MY_Controller {
             $id=$this->ads->saveDraft($this->storeId(),$this->actorId(),array('request_key'=>$key,'prompt'=>$prompt,'product_id'=>$productId,'headline'=>$headline,'body'=>$body,'destination_url'=>$url,'location_text'=>mb_substr(trim((string)$this->input->post('location_text')),0,190),'daily_budget_minor'=>$budget*100,'starts_at'=>$now->format('Y-m-d H:i:s'),'ends_at'=>$now->modify('+'.$duration.' days')->format('Y-m-d H:i:s')));
             $this->ads->audit($this->storeId(),$id,$this->actorId(),'campaign_draft_saved','Draft saved for merchant review.');
             $this->session->set_flashdata('success','Ad draft saved. This is a draft only; MartPoint has not created or started an ad on Meta.');
-        } catch(Throwable $e) { $this->session->set_flashdata('error',$e->getMessage()); }
+        } catch(Throwable $e) { log_message('error','AI Ads draft save failed: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t save your ad draft. Check the required fields and try again.'); }
         redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
     }
 
@@ -552,12 +603,15 @@ class Ai_ads extends MY_Controller {
             if ($prompt==='' || strlen($prompt)>3000) throw new RuntimeException('Describe the ad in up to 3,000 characters first.');
             if ($productId>0) { foreach($this->ads->products($this->storeId()) as $row) if((int)$row['id']===$productId) {$product=$row;break;} if(!$product) throw new RuntimeException('Choose a product from this store.'); }
             $this->load->library('assist_brain'); $copy=$this->assist_brain->generateAdCopy($prompt,$product);
-            if (!$copy) throw new RuntimeException('AI copy generation is unavailable. Enable MartPoint Assist AI in Site Settings and check its provider settings.');
+            if (!$copy) throw new RuntimeException('AI copy suggestions are temporarily unavailable. Please try again later.');
             $this->ads->audit($this->storeId(),null,$this->actorId(),'ai_copy_generated','AI produced ad copy for merchant review.');
             return $this->output->set_output(json_encode(array('success'=>true,'copy'=>$copy)));
         } catch(Throwable $e) {
+            log_message('error','AI Ads copy generation failed: '.mb_substr(strip_tags($e->getMessage()),0,220));
             $this->output->set_status_header(422);
-            return $this->output->set_output(json_encode(array('success'=>false,'message'=>$e->getMessage())));
+            $message=strpos($e->getMessage(),'active monthly or annual')!==false?'AI copy suggestions require an active plan. You can still connect Meta and save drafts for free.':
+                (strpos($e->getMessage(),'Describe the ad')!==false||strpos($e->getMessage(),'Choose a product')!==false?$e->getMessage():'AI copy suggestions are temporarily unavailable. Please try again later.');
+            return $this->output->set_output(json_encode(array('success'=>false,'message'=>$message)));
         }
     }
 }

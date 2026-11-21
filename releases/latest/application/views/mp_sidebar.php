@@ -692,7 +692,7 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
-    <?php if(!mp_is_central() && (is_business_owner() || is_store_admin() || is_admin())): ?>
+    <?php if(!mp_is_central() && (is_business_owner() || is_store_admin() || is_admin() || $CI->permissions('send_email') || $CI->permissions('send_sms'))): ?>
     <div class="mp-nav-section"><a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads</a></div>
     <?php endif; ?>
 

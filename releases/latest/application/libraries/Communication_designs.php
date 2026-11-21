@@ -156,7 +156,30 @@ class Communication_designs {
             'winback'=>$set('winback','We miss you','html','winback','any','winback','#7c3aed','We miss you at {store}','Come back — here is what is new',array(
                 array('type'=>'subtitle','text'=>'It has been a while, and a few things have changed.'),
                 array('type'=>'body'),
-                array('type'=>'button','label'=>'See what is new','url'=>''))));
+                array('type'=>'button','label'=>'See what is new','url'=>''))),
+            'visual_newsletter'=>$set('visual_newsletter','Visual store newsletter','html','newsletter','any','any','#0f766e','The latest from {store}','New arrivals, useful updates and what is coming next',array(
+                array('type'=>'heading','text'=>'The latest from {store}'),
+                array('type'=>'subtitle','text'=>'A short monthly note, made for your customers.'),
+                array('type'=>'image','image_url'=>'','image_alt'=>'Newsletter feature image','image_link'=>''),
+                array('type'=>'body'),
+                array('type'=>'divider'),
+                array('type'=>'bullets','text'=>'What is new this month\nA helpful tip or update\nWhat customers can look forward to'),
+                array('type'=>'button','label'=>'Explore the update','url'=>''),
+                array('type'=>'terms','text'=>'You are receiving this update because you are a customer of {store}.'))),
+            'flyer_announcement'=>$set('flyer_announcement','Flyer announcement','html','announcement','any','any','#b45309','An update from {store}','Open for the full announcement and details',array(
+                array('type'=>'image','image_url'=>'','image_alt'=>'Announcement flyer','image_link'=>''),
+                array('type'=>'heading','text'=>'An update from {store}'),
+                array('type'=>'paragraph','text'=>'Add a short explanation so customers know what the flyer is about.'),
+                array('type'=>'callout','text'=>'Add the date, offer terms or other important detail here.'),
+                array('type'=>'button','label'=>'View details','url'=>''),
+                array('type'=>'terms','text'=>'Terms and availability may apply.'))),
+            'product_story'=>$set('product_story','Product story','html','offer','retail','restock','#1e40af','A closer look from {store}','One featured item, why it matters and how to shop it',array(
+                array('type'=>'heading','text'=>'A closer look'),
+                array('type'=>'product','product_id'=>0),
+                array('type'=>'subtitle','text'=>'Why this one belongs on your list'),
+                array('type'=>'body'),
+                array('type'=>'bullets','text'=>'What makes it useful\nWho it is right for\nHow to get it today'),
+                array('type'=>'button','label'=>'Shop this item','url'=>''))));
     }
 
     /** Any catalogue slug, in the same shape a stored row arrives in. */

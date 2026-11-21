@@ -41,7 +41,7 @@ $option=function($map,$selected,$field)use($h){
     <p class="muted">Use <code>{name}</code> and <code>{store}</code> anywhere in these fields — each email fills them in for the customer it goes to.</p>
 
     <h3 style="margin-top:22px">Layout blocks</h3>
-    <p class="muted">Build the email in order. Add a heading, copy, flyer image, product or button below; your campaign message can be included as a block too.</p>
+    <p class="muted">Build the email in order. Add a heading, copy, flyer image, product or button below; your campaign message can be included as a block too. Drag blocks with the grip to change their order.</p>
     <div class="row comm-quick-blocks" style="margin:10px 0 14px"><b>Quick add:</b> <button type="button" class="btn secondary" data-add-block="heading">+ Heading</button><button type="button" class="btn secondary" data-add-block="paragraph">+ Text</button><button type="button" class="btn secondary" data-add-block="image">+ Image / flyer</button><button type="button" class="btn secondary" data-add-block="button">+ Button</button><button type="button" class="btn secondary" data-add-block="product">+ Product</button></div>
     <div id="comm-block-list" data-block-limit="<?= Communication_designs::MAX_BLOCKS; ?>">
 <?php foreach($blockRows as $row): ?>
@@ -49,6 +49,7 @@ $option=function($map,$selected,$field)use($h){
             <div class="comm-block-head">
                 <select name="block_type" class="comm-block-type" aria-label="Block type"><?php foreach(Communication_designs::BLOCKS as $key=>$meta): ?><option value="<?= $h($key); ?>" data-field="<?= $h($meta['field']); ?>" <?= $row['type']===$key?'selected':''; ?>><?= $h($meta['label']); ?></option><?php endforeach; ?></select>
                 <div class="row">
+                    <button type="button" class="comm-icon-btn comm-block-drag" data-block-drag draggable="true" title="Drag to reorder" aria-label="Drag block to reorder">⠿</button>
                     <button type="button" class="comm-icon-btn" data-block-up title="Move up" aria-label="Move block up">↑</button>
                     <button type="button" class="comm-icon-btn" data-block-down title="Move down" aria-label="Move block down">↓</button>
                     <button type="button" class="comm-icon-btn" data-block-remove title="Remove block" aria-label="Remove block">✕</button>
@@ -109,6 +110,7 @@ $option=function($map,$selected,$field)use($h){
         <div class="comm-block-head">
             <select name="block_type" class="comm-block-type" aria-label="Block type"><?php foreach(Communication_designs::BLOCKS as $key=>$meta): ?><option value="<?= $h($key); ?>" data-field="<?= $h($meta['field']); ?>"><?= $h($meta['label']); ?></option><?php endforeach; ?></select>
             <div class="row">
+                <button type="button" class="comm-icon-btn comm-block-drag" data-block-drag draggable="true" title="Drag to reorder" aria-label="Drag block to reorder">⠿</button>
                 <button type="button" class="comm-icon-btn" data-block-up title="Move up" aria-label="Move block up">↑</button>
                 <button type="button" class="comm-icon-btn" data-block-down title="Move down" aria-label="Move block down">↓</button>
                 <button type="button" class="comm-icon-btn" data-block-remove title="Remove block" aria-label="Remove block">✕</button>
