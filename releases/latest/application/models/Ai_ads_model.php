@@ -11,7 +11,9 @@ class Ai_ads_model extends CI_Model {
     }
     public function hasAccess($storeId) {
         $s=$this->subscription($storeId); if (!$s || !in_array($s['status'],array('active','grace'),true) || empty($s['expires_at'])) return false;
-        return strtotime($s['expires_at'].' +'.(int)$s['grace_days'].' days') >= time();
+        try { $expires=(new DateTimeImmutable($s['expires_at'],new DateTimeZone('UTC')))->getTimestamp()+(int)$s['grace_days']*86400; }
+        catch(Throwable $e) { return false; }
+        return $expires >= time();
     }
     public function campaigns($storeId) {
         if (!$this->db->table_exists('db_ai_ads_campaigns')) return array();

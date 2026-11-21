@@ -692,8 +692,12 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
+    <?php if(!mp_is_central() && (is_business_owner() || is_store_admin() || is_admin())): ?>
+    <div class="mp-nav-section"><a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads</a></div>
+    <?php endif; ?>
+
     <!-- Marketing -->
-    <?php if((!$is_creator) && !$is_oil_processing && (($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView') || $CI->permissions('send_email') || $CI->permissions('send_sms') || $CI->permissions('customers_view')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
+    <?php if((!$is_creator) && !$is_oil_processing && ((is_business_owner() || is_store_admin() || is_admin() || $CI->permissions('discountCouponView') || $CI->permissions('customerCouponView') || $CI->permissions('send_email') || $CI->permissions('send_sms') || $CI->permissions('customers_view')) || ($CI->permissions('loyalty_view') && mp_feature_enabled('loyalty')) || ($CI->permissions('gift_cards_view') && mp_feature_enabled('gift_cards')) || ($CI->permissions('store_credit_view') && mp_feature_enabled('store_credit')))): ?>
     <div class="mp-nav-section"><div class="mp-nav-group" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#C026D3;"><?= $mp_icons['marketing']; ?></span> Marketing <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
@@ -711,9 +715,6 @@ $mp_icons = [
         ?>
         <?php if($CI->permissions('customers_view')): ?>
         <a href="<?= base_url('marketing/segments'); ?>" class="mp-nav-item marketing-segments-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Client Segments</a>
-        <?php endif; ?>
-        <?php if($CI->permissions('send_email') || $CI->permissions('send_sms') || is_admin() || is_store_admin()): ?>
-        <a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads</a>
         <?php endif; ?>
         <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) && !is_admin()): ?>
           <div class="mp-nav-subhead">Campaigns &amp; Promotions</div>
@@ -1004,17 +1005,20 @@ $mp_icons = [
 
     <!-- Central — vendor tooling, only renders on the central install -->
     <?php if ($is_central): ?>
+    <div class="mp-nav-section"><a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a></div>
     <div class="mp-nav-section"><div class="mp-nav-group open" onclick="this.classList.toggle('open')">
       <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#0057FF;"><i class="fa fa-globe"></i></span> Central <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
       <div class="mp-nav-submenu">
-        <a href="<?= base_url('fleet'); ?>" class="mp-nav-item fleet-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Fleet Manager</a>
         <a href="<?= base_url('manifest'); ?>" class="mp-nav-item manifest-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Manifest Generator</a>
+        <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
         <a href="<?= base_url('communications_admin'); ?>" class="mp-nav-item"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Communications</a>
         <a href="<?= base_url('messaging_admin'); ?>" class="mp-nav-item messaging_admin-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Messaging usage &amp; credits</a>
-        <a href="<?= base_url('release'); ?>" class="mp-nav-item release-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Build Release</a>
-        <a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><span class="mp-nav-icon"><i class="fa fa-lock"></i></span> Change Password</a>
+        <?php if(function_exists('special_access') && special_access()): ?>
+        <a href="<?= base_url('marketing/ai_ads/platform'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads Operations</a>
+        <?php endif; ?>
       </div>
     </div></div>
+    <div class="mp-nav-section"><a href="<?= base_url('users/password_reset'); ?>" class="mp-nav-item change-password-active-li"><span class="mp-nav-icon"><i class="fa fa-lock"></i></span> Change Password</a></div>
     <?php endif; ?>
 
     <div class="mp-nav-spacer"></div>

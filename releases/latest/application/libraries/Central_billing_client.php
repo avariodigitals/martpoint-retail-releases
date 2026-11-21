@@ -43,4 +43,9 @@ class Central_billing_client {
         if (!is_array($result) || empty($result['success'])) throw new RuntimeException('Central billing response could not be confirmed.');
         return $result;
     }
+    /** Safe, signed health probe for Central operator pages. */
+    public function health() {
+        try { return $this->post('health', array()); }
+        catch (Throwable $e) { return array('success'=>false,'message'=>mb_substr(strip_tags($e->getMessage()),0,240)); }
+    }
 }

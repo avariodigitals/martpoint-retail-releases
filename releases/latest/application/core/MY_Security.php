@@ -51,7 +51,7 @@ class MY_Security extends CI_Security {
                 $mp_path = ltrim((string)$mp_path, '/');
                 // Strip a sub-directory install prefix (e.g. /app/index.php/...).
                 $mp_path = preg_replace('#^.*?index\.php/#i', '', $mp_path);
-                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|fleet/verify_usage_install$|paystack_route_api/(register|policy|settings|request)$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase|payout_subaccount_route|installation_directory)$|marketing/ai_ads/(broker_complete|broker_apply_meta_removal|broker_encryption_key|meta_data_deletion|meta_deauthorize)$)#i', $mp_path))
+                if (preg_match('#^(intake[/_]|paystack/webhook$|monnify/webhook$|fleet/verify_usage_install$|paystack_route_api/(register|policy|settings|request)$|messaging_api/(snapshot|estimate|send|purchase|limits|request_addon|verify_purchase|authorize_campaign|campaign_report|communication_request|communication_toggle|automation_workflow|manual_credit|sender_request|communication_document|template_hub|register_credit_invoice|sync_billing_catalogue|fulfill_credit_purchase|payout_subaccount_route|installation_directory)$|marketing/ai_ads/(broker_complete|broker_apply_meta_removal|broker_encryption_key|broker_subscription_checkout|broker_verify_subscription|broker_apply_subscription|meta_data_deletion|meta_deauthorize)$)#i', $mp_path))
                 {
                         return $this;
                 }

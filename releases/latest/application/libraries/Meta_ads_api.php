@@ -11,6 +11,10 @@ class Meta_ads_api {
     private $key;
     private $keyIsRaw = false;
     private $centralSettingsLoaded = false;
+    private $centralFetchStatus = 'not_checked';
+    private $centralFetchMessage = 'Central Meta settings have not been requested yet.';
+    private $nextAppSecretPresent = false;
+    private $nextMasterKeyPresent = false;
 
     public function __construct() {
         $this->CI =& get_instance();
@@ -31,7 +35,11 @@ class Meta_ads_api {
         $this->centralSettingsLoaded = true;
         $base = rtrim((string)getenv('CENTRAL_BILLING_API_URL'), '/');
         $secret = (string)getenv('CENTRAL_BILLING_API_SECRET');
-        if ($base === '' || parse_url($base, PHP_URL_SCHEME) !== 'https' || strlen($secret) < 32 || !function_exists('curl_init')) return;
+        if ($base === '' || parse_url($base, PHP_URL_SCHEME) !== 'https' || strlen($secret) < 32 || !function_exists('curl_init')) {
+            $this->centralFetchStatus='not_configured';
+            $this->centralFetchMessage='Central-to-Next HTTPS URL, 32-character service secret, and PHP cURL are required.';
+            return;
+        }
         $path = '/api/internal/meta-ads/config'; $timestamp = (string)time();
         $signature = hash_hmac('sha256', $timestamp."\n".$path."\n", $secret);
         $ch = curl_init($base.$path);
@@ -40,16 +48,22 @@ class Meta_ads_api {
             CURLOPT_HTTPHEADER=>array('Accept: application/json','X-Central-Timestamp: '.$timestamp,'X-Central-Signature: '.$signature)));
         $body = curl_exec($ch); $status = (int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
         $data = is_string($body) ? json_decode($body,true) : null;
-        if ($status !== 200 || !is_array($data) || empty($data['success'])) return;
+        if ($status !== 200 || !is_array($data) || empty($data['success'])) {
+            $this->centralFetchStatus='unavailable';
+            $this->centralFetchMessage='Next Admin settings route returned HTTP '.$status.' or an invalid response.';
+            return;
+        }
         $this->appId = (string)($data['appId'] ?? $this->appId);
         $this->loginConfigId = (string)($data['loginConfigId'] ?? $this->loginConfigId);
         $this->redirectUri = (string)($data['redirectUri'] ?? $this->redirectUri);
         $this->version = (string)($data['graphVersion'] ?? $this->version);
-        if (!empty($data['appSecret'])) $this->appSecret = (string)$data['appSecret'];
+        if (!empty($data['appSecret'])) { $this->appSecret = (string)$data['appSecret']; $this->nextAppSecretPresent = true; }
         if (!empty($data['tokenMasterKey'])) {
             $master = base64_decode((string)$data['tokenMasterKey'], true);
-            if (is_string($master) && strlen($master) === 32) { $this->key = $master; $this->keyIsRaw = true; }
+            if (is_string($master) && strlen($master) === 32) { $this->key = $master; $this->keyIsRaw = true; $this->nextMasterKeyPresent = true; }
         }
+        $this->centralFetchStatus='connected';
+        $this->centralFetchMessage='Central fetched the platform settings securely from Next Admin.';
     }
 
     public function appSecret() {
@@ -59,6 +73,31 @@ class Meta_ads_api {
 
     public function ready() {
         return $this->oauthReady() && $this->tokenEncryptionReady();
+    }
+
+    /** Safe Central operator diagnostics; never returns secret or key material. */
+    public function diagnostics() {
+        $central=function_exists('mp_is_central') && mp_is_central();
+        if($central) { $this->loadCentralCredentials(); $this->oauthReady(); $this->tokenEncryptionReady(); }
+        $base=rtrim((string)getenv('CENTRAL_BILLING_API_URL'),'/'); $secret=(string)getenv('CENTRAL_BILLING_API_SECRET');
+        return array(
+            'is_central'=>$central,
+            'api_url_present'=>$base!=='',
+            'api_url_https'=>$base!=='' && parse_url($base,PHP_URL_SCHEME)==='https' && (bool)parse_url($base,PHP_URL_HOST),
+            'service_secret_present'=>strlen($secret)>=32,
+            'curl_available'=>function_exists('curl_init'),
+            'next_settings_status'=>$this->centralFetchStatus,
+            'next_settings_message'=>$this->centralFetchMessage,
+            'app_id_present'=>$this->appId!=='',
+            'login_config_present'=>$this->loginConfigId!=='',
+            'redirect_uri_present'=>$this->redirectUri!=='',
+            'app_secret_present'=>$this->appSecret!=='',
+            'next_app_secret_present'=>$this->nextAppSecretPresent,
+            'next_master_key_present'=>$this->nextMasterKeyPresent,
+            'master_key_present'=>strlen($this->key)===32,
+            'oauth_ready'=>$this->oauthReady(),
+            'encryption_ready'=>$this->tokenEncryptionReady()
+        );
     }
 
     /** OAuth credentials live on Central; token encryption remains fleet-local. */

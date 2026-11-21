@@ -687,4 +687,7 @@ return [
 	'4.0.9.285v' => '4.0.9.285_ai_ads_meta_business_id.sql',
 	'4.0.9.286v' => '4.0.9.286_ai_ads_oauth_broker.sql',
 	'4.0.9.287v' => '4.0.9.287_ai_ads_meta_callbacks.sql',
+	'4.0.9.288v' => '4.0.9.288_ai_ads_paid_subscriptions.sql',
+	// Code-only Central navigation/access refinements; SELECT 1 preserves version lockstep.
+	'4.0.9.291v' => '4.0.9.291_central_sidebar_order.sql',
 ];

@@ -174,6 +174,7 @@ if (!function_exists('marketing_menu_items')) {
                 'icon'  => 'fa-bullhorn',
                 'perm'  => '',
                 'perm_any' => ['send_email', 'send_sms'],
+                'owner_access' => true,
                 'color' => 'purple',
                 'url_mobile'  => 'marketing/ai_ads?screen=mobile',
                 'url_desktop' => 'marketing/ai_ads',
@@ -191,6 +192,10 @@ if (!function_exists('marketing_menu_items')) {
 
         $result = [];
         foreach ($items as $item) {
+            $ownerAllowed = !empty($item['owner_access'])
+                && ((function_exists('is_admin') && is_admin())
+                    || (function_exists('is_store_admin') && is_store_admin())
+                    || (function_exists('is_business_owner') && is_business_owner()));
             // Permission gate
             if (!empty($item['perm']) && !$CI->permissions($item['perm'])) {
                 continue;
@@ -200,7 +205,7 @@ if (!function_exists('marketing_menu_items')) {
                 foreach ($item['perm_any'] as $permission) {
                     if ($CI->permissions($permission)) { $allowed = true; break; }
                 }
-                if (!$allowed) continue;
+                if (!$allowed && !$ownerAllowed) continue;
             }
             // Feature flag gate (for items that map to a feature)
             if (!empty($item['feature']) && function_exists('mp_feature_enabled') && !mp_feature_enabled($item['feature'])) {
