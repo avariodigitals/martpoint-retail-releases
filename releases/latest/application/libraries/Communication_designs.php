@@ -24,6 +24,7 @@ class Communication_designs {
         'button'=>array('label'=>'Button','field'=>'both'),
         'divider'=>array('label'=>'Divider','field'=>'none'),
         'terms'=>array('label'=>'Fine print','field'=>'text'),
+        'image'=>array('label'=>'Image / flyer','field'=>'image'),
         'product'=>array('label'=>'Online store product','field'=>'product'));
 
     /**
@@ -201,6 +202,11 @@ class Communication_designs {
                 $item['url']=self::url($block['url']??'');
             }
             if ($type==='product') $item['product_id']=max(0,(int)($block['product_id']??0));
+            if ($type==='image') {
+                $item['image_url']=self::link($block['image_url']??'');
+                $item['image_alt']=mb_substr(trim((string)($block['image_alt']??'')),0,180);
+                $item['image_link']=self::url($block['image_link']??'');
+            }
             $out[]=$item;
         }
         return $out ?: array(array('type'=>'body','text'=>''));
@@ -315,6 +321,7 @@ class Communication_designs {
                 case 'divider': $blocks .= '<p style="margin:0 0 16px;color:#c3c9d8">&mdash; &mdash; &mdash;</p>'; break;
                 case 'terms': if ($text !== '') $blocks .= '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#68708a">'.nl2br(self::fill($text,$c['tokens'])).'</p>'; break;
                 case 'button': $blocks .= self::plainButton($block,$c); break;
+                case 'image': $blocks .= self::imageBlock($block,$c,true); break;
                 case 'product': $blocks .= self::productBlock($block,$c,true); break;
             }
         }
@@ -354,9 +361,21 @@ class Communication_designs {
                 $url = self::url($b['url'] ?? '') ?: $c['url'];
                 if ($label === '' || $url === '') return '';
                 return '<p style="margin:28px 0 6px"><a href="'.self::e($url).'" style="background:'.$c['accent'].';color:'.$c['ink'].';display:inline-block;padding:15px 28px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:bold">'.self::e($label).'</a></p>';
+            case 'image': return self::imageBlock($b,$c,false);
             case 'product': return self::productBlock($b,$c,false);
         }
         return '';
+    }
+
+    /** A flyer can fill the message area while the generated footer stays below it. */
+    private static function imageBlock(array $b, array $c, $plain=false) {
+        $src=self::link($b['image_url']??'');
+        if($src==='')return !empty($c['preview'])?'<div style="margin:0 0 22px;padding:20px;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#68708a;font-size:14px">Upload a flyer or choose an image to show here.</div>':'';
+        $alt=self::e(trim((string)($b['image_alt']??'')));
+        $link=self::url($b['image_link']??'');
+        $image='<img src="'.self::e($src).'" alt="'.$alt.'" width="552" style="display:block;width:100%;max-width:552px;height:auto;border:0;margin:0 auto">';
+        if($link!=='')$image='<a href="'.self::e($link).'" style="text-decoration:none">'.$image.'</a>';
+        return $plain?'<p style="margin:0 0 20px">'.$image.'</p>':'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;border-collapse:collapse"><tr><td align="center">'.$image.'</td></tr></table>';
     }
 
     /** Product details are resolved from the store's public catalogue at render time. */

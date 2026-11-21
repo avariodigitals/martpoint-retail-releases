@@ -38,11 +38,22 @@
 	<?php elseif(!$paystack_active): ?>
 		<div class="alert">Online payment is temporarily unavailable. Please contact the store for another payment option.</div>
 	<?php else: ?>
-		<form method="post" action="<?= html_escape($checkout_url); ?>">
+		<form method="post" action="<?= html_escape($checkout_url); ?>" id="invoice-paystack-checkout">
 			<input type="hidden" name="<?= html_escape($csrf_name); ?>" value="<?= html_escape($csrf_hash); ?>">
-			<button type="submit">Pay ₦<?= number_format((float)$due,2); ?> with MartPoint Pay</button>
+			<button type="submit" id="invoice-paystack-submit">Pay ₦<?= number_format((float)$due,2); ?> with MartPoint Pay</button>
 		</form>
 		<p class="muted" style="text-align:center;margin:14px 0 0">You’ll complete payment securely with Paystack.</p>
+		<script>
+		(function(){
+			var form=document.getElementById('invoice-paystack-checkout');
+			var button=document.getElementById('invoice-paystack-submit');
+			if(!form||!button)return;
+			form.addEventListener('submit',function(){
+				button.disabled=true;
+				button.textContent='Connecting securely to Paystack…';
+			});
+		})();
+		</script>
 	<?php endif; ?>
 	<footer>Payments are confirmed automatically after Paystack verifies the transaction.</footer>
 </main>

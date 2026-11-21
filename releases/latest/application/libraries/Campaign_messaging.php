@@ -34,12 +34,13 @@ class Campaign_messaging {
             $stored=$this->CI->communication_template_model->get($campaign->store_id,(int)$design['template_id']);
             if($stored && !empty($stored['enabled'])){
                 $this->CI->load->library('communication_designs');
-                $normalized=Communication_designs::normalize($stored);$productIds=array();$hasUnselectedProduct=false;
-                foreach($normalized['blocks'] as $block)if($block['type']==='product'){if(!empty($block['product_id']))$productIds[]=(int)$block['product_id'];else $hasUnselectedProduct=true;}
+                $normalized=Communication_designs::normalize($stored);$productIds=array();$hasUnselectedProduct=false;$hasMissingImage=false;
+                foreach($normalized['blocks'] as $block){if($block['type']==='product'){if(!empty($block['product_id']))$productIds[]=(int)$block['product_id'];else $hasUnselectedProduct=true;}if($block['type']==='image' && empty($block['image_url']))$hasMissingImage=true;}
                 $cacheKey=(int)$campaign->store_id.':'.implode(',',array_unique($productIds));
                 if(!array_key_exists($cacheKey,$this->emailProductCache))$this->emailProductCache[$cacheKey]=$this->CI->communication_template_model->emailProducts($campaign->store_id,$productIds);
                 $products=$this->emailProductCache[$cacheKey];
                 if($hasUnselectedProduct || count($products)!==count(array_unique($productIds)))$options['template_product_missing']=true;
+                if($hasMissingImage)$options['template_image_missing']=true;
                 $html=Communication_designs::render($stored,array('store'=>$storeName,'name'=>$name,'subject'=>$campaign->subject,
                     'message'=>$text,'unsubscribe'=>$unsub,'cta_label'=>(string)($design['button_label']??''),'cta_url'=>(string)($design['button_url']??''),'products'=>$products));
             }
@@ -62,6 +63,7 @@ class Campaign_messaging {
     public function send($campaign,$send,$test=false) {
         $p=$this->content($campaign,$send,$test);
         if(!empty($p['options']['template_product_missing']))return array('ok'=>false,'rate_limited'=>false,'error'=>'A product in this email is no longer published online. Update the design before sending; no credit was used.');
+        if(!empty($p['options']['template_image_missing']))return array('ok'=>false,'rate_limited'=>false,'error'=>'An image block in this email has no image. Upload or choose an image in the design before sending; no credit was used.');
         if(!$test && ($campaign->segment_key??'')==='birthday_today'){$this->CI->load->model('marketing_model','marketing_m');$normal=Communication_audience::recipient($campaign->channel,$p['recipient']);$matches=false;foreach($this->CI->marketing_m->birthdayAudience($campaign->store_id) as $birthday){if($normal && Communication_audience::recipient($campaign->channel,$birthday->{$campaign->channel==='sms'?'phone':'email'}??'')===$normal){$matches=true;break;}}if(!$matches)return array('ok'=>false,'rate_limited'=>false,'error'=>'This contact no longer matches today’s birthday audience; no credit was used.');}
         if(!empty($p['options']['birthday_expired']))return array('ok'=>false,'rate_limited'=>false,'error'=>'The birthday delivery date has passed; no credit was used.');
         if(!empty($p['options']['automation_paused']))return array('ok'=>false,'rate_limited'=>true,'error'=>'Automation is paused.');

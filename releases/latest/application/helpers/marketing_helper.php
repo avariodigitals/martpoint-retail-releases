@@ -169,6 +169,16 @@ if (!function_exists('marketing_menu_items')) {
                 'url_desktop' => 'marketing/campaigns',
             ],
             [
+                'title' => 'AI Ads',
+                'desc'  => 'Create and manage Facebook and Instagram ads',
+                'icon'  => 'fa-bullhorn',
+                'perm'  => '',
+                'perm_any' => ['send_email', 'send_sms'],
+                'color' => 'purple',
+                'url_mobile'  => 'marketing/ai_ads?screen=mobile',
+                'url_desktop' => 'marketing/ai_ads',
+            ],
+            [
                 'title' => 'Stock Alerts',
                 'desc'  => 'Back-in-stock subscribers',
                 'icon'  => 'fa-bell',

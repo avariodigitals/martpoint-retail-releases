@@ -282,3 +282,21 @@ $route['admissions/(:any)'] = 'inpatient/$1';
 
 // Public single-quotation response capability; token is hashed at rest.
 $route['quote_response/([a-f0-9]{64})'] = 'quote_response/index/$1';
+
+/* MartPoint AI Ads workspace */
+$route['marketing/ai_ads'] = 'ai_ads/index';
+$route['marketing/ai_ads/connect'] = 'ai_ads/connect';
+$route['marketing/ai_ads/callback'] = 'ai_ads/callback';
+$route['marketing/ai_ads/broker_start'] = 'ai_ads/broker_start';
+$route['marketing/ai_ads/broker_encryption_key'] = 'ai_ads/broker_encryption_key';
+$route['marketing/ai_ads/broker_callback'] = 'ai_ads/broker_callback';
+$route['marketing/ai_ads/broker_complete'] = 'ai_ads/broker_complete';
+$route['marketing/ai_ads/broker_apply_meta_removal'] = 'ai_ads/broker_apply_meta_removal';
+$route['marketing/ai_ads/broker_return'] = 'ai_ads/broker_return';
+$route['marketing/ai_ads/meta_data_deletion'] = 'ai_ads/meta_data_deletion';
+$route['marketing/ai_ads/meta_deauthorize'] = 'ai_ads/meta_deauthorize';
+$route['marketing/ai_ads/meta_deletion_status'] = 'ai_ads/meta_deletion_status';
+$route['marketing/ai_ads/select_assets'] = 'ai_ads/select_assets';
+$route['marketing/ai_ads/disconnect'] = 'ai_ads/disconnect';
+$route['marketing/ai_ads/save_draft'] = 'ai_ads/save_draft';
+$route['marketing/ai_ads/generate_copy'] = 'ai_ads/generate_copy';

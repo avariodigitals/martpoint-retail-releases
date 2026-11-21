@@ -83,6 +83,10 @@ class Paystack extends MY_Controller {
 			);
 			$result = $this->paystack->generate_payment_link($due, $email, $metadata, $storeId);
 			if(empty($result['status'])) throw new RuntimeException($result['message'] ?? 'Paystack could not start checkout.');
+			$authorizationUrl = trim((string)($result['authorization_url'] ?? ''));
+			if($authorizationUrl === '' || !preg_match('~^https://(checkout\.)?paystack\.com/~i', $authorizationUrl)){
+				throw new RuntimeException('Paystack did not return a valid secure checkout link. Please contact the store before trying again.');
+			}
 			$paymentLinked = $this->db->where('paystack_reference',$result['reference'])->update('db_paystack_payments', array(
 				'sales_id'=>(int)$locked->id, 'customer_id'=>(int)$locked->customer_id
 			));
@@ -108,12 +112,19 @@ class Paystack extends MY_Controller {
 			if(!$this->db->insert('db_salespayments',$paymentRow)) throw new RuntimeException('The checkout was created but its invoice record could not be prepared. Contact the store before paying again.');
 			if(!$this->db->trans_status()) throw new RuntimeException('Invoice checkout could not be saved.');
 			$this->db->trans_commit();
-			redirect($result['authorization_url']);
+			redirect($authorizationUrl);
 		} catch(Throwable $e){
 			$this->db->trans_rollback();
 			log_message('error','Invoice Paystack checkout failed: '.$e->getMessage());
-			$this->session->set_flashdata('invoice_payment_error',$e->getMessage());
-			redirect('invoice/pay/'.rawurlencode($token));
+			// Render the failure on the response to this POST. A redirect here
+			// depends on session flash data surviving a public invoice request;
+			// when a host drops that cookie the customer sees only the same page
+			// again with no indication why checkout did not open.
+			$invoice = $this->_publicInvoice($token);
+			if(!$invoice){ show_404(); return; }
+			$data = $this->_invoicePageData($invoice, $token);
+			$data['error'] = $e->getMessage();
+			$this->load->view('paystack_invoice', $data);
 		}
 	}
 

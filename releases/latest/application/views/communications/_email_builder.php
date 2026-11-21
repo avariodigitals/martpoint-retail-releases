@@ -41,7 +41,8 @@ $option=function($map,$selected,$field)use($h){
     <p class="muted">Use <code>{name}</code> and <code>{store}</code> anywhere in these fields — each email fills them in for the customer it goes to.</p>
 
     <h3 style="margin-top:22px">Layout blocks</h3>
-    <p class="muted">The <b>Your message</b> block is where the campaign text you type when composing will appear. Keep it once, anywhere in the layout.</p>
+    <p class="muted">Build the email in order. Add a heading, copy, flyer image, product or button below; your campaign message can be included as a block too.</p>
+    <div class="row comm-quick-blocks" style="margin:10px 0 14px"><b>Quick add:</b> <button type="button" class="btn secondary" data-add-block="heading">+ Heading</button><button type="button" class="btn secondary" data-add-block="paragraph">+ Text</button><button type="button" class="btn secondary" data-add-block="image">+ Image / flyer</button><button type="button" class="btn secondary" data-add-block="button">+ Button</button><button type="button" class="btn secondary" data-add-block="product">+ Product</button></div>
     <div id="comm-block-list" data-block-limit="<?= Communication_designs::MAX_BLOCKS; ?>">
 <?php foreach($blockRows as $row): ?>
         <div class="comm-block-row" data-block-row>
@@ -57,6 +58,13 @@ $option=function($map,$selected,$field)use($h){
             <div class="comm-split comm-block-field comm-block-cta">
                 <label>Button text<input name="block_label" class="comm-block-label" maxlength="80" value="<?= $h($row['label']??''); ?>" placeholder="Book an appointment"></label>
                 <label>Button link<input name="block_url" class="comm-block-url" type="url" value="<?= $h($row['url']??''); ?>" placeholder="https://your-store.com/booking"></label>
+            </div>
+            <div class="comm-block-field comm-block-image-field">
+                <label>Flyer or image<input type="file" class="comm-block-image-file" accept="image/jpeg,image/png,image/gif,image/webp"><small class="muted">Upload a flyer (PNG, JPEG, GIF or WebP; up to 4 MB), or paste a public image URL below. The store footer remains after the image.</small></label>
+                <label>Image URL<input name="block_image_url" class="comm-block-image-url" type="url" value="<?= $h($row['image_url']??''); ?>" placeholder="https://…" autocomplete="url"></label>
+                <label>Image description<input name="block_image_alt" class="comm-block-image-alt" maxlength="180" value="<?= $h($row['image_alt']??''); ?>" placeholder="Describe the flyer for screen readers"></label>
+                <label>Optional click-through link<input name="block_image_link" class="comm-block-image-link" type="url" value="<?= $h($row['image_link']??''); ?>" placeholder="https://your-store.com/offer"></label>
+                <span class="comm-block-image-status muted" aria-live="polite"></span>
             </div>
             <label class="comm-block-field comm-block-product-field">Choose an online store product<select name="block_product" class="comm-block-product"><option value="0">Choose a product…</option><?php foreach(($email_products??array()) as $product): ?><option value="<?= (int)$product['id']; ?>" <?= (int)($row['product_id']??0)===(int)$product['id']?'selected':''; ?>><?= $h($product['name']); ?><?= $product['price']!==''?' · '.$h($product['price']):''; ?></option><?php endforeach; ?></select><small class="muted"><?php if(isset($email_products)): ?>Only published products from this store are listed. Name, price, image and product link refresh from your catalog when the email is previewed or sent.<?php else: ?>Store owners choose a product from their own online catalog after adding this design.<?php endif; ?></small></label>
         </div>
@@ -111,7 +119,14 @@ $option=function($map,$selected,$field)use($h){
             <label>Button text<input name="block_label" class="comm-block-label" maxlength="80" placeholder="Book an appointment"></label>
             <label>Button link<input name="block_url" class="comm-block-url" type="url" placeholder="https://your-store.com/booking"></label>
         </div>
+        <div class="comm-block-field comm-block-image-field">
+            <label>Flyer or image<input type="file" class="comm-block-image-file" accept="image/jpeg,image/png,image/gif,image/webp"><small class="muted">Upload a flyer (PNG, JPEG, GIF or WebP; up to 4 MB), or paste a public image URL below. The store footer remains after the image.</small></label>
+            <label>Image URL<input name="block_image_url" class="comm-block-image-url" type="url" placeholder="https://…" autocomplete="url"></label>
+            <label>Image description<input name="block_image_alt" class="comm-block-image-alt" maxlength="180" placeholder="Describe the flyer for screen readers"></label>
+            <label>Optional click-through link<input name="block_image_link" class="comm-block-image-link" type="url" placeholder="https://your-store.com/offer"></label>
+            <span class="comm-block-image-status muted" aria-live="polite"></span>
+        </div>
         <label class="comm-block-field comm-block-product-field">Choose an online store product<select name="block_product" class="comm-block-product"><option value="0">Choose a product…</option><?php foreach(($email_products??array()) as $product): ?><option value="<?= (int)$product['id']; ?>"><?= $h($product['name']); ?><?= $product['price']!==''?' · '.$h($product['price']):''; ?></option><?php endforeach; ?></select><small class="muted"><?php if(isset($email_products)): ?>Only published products from this store are listed. Product details refresh from your catalog.<?php else: ?>Store owners choose a product from their own online catalog after adding this design.<?php endif; ?></small></label>
     </div>
 </script>
-<script>window.COMM_PREVIEW_URL=<?= json_encode($builderPreview,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;</script>
+<script>window.COMM_PREVIEW_URL=<?= json_encode($builderPreview,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;window.COMM_IMAGE_UPLOAD_URL=<?= json_encode(base_url('communications/design_upload_image'),JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;</script>

@@ -712,6 +712,9 @@ $mp_icons = [
         <?php if($CI->permissions('customers_view')): ?>
         <a href="<?= base_url('marketing/segments'); ?>" class="mp-nav-item marketing-segments-active-li"><span class="mp-nav-icon"><?= $mp_icons['customers']; ?></span> Client Segments</a>
         <?php endif; ?>
+        <?php if($CI->permissions('send_email') || $CI->permissions('send_sms') || is_admin() || is_store_admin()): ?>
+        <a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads</a>
+        <?php endif; ?>
         <?php if(($CI->permissions('discountCouponView') || $CI->permissions('customerCouponView')) && !is_admin()): ?>
           <div class="mp-nav-subhead">Campaigns &amp; Promotions</div>
           <?php if($CI->permissions('customerCouponAdd')): ?><a href="<?= base_url('customer_coupon/generate'); ?>" class="mp-nav-item createCoupon-active-li"><span class="mp-nav-icon"><?= $mp_icons['plus']; ?></span> Create Customer Coupon</a><?php endif; ?>

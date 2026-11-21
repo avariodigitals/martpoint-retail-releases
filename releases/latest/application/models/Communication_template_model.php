@@ -98,9 +98,12 @@ class Communication_template_model extends CI_Model {
         $storeId=(int)$storeId;
         if($storeId>0){
             $productIds=array();
-            foreach(Communication_designs::blocks($row['blocks_json']) as $block)if($block['type']==='product'){
-                if((int)($block['product_id']??0)<1)throw new RuntimeException('Choose an online store product for every product block.');
-                $productIds[]=(int)$block['product_id'];
+            foreach(Communication_designs::blocks($row['blocks_json']) as $block){
+                if($block['type']==='product'){
+                    if((int)($block['product_id']??0)<1)throw new RuntimeException('Choose an online store product for every product block.');
+                    $productIds[]=(int)$block['product_id'];
+                }
+                if($block['type']==='image' && trim((string)($block['image_url']??''))==='')throw new RuntimeException('Upload or choose an image for every image block.');
             }
             $productIds=array_values(array_unique($productIds));
             if($productIds && count($this->emailProducts($storeId,$productIds))!==count($productIds))throw new RuntimeException('One of the selected products is no longer published in your online store. Choose another product.');

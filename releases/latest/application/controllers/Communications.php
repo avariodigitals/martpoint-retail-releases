@@ -245,6 +245,23 @@ class Communications extends MY_Controller {
     }
     /** A campaign can only be bound to a stored design once the app update is in place. */
     private function canBindDesigns(){return $this->communication_template_model->ready() && $this->db->table_exists('db_communication_campaign_designs') && $this->db->field_exists('template_id','db_communication_campaign_designs');}
+    /** Upload a reusable campaign image into this store's public email asset folder. */
+    public function design_upload_image(){
+        $this->post();$this->guard('email');$storeId=(int)get_current_store_id();
+        if(mp_is_central() || $storeId<1){$this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(array('success'=>false,'message'=>'Email image uploads are available inside a store account.')));return;}
+        $directory=FCPATH.'uploads/storefront/'.$storeId.'/email-assets/';
+        if(!is_dir($directory) && !@mkdir($directory,0755,true) && !is_dir($directory)){$this->output->set_status_header(500)->set_content_type('application/json')->set_output(json_encode(array('success'=>false,'message'=>'The email image folder could not be created.')));return;}
+        $this->load->library('upload');
+        $config=array('upload_path'=>$directory,'allowed_types'=>'jpg|jpeg|png|gif|webp','max_size'=>4096,
+            'max_width'=>2400,'max_height'=>6000,'encrypt_name'=>true,'remove_spaces'=>true,'detect_mime'=>true);
+        $this->upload->initialize($config,true);
+        if(!$this->upload->do_upload('image')){$message=trim(strip_tags($this->upload->display_errors('','')));$this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(array('success'=>false,'message'=>$message?:'Choose a PNG, JPEG, GIF or WebP image under 4 MB.')));return;}
+        $file=$this->upload->data();$path=$directory.$file['file_name'];$image=@getimagesize($path);
+        $allowed=array('image/png','image/jpeg','image/gif','image/webp');
+        if(!$image || !in_array((string)($image['mime']??''),$allowed,true)){@unlink($path);$this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(array('success'=>false,'message'=>'The uploaded file is not a supported image.')));return;}
+        $url=base_url('uploads/storefront/'.$storeId.'/email-assets/'.$file['file_name']);
+        $this->output->set_content_type('application/json')->set_header('Cache-Control: no-store')->set_output(json_encode(array('success'=>true,'url'=>$url,'name'=>$file['orig_name']),JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE));
+    }
     /** Create or update one of this store's own email designs. */
     public function design_save(){
         $this->post();$this->guard('email');

@@ -681,4 +681,10 @@ return [
 		  '4.0.9.281v' => '4.0.9.281_recent_storefront_email_payment_updates.sql',
 		  // Shared secure payment links and confirmed balances on every sales PDF route.
 		  '4.0.9.282v' => '4.0.9.282_invoice_pdf_martpoint_pay.sql',
+          // Post-.282 invoice checkout recovery and product-aware email design/send fixes.
+          '4.0.9.283v' => '4.0.9.283_invoice_email_payment_reliability.sql',
+	'4.0.9.284v' => '4.0.9.284_ai_ads_foundation.sql',
+	'4.0.9.285v' => '4.0.9.285_ai_ads_meta_business_id.sql',
+	'4.0.9.286v' => '4.0.9.286_ai_ads_oauth_broker.sql',
+	'4.0.9.287v' => '4.0.9.287_ai_ads_meta_callbacks.sql',
 ];

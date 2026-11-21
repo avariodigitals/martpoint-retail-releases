@@ -52,6 +52,24 @@ class Assist_brain {
 		return !empty($this->cfg['enabled']) && !empty($this->cfg['api_key']);
 	}
 
+	/** Generate ad copy only; no campaign settings or database writes are delegated to AI. */
+	public function generateAdCopy($request, array $product = array()){
+		if(!$this->enabled()) return null;
+		$productName = mb_substr(trim((string)($product['item_name'] ?? '')), 0, 180);
+		$productDescription = mb_substr(trim(strip_tags((string)($product['description'] ?? ''))), 0, 500);
+		$system = 'You write concise, truthful Facebook and Instagram ad copy for small businesses. Return one JSON object with exactly headline and body strings. Do not invent discounts, certifications, prices, stock, guarantees, or performance claims. Do not write targeting or budget decisions. Keep the headline under 80 characters and body under 500 characters. Use only the user request and supplied catalogue details.';
+		$user = "Merchant request:\n".mb_substr(trim((string)$request),0,3000)."\n\nCatalogue item: {$productName}\nItem details: {$productDescription}";
+		$payload = array(
+			'model'=>$this->cfg['model'] ?? 'gpt-4o-mini',
+			'messages'=>array(array('role'=>'system','content'=>$system),array('role'=>'user','content'=>$user)),
+			'temperature'=>0.2,'max_tokens'=>300,'response_format'=>array('type'=>'json_object')
+		);
+		$raw=$this->_call($payload); if($raw===null) return null;
+		$data=json_decode($raw,true);
+		if(!is_array($data) || trim((string)($data['headline']??''))==='' || trim((string)($data['body']??''))==='') return null;
+		return array('headline'=>mb_substr(trim(strip_tags((string)$data['headline'])),0,255),'body'=>mb_substr(trim(strip_tags((string)$data['body'])),0,500));
+	}
+
 	/**
 	 * Is a capability allowed by the enabled_capabilities whitelist?
 	 * null whitelist = everything allowed.
