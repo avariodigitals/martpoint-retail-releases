@@ -94,6 +94,10 @@
         <div class="title">Products &amp; Catalogue</div>
       </div>
     </a>
+    <a href="<?= base_url('docs/product-design/customer-guide/barcode-labels-guide.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
+      <div class="icon"><i class="fa fa-barcode"></i></div>
+      <div class="text"><div class="title">Barcode, Batch &amp; Label Guide</div><div class="desc">Set up product sizes, download barcode artwork, record batches and print labels.</div></div>
+    </a>
     <?php if($industry_type !== 'oil_processing_plant'): ?><a href="<?= base_url('docs/product-design/customer-guide/services.html'); ?>" target="_blank" rel="noopener" class="mp-folder-card">
       <div class="icon"><i class="fa fa-scissors"></i></div>
       <div class="text">

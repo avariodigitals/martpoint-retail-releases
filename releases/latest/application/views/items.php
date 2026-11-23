@@ -17,6 +17,7 @@ if(!isset($item_name)){
   $stock = 0;
   $seller_points =0;
   $custom_barcode ='';
+  $barcode_type = 'code128';
   $manufacturer_part_no ='';
   $oem_reference ='';
   $cross_reference ='';
@@ -85,6 +86,7 @@ else{
   if(!isset($track_serial)) $track_serial=0;
   if(!isset($track_imei)) $track_imei=0;
   if(!isset($item_barcodes)) $item_barcodes=[];
+if(!isset($barcode_type)) $barcode_type='code128';
   if(!isset($service_bit)) $service_bit=0;
   if(!isset($sac)) $sac='';
   if(!isset($laundry_service_type)) $laundry_service_type='';
@@ -376,7 +378,23 @@ body.mp-mode-service .mp-service-only.mp-form-group { display: flex !important; 
       <div class="mp-form-group">
         <label for="custom_barcode"><?= $is_plant ? 'Supplier barcode (optional)' : $this->lang->line('barcode'); ?></label>
         <input class="mp-form-control" id="custom_barcode" name="custom_barcode" placeholder="Scan or type barcode" type="text" value="<?php print htmlspecialchars($custom_barcode); ?>">
+        <label for="barcode_type" style="margin-top:8px;">Barcode format</label>
+        <select class="mp-form-control" id="barcode_type" name="barcode_type">
+          <option value="code128" <?= (($barcode_type ?? 'code128') !== 'ean13') ? 'selected' : ''; ?>>Internal barcode (Code 128)</option>
+          <option value="ean13" <?= (($barcode_type ?? 'code128') === 'ean13') ? 'selected' : ''; ?>>Retail barcode (EAN-13 / assigned GTIN)</option>
+        </select>
+        <small class="text-muted">MartPoint validates assigned EAN-13 check digits. It does not assign GTINs.</small>
+        <div><a class="small" href="<?= base_url('docs/product-design/customer-guide/barcode-labels-guide.html'); ?>" target="_blank" rel="noopener"><i class="fa fa-question-circle"></i> Barcode, batch and label help</a></div>
         <span id="custom_barcode_msg" style="display:none" class="text-danger"></span>
+        <?php if(!empty($q_id) && !empty($custom_barcode)): ?>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+            <a class="btn btn-default btn-sm" target="_blank" rel="noopener" href="<?= base_url('items/barcode_artwork/'.(int)$q_id.'/svg'); ?>">Download SVG</a>
+            <a class="btn btn-default btn-sm" href="<?= base_url('items/barcode_artwork/'.(int)$q_id.'/png'); ?>">Download PNG</a>
+            <a class="btn btn-default btn-sm" href="<?= base_url('items/barcode_artwork/'.(int)$q_id.'/pdf'); ?>">Download PDF</a>
+            <button class="btn btn-default btn-sm" type="button" id="copy-product-barcode" data-barcode="<?= htmlspecialchars($custom_barcode, ENT_QUOTES, 'UTF-8'); ?>">Copy number</button>
+          </div>
+          <div style="margin-top:8px;"><img alt="Barcode preview" style="max-width:280px;max-height:90px" src="<?= base_url('items/barcode_artwork/'.(int)$q_id.'/svg?inline=1'); ?>"></div>
+        <?php endif; ?>
       </div>
       <div class="mp-form-group">
         <label for="sku"><?= htmlspecialchars(mp_label('sku')) ?> (optional)</label>
@@ -1514,6 +1532,19 @@ function removeImagePreview(){
 })();
 </script>
 
+<script>
+document.addEventListener('click', function(event){
+  var button = event.target.closest('#copy-product-barcode');
+  if(!button) return;
+  var value = button.getAttribute('data-barcode') || '';
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(value).then(function(){ button.textContent = 'Copied'; });
+  } else {
+    var input = document.createElement('textarea'); input.value = value; document.body.appendChild(input); input.select();
+    document.execCommand('copy'); input.remove(); button.textContent = 'Copied';
+  }
+});
+</script>
 <script>
 var barcodeRowIndex = <?= (!empty($item_barcodes) && is_array($item_barcodes)) ? count($item_barcodes) : 1; ?>;
 function addBarcodeRow(){

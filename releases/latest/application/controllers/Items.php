@@ -635,6 +635,7 @@ class Items extends MY_Controller {
 		$search_for=$this->input->get('search_for');
 		$store_id=(int)$this->input->get('store_id');
 		if(!$store_id && function_exists('get_current_store_id')) $store_id=(int)get_current_store_id();
+		if ($search_for === 'labels') $store_id = (int)get_current_store_id();
 		$warehouse_id=(int)$this->input->get('warehouse_id');
 		if(!$warehouse_id && function_exists('get_store_warehouse_id')) $warehouse_id=(int)get_store_warehouse_id();
 
@@ -925,12 +926,43 @@ class Items extends MY_Controller {
 		$this->load->view('mp_layout', $data);
 	}
 
+	/** Download a tenant-owned product barcode as SVG, PNG or PDF artwork. */
+	public function barcode_artwork($item_id = 0, $format = 'svg'){
+		if (!$this->permissions('items_view') && !$this->permissions('items_edit') && !$this->permissions('print_labels')) {
+			show_error('You do not have permission to view product barcode artwork.', 403);
+			return;
+		}
+		$format = strtolower((string)$format);
+		$mime = array('svg' => 'image/svg+xml', 'png' => 'image/png', 'pdf' => 'application/pdf');
+		if (!isset($mime[$format])) { show_error('Unsupported barcode format.', 400); return; }
+		$store_id = (int)get_current_store_id();
+		$item = $this->db->where('id', (int)$item_id)->where('store_id', $store_id)->where('status', 1)->get('db_items')->row();
+		if (!$item || trim((string)$item->custom_barcode) === '') { show_404(); return; }
+		$type = $this->db->field_exists('barcode_type', 'db_items') ? $item->barcode_type : 'code128';
+		$type = $type === 'ean13' ? 'ean13' : 'code128';
+		$this->load->library('mp_barcode');
+		if ($type === 'ean13' && !$this->mp_barcode->is_valid_ean13($item->custom_barcode)) {
+			show_error('The saved EAN-13 is invalid. Correct the product barcode before exporting.', 422);
+			return;
+		}
+		$inline = $this->input->get('inline', TRUE) === '1';
+		$name = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string)$item->item_code) ?: 'product';
+		$this->output->set_content_type($mime[$format]);
+		$this->output->set_header('Content-Disposition: '.($inline ? 'inline' : 'attachment').'; filename="'.$name.'-barcode.'.$format.'"');
+		if ($format === 'png' && !extension_loaded('gd')) { show_error('PNG barcode export requires PHP GD on the server.', 501); return; }
+		$this->mp_barcode->render($item->custom_barcode, $type, $format);
+	}
+
 	/*Labels Print request*/
 	public function return_row_with_data($rowcount,$item_id){
+		if (!$this->permissions('print_labels')) { show_error('You do not have permission to print labels.', 403); return; }
+		$item = $this->db->where('id', (int)$item_id)->where('store_id', (int)get_current_store_id())->where('status', 1)->get('db_items')->row();
+		if (!$item) { show_404(); return; }
 		echo $this->items->get_items_info($rowcount,$item_id);
 	}
 
 	public function preview_labels(){
+		if (!$this->permissions('print_labels')) { show_error('You do not have permission to print labels.', 403); return; }
 		echo $this->items->preview_labels();
 	}
 

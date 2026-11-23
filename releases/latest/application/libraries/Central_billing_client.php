@@ -20,7 +20,7 @@ class Central_billing_client {
         return $issues ? implode('; ', $issues) : '';
     }
     public function ready() { return $this->configuration_error() === ''; }
-    public function post($path, array $payload) {
+    public function post($path, array $payload, $timeout = 20) {
         if (!$this->ready()) throw new RuntimeException('Central billing is not configured.');
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($body === false) throw new RuntimeException('Could not encode Central billing request.');
@@ -28,8 +28,9 @@ class Central_billing_client {
         $requestPath='/api/internal/central-billing/'.ltrim($path,'/');
         $signature = hash_hmac('sha256', $time."\n".$requestPath."\n".$body, $this->secret);
         $ch = curl_init($this->base.$requestPath);
+        $timeout=max(5,min(240,(int)$timeout));
         curl_setopt_array($ch, array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$body,CURLOPT_RETURNTRANSFER=>true,
-            CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>20,CURLOPT_HTTPHEADER=>array('Content-Type: application/json',
+            CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>$timeout,CURLOPT_HTTPHEADER=>array('Content-Type: application/json',
             'X-Central-Timestamp: '.$time,'X-Central-Signature: '.$signature)));
         $raw = curl_exec($ch); $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
         if ($raw === false) throw new RuntimeException('Could not reach Next Admin billing API over HTTPS'.($err ? ': '.$err : '.'));

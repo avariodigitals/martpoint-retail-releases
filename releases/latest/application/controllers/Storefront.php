@@ -1538,6 +1538,29 @@ class Storefront extends CI_Controller {
 		header('Content-Type: text/plain');
 		// On a connected custom domain the storefront is served from the root
 		$dom = $this->storefront_model->getStoreByDomain($this->input->server('HTTP_HOST'));
+		// Meta's link preview / Business Login validator fetches URLs using
+		// these crawler identities. Fleet subdomains use /store/{slug}; a
+		// connected custom domain uses /. Handle both URLs without changing the
+		// general crawler policy below.
+		foreach(array('facebookexternalhit','Facebot') as $agent){
+			echo "User-agent: ".$agent."\n";
+			if($dom){
+				echo "Allow: /\n";
+				echo "Disallow: /dashboard\n";
+				echo "Disallow: /login\n";
+				echo "Disallow: /storefront/\n";
+				echo "Disallow: /online_store/\n";
+				echo "Disallow: /items/\n";
+				echo "Disallow: /sales/\n";
+				echo "Disallow: /purchase/\n";
+				echo "Disallow: /reports/\n";
+			}else{
+				echo "Disallow: /\n";
+				echo "Allow: /store/\n";
+				echo "Allow: /uploads/store/\n";
+				echo "Allow: /uploads/storefront/\n";
+			}
+		}
 		if($dom){
 			echo "User-agent: *\n";
 			echo "Allow: /\n";

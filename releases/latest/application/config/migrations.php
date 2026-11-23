@@ -694,4 +694,17 @@ return [
 	'4.0.9.292v' => '4.0.9.292_ai_ads_sidebar_permissions.sql',
 	// Customer-safe AI Ads messaging and price display; schema is unchanged.
 	'4.0.9.293v' => '4.0.9.293_ai_ads_customer_plans.sql',
+	// Signed AI Ads broker and Meta callbacks do not require a browser login session.
+	'4.0.9.294v' => '4.0.9.294_ai_ads_broker_session_auth.sql',
+	// Permit Meta link-preview validation to fetch public shared storefront URLs.
+	'4.0.9.295v' => '4.0.9.295_meta_storefront_crawler_access.sql',
+	// Snapshot AI Ads purchase allowances and enforce recurring monthly usage quotas.
+	'4.0.9.296v' => '4.0.9.296_ai_ads_plan_entitlements.sql',
+	'4.0.9.297v' => '4.0.9.297_ai_ads_capacity_tiers.sql',
+	'4.0.9.298v' => '4.0.9.298_ai_ads_creative_assets.sql',
+	// Repair partially applied AI Ads tier columns used by the Central operations registry.
+	'4.0.9.299v' => '4.0.9.299_central_ai_ads_subscription_tier_repair.sql',
+	'4.0.9.300v' => '4.0.9.300_ai_ads_campaign_launch.sql',
+	// Retail EAN-13 product barcode type for validated GTIN entry and artwork export.
+	'4.0.9.301v' => '4.0.9.301_retail_ean13_barcodes.sql',
 ];

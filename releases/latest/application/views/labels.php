@@ -46,6 +46,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
       <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; Print product barcode labels</div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="<?= base_url('docs/product-design/customer-guide/barcode-labels-guide.html'); ?>" target="_blank" rel="noopener" class="mp-qa-btn blue"><i class="fa fa-question-circle"></i> Barcode &amp; Labels Help</a>
       <a href="<?php echo $base_url; ?>items" class="mp-qa-btn" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to Items
@@ -67,6 +68,28 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
       <h3>Build Your Labels</h3>
     </div>
     <div class="mp-card-body">
+      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:0 auto 18px;max-width:720px;">
+        <div style="flex:1;min-width:220px;">
+          <label for="label_mode">Label type</label>
+          <select class="mp-form-control" id="label_mode" name="label_mode">
+            <option value="standard">Standard retail label</option>
+            <option value="manufacturer">Manufacturer packaging label</option>
+            <option value="barcode_only">Barcode-only sticker</option>
+            <option value="batch_details">Batch details sticker</option>
+          </select>
+        </div>
+        <label style="font-weight:500"><input type="checkbox" name="label_show_price" value="1" checked> Selling price</label>
+        <label style="font-weight:500"><input type="checkbox" name="label_show_store" value="1" checked> Store name</label>
+        <label style="font-weight:500"><input type="checkbox" name="label_show_name" value="1" checked> Product name</label>
+        <div style="min-width:145px;">
+          <label for="label_size">Label size</label>
+          <select class="mp-form-control" id="label_size" name="label_size">
+            <option value="60x40">60 × 40 mm</option>
+            <option value="50x30">50 × 30 mm</option>
+            <option value="40x25">40 × 25 mm</option>
+          </select>
+        </div>
+      </div>
       <div class="mp-search-row">
         <div class="mp-search-icon">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -108,7 +131,8 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
         <div class="mp-empty-state">Preview will appear here after you click “Preview Labels”.</div>
       </span>
       <div style="margin-top:16px;text-align:right;">
-        <input type="button" class="mp-qa-btn blue" id="print" value="Print">
+        <small style="display:block;color:var(--mp-muted);margin-bottom:8px;">To download a PDF label sheet, choose “Save as PDF” in your browser’s print dialog.</small>
+        <input type="button" class="mp-qa-btn blue" id="print" value="Print / Save as PDF">
       </div>
     </div>
   </div>
@@ -158,7 +182,8 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
     if (!docprint) { toastr && toastr["error"] ? toastr["error"]("Please allow pop-ups to print labels.") : alert("Please allow pop-ups to print labels."); return; }
     docprint.document.open();
     docprint.document.write('<!DOCTYPE html><html><head><title><?php echo htmlspecialchars($store_name); ?> — Labels</title>');
-    docprint.document.write('<style type="text/css">@page { size: 60mm 40mm; margin: 0; } body{margin:0px;font-family:Verdana,Arial;color:#000;font-size:12px;background:#fff;}a{color:#000;text-decoration:none;}</style>');
+    var dims = ($('#label_size').val() || '60x40').split('x');
+    docprint.document.write('<style type="text/css">@page { size: '+dims[0]+'mm '+dims[1]+'mm; margin: 0; } body{margin:0px;font-family:Verdana,Arial;color:#000;font-size:12px;background:#fff;}a{color:#000;text-decoration:none;}</style>');
     docprint.document.write('</head><body onLoad="self.print()">');
     docprint.document.write(content_vlue);
     docprint.document.write('</body></html>');

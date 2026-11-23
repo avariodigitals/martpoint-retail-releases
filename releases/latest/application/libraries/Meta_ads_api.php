@@ -123,10 +123,10 @@ class Meta_ads_api {
      */
     private function loadFleetEncryptionKey() {
         if (strlen($this->key) >= 32 || !function_exists('mp_is_central') || mp_is_central()) return;
-        if (!function_exists('curl_init')) return;
+        if (!function_exists('curl_init')) { log_message('error','AI Ads Fleet key request unavailable: PHP cURL is disabled.'); return; }
         $identity = $this->CI->db->select('fleet_url,install_key')->where('id',1)->get('db_sitesettings')->row_array() ?: array();
         $central = rtrim((string)($identity['fleet_url'] ?? ''),'/'); $installKey = (string)($identity['install_key'] ?? '');
-        if (parse_url($central,PHP_URL_SCHEME)!=='https' || strlen($installKey)<32) return;
+        if (parse_url($central,PHP_URL_SCHEME)!=='https' || strlen($installKey)<32) { log_message('error','AI Ads Fleet key request unavailable: Fleet Central identity is incomplete.'); return; }
         $installUrl = rtrim(base_url(),'/').'/'; $timestamp = (string)time();
         $payload = json_encode(array('install_url'=>$installUrl),JSON_UNESCAPED_SLASHES);
         $this->CI->load->library('messaging_pricing');
@@ -135,11 +135,14 @@ class Meta_ads_api {
         curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query(array('install_url'=>$installUrl,'timestamp'=>$timestamp,'payload'=>$payload,'signature'=>$signature)),
             CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>10,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,
             CURLOPT_FOLLOWLOCATION=>false,CURLOPT_HTTPHEADER=>array('Accept: application/json')));
-        $body=curl_exec($ch); $status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
+        $body=curl_exec($ch); $status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); $curlError=curl_error($ch); curl_close($ch);
         $data=is_string($body)?json_decode($body,true):null;
         if($status===200&&is_array($data)&&!empty($data['encryption_key'])) {
             $derived=base64_decode((string)$data['encryption_key'],true);
             if(is_string($derived)&&strlen($derived)===32) { $this->key=$derived; $this->keyIsRaw=true; }
+            else log_message('error','AI Ads Fleet key request failed: Central returned an invalid encryption-key payload.');
+        } else {
+            log_message('error','AI Ads Fleet key request failed: Central HTTP '.$status.($curlError!==''?' (Fleet cURL transport error).':' (broker rejected request or returned invalid data).'));
         }
     }
 
@@ -172,9 +175,76 @@ class Meta_ads_api {
             'fields'=>'id,name', 'limit'=>100, 'access_token'=>$token));
     }
 
+    public function pixels($token,$accountId) {
+        $accountId=preg_replace('/[^0-9]/','',(string)$accountId);
+        if($accountId==='') throw new RuntimeException('Choose an advertising account first.');
+        return $this->request('GET','https://graph.facebook.com/'.$this->version.'/act_'.$accountId.'/adspixels',array(
+            'fields'=>'id,name,code,creation_time,last_fired_time','limit'=>100,'access_token'=>$token));
+    }
+
+    public function findLocation($token,$query) {
+        return $this->request('GET','https://graph.facebook.com/'.$this->version.'/search',array(
+            'type'=>'adgeolocation','q'=>(string)$query,'location_types'=>json_encode(array('city','region')),
+            'country_code'=>'NG','limit'=>20,'access_token'=>$token));
+    }
+
+    public function uploadVideo($token,$accountId,$filePath) {
+        return $this->uploadFile($token,'act_'.preg_replace('/[^0-9]/','',(string)$accountId).'/advideos',$filePath,'video/mp4');
+    }
+
+    public function uploadImage($token,$accountId,$filePath,$mime='image/jpeg') {
+        return $this->uploadFile($token,'act_'.preg_replace('/[^0-9]/','',(string)$accountId).'/adimages',$filePath,$mime);
+    }
+
+    public function createObject($token,$path,array $fields) {
+        $fields['access_token']=$token;
+        return $this->request('POST','https://graph.facebook.com/'.$this->version.'/'.ltrim($path,'/'),$fields);
+    }
+
+    public function updateObject($token,$objectId,array $fields) {
+        $fields['access_token']=$token;
+        return $this->request('POST','https://graph.facebook.com/'.$this->version.'/'.rawurlencode((string)$objectId),$fields);
+    }
+
+    public function insights($token,$objectId) {
+        return $this->request('GET','https://graph.facebook.com/'.$this->version.'/'.rawurlencode((string)$objectId).'/insights',array(
+            'fields'=>'impressions,reach,clicks,spend,ctr,cpc,cpm,actions','date_preset'=>'last_7d','access_token'=>$token));
+    }
+
+    private function uploadFile($token,$path,$filePath,$mime) {
+        if(!function_exists('curl_init')||!is_file($filePath)) throw new RuntimeException('Campaign media is unavailable for upload.');
+        $this->loadCentralCredentials();
+        $domain=strpos($path,'/adimages')!==false?'graph.facebook.com':'graph-video.facebook.com';
+        $url='https://'.$domain.'/'.$this->version.'/'.ltrim($path,'/');
+        $fields=array('access_token'=>$token,'source'=>new CURLFile($filePath,$mime,basename($filePath)));
+        if($this->appSecret!=='') $fields['appsecret_proof']=hash_hmac('sha256',(string)$token,$this->appSecret);
+        $ch=curl_init($url);
+        curl_setopt_array($ch,array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$fields,CURLOPT_RETURNTRANSFER=>true,
+            CURLOPT_CONNECTTIMEOUT=>15,CURLOPT_TIMEOUT=>180,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,
+            CURLOPT_FOLLOWLOCATION=>false));
+        $body=curl_exec($ch); $status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); $err=curl_error($ch); curl_close($ch);
+        if($body===false) throw new RuntimeException('Meta media upload failed: '.($err?:'network error'));
+        $data=json_decode($body,true);
+        if(!is_array($data)||$status<200||$status>=300||isset($data['error'])) {
+            $message=is_array($data)?(string)($data['error']['message']??''):'';
+            throw new RuntimeException($message!==''?mb_substr($message,0,300):'Meta returned an unreadable media response.');
+        }
+        return $data;
+    }
+
     public function profile($token) {
         $this->loadCentralCredentials();
         return $this->request('GET', 'https://graph.facebook.com/'.$this->version.'/me', array('fields'=>'id,client_business_id','access_token'=>$token));
+    }
+
+    public function permissions($token) {
+        return $this->request('GET','https://graph.facebook.com/'.$this->version.'/me/permissions',array('access_token'=>$token));
+    }
+
+    public function account($token,$accountId) {
+        $id=preg_replace('/[^0-9]/','',(string)$accountId);
+        if($id==='')throw new RuntimeException('Choose an advertising account first.');
+        return $this->request('GET','https://graph.facebook.com/'.$this->version.'/act_'.$id,array('fields'=>'id,name,account_status,currency','access_token'=>$token));
     }
 
     public function encryptToken($token) {

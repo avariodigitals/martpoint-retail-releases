@@ -381,6 +381,8 @@ class Items_model extends CI_Model {
 		$sales_price = str_replace(',','',$this->input->post('sales_price', TRUE));
 		$seller_points = $this->input->post('seller_points', TRUE);
 		$custom_barcode = $this->input->post('custom_barcode', TRUE);
+		$barcode_type = $this->input->post('barcode_type', TRUE) === 'ean13' ? 'ean13' : 'code128';
+		$custom_barcode = trim((string)$custom_barcode);
 		$manufacturer_part_no = $this->input->post('manufacturer_part_no', TRUE);
 		$oem_reference = $this->input->post('oem_reference', TRUE);
 		$cross_reference = $this->input->post('cross_reference', TRUE);
@@ -532,6 +534,55 @@ class Items_model extends CI_Model {
 		//varify max sales usage of the package subscription
 		validate_package_offers('max_items','db_items');
 		//END
+		if ($barcode_type === 'ean13') {
+			$this->load->library('mp_barcode');
+			$store_id = (int)get_current_store_id();
+			if ($custom_barcode !== '') {
+				if (!$this->mp_barcode->is_valid_ean13($custom_barcode)) return 'Enter a valid 13-digit EAN-13 barcode with the correct check digit.';
+				$this->db->from('db_items')->where('store_id', $store_id)->where('custom_barcode', $custom_barcode);
+				if ($command === 'update' && (int)$q_id > 0) $this->db->where('id !=', (int)$q_id);
+				if ($this->db->count_all_results() > 0) return 'This barcode is already assigned to another product in this store.';
+				if ($this->db->table_exists('db_item_barcodes')) {
+					$this->db->from('db_item_barcodes b')->join('db_items i', 'i.id=b.item_id', 'inner')
+						->where('i.store_id', $store_id)->where('b.barcode', $custom_barcode);
+					if ($command === 'update' && (int)$q_id > 0) $this->db->where('b.item_id !=', (int)$q_id);
+					if ($this->db->count_all_results() > 0) return 'This barcode is already used by another product batch in this store.';
+				}
+				if ($this->db->table_exists('db_item_selling_units')) {
+					$this->db->where('store_id', $store_id)->where('barcode', $custom_barcode)->where('status', 1);
+					if ($command === 'update' && (int)$q_id > 0) $this->db->where('item_id !=', (int)$q_id);
+					if ($this->db->count_all_results('db_item_selling_units') > 0) return 'This barcode is already assigned to a selling unit in this store.';
+				}
+			}
+			$submitted = array();
+			for ($i = 1; $i <= (int)$existing_row_count; $i++) {
+				$variant_code = trim((string)$this->input->post('td_data_'.$i.'_8', TRUE));
+				if ($variant_code === '') continue;
+				if (!$this->mp_barcode->is_valid_ean13($variant_code)) return 'Each retail variant barcode must be a valid 13-digit EAN-13 with the correct check digit.';
+				if (isset($submitted[$variant_code]) || ($custom_barcode !== '' && $variant_code === $custom_barcode)) return 'Each sellable product size must have a different EAN-13 barcode.';
+				$submitted[$variant_code] = true;
+				$allowed_ids = array();
+				if ($command === 'update' && (int)$q_id > 0) {
+					$allowed_ids[] = (int)$q_id;
+					$children = $this->db->select('id')->where('parent_id', (int)$q_id)->get('db_items')->result_array();
+					foreach ($children as $child) $allowed_ids[] = (int)$child['id'];
+				}
+				$this->db->from('db_items')->where('store_id', $store_id)->where('custom_barcode', $variant_code);
+				if ($allowed_ids) $this->db->where_not_in('id', $allowed_ids);
+				if ($this->db->count_all_results() > 0) return 'A variant barcode is already assigned to another product in this store.';
+				if ($this->db->table_exists('db_item_selling_units')) {
+					$this->db->where('store_id', $store_id)->where('barcode', $variant_code)->where('status', 1);
+					if ($allowed_ids) $this->db->where_not_in('item_id', $allowed_ids);
+					if ($this->db->count_all_results('db_item_selling_units') > 0) return 'A variant barcode is already assigned to a selling unit in this store.';
+				}
+				if ($this->db->table_exists('db_item_barcodes')) {
+					$this->db->from('db_item_barcodes b')->join('db_items i', 'i.id=b.item_id', 'inner')
+						->where('i.store_id', $store_id)->where('b.barcode', $variant_code);
+					if ($allowed_ids) $this->db->where_not_in('b.item_id', $allowed_ids);
+					if ($this->db->count_all_results() > 0) return 'A variant barcode is already used by another product batch in this store.';
+				}
+			}
+		}
 
 		$this->db->trans_begin();
 		$this->db->trans_strict(TRUE);
@@ -632,6 +683,7 @@ class Items_model extends CI_Model {
 			    				
 			    				'seller_points'				=> $seller_points,
 			    				'custom_barcode'			=> $custom_barcode,
+					'barcode_type'			=> $barcode_type,
 			    				'description'				=> $description,
 			    				'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
 			    				'product_type'				=> $product_type,
@@ -860,6 +912,7 @@ class Items_model extends CI_Model {
 	    							
 	    							'seller_points'				=> $seller_points,
 	    							'custom_barcode'			=> $custom_barcode,
+										'barcode_type'			=> $barcode_type,
 	    							'description'				=> $description,
 	    							'laundry_service_type'		=> !empty($laundry_service_type) ? $laundry_service_type : null,
 	    							'product_type'				=> $product_type,
@@ -1040,6 +1093,7 @@ class Items_model extends CI_Model {
 			    				
 			    				'seller_points'				=> $seller_points,
 			    				'custom_barcode'			=> $custom_barcode,
+								'barcode_type'			=> $barcode_type,
 			    				'description'				=> $description,
 			    				'item_group'				=> 'Single',
 			    				'store_id'					=> $store_id,
@@ -1281,6 +1335,7 @@ class Items_model extends CI_Model {
 			
 			$data['seller_points']=$query->seller_points;
 			$data['custom_barcode']=$query->custom_barcode;
+			$data['barcode_type']=$query->barcode_type ?? 'code128';
 			$data['manufacturer_part_no']=$query->manufacturer_part_no ?? '';
 			$data['oem_reference']=$query->oem_reference ?? '';
 			$data['cross_reference']=$query->cross_reference ?? '';
@@ -1519,12 +1574,30 @@ class Items_model extends CI_Model {
 		$item_sales_qty = isset($info['item_sales_qty']) ? $info['item_sales_qty'] : '';
 		$item_available_qty = isset($info['item_available_qty']) ? $info['item_available_qty'] : '';
 		$item_id = isset($info['item_id']) ? $info['item_id'] : '';
+		$store_id = (int)get_current_store_id();
+		$item_record = $this->db->where('id', (int)$item_id)->where('store_id', $store_id)->where('status', 1)->get('db_items')->row();
+		if (!$item_record) return;
 
 		?>
             <tr id="row_<?=$rowcount;?>" data-row='<?=$rowcount;?>'>
                <td id="td_<?=$rowcount;?>_1">
                   <!-- item name  -->
-                  <input type="text" style="font-weight: bold;" id="td_data_<?=$rowcount;?>_1" class="form-control no-padding" value='<?=$item_name;?>' readonly >
+                  <input type="text" style="font-weight: bold;" id="td_data_<?=$rowcount;?>_1" class="form-control no-padding" value="<?=htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8');?>" readonly >
+                  <?php
+                  if($this->db->table_exists('db_item_barcodes')):
+                    $batches = $this->db->from('db_item_barcodes b')->join('db_items i', 'i.id=b.item_id', 'inner')
+                      ->where('b.item_id', (int)$item_id)->where('i.store_id', $store_id)->where('b.status', 1)
+                      ->group_start()->where('b.batch_lot IS NOT NULL', null, false)->or_where('b.expire_date IS NOT NULL', null, false)->or_where('b.mfg_date IS NOT NULL', null, false)->group_end()
+                      ->order_by('b.expire_date', 'ASC')->get()->result();
+                    if(!empty($batches)):
+                  ?>
+                    <select name="label_batch_id_<?=$rowcount;?>" class="form-control label-batch-select" style="margin-top:5px;font-size:11px;">
+                      <option value="0">Choose production batch (optional)</option>
+                      <?php foreach($batches as $batch): $batch_label = trim((string)$batch->batch_lot); if($batch_label === '') $batch_label = 'Batch #'.(int)$batch->id; ?>
+                        <option value="<?= (int)$batch->id; ?>"><?= htmlspecialchars($batch_label, ENT_QUOTES, 'UTF-8'); ?><?= !empty($batch->expire_date) ? ' — Exp '.htmlspecialchars($batch->expire_date, ENT_QUOTES, 'UTF-8') : ''; ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  <?php endif; endif; ?>
                </td>
                <!-- Qty -->
                <td id="td_<?=$rowcount;?>_3">
@@ -1553,11 +1626,23 @@ class Items_model extends CI_Model {
 
 	public function preview_labels(){
 		$CI =& get_instance();
-		$store_name = $this->db->query("select store_name from db_store where id=".get_current_store_id())->row()->store_name;
-		$rowcount = $this->input->post('hidden_rowcount');
+		$store_id = (int)get_current_store_id();
+		$store = $this->db->select('store_name')->where('id', $store_id)->get('db_store')->row();
+		$store_name = $store ? $store->store_name : 'MartPoint';
+		$rowcount = min(100, max(0, (int)$this->input->post('hidden_rowcount', TRUE)));
+		$mode = $this->input->post('label_mode', TRUE);
+		if (!in_array($mode, array('standard','manufacturer','barcode_only','batch_details'), true)) $mode = 'standard';
+		$show_price = $this->input->post('label_show_price', TRUE) === '1';
+		$show_store = $this->input->post('label_show_store', TRUE) === '1';
+		$show_name = $this->input->post('label_show_name', TRUE) === '1';
+		$sizes = array('60x40' => array(60,40), '50x30' => array(50,30), '40x25' => array(40,25));
+		$label_size = $this->input->post('label_size', TRUE);
+		if (!isset($sizes[$label_size])) $label_size = '60x40';
+		$label_width = $sizes[$label_size][0];
+		$label_height = $sizes[$label_size][1];
 		?>
 		<style type="text/css">
-			@page { size: 60mm 40mm; margin: 0; }
+			@page { size: <?= $label_width; ?>mm <?= $label_height; ?>mm; margin: 0; }
 			.mp-label-sheet {
 				display: flex;
 				flex-direction: column;
@@ -1629,6 +1714,7 @@ class Items_model extends CI_Model {
 				overflow: hidden;
 				text-overflow: ellipsis;
 			}
+			.mp-label-batch { font-size:6.5pt; line-height:1.15; margin-top:1mm; }
 			@media print {
 				body { background: #fff; }
 				.mp-label-sheet { padding: 0; background: #fff; gap: 0; align-items: stretch; }
@@ -1639,28 +1725,46 @@ class Items_model extends CI_Model {
 			<?php
 			for ($i = 1; $i <= $rowcount; $i++) {
 				if (isset($_POST['tr_item_id_'.$i]) && !empty($_POST['tr_item_id_'.$i])) {
-					$item_id    = $this->xss_html_filter(trim($_POST['tr_item_id_'.$i]));
-					$item_count = $this->xss_html_filter(trim($_POST['td_data_'.$i."_3"]));
-					$res1       = $this->db->query("select * from db_items where id=$item_id")->row();
+					$item_id    = (int)$this->input->post('tr_item_id_'.$i, TRUE);
+					$item_count = min(100, max(0, (int)$this->input->post('td_data_'.$i.'_3', TRUE)));
+					$res1       = $this->db->where('id', $item_id)->where('store_id', $store_id)->where('status', 1)->get('db_items')->row();
 
 					if (! $res1) {
 						continue;
 					}
 
 					$item_name  = $res1->item_name;
-					$item_code  = (!empty($res1->custom_barcode)) ? $res1->custom_barcode : $res1->item_code;
+					$item_code  = (!empty($res1->custom_barcode)) ? (string)$res1->custom_barcode : (string)$res1->item_code;
 					$item_price = $res1->sales_price;
+					$batch_id = (int)$this->input->post('label_batch_id_'.$i, TRUE);
+					$batch = null;
+					if ($batch_id > 0 && $this->db->table_exists('db_item_barcodes')) {
+						$batch = $this->db->from('db_item_barcodes b')->join('db_items i', 'i.id=b.item_id', 'inner')
+							->where('b.id', $batch_id)->where('b.item_id', $item_id)->where('i.store_id', $store_id)->where('b.status', 1)->get()->row();
+					}
+					$barcode_url = base_url('barcode/label/'.rawurlencode($item_code));
+					if ($this->db->field_exists('barcode_type', 'db_items') && ($res1->barcode_type ?? '') === 'ean13') {
+						$this->load->library('mp_barcode');
+						if ($this->mp_barcode->is_valid_ean13($item_code)) $barcode_url = base_url('items/barcode_artwork/'.(int)$item_id.'/svg?inline=1');
+					}
 
 					for ($j = 1; $j <= $item_count; $j++) {
 					?>
-					<div class="mp-label-60x40">
-						<div class="mp-label-store"><?= htmlspecialchars($store_name); ?></div>
-						<div class="mp-label-name"><?= htmlspecialchars($item_name); ?></div>
-						<div class="mp-label-price"><?= $CI->currency($item_price); ?></div>
-						<div class="mp-label-barcode">
-							<img src="<?= base_url(); ?>barcode/label/<?= rawurlencode($item_code); ?>" alt="">
-						</div>
+					<div class="mp-label-60x40" style="width:<?= $label_width; ?>mm;height:<?= $label_height; ?>mm;">
+						<?php if ($show_store && in_array($mode, array('standard','manufacturer'), true)): ?><div class="mp-label-store"><?= htmlspecialchars($store_name); ?></div><?php endif; ?>
+						<?php if ($show_name): ?><div class="mp-label-name"><?= htmlspecialchars($item_name); ?></div><?php endif; ?>
+						<?php if ($show_price && $mode === 'standard'): ?><div class="mp-label-price"><?= $CI->currency($item_price); ?></div><?php endif; ?>
+						<?php if ($mode !== 'batch_details'): ?>
+						<div class="mp-label-barcode"><img src="<?= htmlspecialchars($barcode_url, ENT_QUOTES, 'UTF-8'); ?>" alt="Barcode for <?= htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8'); ?>"></div>
 						<div class="mp-label-code"><?= htmlspecialchars($item_code); ?></div>
+						<?php endif; ?>
+						<?php if (in_array($mode, array('manufacturer','batch_details'), true)): ?>
+						<div class="mp-label-batch">
+							<div>Batch / Lot: <?= htmlspecialchars((string)($batch->batch_lot ?? '—')); ?></div>
+							<div>Manufactured: <?= htmlspecialchars((string)($batch->mfg_date ?? '—')); ?></div>
+							<div>Expiry: <?= htmlspecialchars((string)($batch->expire_date ?? '—')); ?></div>
+						</div>
+						<?php endif; ?>
 					</div>
 					<?php
 					}
@@ -1771,7 +1875,7 @@ class Items_model extends CI_Model {
                <td id="td_<?=$rowcount;?>_9" style="display:none;"><input type="text" name="td_data_<?=$rowcount;?>_9" id="td_data_<?=$rowcount;?>_9" class="form-control text-center no-padding" value="<?=$variant_item_hsn;?>" placeholder='Optional'></td>
 
                <!-- Barcode-->
-               <td id="td_<?=$rowcount;?>_8"><input type="text" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control text-center no-padding" value="<?=$barcode;?>" placeholder='Optional'></td>
+               <td id="td_<?=$rowcount;?>_8"><input type="text" name="td_data_<?=$rowcount;?>_8" id="td_data_<?=$rowcount;?>_8" class="form-control text-center no-padding" value="<?=htmlspecialchars($barcode, ENT_QUOTES, 'UTF-8');?>" placeholder='Optional'><?php if((int)$item_id > 0 && $barcode !== ''): ?><div class="small" style="white-space:nowrap;"><a target="_blank" rel="noopener" href="<?=base_url('items/barcode_artwork/'.(int)$item_id.'/svg');?>">SVG</a> · <a href="<?=base_url('items/barcode_artwork/'.(int)$item_id.'/png');?>">PNG</a> · <a href="<?=base_url('items/barcode_artwork/'.(int)$item_id.'/pdf');?>">PDF</a></div><?php endif; ?></td>
 
                <!-- Price-->
                <td id="td_<?=$rowcount;?>_3"><input type="text" name="td_data_<?=$rowcount;?>_3" id="td_data_<?=$rowcount;?>_3" class="form-control text-right no-padding only_currency text-center" onkeyup='calculate_purchase_price_of_all_row()' placeholder='Required' style="border-color: #f39c12;" value="<?=$variant_purchase_price;?>"></td>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartPoint — Barcode, Batch &amp; Label Guide</title>
+  <link rel="icon" href="../favicon.webp" type="image/webp">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../martpoint-brand.css">
+  <style>
+    .guide-nav{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 22px}
+    .guide-nav a{display:inline-block;padding:7px 11px;border:1px solid var(--mp-border);border-radius:999px;color:var(--mp-primary);text-decoration:none;font-size:.82rem;font-weight:600}
+    .guide-section{padding:18px;border:1px solid var(--mp-border);border-radius:var(--radius);margin:0 0 16px;page-break-inside:avoid}
+    .guide-section h2{font-size:1.35rem;margin-bottom:10px}
+    .guide-section li{margin:0 0 8px;color:var(--mp-ink)}
+    .callout{padding:12px 14px;border-left:4px solid var(--mp-primary);background:#EFF6FF;border-radius:8px;margin:12px 0;color:var(--mp-ink)}
+    .mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .mode{padding:14px;border:1px solid var(--mp-border);border-radius:12px;background:#FAFAF9}
+    .mode strong{display:block;color:var(--mp-primary);margin-bottom:4px}
+    @media(max-width:640px){.document{padding:0}.page{width:100%;min-height:100vh;margin:0;padding:22px 18px}.mode-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="document">
+  <section class="page">
+    <a href="./index.html" style="color:var(--mp-primary);text-decoration:none;font-weight:600;margin-bottom:18px"><i class="fa fa-arrow-left"></i> Help &amp; customer guides</a>
+    <span class="label">Products • Stock • Labels</span>
+    <h1>Barcode, Batch &amp; Label Guide</h1>
+    <p class="lead">Set up packaged sizes, use your assigned product barcodes, print accurate batch labels, and supply customers using MartPoint’s existing stock and sales screens.</p>
+
+    <div class="callout"><strong>Keep the two numbers straight:</strong> the barcode identifies the sellable product size. The batch or lot number identifies one production run. Different runs of the same size keep the same product barcode.</div>
+
+    <nav class="guide-nav" aria-label="Guide sections">
+      <a href="#sizes">1. Product sizes</a><a href="#gtin">2. Enter a barcode</a><a href="#artwork">3. Download artwork</a><a href="#batch">4. Record batches</a><a href="#labels">5. Print labels</a><a href="#selling">6. Sell and supply</a>
+    </nav>
+
+    <div class="guide-section" id="sizes">
+      <h2>1. Set up each packaged size</h2>
+      <ol>
+        <li>Open <strong>Items → Add Item</strong> and enter the main product name, such as Kilishi or Palm Oil.</li>
+        <li>Choose <strong>Variants</strong> when package sizes need separate stock and prices.</li>
+        <li>Add one variant for each size, such as Kilishi 100 g, 250 g and 500 g, or Palm Oil 500 ml, 1 L, 2 L and 5 L.</li>
+        <li>Give each sellable size its own assigned barcode, SKU if used, cost, selling price and stock.</li>
+      </ol>
+      <p class="small">Use separate item records instead if that better matches your catalogue. The important point is that every size sold as its own product has its own stock identity and barcode.</p>
+    </div>
+
+    <div class="guide-section" id="gtin">
+      <h2>2. Enter your assigned EAN-13</h2>
+      <ol>
+        <li>Choose <strong>Retail barcode (EAN-13 / assigned GTIN)</strong> in the product barcode section.</li>
+        <li>For one product, enter the number in its barcode field. For variants, enter a different number in each size row's Barcode field. Keep any leading zeroes.</li>
+        <li>Save the product. MartPoint checks the length, digits, check digit and whether another product in your store already uses the number.</li>
+      </ol>
+      <div class="callout"><strong>MartPoint does not issue official GS1 numbers.</strong> Get your GTINs from the appropriate source. Do not reuse one product size’s GTIN for another size.</div>
+      <p class="small">Choose <strong>Internal barcode (Code 128)</strong> for existing internal codes and custom SKUs. POS scanning for existing Code 128 barcodes continues to work.</p>
+    </div>
+
+    <div class="guide-section" id="artwork">
+      <h2>3. Download barcode artwork</h2>
+      <ol>
+        <li>Save the product first.</li>
+        <li>Open the product for editing. Its barcode section shows a preview and the available download links.</li>
+        <li>Choose SVG for a scalable design file, PNG for an image, or PDF for a print-ready barcode file. Use <strong>Copy number</strong> when you need to paste the digits.</li>
+        <li>Send the file to your packaging designer or printer.</li>
+      </ol>
+      <p class="small">Standalone barcode artwork contains the barcode and its readable number. It does not add MartPoint branding, store names or prices. If your packaging already has the correct barcode, keep using it; you can still print separate batch labels.</p>
+    </div>
+
+    <div class="guide-section" id="batch">
+      <h2>4. Record each production batch</h2>
+      <ol>
+        <li>Open the exact item size and go to <strong>Batch / Unit Details</strong>. If batch or date fields are hidden, ask your store administrator to enable the matching batch, manufacturing-date and expiry features.</li>
+        <li>Add a row for the production lot. Enter the lot number, manufacturing date, expiry date and quantity. Enter the correct costs and prices for that stock when needed.</li>
+        <li>Repeat for the next production run. Keep the same product GTIN; enter the new lot number and dates on the new batch row.</li>
+      </ol>
+      <div class="callout">Enter dates supplied by your production records. MartPoint does not invent manufacturing or expiry dates.</div>
+    </div>
+
+    <div class="guide-section" id="labels">
+      <h2>5. Preview and print labels</h2>
+      <ol>
+        <li>Open <strong>Items → Print Labels</strong> and search for the exact product or size.</li>
+        <li>Add it to the sheet and set the number of copies. If batches are available, choose the specific lot below the product name.</li>
+        <li>Choose a label type and size, then click <strong>Preview Labels</strong>. Check the preview before printing.</li>
+      </ol>
+      <div class="mode-grid">
+        <div class="mode"><strong>Standard retail label</strong>Barcode and product name, with optional price and store name.</div>
+        <div class="mode"><strong>Manufacturer packaging label</strong>Barcode with the selected batch, manufacturing date and expiry date.</div>
+        <div class="mode"><strong>Barcode-only sticker</strong>For already-printed packaging that needs a barcode sticker. Product name is optional.</div>
+        <div class="mode"><strong>Batch details sticker</strong>Lot number and dates, with optional product name and no barcode.</div>
+      </div>
+      <p style="margin-top:12px">Available sizes are 60 × 40 mm, 50 × 30 mm and 40 × 25 mm. Click <strong>Print / Save as PDF</strong>; choose your printer or <strong>Save as PDF</strong> in the browser print dialog. Set the printer media to the same dimensions.</p>
+    </div>
+
+    <div class="guide-section" id="selling">
+      <h2>6. Scan, sell and supply</h2>
+      <p>Scan the barcode for the size being sold. MartPoint looks up that product or variant, and your existing POS, invoice, customer and stock workflows continue to apply. Record each size as its own sale line when supplying a supermarket.</p>
+      <p class="small">Batch stock, expiry checks and stock rotation continue to use MartPoint’s existing inventory records. Barcode artwork and label printing do not change stock quantities.</p>
+    </div>
+
+    <div class="callout"><strong>Quick flow:</strong> Create product sizes → enter assigned GTINs → save → download artwork or print stickers → record production batches → select the correct batch for labels → scan and sell.</div>
+    <p class="small text-muted">Browser print is supported. Printer compatibility depends on the printer, driver and label stock; confirm alignment with a test print before running a full batch.</p>
+  </section>
+</div>
+</body>
+</html>

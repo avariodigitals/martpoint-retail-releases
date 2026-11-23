@@ -99,6 +99,7 @@ $non_sortable = json_encode([0, $action_col]);
       <div class="mp-page-sub"><?= htmlspecialchars($store_name); ?> &mdash; Manage your <?= strtolower(mp_label('item')); ?> catalog</div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="mp-qa-btn" href="<?= base_url('docs/product-design/customer-guide/barcode-labels-guide.html'); ?>" target="_blank" rel="noopener" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);"><i class="fa fa-question-circle"></i> Barcode &amp; Labels Help</a>
       <a class="mp-qa-btn" href="<?php echo $base_url; ?>items/export_items_csv" style="background:var(--mp-bg);color:var(--mp-ink);border:1px solid var(--mp-border);">
         <i class="fa fa-download"></i> Export CSV
       </a>

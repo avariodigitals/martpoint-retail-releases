@@ -80,6 +80,11 @@
           </div>
           <div class="arrow"><i class="fa fa-external-link"></i></div>
         </a>
+        <a href="<?= base_url('docs/product-design/customer-guide/barcode-labels-guide.html'); ?>" target="_blank" rel="noopener" class="folder-card">
+          <div class="icon"><i class="fa fa-barcode"></i></div>
+          <div class="text"><div class="title">Barcode, Batch &amp; Label Guide</div><div class="desc">Product sizes, barcode artwork, batches and printable labels</div></div>
+          <div class="arrow"><i class="fa fa-external-link"></i></div>
+        </a>
 
         <?php if($industry_guide): ?>
         <a href="<?= base_url('docs/product-design/customer-guide/user-manual.html'); ?>" target="_blank" rel="noopener" class="folder-card">
