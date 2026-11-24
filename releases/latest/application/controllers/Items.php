@@ -440,7 +440,11 @@ class Items extends MY_Controller {
 			if(!empty($requested_warehouse_ids)){
 				$warehouse_ids = $requested_warehouse_ids;
 			}else if($use_global_item_stock){
-				$warehouse_ids = array();
+				// Aggregate the same branch ledger used by a selected-location view.
+				// db_items.stock is a derived summary and can diverge from that ledger.
+				$store_warehouses = $this->db->select('id')->from('db_warehouse')
+					->where('store_id', $store_id)->where('status', 1)->get()->result();
+				$warehouse_ids = array_map(function($row){ return (int)$row->id; }, $store_warehouses);
 			}else{
 				$warehouse_ids = array_values(array_unique(array_filter(array_map('intval', getArrayOfWarehouseIds()))));
 			}
@@ -455,13 +459,7 @@ class Items extends MY_Controller {
 				$warehouse_ids = array_map(function($row){ return (int)$row->id; }, $warehouse_rows);
 			}
 			$stock_map = [];
-			if($use_global_item_stock && !empty($list)){
-				// The product detail screen uses db_items.stock for the store-wide
-				// quantity. Keep the All Branches list on that same canonical total.
-				foreach($list as $listed_item){
-					$stock_map[$listed_item->id] = (float)$listed_item->stock;
-				}
-			}else if(!empty($warehouse_ids) && !empty($list)){
+			if(!empty($warehouse_ids) && !empty($list)){
 				$item_ids = array_map(function($it){ return $it->id; }, $list);
 				$placeholders = implode(',', array_fill(0, count($item_ids), '?'));
 				$warehouse_placeholders = implode(',', array_fill(0, count($warehouse_ids), '?'));
@@ -510,11 +508,11 @@ class Items extends MY_Controller {
 				$item_group = '';// (!empty($items->item_group)) ? "<br>[<label class='text-green'>".$items->item_group."</label>]" : '';
 				$row[] = $items->unit_name.$item_group;
 
+				$qty = isset($stock_map[$items->id]) ? $stock_map[$items->id] : 0;
 						 $str='';
-						 if(warehouse_module() && warehouse_count()>0 && $items->stock>0){
+						 if(warehouse_module() && warehouse_count()>0 && $qty>0){
 			 			$str= "<i class='fa fa-building-o pointer bg-blue text-dark' title='Click to view Branch Wise Stock' data-toggle='tooltip' onclick='view_warehouse_wise_stock_item(".$items->id.")'> </i>";
 			 			}
-				$qty = isset($stock_map[$items->id]) ? $stock_map[$items->id] : 0;
 				$row[] = format_qty($qty)." $str";
 
 				$row[] = $items->alert_qty;

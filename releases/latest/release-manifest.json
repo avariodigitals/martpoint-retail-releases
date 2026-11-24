@@ -1,6 +1,6 @@
 {
     "version": "4.0.9.303",
-    "previous_version": "4.0.9.301",
+    "previous_version": "4.0.9.303",
     "release_date": "2026-11-24",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -8526,8 +8526,8 @@
         },
         {
             "path": "application/controllers/Items.php",
-            "hash": "17e8df88208440f0eba6859c0981b935067a890f56a5a201cfc5ab981603a0c9",
-            "size": 78659
+            "hash": "7c31c062904a69da908bb3ccdd7064e094d5a032ea1be4c7bd081b124e5d7288",
+            "size": 78701
         },
         {
             "path": "application/controllers/Physio_settings.php",
@@ -20848,6 +20848,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "d906790fe32cbc3725db2eaacd7a36c52519197ed44bd1b5e420976cf408b36e41f332a9cc2a59aa9dee3de45f3618a1d1326f401f2c39a22ac02f56568c780c",
+    "signature": "3b31e66646d5998c6d327d430fd9b510f9831918241411a06eb9d22b01adc31f6e0ca57401e03c73edc0ab4c1c0e4872bfafc4e6db5c04777b137607a81bbc02",
     "changelog": "Release 4.0.9.303"
 }
