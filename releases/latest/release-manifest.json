@@ -1,5 +1,5 @@
 {
-    "version": "4.0.9.305",
+    "version": "4.0.9.306",
     "previous_version": "4.0.9.303",
     "release_date": "2026-11-24",
     "fleet_url": "https://central.martpoint.com.ng/",
@@ -7201,8 +7201,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "bc61d61c633475adc75594b5781cfcaa7ba4b364e7336f8d3d598a1b66ec96a7",
-            "size": 47903
+            "hash": "3a21eb347d48b69c9774661858a1fcc7a0f8c87c16121aeca9aa7a706f179c33",
+            "size": 48078
         },
         {
             "path": "application/config/routes.php",
@@ -8616,8 +8616,8 @@
         },
         {
             "path": "application/controllers/Ai_ads.php",
-            "hash": "9fd325f6df62f760869013f52c2c056ae741d62f5c4da612e8b01f2de72a006d",
-            "size": 110189
+            "hash": "3d5153444c0f62ebaf133879748e890e0273588bb7d0e36b9b1912b5a2e98003",
+            "size": 112289
         },
         {
             "path": "application/controllers/Expired_items_report.php",
@@ -13731,7 +13731,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "16f473285f84afe02e497dcf50f27a874697af0bcb78a707c91c42489b0c17db",
+            "hash": "3eb8dd2a6c5b1f64b83342b6a1484f7d61891a2e58b9bda365fbd61d764370bd",
             "size": 137983
         },
         {
@@ -20841,7 +20841,8 @@
         "4.0.9.302_communications_manual_payment_account.sql",
         "4.0.9.303_ai_ads_workspace_pages.sql",
         "4.0.9.304_ai_ads_plan_usage_summary.sql",
-        "4.0.9.305_storefront_share_and_ai_ads_checkout.sql"
+        "4.0.9.305_storefront_share_and_ai_ads_checkout.sql",
+        "4.0.9.306_ai_ads_meta_oauth_friendly_return.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20850,6 +20851,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "719da6e1f089205a268951401bddde83b108231328f630d3fcc5b285c14eef974f410562e8211cf3a739f9248c0f457261becfc1aac6747f1e65c9b12bb49f08",
-    "changelog": "Release 4.0.9.305"
+    "signature": "ab53474a22933ac244f2e1222f2627141fadd24394dd6d7fc67585bbe4d62f20aba1c4fce6ae4881f44d72df64e01691d4386b69a77830ddaa636fda35c36306",
+    "changelog": "Release 4.0.9.306"
 }

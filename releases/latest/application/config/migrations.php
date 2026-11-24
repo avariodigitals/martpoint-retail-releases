@@ -717,4 +717,6 @@ return [
 	'4.0.9.304v' => '4.0.9.304_ai_ads_plan_usage_summary.sql',
 	// Harden public storefront share metadata and serialize AI Ads plan checkout.
 	'4.0.9.305v' => '4.0.9.305_storefront_share_and_ai_ads_checkout.sql',
+	// Return cancelled or failed Meta OAuth broker flows to the Fleet workspace instead of a raw error page.
+	'4.0.9.306v' => '4.0.9.306_ai_ads_meta_oauth_friendly_return.sql',
 ];

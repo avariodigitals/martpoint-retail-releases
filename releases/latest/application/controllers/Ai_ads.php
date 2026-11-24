@@ -465,7 +465,15 @@ class Ai_ads extends MY_Controller {
         try {
             $state=(string)$this->input->get('state'); $code=(string)$this->input->get('code');
             $error=trim((string)$this->input->get('error_description')) ?: trim((string)$this->input->get('error_reason'));
-            if($error!=='') throw new RuntimeException('Meta authorization was not completed.');
+            if($error!=='') {
+                if(!$saved||time()-(int)($saved['created']??0)>600||!hash_equals((string)($saved['state']??''),$state)) {
+                    throw new RuntimeException('Meta cancellation could not be matched to the active connection request.');
+                }
+                log_message('info','AI Ads Meta authorization was cancelled or declined by the user.');
+                if($this->redirectBrokerReturn($saved,'cancelled')) return;
+                $this->session->set_flashdata('error','Facebook connection was cancelled. Nothing was connected. You can return to AI Ads and try again whenever you are ready.');
+                redirect('login'); return;
+            }
             if(!$saved||time()-(int)($saved['created']??0)>600||!hash_equals((string)$saved['state'],$state)||$code==='') throw new RuntimeException('Meta connection expired or was cancelled.');
             $token=$this->meta_ads_api->exchangeCode($code); $profile=$this->meta_ads_api->profile($token['access_token']);
             if(empty($profile['client_business_id'])) throw new RuntimeException('Meta did not identify the connected business portfolio.');
@@ -477,8 +485,27 @@ class Ai_ads extends MY_Controller {
             $body=curl_exec($ch); $http=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
             $result=is_string($body)?json_decode($body,true):null;
             if($http!==200||!is_array($result)||empty($result['success'])) throw new RuntimeException('Central could not securely save the Meta connection to the Fleet.');
-            redirect($fleetUrl.'/marketing/ai_ads/broker_return?nonce='.rawurlencode($saved['nonce']).'&status=connected'.(!empty($saved['mobile'])?'&screen=mobile':''));
-        } catch(Throwable $e) { log_message('error','AI Ads broker callback failed: '.mb_substr($e->getMessage(),0,250)); show_error('Meta could not be connected to this Fleet. Return to AI Ads and try again.',400); }
+            $this->redirectBrokerReturn($saved,'connected');
+        } catch(Throwable $e) {
+            log_message('error','AI Ads broker callback failed: '.mb_substr($e->getMessage(),0,250));
+            if($this->redirectBrokerReturn($saved,'failed')) return;
+            $this->session->set_flashdata('error','We couldn’t finish connecting Facebook. Nothing was connected. Return to AI Ads and try again.');
+            redirect('login');
+        }
+    }
+
+    /** Return a brokered Meta connection to the enrolled Fleet, never a raw CI error page. */
+    private function redirectBrokerReturn($saved,$status) {
+        if(!is_array($saved)||!in_array($status,array('connected','cancelled','failed'),true)) return false;
+        $installUrl=rtrim((string)($saved['install_url']??''),'/');
+        $parts=parse_url($installUrl);
+        $nonce=(string)($saved['nonce']??'');
+        if(!$parts||($parts['scheme']??'')!=='https'||empty($parts['host'])||isset($parts['user'])||isset($parts['pass'])
+            ||!preg_match('/^[a-f0-9]{48}$/D',$nonce)) return false;
+        $query=array('nonce'=>$nonce,'status'=>$status);
+        if(!empty($saved['mobile'])) $query['screen']='mobile';
+        redirect($installUrl.'/marketing/ai_ads/broker_return?'.http_build_query($query,'','&',PHP_QUERY_RFC3986));
+        return true;
     }
 
     /** HMAC-authenticated Central-to-Fleet callback; token is encrypted locally before storage. */
@@ -538,7 +565,10 @@ class Ai_ads extends MY_Controller {
 
     public function broker_return() {
         $nonce=(string)$this->input->get('nonce'); $expected=(string)$this->session->userdata('ai_ads_broker_pending');
-        if($expected!==''&&hash_equals($expected,$nonce)) { $this->session->unset_userdata('ai_ads_broker_pending'); $this->session->set_flashdata('success','Meta is connected. Choose the advertising account and Page you want MartPoint to use.'); }
+        $status=(string)$this->input->get('status',TRUE);
+        if($expected!==''&&hash_equals($expected,$nonce)&&$status==='connected') { $this->session->unset_userdata('ai_ads_broker_pending'); $this->session->set_flashdata('success','Meta is connected. Choose the advertising account and Page you want MartPoint to use.'); }
+        elseif($expected!==''&&hash_equals($expected,$nonce)&&$status==='cancelled') { $this->session->unset_userdata('ai_ads_broker_pending'); $this->session->set_flashdata('error','Facebook connection was cancelled. Nothing was connected. You can try again whenever you are ready.'); }
+        elseif($expected!==''&&hash_equals($expected,$nonce)&&$status==='failed') { $this->session->unset_userdata('ai_ads_broker_pending'); $this->session->set_flashdata('error','We couldn’t finish connecting Facebook. Nothing was connected. Please try again.'); }
         else $this->session->set_flashdata('error','Meta broker return could not be verified. Check the connection status and retry if needed.');
         redirect($this->workspaceUrl('connection'));
     }
@@ -690,7 +720,10 @@ class Ai_ads extends MY_Controller {
     }
 
     public function callback() {
-        if (!$this->allowed()) { show_error('AI Ads access denied.',403); return; }
+        if (!$this->allowed()) {
+            $this->session->set_flashdata('error','Your Facebook connection session expired or was cancelled. Sign in again and return to AI Ads to retry.');
+            redirect('login'); return;
+        }
         $saved=$this->session->userdata('ai_ads_oauth'); $this->session->unset_userdata('ai_ads_oauth');
         try {
             $state=(string)$this->input->get('state'); $code=(string)$this->input->get('code');
@@ -709,7 +742,6 @@ class Ai_ads extends MY_Controller {
         } catch(Throwable $e) {
             log_message('error','AI Ads Meta callback failed: '.mb_substr(strip_tags($e->getMessage()),0,220));
             $this->session->set_flashdata('error','We couldn’t complete the Meta connection. Please try again or contact MartPoint support.');
-            if (isset($saved['store_id'])) { $this->db->where('store_id',(int)$saved['store_id'])->update('db_ai_ads_connections',array('status'=>'error','last_error'=>mb_substr($e->getMessage(),0,500),'last_checked_at'=>date('Y-m-d H:i:s'))); }
         }
         redirect('marketing/ai_ads/connection'.(!empty($saved['mobile'])?'?screen=mobile':''));
     }
