@@ -10,6 +10,8 @@
   $seoUrl = $seo_canonical ?? current_url();
   $seoType = $seo_type ?? 'website';
   $storeName = $store->store_name ?? 'Online Store';
+  $seoImageValue = trim((string)$seoImage);
+  $seoImageSecure = stripos($seoImageValue, 'https://') === 0;
   if (in_array(($theme_key ?? ''), ['lumiere', 'skinora'], true) && trim((string)$seoDesc) === '') {
     $seoDesc = trim(strip_tags((string)($settings->store_subheadline ?? ''))) ?: ('Shop online at ' . $storeName . '.');
   }
@@ -22,8 +24,8 @@
   <meta name="keywords" content="<?= htmlspecialchars($settings->meta_keywords); ?>">
 <?php endif; ?>
   <meta name="robots" content="<?= ($settings->robots_index ?? '1') == '1' ? 'index, follow' : 'noindex, nofollow'; ?>">
-  <link rel="canonical" href="<?= $seoUrl; ?>">
-  <link rel="icon" href="<?= $favicon_url ?? base_url('uploads/site/icon.webp'); ?>">
+  <link rel="canonical" href="<?= htmlspecialchars((string)$seoUrl, ENT_QUOTES, 'UTF-8'); ?>">
+  <link rel="icon" href="<?= htmlspecialchars((string)($favicon_url ?? base_url('uploads/site/icon.webp')), ENT_QUOTES, 'UTF-8'); ?>">
   <link rel="manifest" href="<?= base_url('manifest.json'); ?>">
   <meta name="theme-color" content="<?= htmlspecialchars($settings->theme_color ?? '#0B1120'); ?>">
   <meta name="mobile-web-app-capable" content="yes">
@@ -95,18 +97,20 @@
 <?php endif; ?>
 
   <!-- Open Graph -->
-  <meta property="og:type" content="<?= $seoType; ?>">
-  <meta property="og:site_name" content="<?= htmlspecialchars($storeName); ?>">
-  <meta property="og:title" content="<?= htmlspecialchars($seoTitle); ?>">
-  <meta property="og:description" content="<?= htmlspecialchars($seoDesc); ?>">
-  <meta property="og:url" content="<?= $seoUrl; ?>">
-  <meta property="og:image" content="<?= $seoImage; ?>">
+  <meta property="og:type" content="<?= htmlspecialchars((string)$seoType, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:site_name" content="<?= htmlspecialchars((string)$storeName, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:title" content="<?= htmlspecialchars((string)$seoTitle, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:description" content="<?= htmlspecialchars((string)$seoDesc, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:url" content="<?= htmlspecialchars((string)$seoUrl, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:image" content="<?= htmlspecialchars($seoImageValue, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php if($seoImageSecure): ?><meta property="og:image:secure_url" content="<?= htmlspecialchars($seoImageValue, ENT_QUOTES, 'UTF-8'); ?>"><?php endif; ?>
+  <meta property="og:image:alt" content="<?= htmlspecialchars((string)$storeName . ' storefront', ENT_QUOTES, 'UTF-8'); ?>">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="<?= htmlspecialchars($seoTitle); ?>">
-  <meta name="twitter:description" content="<?= htmlspecialchars($seoDesc); ?>">
-  <meta name="twitter:image" content="<?= $seoImage; ?>">
+  <meta name="twitter:title" content="<?= htmlspecialchars((string)$seoTitle, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="twitter:description" content="<?= htmlspecialchars((string)$seoDesc, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="twitter:image" content="<?= htmlspecialchars($seoImageValue, ENT_QUOTES, 'UTF-8'); ?>">
 
 <?php
   /* Market Fresh sets headings in Manrope and body copy in the merchant's chosen

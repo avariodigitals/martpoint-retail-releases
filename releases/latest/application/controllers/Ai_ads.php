@@ -184,13 +184,20 @@ class Ai_ads extends MY_Controller {
         if(!$this->requireAccess()) return;
         if(mp_is_central()) { $this->session->set_flashdata('error','AI Ads subscriptions are purchased by each Fleet business from its Fleet.'); redirect('marketing/ai_ads/platform'); return; }
         if($this->input->method()!=='post') { show_error('POST is required.',405); return; }
+        $checkoutLockStarted=false;
         try {
             if(!$this->db->table_exists('db_ai_ads_billing')) throw new RuntimeException('Install the AI Ads subscription billing migration before checkout.');
             $productCode=(string)$this->input->post('product_code');
             if(!preg_match('/^ai-ads(?:-[a-z][a-z0-9_]{1,31})?-(monthly|annual)$/D',$productCode,$productMatch)) throw new RuntimeException('Choose an available AI Ads plan.');
             $period=$productMatch[1];
+            // Serialize the pending-checkout lookup and insert. Without this
+            // row lock, two quick submits can both see no pending row and
+            // create two different Next invoices for the same plan purchase.
+            $this->db->trans_begin(); $checkoutLockStarted=true;
+            $checkoutLock=$this->db->query('SELECT id FROM db_sitesettings WHERE id=1 FOR UPDATE')->row_array();
+            if(!$checkoutLock) throw new RuntimeException('Fleet settings are not ready for checkout.');
             $pending=$this->db->where('store_id',$this->storeId())->where('product_code',$productCode)->where('status','pending')->where('expires_at >',date('Y-m-d H:i:s'))->order_by('id','desc')->get('db_ai_ads_billing')->row_array();
-            if($pending&&!empty($pending['checkout_url'])) { redirect($pending['checkout_url']); return; }
+            if($pending&&!empty($pending['checkout_url'])) { $this->db->trans_commit(); $checkoutLockStarted=false; redirect($pending['checkout_url']); return; }
             $identity=$this->db->select('fleet_url,install_key')->where('id',1)->get('db_sitesettings')->row_array()?:array();
             $central=rtrim((string)($identity['fleet_url']??''),'/'); $key=(string)($identity['install_key']??'');
             if(parse_url($central,PHP_URL_SCHEME)!=='https'||strlen($key)<32) throw new RuntimeException('This Fleet is not securely enrolled with Central.');
@@ -212,8 +219,10 @@ class Ai_ads extends MY_Controller {
                 'invoice_number'=>$result['invoice_number'],'payment_reference'=>$result['payment_reference'],'checkout_url'=>$result['checkout_url'],
                 'amount_kobo'=>(int)$result['amount_kobo'],'plan_limits_json'=>json_encode($this->normalizeAiAdsEntitlements($result['plan_limits']??array())),'expires_at'=>$expires);
             $this->db->insert('db_ai_ads_billing',$row);
+            if($this->db->trans_status()===false) throw new RuntimeException('Fleet could not save the pending AI Ads checkout.');
+            $this->db->trans_commit(); $checkoutLockStarted=false;
             redirect($result['checkout_url']); return;
-        } catch(Throwable $e) { log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error','We couldn’t start checkout. Please try again later or contact MartPoint support. No payment has been taken.'); redirect($this->workspaceUrl('plans')); }
+        } catch(Throwable $e) { if($checkoutLockStarted)$this->db->trans_rollback(); log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error','We couldn’t start checkout. Please try again later or contact MartPoint support. No payment has been taken.'); redirect($this->workspaceUrl('plans')); }
     }
 
     /** Paystack returns here; Central verifies payment and sends a signed fulfilment back. */

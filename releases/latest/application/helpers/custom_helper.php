@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.303';
+    return '4.0.9.305';
   }
 
   /** Read settings without consuming a query another screen is building. */

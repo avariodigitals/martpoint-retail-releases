@@ -31,7 +31,13 @@ class Ai_ads_model extends CI_Model {
     }
     public function subscription($storeId) {
         if (!$this->db->table_exists('db_ai_ads_subscriptions')) return null;
-        return $this->db->where('store_id',(int)$storeId)->order_by('id','desc')->limit(1)->get('db_ai_ads_subscriptions')->row_array();
+        $subscription=$this->db->where('store_id',(int)$storeId)->order_by('id','desc')->limit(1)->get('db_ai_ads_subscriptions')->row_array();
+        if($subscription && !empty($subscription['payment_reference']) && $this->db->table_exists('db_ai_ads_billing')) {
+            $billing=$this->db->select('product_code,invoice_number,amount_kobo,billing_period')->where('store_id',(int)$storeId)
+                ->where('payment_reference',$subscription['payment_reference'])->order_by('id','desc')->limit(1)->get('db_ai_ads_billing')->row_array();
+            if($billing) $subscription=array_merge($subscription,$billing);
+        }
+        return $subscription;
     }
     public function hasAccess($storeId) {
         $s=$this->subscription($storeId); if (!$s || !in_array($s['status'],array('active','grace'),true) || empty($s['expires_at'])) return false;

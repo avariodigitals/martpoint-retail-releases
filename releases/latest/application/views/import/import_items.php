@@ -82,7 +82,7 @@ $store_name = $this->session->userdata('store_name') ?: 'MartPoint';
             </label>
             <input type="file" id="import_file" name="import_file" accept=".csv" style="display:none;" onchange="document.getElementById('import_file_name').textContent = this.files[0] ? this.files[0].name : ''; document.getElementById('import_file_name').style.display = this.files[0] ? 'block' : 'none';">
             <div id="import_file_name" class="mp-file-name" style="display:none;"></div>
-            <p class="mp-form-hint">File must be in CSV format. <a href="<?= base_url('import/download/items'); ?>" style="color:var(--mp-primary);font-weight:600;">Download example format</a></p>
+            <p class="mp-form-hint">File must be in CSV format. Optional <code>image_url</code> column: use a direct public HTTPS JPG, PNG, WebP or GIF link (maximum 5 MB); MartPoint downloads it to your item images during import. <a href="<?= base_url('import/download/items'); ?>" style="color:var(--mp-primary);font-weight:600;">Download example format</a></p>
             <span id="import_file_msg" style="display:none" class="text-danger"></span>
           </div>
         </div>

@@ -714,4 +714,7 @@ return [
 	],
 	// Split the Fleet AI Ads workspace into focused, navigable screens.
 	'4.0.9.303v' => '4.0.9.303_ai_ads_workspace_pages.sql',
+	'4.0.9.304v' => '4.0.9.304_ai_ads_plan_usage_summary.sql',
+	// Harden public storefront share metadata and serialize AI Ads plan checkout.
+	'4.0.9.305v' => '4.0.9.305_storefront_share_and_ai_ads_checkout.sql',
 ];

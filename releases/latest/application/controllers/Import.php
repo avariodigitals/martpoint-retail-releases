@@ -35,6 +35,65 @@ class Import extends MY_Controller {
         return $this->security->xss_clean(html_escape($input));
     }
 
+    /** Download one public HTTPS product image into local item storage for CSV imports. */
+    private function _download_item_image_from_url($url, $store_id, &$url_cache, &$created_files){
+        $url = trim((string)$url);
+        if($url === '') return '';
+        if(isset($url_cache[$url])) return $url_cache[$url];
+        if(!function_exists('curl_init')) return false;
+
+        $parts = @parse_url($url);
+        if(!is_array($parts) || strtolower((string)($parts['scheme'] ?? '')) !== 'https'
+            || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])
+            || (isset($parts['port']) && (int)$parts['port'] !== 443)) return false;
+
+        $host = strtolower(rtrim((string)$parts['host'], '.'));
+        if($host === '' || $host === 'localhost' || substr($host, -6) === '.local') return false;
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
+        if(!$ip || $ip === $host || !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) return false;
+
+        $body = '';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_RESOLVE => array($host.':443:'.$ip),
+            CURLOPT_USERAGENT => 'MartPoint Product Image Import/1.0',
+            CURLOPT_WRITEFUNCTION => function($curl, $chunk) use (&$body){
+                if(strlen($body) + strlen($chunk) > 5 * 1024 * 1024) return 0;
+                $body .= $chunk;
+                return strlen($chunk);
+            },
+        ));
+        $ok = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if($ok === false || $status < 200 || $status >= 300 || $body === '') return false;
+
+        if(!class_exists('finfo')) return false;
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->buffer($body);
+        $extensions = array('image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','image/gif'=>'gif');
+        if(!isset($extensions[$mime]) || !function_exists('getimagesizefromstring')) return false;
+        $image_info = @getimagesizefromstring($body);
+        if(!$image_info || empty($image_info[0]) || empty($image_info[1]) || $image_info[0] > 12000 || $image_info[1] > 12000) return false;
+
+        $relative_dir = 'uploads/items/';
+        $absolute_dir = FCPATH.$relative_dir;
+        if(!is_dir($absolute_dir) && !@mkdir($absolute_dir, 0755, true) && !is_dir($absolute_dir)) return false;
+        $filename = bin2hex(random_bytes(16)).'.'.$extensions[$mime];
+        $relative_path = $relative_dir.$filename;
+        if(@file_put_contents(FCPATH.$relative_path, $body, LOCK_EX) === false) return false;
+        $url_cache[$url] = $relative_path;
+        $created_files[] = FCPATH.$relative_path;
+        return $relative_path;
+    }
+
 	public function import_customers_csv() {
 
                 $store_id=(store_module() && is_admin() && isset($store_id) && !empty($store_id)) ? $store_id : get_current_store_id();   
@@ -866,6 +925,19 @@ class Import extends MY_Controller {
                   
 
                     $file = fopen('uploads/csv/items/'.$file_name,"r");
+                    $header_row = fgetcsv($file, NULL, ",");
+                    $image_column = null;
+                    if(is_array($header_row)){
+                        foreach($header_row as $idx=>$header_cell){
+                            $key = strtolower(trim(preg_replace('/\\s+/', '_', str_replace(array('-', ' '), '_', (string)$header_cell))));
+                            if(in_array($key, array('image_url','item_image_url','product_image_url','image_link'), true)){
+                                $image_column = $idx;
+                                break;
+                            }
+                        }
+                    }
+                    $image_url_cache = array();
+                    $downloaded_image_files = array();
                     
                     //Save flag
                     $flag=true;
@@ -873,9 +945,7 @@ class Import extends MY_Controller {
                     
 
                     $this->db->trans_begin();
-                    $i=1;
                     while(($importdata = fgetcsv($file, NULL, ",")) !== FALSE){
-                        if($i++==1){ continue; }
 
                         //Item name should not be empty
                         /*if(empty($importdata[0])){
@@ -931,6 +1001,7 @@ class Import extends MY_Controller {
                             'custom_barcode'    =>  !empty($this->xss_html_filter($importdata[14]))?$this->xss_html_filter($importdata[14]):0,//ok
                             'seller_points'    =>  !empty($this->xss_html_filter($importdata[15]))?$this->xss_html_filter($importdata[15]):0,//ok
                             'description'    =>  !empty($this->xss_html_filter($importdata[16]))?$this->xss_html_filter($importdata[16]):0,//ok
+                            'publish_online' => 1,
                             'discount_type'    =>  !empty($this->xss_html_filter($importdata[17]))?$this->xss_html_filter($importdata[17]):0,//ok
                             'discount'    =>  !empty($this->xss_html_filter($importdata[18]))?$this->xss_html_filter(string_to_number($importdata[18])):0,//ok
                             'item_group'        =>  'Single',//10 //ok
@@ -942,6 +1013,15 @@ class Import extends MY_Controller {
                             'system_name'               => $SYSTEM_NAME,
                             'status'                    => 1,
                         );
+
+                        if($image_column !== null && !empty($importdata[$image_column])){
+                            $image_path = $this->_download_item_image_from_url($importdata[$image_column], $store_id, $image_url_cache, $downloaded_image_files);
+                            if($image_path === false){
+                                $flag = false;
+                            } else {
+                                $row['item_image'] = $image_path;
+                            }
+                        }
 
                         //If any record failed to save flag will be set false,then all records rolled back
                         if(!$this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
@@ -986,6 +1066,7 @@ class Import extends MY_Controller {
                     
                     if(!$flag){
                         $this->db->trans_rollback();
+                        foreach($downloaded_image_files as $downloaded_file){ if(is_file($downloaded_file)) @unlink($downloaded_file); }
                         echo 'failed';
                     }else{
                         $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
@@ -994,7 +1075,7 @@ class Import extends MY_Controller {
                         $this->session->set_flashdata('success', 'Success!! items Data Imported Successfully!');
                     }
                     fclose($file);
-                }
+                    }
             
             //unlink('uploads/csv/items/'.$file_name);
         }
@@ -1738,6 +1819,8 @@ public function services(){
             $file = fopen('uploads/csv/items/'.$file_name, "r");
 
             $flag = true;
+            $image_url_cache = array();
+            $downloaded_image_files = array();
             $this->db->trans_begin();
 
             $header_map = [];
@@ -1849,6 +1932,16 @@ public function services(){
                     'system_ip'         => $SYSTEM_IP,
                     'system_name'       => $SYSTEM_NAME,
                 );
+
+                $image_url = isset($d['image_url']) ? $d['image_url'] : (isset($d['item_image_url']) ? $d['item_image_url'] : (isset($d['product_image_url']) ? $d['product_image_url'] : ''));
+                if(trim((string)$image_url) !== ''){
+                    $image_path = $this->_download_item_image_from_url($image_url, $store_id, $image_url_cache, $downloaded_image_files);
+                    if($image_path === false){
+                        $flag = false;
+                    } else {
+                        $row['item_image'] = $image_path;
+                    }
+                }
 
                 if( ! $this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
                     $flag = false;
@@ -2002,6 +2095,7 @@ public function services(){
 
             if( ! $flag){
                 $this->db->trans_rollback();
+                foreach($downloaded_image_files as $downloaded_file){ if(is_file($downloaded_file)) @unlink($downloaded_file); }
                 echo 'failed';
             } else {
                 $this->db->where('store_id', (int)$store_id)->where("expire_date LIKE '0000%'", null, false)->update('db_items', array('expire_date'=>null));
