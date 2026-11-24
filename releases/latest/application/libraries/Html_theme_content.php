@@ -9,12 +9,12 @@ class Html_theme_content {
     public function fields(array $manifest){
         $defaults = $manifest['settings'] ?? [];
         $schema = $manifest['settings_schema'] ?? [];
-        if(!is_array($defaults) || !is_array($schema) || count($defaults) > 100 || count($schema) > 100){
-            throw new InvalidArgumentException('Theme settings must contain at most 100 fields.');
+        if(!is_array($defaults) || !is_array($schema) || count($defaults) > 200 || count($schema) > 200){
+            throw new InvalidArgumentException('Theme settings must contain at most 200 fields.');
         }
         $fields = [];
         $keys = array_unique(array_merge(array_keys($defaults), array_keys($schema)));
-        if(count($keys) > 100) throw new InvalidArgumentException('Theme settings must contain at most 100 fields.');
+        if(count($keys) > 200) throw new InvalidArgumentException('Theme settings must contain at most 200 fields.');
         foreach($keys as $key){
             if(!is_string($key) || !preg_match('/^[a-z][a-z0-9_]{0,59}$/D', $key)) throw new InvalidArgumentException('Use lowercase setting keys.');
             // Older schema-1 packages could bind nested defaults. Keep those
@@ -23,14 +23,20 @@ class Html_theme_content {
             $field = $schema[$key] ?? [];
             if(!is_array($field)) throw new InvalidArgumentException('Invalid setting definition: ' . $key);
             $type = $field['type'] ?? (is_bool($defaults[$key] ?? null) ? 'boolean' : 'text');
-            if(!in_array($type, ['text','textarea','url','image','boolean'], true)) throw new InvalidArgumentException('Unsupported setting type: ' . $key);
-            $limit = $field['max_length'] ?? ($type === 'textarea' ? 3000 : 1500);
+            if(!in_array($type, ['text','textarea','url','image','boolean','color','select'], true)) throw new InvalidArgumentException('Unsupported setting type: ' . $key);
+            $limit = $field['max_length'] ?? ($type === 'textarea' ? 3000 : ($type === 'color' ? 7 : 1500));
             if(!is_int($limit) || $limit < 1 || $limit > 10000) throw new InvalidArgumentException('Invalid setting length: ' . $key);
             foreach(['label','group'] as $label){
                 if(isset($field[$label]) && (!is_string($field[$label]) || mb_strlen($field[$label]) > 150)) throw new InvalidArgumentException('Invalid setting label: ' . $key);
             }
             $fields[$key] = ['type'=>$type, 'label'=>$field['label'] ?? ucwords(str_replace('_',' ',$key)),
                 'group'=>$field['group'] ?? 'Website content', 'max_length'=>$limit];
+            if($type === 'select'){
+                $choices = $field['options'] ?? [];
+                if(!is_array($choices) || count($choices) < 1 || count($choices) > 30) throw new InvalidArgumentException('Invalid options: ' . $key);
+                foreach($choices as $choice){ if(!is_string($choice) || $choice === '' || mb_strlen($choice) > 80) throw new InvalidArgumentException('Invalid option: ' . $key); }
+                $fields[$key]['options'] = array_values($choices);
+            }
             $fields[$key]['default'] = $this->value($defaults[$key] ?? ($type === 'boolean' ? false : ''), $fields[$key]);
         }
         return $fields;
@@ -43,6 +49,11 @@ class Html_theme_content {
         }
         if(!is_string($value) && !is_numeric($value)) throw new InvalidArgumentException('Enter text for ' . $field['label'] . '.');
         $value = trim((string)$value);
+        if($field['type'] === 'color'){
+            if(!preg_match('/^#[0-9a-fA-F]{6}$/D', $value)) throw new InvalidArgumentException('Choose a six-digit hex colour for ' . $field['label'] . '.');
+            return strtoupper($value);
+        }
+        if($field['type'] === 'select' && !in_array($value, $field['options'] ?? [], true)) throw new InvalidArgumentException('Choose an available option for ' . $field['label'] . '.');
         if(mb_strlen($value) > $field['max_length']) throw new InvalidArgumentException('Please shorten ' . $field['label'] . '.');
         if(in_array($field['type'], ['url','image'], true) && $value !== ''){
             $absolute = filter_var($value, FILTER_VALIDATE_URL) && in_array(strtolower((string)parse_url($value, PHP_URL_SCHEME)), ['http','https'], true);

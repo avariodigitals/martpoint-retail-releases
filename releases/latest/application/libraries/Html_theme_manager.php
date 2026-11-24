@@ -204,11 +204,13 @@ class Html_theme_manager {
         if(!$this->CI->db->table_exists('db_storefront_uploaded_themes')) throw new RuntimeException('Run migration 4.0.9.179 before uploading HTML themes.');
         $manifest = $validation['manifest'];
         $contentValues = (array)($manifest['settings'] ?? []);
+        $isUpdate = false;
         // Package identity is stable across versions; generated row keys are not.
         $this->CI->load->library('html_theme_content');
         foreach($this->listForStore($storeId) as $previous){
             $previousManifest = json_decode((string)$previous->manifest_json,true);
             if(($previousManifest['theme_key'] ?? '') !== $manifest['theme_key']) continue;
+            $isUpdate = true;
             $contentValues = $this->CI->html_theme_content->values((object)['id'=>(int)$previous->theme_id,'owner_store_id'=>(int)$storeId],$manifest);
             break;
         }
@@ -257,7 +259,7 @@ class Html_theme_manager {
             if(!$this->CI->db->trans_status()) throw new RuntimeException('Could not register the theme package.');
             $this->CI->db->trans_commit();
             $transaction = false;
-            return ['theme_id' => $themeId, 'theme' => (object)$theme, 'manifest' => $manifest, 'warnings' => $validation['warnings']];
+            return ['theme_id' => $themeId, 'theme' => (object)$theme, 'manifest' => $manifest, 'warnings' => $validation['warnings'], 'is_update' => $isUpdate];
         } catch(Throwable $e){
             if($transaction) $this->CI->db->trans_rollback();
             if($target) $this->removeTree($target);
@@ -269,7 +271,22 @@ class Html_theme_manager {
 
     public function listForStore($storeId){
         if(!$this->CI->db->table_exists('db_storefront_uploaded_themes')) return [];
-        return $this->CI->db->where('store_id', (int)$storeId)->where('status', 1)->order_by('created_at', 'desc')->order_by('id', 'desc')->get('db_storefront_uploaded_themes')->result();
+        $rows = $this->CI->db->where('store_id', (int)$storeId)->where('status', 1)
+            ->order_by('created_at', 'desc')->order_by('id', 'desc')->get('db_storefront_uploaded_themes')->result();
+        // A manifest theme_key is the stable package identity; generated row
+        // keys identify installations. Keep the newest upload visible for each
+        // package while retaining older rows and files for rollback.
+        $seen = [];
+        $latest = [];
+        foreach($rows as $row){
+            $manifest = json_decode((string)($row->manifest_json ?? ''), true);
+            $packageKey = is_array($manifest) && !empty($manifest['theme_key'])
+                ? (string)$manifest['theme_key'] : (string)($row->theme_key ?? $row->theme_id ?? '');
+            if(isset($seen[$packageKey])) continue;
+            $seen[$packageKey] = true;
+            $latest[] = $row;
+        }
+        return $latest;
     }
 
     public function getTheme($themeId, $storeId = null){

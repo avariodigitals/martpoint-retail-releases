@@ -195,7 +195,8 @@ if (!function_exists('marketing_menu_items')) {
             $ownerAllowed = !empty($item['owner_access'])
                 && ((function_exists('is_admin') && is_admin())
                     || (function_exists('is_store_admin') && is_store_admin())
-                    || (function_exists('is_business_owner') && is_business_owner()));
+                    || (function_exists('is_business_owner') && is_business_owner())
+                    || (function_exists('is_store_owner_account') && is_store_owner_account()));
             // Permission gate
             if (!empty($item['perm']) && !$CI->permissions($item['perm'])) {
                 continue;

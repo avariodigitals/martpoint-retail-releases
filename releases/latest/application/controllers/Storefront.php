@@ -170,7 +170,26 @@ class Storefront extends CI_Controller {
 	 * Product listing with optional category filter
 	 * URL: /store/{store_slug}/products?category={id}&search={term}
 	 */
-    public function privacy($storeSlug=''){
+	public function how_to_order($storeSlug=''){
+		$settings=$this->_getSettingsOr404($storeSlug);$storeId=(int)$settings->store_id;
+		$guideData=json_decode((string)($settings->theme_content_json??''),true);
+		$guide=is_array($guideData)&&is_array($guideData['how_to_order']??null)?$guideData['how_to_order']:[];
+		if(empty($guide['enabled'])){show_404();return;}
+		$this->theme_engine->init($storeId,$this->_previewThemeForVisitor($settings));
+		$store=get_store_details($storeId);
+		$this->theme_engine->view('how_to_order',[
+			'how_to_order'=>$guide,
+			'categories'=>$this->storefront_model->getCategoriesWithItems($storeId),
+			'store_currency'=>$this->theme_engine->getStoreCurrency(),
+			'social_links'=>$this->theme_engine->socialLinks(),
+			'seo_title'=>(string)($guide['title']??'How to order'),
+			'seo_description'=>'Learn how to place an order with '.($store->store_name??'this store').'.',
+			'seo_canonical'=>base_url('store/'.rawurlencode($settings->store_slug).'/how-to-order'),
+			'seo_type'=>'website',
+		]);
+	}
+
+	public function privacy($storeSlug=''){
         $settings=$this->_getSettingsOr404($storeSlug);$sid=(int)$settings->store_id;$this->theme_engine->init($sid,$this->_previewThemeForVisitor($settings));$this->load->model('storefront_content_model');$config=$this->storefront_content_model->settings($sid);
         $this->theme_engine->view('privacy',['seo_title'=>$config['privacy_heading'],'site_content'=>$config,'store_currency'=>$this->theme_engine->getStoreCurrency(),'social_links'=>$this->theme_engine->socialLinks()]);
     }

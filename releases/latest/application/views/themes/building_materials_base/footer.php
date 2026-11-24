@@ -8,6 +8,8 @@ $showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
   $bmFootEmail = trim((string)($settings->store_email ?? ''));
   $bmFootAddress = trim((string)($settings->store_address ?? ''));
   $bmFootYear = date('Y');
+  $bmThemeContent=json_decode((string)($settings->theme_content_json??''),true);
+  $bmHowToOrder=is_array($bmThemeContent)?($bmThemeContent['how_to_order']??[]):[];
   $bmFootSocial = [];
   foreach(['facebook','instagram','x','youtube','tiktok','linkedin'] as $bmNetwork){
       $bmUrl = trim((string)($social_links[$bmNetwork] ?? ''));
@@ -54,6 +56,7 @@ $showMpPoweredBy = mp_storefront_show_powered_by($settings ?? null);
       <a href="<?= $bm_services_url; ?>">Services</a>
       <a href="<?= $bm_insights_url; ?>">Insights</a>
       <a href="<?= $bm_about_url; ?>">About</a>
+      <?php if(!empty($bmHowToOrder['enabled'])): ?><a href="<?= base_url('store/'.rawurlencode($settings->store_slug??'').'/how-to-order'); ?>">How to order</a><?php endif; ?>
       <?php if(!empty($site_content['contact_enabled'])): ?><a href="<?= $bm_contact_url; ?>">Enquire</a><?php endif; ?>
       <a href="<?= base_url('store/' . ($settings->store_slug ?? '') . '/privacy'); ?>">Privacy</a>
     </nav>

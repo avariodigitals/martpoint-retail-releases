@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.301",
-    "previous_version": "4.0.9.288",
-    "release_date": "2026-11-23",
+    "version": "4.0.9.303",
+    "previous_version": "4.0.9.301",
+    "release_date": "2026-11-24",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -861,8 +861,8 @@
         },
         {
             "path": "application/views/themes/building_materials_base/footer.php",
-            "hash": "e0af27563a41f3a52620a26f18ba97992f870a7d5c1f172a8ff0b8092f166bda",
-            "size": 4168
+            "hash": "529555a410941d0038f7a63fcf41bf73c10379556088f482b4dac210a885cb54",
+            "size": 4510
         },
         {
             "path": "application/views/themes/building_materials_base/_home_components.php",
@@ -1456,8 +1456,8 @@
         },
         {
             "path": "application/views/themes/maison_forme/footer.php",
-            "hash": "39733f936ac63ad405032be7cba770b0e5960a5aa54dfc1d659cb15803e9d756",
-            "size": 2393
+            "hash": "72751d48ad4d35d73489e1fe91c955b45f34eaee8cce63529c324b55c798eea5",
+            "size": 2706
         },
         {
             "path": "application/views/themes/studio_blanc/store.php",
@@ -1881,8 +1881,8 @@
         },
         {
             "path": "application/views/themes/shared/site_links.php",
-            "hash": "3243a4ff984fb794ec33d83eae9f8b190cba3fff96689f59a8a58bee2e427e94",
-            "size": 695
+            "hash": "490c81498f4893f5495a89a47e335dcf713c01cde40561c3fee3d0ea101f24d8",
+            "size": 1040
         },
         {
             "path": "application/views/themes/shared/privacy.php",
@@ -1903,6 +1903,11 @@
             "path": "application/views/themes/shared/event_widget.php",
             "hash": "021173bf4c588986e9b8a3486f658d3d7b8de82719460340310b560f0a3913d0",
             "size": 10805
+        },
+        {
+            "path": "application/views/themes/shared/how_to_order.php",
+            "hash": "fa9ea5aa2cf6fcb10b26aa12af1fcb459b27fde9b1ad3feb8cf171286a5b082b",
+            "size": 1763
         },
         {
             "path": "application/views/themes/shared/sections/testimonials.php",
@@ -2421,8 +2426,8 @@
         },
         {
             "path": "application/views/themes/food_express/footer.php",
-            "hash": "28eda6d19a846a416d2eed5bfefc19fcf510a793d4c5554014decb78a313a2f4",
-            "size": 7547
+            "hash": "13fd465939667df35840e53309befd3e01e8628e4f46e4deecf507d39865c206",
+            "size": 7850
         },
         {
             "path": "application/views/themes/food_express/account.php",
@@ -2471,8 +2476,8 @@
         },
         {
             "path": "application/views/themes/pharma_mediq/footer.php",
-            "hash": "cb1820687e0de05d718d876994cd680a4a54fd0df7680d33337f02008350d24a",
-            "size": 2274
+            "hash": "4797157231f3a1ccbcd341fcc28967a535c4be11cfcb2274b2484d5718cef374",
+            "size": 2559
         },
         {
             "path": "application/views/themes/pharma_care/store.php",
@@ -3501,8 +3506,8 @@
         },
         {
             "path": "application/views/mobile/ai_ads.php",
-            "hash": "365174c71b9ae210d47098030b496c1bfbeac5caf24b008795490c54f0b2d76d",
-            "size": 23631
+            "hash": "36dfbf26b6e426fe139cf72e2a40b0a8dd0d44882f026424419160c5946f393c",
+            "size": 30924
         },
         {
             "path": "application/views/mobile/attribute_form.php",
@@ -3726,8 +3731,8 @@
         },
         {
             "path": "application/views/communications/_recharge.php",
-            "hash": "8c19213ee47013f383aac50a57639502b39ca22722630e04095876f86b8924eb",
-            "size": 3986
+            "hash": "d318615539c8a47d40f5e0a60b4b54c3dd54c30ae93dd0014ce823966e2ca03e",
+            "size": 3958
         },
         {
             "path": "application/views/communications/_email_builder.php",
@@ -3786,8 +3791,8 @@
         },
         {
             "path": "application/views/communications/_sms_compose.php",
-            "hash": "feefc9eb40f0da1bcac6cbc2cd9c7b796f94e1723a18b764ca8f571fe8bbdb68",
-            "size": 2742
+            "hash": "6633e81e69dd3d097434c4c9bec3e32b266efbd3346907edef882988e08da89e",
+            "size": 2818
         },
         {
             "path": "application/views/communications/socials.php",
@@ -3796,8 +3801,8 @@
         },
         {
             "path": "application/views/communications/_central_sms_review.php",
-            "hash": "fc1ca4c79d1d7e71c4957e1f402bbd3fee4df03db7c142be39048573e1c20820",
-            "size": 5385
+            "hash": "710a549cd02b70db0b2bab04bc203a657c068cac5b49476c6fb1d20687eeb524",
+            "size": 5552
         },
         {
             "path": "application/views/communications/_email_templates.php",
@@ -3851,8 +3856,8 @@
         },
         {
             "path": "application/views/communications/_frame_start.php",
-            "hash": "d79901da2a95b02f2380f8cd703e2ac84bdbaab71399c44685f06b03fac11156",
-            "size": 4604
+            "hash": "e69b6400a9ea42c029b98af8d060a3277a0dfd2ad42d93c1f39b5c4a18cd9e9f",
+            "size": 4607
         },
         {
             "path": "application/views/communications/overview.php",
@@ -3866,8 +3871,8 @@
         },
         {
             "path": "application/views/communications/_credit_amount.php",
-            "hash": "0ad43f61205bcf966d42181065cbefd488d7bc3aa4c0c172eeba371ecebbf9bf",
-            "size": 2118
+            "hash": "d194fce0479f77e3dd91e9517884f7c09adacc0586ad56fa68bef6393ed3e64f",
+            "size": 2117
         },
         {
             "path": "application/views/communications/workspace.php",
@@ -3881,8 +3886,8 @@
         },
         {
             "path": "application/views/communications/_automation_subscription.php",
-            "hash": "1071282f7b09af925a2db13021a014290e147fd4abfcfcb90f37dad60afa8fe0",
-            "size": 5351
+            "hash": "4fbf70b08f652c81dc1c54065909e8d7c55838bfdac53c45409960281ca04e8c",
+            "size": 5317
         },
         {
             "path": "application/views/communications/styles.php",
@@ -3921,8 +3926,8 @@
         },
         {
             "path": "application/views/communications/_subscription.php",
-            "hash": "350a57974a3fd08cbc3a226104094f94f8c3229ac0da6e41784dfcb94f38b386",
-            "size": 3495
+            "hash": "4d6202659d9be85460dad3f8bfbad981c34cd08c2793efc49d4914df82cc13e5",
+            "size": 3478
         },
         {
             "path": "application/views/monnify_settings.php",
@@ -4146,8 +4151,8 @@
         },
         {
             "path": "application/views/online_store/html_theme_content.php",
-            "hash": "aeb7da5e8345f343ae48dc3d091a4acee7a8eb7ba6d9086b1a11d6fdca0bfd5a",
-            "size": 4689
+            "hash": "f358ee941a0723b7dabc5dc943059695e9cd9d833b6a165dc7a18bbcfdecfc7a",
+            "size": 5477
         },
         {
             "path": "application/views/online_store/subscribers.php",
@@ -4165,9 +4170,14 @@
             "size": 18307
         },
         {
+            "path": "application/views/online_store/how_to_order.php",
+            "hash": "c12e197ab14312fd3e31d2e8624034045a65e69554f1de182e91698420d9843c",
+            "size": 3147
+        },
+        {
             "path": "application/views/online_store/appearance.php",
-            "hash": "4b7e898d5dcb5ff733404628690759842e84835054dfc4ae6c9bcfd937d28ad4",
-            "size": 34386
+            "hash": "e807432fe18977baa98349f51e03ddaf254b680e704c7b7b599c0170056875ba",
+            "size": 34587
         },
         {
             "path": "application/views/online_store/messaging_inbox.php",
@@ -4231,8 +4241,8 @@
         },
         {
             "path": "application/views/online_store/html_themes.php",
-            "hash": "3bdd9fcd0029863ff5e0c48d68de512326252dd4eb492fcb24d5ee06b195b80d",
-            "size": 6104
+            "hash": "70e2dcc68b0a9649fa4e57559448e6df3c24a1b12b5643c509dd996ae5368424",
+            "size": 6823
         },
         {
             "path": "application/views/errors/access_denied.php",
@@ -5426,8 +5436,8 @@
         },
         {
             "path": "application/views/mp_sidebar.php",
-            "hash": "b2157b55c1f08f97f6956972d46a49a2fb8df71a16cb4984e7c4be924aff8334",
-            "size": 126812
+            "hash": "48814bb3b5c47b51cf48d36bb51038ca2268f476b2329bfdd225db1a0e0a4474",
+            "size": 128524
         },
         {
             "path": "application/views/report-stock.php",
@@ -6226,8 +6236,8 @@
         },
         {
             "path": "application/views/ai_ads/styles.php",
-            "hash": "1e3ba6dd915482ea6019bd53f19a1fb59d0f73f0739a6b331c31994dcfe1ecbb",
-            "size": 3041
+            "hash": "8609bab6a11fb71f5ad765a04cd1fa0974c2da0d3e4b0c421d3b73d16e241c4c",
+            "size": 6376
         },
         {
             "path": "application/views/ai_ads/platform.php",
@@ -6236,8 +6246,8 @@
         },
         {
             "path": "application/views/ai_ads/index.php",
-            "hash": "66f5311a65cae7224b6ffa6284ca4ff0a2b2e0b53481381b5bccd9764d671a90",
-            "size": 21800
+            "hash": "8509942a2c9f1b16d32a1da5bd47e2edcc9b8b1424ab3c6424a8f0eb996a41c3",
+            "size": 25977
         },
         {
             "path": "application/views/expired_items_report.php",
@@ -7191,13 +7201,13 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "70adf84f115072fbcc70d8bb929fbcc678a35862cb106a064279def19f82e473",
-            "size": 47357
+            "hash": "05b133bd3157d8993943073fff4097a5e1a0a4ebdfd2325ab0c1f817501040bd",
+            "size": 47692
         },
         {
             "path": "application/config/routes.php",
-            "hash": "36da95478bcf39d342d8d6a6c7974659557e8a773e35176668e9bb3ecd4213df",
-            "size": 18434
+            "hash": "fd8a0c3f4af8e3973d9c6f79e2ce65d8b5445169e113b290e36a2f8eb5b05a22",
+            "size": 18927
         },
         {
             "path": "application/config/smileys.php",
@@ -8226,8 +8236,8 @@
         },
         {
             "path": "application/models/Storefront_model.php",
-            "hash": "5fb3a263904082e169a0ed5f6054c54285601019edeb461ec40d4eb8e041ad85",
-            "size": 199050
+            "hash": "6bcc6b0eb69bf754650d4c63406f9757fba118f2634dfeea55c2cc605adb3922",
+            "size": 200569
         },
         {
             "path": "application/models/Pharmacy_batch_report_model.php",
@@ -8606,8 +8616,8 @@
         },
         {
             "path": "application/controllers/Ai_ads.php",
-            "hash": "0a14e7c381f659732a78d145b5c73cae5517dd7ccaea33005e5a4993109277d9",
-            "size": 106324
+            "hash": "1c3e24f378a7a9dd75d1c55e405c1534b8d82fad770b934a36674c47f06f3b3d",
+            "size": 109333
         },
         {
             "path": "application/controllers/Expired_items_report.php",
@@ -8706,8 +8716,8 @@
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "6aeaaeb98f9d3fa531aec07204c78150d7cc1e2c1ca8f4fb4cf77ded61056f4d",
-            "size": 221473
+            "hash": "6e303fbb23b36c232dfcc39e9653d6afac6abb1481f9c524f540c7e58a88eb57",
+            "size": 225058
         },
         {
             "path": "application/controllers/Intake_slots.php",
@@ -9056,8 +9066,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "ed9998480a474cc7a3904611a69323a4c3b3dc7baebc956c5fecf6e21f37e2fb",
-            "size": 223598
+            "hash": "b3fa0d30848a004c1271e7a1eb3b8a1778c1c18449dc424fe6c4fab034c0d269",
+            "size": 224626
         },
         {
             "path": "application/controllers/Sh4_import.php",
@@ -9231,8 +9241,8 @@
         },
         {
             "path": "application/libraries/Html_theme_manager.php",
-            "hash": "860ad11b8cf77eeb50421581944442bb3d14089efd105266d0e8e9ee1b8b4315",
-            "size": 18287
+            "hash": "09540d8a47d15578686095e6e6ae3b4207ce2bed0d42c7ce11bfebb0ff7d7dd3",
+            "size": 19103
         },
         {
             "path": "application/libraries/Zend/Loader.php",
@@ -9851,8 +9861,8 @@
         },
         {
             "path": "application/libraries/Theme_engine.php",
-            "hash": "160489f79cf673e62bd4ae7a7c6bbdfc20848c776b2aa65467f20cf6480a21a1",
-            "size": 82080
+            "hash": "99e03d47b4b14d1eff920f7cda2885a6d4aaf337e057e9497842fc5042d7320d",
+            "size": 82720
         },
         {
             "path": "application/libraries/Communication_documents.php",
@@ -10981,8 +10991,8 @@
         },
         {
             "path": "application/libraries/Html_theme_renderer.php",
-            "hash": "6a3f3e464da8fb5b9f7eaac5e2e48d2b850bee56cdbf67279f68e535fd4c3d59",
-            "size": 44193
+            "hash": "67558f2d0f71228b9e7c2e70f8f17e9401166763ecb6c19843e0a170bda8bb0f",
+            "size": 44408
         },
         {
             "path": "application/libraries/Support_chat_transport.php",
@@ -12271,8 +12281,8 @@
         },
         {
             "path": "application/libraries/Html_theme_content.php",
-            "hash": "946971f4061bbca646a2cbfdde507674b3eb1f58c9fc65fc3301b5ed259a87bb",
-            "size": 6435
+            "hash": "1164f3b2858b8dc0db4645e8a07705509551e3b054c17ffc8e9de7796c13b7f1",
+            "size": 7412
         },
         {
             "path": "application/libraries/dompdf/autoload.inc.php",
@@ -13721,8 +13731,8 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "3bee87c6a6686eeb7247afbd9b77c7b3d56f451fc267d50606f605ab481575ab",
-            "size": 137223
+            "hash": "5d4d5d07d0a7701aff2ee2bf242f0d5c013465c42888b7c7ef0f5c92fa50ef73",
+            "size": 137983
         },
         {
             "path": "application/helpers/document_signature_helper.php",
@@ -13906,8 +13916,8 @@
         },
         {
             "path": "application/helpers/marketing_helper.php",
-            "hash": "b5c0fe8ae35387160ffab916c949130e3fa4a9923a2162f923e5feac40f729de",
-            "size": 10245
+            "hash": "f37e9438eb9d4f0534870a18db6e63db3fc917d1cbe4e91d7954c7eefd59c15b",
+            "size": 10340
         },
         {
             "path": "application/helpers/category_tree_helper.php",
@@ -13958,6 +13968,11 @@
             "path": "theme/css/bill-style.css",
             "hash": "f7508afa9f2007f5233b15562b33de138b574e795ca707e77d920b5554225618",
             "size": 5066
+        },
+        {
+            "path": "theme/css/martpoint_gadgets_refresh.css",
+            "hash": "d34dd474faaa423d2e71449bf3b6739112dd9fed1973f03a350cfee8af4f00fa",
+            "size": 8775
         },
         {
             "path": "theme/css/ionicons-2.0.1/css/ionicons.min.css",
@@ -20821,7 +20836,10 @@
         "4.0.9.298_ai_ads_creative_assets.sql",
         "4.0.9.299_central_ai_ads_subscription_tier_repair.sql",
         "4.0.9.300_ai_ads_campaign_launch.sql",
-        "4.0.9.301_retail_ean13_barcodes.sql"
+        "4.0.9.301_retail_ean13_barcodes.sql",
+        "4.0.9.302_ai_ads_store_owner_access.sql",
+        "4.0.9.302_communications_manual_payment_account.sql",
+        "4.0.9.303_ai_ads_workspace_pages.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20830,6 +20848,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "b8f51dc0859d6d6cf1d8dda3c7465fda758852c9cce47f3cfe364f74c9e6e0b790706af00068c10843526a4d0479fa5766773c43d154c9aefec1ab57cb9c350e",
-    "changelog": "Release 4.0.9.301"
+    "signature": "d906790fe32cbc3725db2eaacd7a36c52519197ed44bd1b5e420976cf408b36e41f332a9cc2a59aa9dee3de45f3618a1d1326f401f2c39a22ac02f56568c780c",
+    "changelog": "Release 4.0.9.303"
 }

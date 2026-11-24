@@ -65,6 +65,7 @@ $route['store/(:any)'] = 'storefront/index/$1';
 $route['store/(:any)/privacy'] = 'storefront/privacy/$1';
 $route['store/(:any)/privacy-policy'] = 'storefront/privacy/$1';
 $route['store/(:any)/contact'] = 'storefront/contact/$1';
+$route['store/(:any)/how-to-order'] = 'storefront/how_to_order/$1';
 $route['store/(:any)/blog'] = 'storefront/blog/$1';
 $route['store/(:any)/blog/(:any)'] = 'storefront/blog/$1/$2';
 // Building Materials calls the editorial channel "Insights" in its public
@@ -149,6 +150,8 @@ $route['building_projects/schedule_maintenance/(:num)/(:num)'] = 'building_proje
 $route['building_projects/create_warranty_claim/(:num)'] = 'building_projects/create_warranty_claim/$1';
 $route['building_projects/resolve_warranty_claim/(:num)/(:num)'] = 'building_projects/resolve_warranty_claim/$1/$2';
 $route['online_store/settings'] = 'online_store/settings';
+$route['online_store/how_to_order'] = 'online_store/how_to_order';
+$route['online_store/save_how_to_order'] = 'online_store/save_how_to_order';
 $route['online_store/save_settings'] = 'online_store/save_settings';
 $route['online_store/location_states'] = 'online_store/location_states';
 $route['online_store/location_cities'] = 'online_store/location_cities';
@@ -285,6 +288,11 @@ $route['quote_response/([a-f0-9]{64})'] = 'quote_response/index/$1';
 
 /* MartPoint AI Ads workspace */
 $route['marketing/ai_ads'] = 'ai_ads/index';
+$route['marketing/ai_ads/connection'] = 'ai_ads/connection';
+$route['marketing/ai_ads/plans'] = 'ai_ads/plans';
+$route['marketing/ai_ads/create'] = 'ai_ads/create';
+$route['marketing/ai_ads/creative'] = 'ai_ads/creative';
+$route['marketing/ai_ads/campaigns'] = 'ai_ads/campaigns';
 $route['marketing/ai_ads/connect'] = 'ai_ads/connect';
 $route['marketing/ai_ads/callback'] = 'ai_ads/callback';
 $route['marketing/ai_ads/broker_start'] = 'ai_ads/broker_start';

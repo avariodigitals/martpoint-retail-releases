@@ -692,8 +692,19 @@ $mp_icons = [
     </div></div>
     <?php endif; ?>
 
-    <?php if(!mp_is_central() && (is_business_owner() || is_store_admin() || is_admin() || $CI->permissions('send_email') || $CI->permissions('send_sms'))): ?>
-    <div class="mp-nav-section"><a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item marketing-ai-ads-active-li"><span class="mp-nav-icon"><i class="fa fa-bullhorn"></i></span> AI Ads</a></div>
+    <?php if(!mp_is_central() && (is_business_owner() || is_store_admin() || is_admin() || (function_exists('is_store_owner_account') && is_store_owner_account()) || $CI->permissions('send_email') || $CI->permissions('send_sms'))): ?>
+    <?php $aiAdsOpen=$CI->uri->segment(1)==='marketing'&&$CI->uri->segment(2)==='ai_ads'; ?>
+    <div class="mp-nav-section"><div class="mp-nav-group <?= $aiAdsOpen?'open':''; ?>" onclick="this.classList.toggle('open')">
+      <div class="mp-nav-group-toggle"><span class="mp-nav-icon" style="color:#5B35C5;"><i class="fa fa-bullhorn"></i></span> AI Ads <span class="mp-nav-chevron"><?= $mp_icons['chevron']; ?></span></div>
+      <div class="mp-nav-submenu">
+        <a href="<?= base_url('marketing/ai_ads'); ?>" class="mp-nav-item ai-ads-overview-active-li"><span class="mp-nav-icon"><?= $mp_icons['dashboard']; ?></span> Overview</a>
+        <a href="<?= base_url('marketing/ai_ads/connection'); ?>" class="mp-nav-item ai-ads-connection-active-li"><span class="mp-nav-icon"><i class="fa fa-facebook-square"></i></span> Meta Connection</a>
+        <a href="<?= base_url('marketing/ai_ads/plans'); ?>" class="mp-nav-item ai-ads-plans-active-li"><span class="mp-nav-icon"><i class="fa fa-credit-card"></i></span> Plan &amp; Usage</a>
+        <a href="<?= base_url('marketing/ai_ads/create'); ?>" class="mp-nav-item ai-ads-create-active-li"><span class="mp-nav-icon"><i class="fa fa-plus-circle"></i></span> Create Ad</a>
+        <a href="<?= base_url('marketing/ai_ads/creative'); ?>" class="mp-nav-item ai-ads-creative-active-li"><span class="mp-nav-icon"><i class="fa fa-picture-o"></i></span> Creative Studio</a>
+        <a href="<?= base_url('marketing/ai_ads/campaigns'); ?>" class="mp-nav-item ai-ads-campaigns-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Campaigns &amp; Results</a>
+      </div>
+    </div></div>
     <?php endif; ?>
 
     <!-- Marketing -->
@@ -834,6 +845,7 @@ $mp_icons = [
           <a href="<?= base_url('online_store/journal'); ?>" class="mp-nav-item online_store-journal-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> <?= $is_building_workspace ? 'Applications, projects &amp; insights' : 'Journal articles'; ?></a>
           <?php if($is_building_workspace): ?><a href="<?= base_url('online_store/theme_content'); ?>" class="mp-nav-item online_store-theme_content-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Theme content</a><?php endif; ?>
           <a href="<?= base_url('online_store/content_settings'); ?>" class="mp-nav-item online_store-content_settings-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Store pages &amp; product features</a>
+          <a href="<?= base_url('online_store/how_to_order'); ?>" class="mp-nav-item online_store-how_to_order-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> How to order</a>
           <a href="<?= base_url('online_store/faqs'); ?>" class="mp-nav-item online_store-faqs-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> FAQs</a>
           <div class="mp-nav-subhead">Configuration</div>
           <a href="<?= base_url('online_store/appearance'); ?>" class="mp-nav-item online_store-appearance-active-li"><span class="mp-nav-icon"><?= $mp_icons['list']; ?></span> Appearance</a>

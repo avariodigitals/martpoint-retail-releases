@@ -94,6 +94,18 @@ class Theme_engine {
             return $this->CI->storefront_model->normalizeThemeIndustry($tInd) === $thisIndustry;
         };
 
+        // An uploaded update can be hidden behind its currently active
+        // package version in the selector until the merchant previews it.
+        // Admit that exact, tenant-owned preview row without exposing older
+        // versions as duplicate theme choices.
+        if($previewTheme && !isset($allowedById[$previewTheme]) && ($previewRow = $this->getTheme($previewTheme))){
+            if($themeFitsIndustry($previewRow)){
+                $allowedById[$previewRow->id] = $previewRow;
+                $allowedByKey[$previewRow->theme_key] = $previewRow;
+                $allowedThemes[] = $previewRow;
+            }
+        }
+
         foreach(array_filter([$businessProfile['theme_key'] ?? null, $this->store->storefront_theme_key ?? null]) as $k){
             if(!isset($allowedByKey[$k]) && ($row = $this->getThemeByKey($k))){
                 if (!$themeFitsIndustry($row)) {

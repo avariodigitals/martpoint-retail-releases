@@ -707,4 +707,11 @@ return [
 	'4.0.9.300v' => '4.0.9.300_ai_ads_campaign_launch.sql',
 	// Retail EAN-13 product barcode type for validated GTIN entry and artwork export.
 	'4.0.9.301v' => '4.0.9.301_retail_ean13_barcodes.sql',
+	// Resolve AI Ads access from the actual store owner account as well as its role.
+	'4.0.9.302v' => [
+		'4.0.9.302_ai_ads_store_owner_access.sql',
+		'4.0.9.302_communications_manual_payment_account.sql',
+	],
+	// Split the Fleet AI Ads workspace into focused, navigable screens.
+	'4.0.9.303v' => '4.0.9.303_ai_ads_workspace_pages.sql',
 ];

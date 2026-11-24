@@ -8,6 +8,8 @@ $footerIndustry = strtolower(trim((string)($footerProfile['industry_type'] ?? ''
 $footerIsRestaurant = in_array($footerIndustry, ['restaurant','fast_food','food_delivery','cafe','bakery','pizza_shop','shawarma','juice_bar','buka','canteen'], true);
 $footerLogo = $footerIsRestaurant ? null : ($footer_logo ?? $store_logo ?? null);
 $fxCurrent = (string) uri_string();
+$fxThemeContent=json_decode((string)($settings->theme_content_json??''),true);
+$fxHowToOrder=is_array($fxThemeContent)?($fxThemeContent['how_to_order']??[]):[];
 ?>
 <footer class="fx-footer" role="contentinfo">
   <div class="fx-footer-inner">
@@ -42,7 +44,7 @@ $fxCurrent = (string) uri_string();
     <div class="fx-footer-col">
       <h4>Ordering</h4>
       <ul class="fx-footer-links">
-        <li><a href="#">How to Order</a></li>
+        <?php if(!empty($fxHowToOrder['enabled'])): ?><li><a href="<?= base_url('store/'.rawurlencode($settings->store_slug??'').'/how-to-order'); ?>">How to order</a></li><?php endif; ?>
         <li><a href="#">Delivery Areas</a></li>
         <li><a href="#">Pickup Points</a></li>
         <li><a href="#">QR Table Order</a></li>

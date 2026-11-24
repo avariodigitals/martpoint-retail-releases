@@ -16,15 +16,33 @@ class Ai_ads extends MY_Controller {
         $this->load->model('ai_ads_model','ads'); $this->load->library('meta_ads_api');
     }
     private function allowed() {
-        return is_admin() || is_store_admin() || is_business_owner() || $this->permissions('send_email') || $this->permissions('send_sms');
+        return is_admin() || is_store_admin() || is_business_owner() || (function_exists('is_store_owner_account') && is_store_owner_account($this->storeId())) || $this->permissions('send_email') || $this->permissions('send_sms');
     }
     private function canApproveMetaSpend() {
-        return is_admin() || is_store_admin() || is_business_owner();
+        return is_admin() || is_store_admin() || is_business_owner() || (function_exists('is_store_owner_account') && is_store_owner_account($this->storeId()));
     }
     private function requireAccess() { if (!$this->allowed()) { show_error('AI Ads access denied.',403); return false; } return true; }
     private function isMobile() { return $this->input->get('screen')==='mobile' || is_mobile(); }
+    private function isLocalDevelopmentHost($host) {
+        $host=strtolower(trim((string)$host,'. '));
+        return $host==='localhost' || $host==='127.0.0.1' || $host==='::1'
+            || substr($host,-5)==='.test' || substr($host,-6)==='.local'
+            || substr($host,-10)==='.localhost';
+    }
+    private function isLocalFleetRequest() {
+        if(mp_is_central()) return false;
+        $hosts=array(parse_url(base_url(),PHP_URL_HOST));
+        $requestHost=(string)($_SERVER['HTTP_HOST']??'');
+        if($requestHost!=='') $hosts[]=parse_url('http://'.$requestHost,PHP_URL_HOST);
+        foreach($hosts as $host) if($this->isLocalDevelopmentHost($host)) return true;
+        return false;
+    }
     private function storeId() { return (int)get_current_store_id(); }
     private function actorId() { return (int)($this->session->userdata('inv_userid') ?: $this->session->userdata('user_id')); }
+    private function workspaceUrl($section='overview') {
+        $path='marketing/ai_ads'.($section==='overview'?'':'/'.$section);
+        return $path.($this->isMobile()?'?screen=mobile':'');
+    }
     private function normalizeAiAdsEntitlements($value) {
         $value=is_array($value)?$value:array();
         $defaults=array('copy_generations_per_month'=>20,'ai_images_per_month'=>2,'video_exports_per_month'=>0,'ai_video_generations_per_month'=>0,'media_storage_mb'=>100);
@@ -60,10 +78,19 @@ class Ai_ads extends MY_Controller {
         return $offers;
     }
 
-    public function index() {
+    public function index() { $this->workspace('overview'); }
+    public function connection() { $this->workspace('connection'); }
+    public function plans() { $this->workspace('plans'); }
+    public function create() { $this->workspace('create'); }
+    public function creative() { $this->workspace('creative'); }
+    public function campaigns() { $this->workspace('campaigns'); }
+
+    private function workspace($section='overview') {
         if (!$this->requireAccess()) return;
+        $allowedSections=array('overview','connection','plans','create','creative','campaigns');
+        if(!in_array($section,$allowedSections,true)) $section='overview';
         $storeId=$this->storeId(); $connection=$this->ads->connection($storeId); $accounts=array(); $pages=array(); $pixels=array(); $connectionError='';
-        if ($connection && $connection['status']==='connected' && !empty($connection['access_token_ciphertext'])) {
+        if ($section==='connection' && $connection && $connection['status']==='connected' && !empty($connection['access_token_ciphertext'])) {
             try {
                 $token=$this->meta_ads_api->decryptToken($connection['access_token_ciphertext']);
                 $accounts=$this->meta_ads_api->accounts($token)['data'] ?? array(); $pages=$this->meta_ads_api->pages($token)['data'] ?? array();
@@ -71,11 +98,11 @@ class Ai_ads extends MY_Controller {
             }
             catch(Throwable $e) { $connectionError=$e->getMessage(); }
         }
-        $campaigns=$this->ads->campaigns($storeId);
-        $mediaAssets=$this->ads->mediaAssets($storeId);
+        $campaigns=in_array($section,array('overview','campaigns'),true)?$this->ads->campaigns($storeId):array();
+        $mediaAssets=in_array($section,array('create','creative','campaigns'),true)?$this->ads->mediaAssets($storeId):array();
         $mediaMimeById=array(); foreach($mediaAssets as $mediaAsset)$mediaMimeById[(int)$mediaAsset['id']]=(string)$mediaAsset['mime_type'];
         foreach($campaigns as $campaignIndex=>$campaign)if(!empty($campaign['media_asset_id']))$campaigns[$campaignIndex]['media_mime_type']=$mediaMimeById[(int)$campaign['media_asset_id']]??'';
-        if($connection&&!empty($connection['access_token_ciphertext'])) {
+        if($section==='campaigns'&&$connection&&!empty($connection['access_token_ciphertext'])) {
             try {
                 $token=$token??$this->meta_ads_api->decryptToken($connection['access_token_ciphertext']);
                 foreach($campaigns as $i=>$campaign) if($i<10&&!empty($campaign['meta_ad_id'])&&in_array($campaign['status'],array('active','paused'),true)) {
@@ -97,13 +124,21 @@ class Ai_ads extends MY_Controller {
         $generatedMediaPrefill=(int)$this->session->userdata('ai_ads_generated_media_id');
         if($directorPrefill)$this->session->unset_userdata('ai_ads_director_prefill');
         if($generatedMediaPrefill)$this->session->unset_userdata('ai_ads_generated_media_id');
+        $localFleetRequest=$this->isLocalFleetRequest();
+        $metaReady=mp_is_central()?$this->meta_ads_api->ready():$this->meta_ads_api->tokenEncryptionReady();
+        // Central only brokers Meta OAuth for an enrolled, public Fleet URL.
+        // A local development hostname cannot complete that signed broker flow.
+        if($localFleetRequest) $metaReady=false;
+        $metaReadyMessage=$localFleetRequest
+            ? 'Meta sign-in cannot be completed from this local development address. Central only accepts enrolled, public Fleet sites. Use the live Fleet URL to connect Facebook.'
+            : 'Meta sign-in is not ready for this Fleet. Check its Central enrollment and Meta connection setup, then try again.';
         $data=array_merge($this->data,array(
-            'page_title'=>'AI Ads','SITE_TITLE'=>get_store_name() ?: 'MartPoint','store_name'=>get_store_name() ?: 'MartPoint',
+            'page_title'=>'AI Ads · '.ucwords(str_replace('_',' ',$section)),'workspace_label'=>array('overview'=>'Overview','connection'=>'Meta Connection','plans'=>'Plan & Usage','create'=>'Create Ad','creative'=>'Creative Studio','campaigns'=>'Campaigns & Results')[$section],'SITE_TITLE'=>get_store_name() ?: 'MartPoint','store_name'=>get_store_name() ?: 'MartPoint','workspace_section'=>$section,
             'connection'=>$connection,'connection_error'=>$connectionError,'accounts'=>$accounts,'pages'=>$pages,'pixels'=>$pixels,
-            'subscription'=>$this->ads->subscription($storeId),'has_ads_access'=>$this->ads->hasAccess($storeId),'subscription_offers'=>$this->subscriptionOffers(),'usage_snapshot'=>$this->ads->usageSnapshot($storeId),
-            'campaigns'=>$campaigns,'products'=>$this->ads->products($storeId),'media_assets'=>$mediaAssets,'director_prefill'=>$directorPrefill,'generated_media_prefill'=>$generatedMediaPrefill,
+            'subscription'=>$this->ads->subscription($storeId),'has_ads_access'=>$this->ads->hasAccess($storeId),'subscription_offers'=>$section==='plans'?$this->subscriptionOffers():array(),'usage_snapshot'=>in_array($section,array('overview','plans'),true)?$this->ads->usageSnapshot($storeId):array(),
+            'campaigns'=>$campaigns,'products'=>$section==='create'?$this->ads->products($storeId):array(),'media_assets'=>$mediaAssets,'director_prefill'=>$directorPrefill,'generated_media_prefill'=>$generatedMediaPrefill,
             'billing_history'=>$this->db->table_exists('db_ai_ads_billing')?$this->db->where('store_id',$storeId)->order_by('id','desc')->limit(5)->get('db_ai_ads_billing')->result_array():array(),
-            'meta_ready'=>mp_is_central()?$this->meta_ads_api->ready():$this->meta_ads_api->tokenEncryptionReady(),'flash_success'=>$this->session->flashdata('success'),'flash_error'=>$this->session->flashdata('error')
+            'meta_ready'=>$metaReady,'meta_ready_label'=>$localFleetRequest?'Use live Fleet':'Setup required','meta_ready_message'=>$metaReadyMessage,'flash_success'=>$this->session->flashdata('success'),'flash_error'=>$this->session->flashdata('error')
         ));
         if ($this->isMobile()) { $this->load->view('mobile/ai_ads',$data); return; }
         $data['content']=$this->load->view('ai_ads/index',$data,true); $this->load->view('mp_layout',$data);
@@ -178,7 +213,7 @@ class Ai_ads extends MY_Controller {
                 'amount_kobo'=>(int)$result['amount_kobo'],'plan_limits_json'=>json_encode($this->normalizeAiAdsEntitlements($result['plan_limits']??array())),'expires_at'=>$expires);
             $this->db->insert('db_ai_ads_billing',$row);
             redirect($result['checkout_url']); return;
-        } catch(Throwable $e) { log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error','We couldn’t start checkout. Please try again later or contact MartPoint support. No payment has been taken.'); redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':'')); }
+        } catch(Throwable $e) { log_message('error','AI Ads checkout start failed: '.mb_substr(strip_tags($e->getMessage()),0,250)); $this->session->set_flashdata('error','We couldn’t start checkout. Please try again later or contact MartPoint support. No payment has been taken.'); redirect($this->workspaceUrl('plans')); }
     }
 
     /** Paystack returns here; Central verifies payment and sends a signed fulfilment back. */
@@ -197,18 +232,22 @@ class Ai_ads extends MY_Controller {
             if($http!==200||!is_array($result)||empty($result['success'])) throw new RuntimeException('Payment verification is pending. Your access will activate after Central confirms the payment; do not pay again.');
             $this->session->set_flashdata('success',!empty($result['fulfillment'])?'Payment confirmed. Your AI Ads access is active.':'Payment confirmed. Your AI Ads access is being activated.');
         } catch(Throwable $e) { log_message('error','AI Ads payment return pending: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t confirm this payment yet. Please wait a few minutes and refresh. Do not pay again; contact MartPoint support if access does not activate.'); }
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('plans'));
     }
 
     public function connect() {
         if (!$this->requireAccess()) return;
+        if($this->isLocalFleetRequest()) {
+            $this->session->set_flashdata('error','Meta sign-in cannot be completed from this local address. Open the live, enrolled Fleet site to connect Facebook.');
+            redirect($this->workspaceUrl('connection')); return;
+        }
         try {
             if (!$this->meta_ads_api->tokenEncryptionReady()) throw new RuntimeException('This Fleet could not reach Central to prepare its private Meta connection. Check its Central enrollment and try again.');
             if (!mp_is_central()) { $this->startBrokerFlow(); return; }
             if (!$this->meta_ads_api->oauthReady()) throw new RuntimeException('Meta OAuth is not configured on Central.');
             $state=bin2hex(random_bytes(32)); $this->session->set_userdata('ai_ads_oauth',array('state'=>$state,'store_id'=>$this->storeId(),'created'=>time(),'mobile'=>$this->isMobile()));
             redirect($this->meta_ads_api->authorizationUrl($state));
-        } catch(Throwable $e) { log_message('error','AI Ads Meta connection could not start: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t start the Meta connection. Please try again later or contact MartPoint support.'); redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':'')); }
+        } catch(Throwable $e) { log_message('error','AI Ads Meta connection could not start: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t start the Meta connection. Please try again later or contact MartPoint support.'); redirect($this->workspaceUrl('connection')); }
     }
 
     /** Fleet begins OAuth on Central; its own Meta token is saved back to this Fleet. */
@@ -492,7 +531,7 @@ class Ai_ads extends MY_Controller {
         $nonce=(string)$this->input->get('nonce'); $expected=(string)$this->session->userdata('ai_ads_broker_pending');
         if($expected!==''&&hash_equals($expected,$nonce)) { $this->session->unset_userdata('ai_ads_broker_pending'); $this->session->set_flashdata('success','Meta is connected. Choose the advertising account and Page you want MartPoint to use.'); }
         else $this->session->set_flashdata('error','Meta broker return could not be verified. Check the connection status and retry if needed.');
-        redirect('marketing/ai_ads'.($this->input->get('screen')==='mobile'?'?screen=mobile':''));
+        redirect($this->workspaceUrl('connection'));
     }
 
     /** Meta's signed Facebook Login deletion request endpoint; Central fans out to enrolled Fleets. */
@@ -663,7 +702,7 @@ class Ai_ads extends MY_Controller {
             $this->session->set_flashdata('error','We couldn’t complete the Meta connection. Please try again or contact MartPoint support.');
             if (isset($saved['store_id'])) { $this->db->where('store_id',(int)$saved['store_id'])->update('db_ai_ads_connections',array('status'=>'error','last_error'=>mb_substr($e->getMessage(),0,500),'last_checked_at'=>date('Y-m-d H:i:s'))); }
         }
-        redirect('marketing/ai_ads'.(!empty($saved['mobile'])?'?screen=mobile':''));
+        redirect('marketing/ai_ads/connection'.(!empty($saved['mobile'])?'?screen=mobile':''));
     }
 
     public function select_assets() {
@@ -688,14 +727,14 @@ class Ai_ads extends MY_Controller {
             $this->ads->audit($storeId,null,$this->actorId(),'assets_selected','Merchant selected an ad account and Page.');
             $this->session->set_flashdata('success','Meta assets saved.');
         } catch(Throwable $e) { log_message('error','AI Ads Meta asset selection failed: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t save those Meta assets. Please choose an account and Page available to your Facebook account.'); }
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('connection'));
     }
 
     public function disconnect() {
         if (!$this->requireAccess()) return; if ($this->input->method()!=='post') { show_error('POST is required.',405); return; }
         $storeId=$this->storeId(); $this->db->where('store_id',$storeId)->update('db_ai_ads_connections',array('status'=>'disconnected','access_token_ciphertext'=>null,'meta_user_id'=>null,'meta_business_id'=>null,'ad_account_id'=>null,'ad_account_name'=>null,'page_id'=>null,'page_name'=>null,'last_error'=>null));
         $this->ads->audit($storeId,null,$this->actorId(),'meta_disconnected','Merchant disconnected Meta from MartPoint.');
-        $this->session->set_flashdata('success','Meta connection removed from MartPoint.'); redirect('marketing/ai_ads');
+        $this->session->set_flashdata('success','Meta connection removed from MartPoint.'); redirect($this->workspaceUrl('connection'));
     }
 
     public function save_draft() {
@@ -722,7 +761,7 @@ class Ai_ads extends MY_Controller {
             $this->ads->audit($this->storeId(),$id,$this->actorId(),'campaign_draft_saved','Draft saved for merchant review.');
             $this->session->set_flashdata('success','Ad draft saved. This is a draft only; MartPoint has not created or started an ad on Meta.');
         } catch(Throwable $e) { log_message('error','AI Ads draft save failed: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t save your ad draft. Check the required fields and try again.'); }
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('campaigns'));
     }
 
     /** Publish only after the owner confirms the exact lifetime spend cap. */
@@ -849,7 +888,7 @@ class Ai_ads extends MY_Controller {
             $this->session->set_flashdata('error',$userMessage);
         }
         if($temporaryImagePath!==''&&is_file($temporaryImagePath))@unlink($temporaryImagePath);
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('campaigns'));
     }
 
     public function pause_campaign() {
@@ -865,7 +904,7 @@ class Ai_ads extends MY_Controller {
             $this->ads->audit($storeId,$campaignId,$this->actorId(),'campaign_paused','Owner paused the Meta campaign from MartPoint.');
             $this->session->set_flashdata('success','The Meta campaign is paused.');
         } catch(Throwable $e) { log_message('error','AI Ads Meta pause failed: '.mb_substr(strip_tags($e->getMessage()),0,220)); $this->session->set_flashdata('error','We couldn’t confirm that the Meta campaign was paused. Check its status in Meta Ads Manager.'); }
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('campaigns'));
     }
 
     /** Upload a merchant image/video to the store-scoped private media library. */
@@ -973,14 +1012,14 @@ class Ai_ads extends MY_Controller {
         if(strtoupper($this->input->method())!=='POST'){show_error('POST is required.',405);return;}
         $id=(int)$this->input->post('asset_id');
         $asset=$this->db->where('id',$id)->where('store_id',$this->storeId())->get('db_ai_ads_media_assets')->row_array();
-        if(!$asset){$this->session->set_flashdata('error','That media file is no longer available.');redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));return;}
-        if($this->db->where('store_id',$this->storeId())->where('media_asset_id',$id)->count_all_results('db_ai_ads_campaigns')>0){$this->session->set_flashdata('error','This file is attached to an ad draft. Remove it from the draft before deleting it.');redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));return;}
+        if(!$asset){$this->session->set_flashdata('error','That media file is no longer available.');redirect($this->workspaceUrl('creative'));return;}
+        if($this->db->where('store_id',$this->storeId())->where('media_asset_id',$id)->count_all_results('db_ai_ads_campaigns')>0){$this->session->set_flashdata('error','This file is attached to an ad draft. Remove it from the draft before deleting it.');redirect($this->workspaceUrl('creative'));return;}
         $path=realpath(FCPATH.$asset['relative_path']); $root=realpath(FCPATH.'uploads/ai_ads/'.$this->storeId());
         if($path&&$root&&strpos($path,$root.DIRECTORY_SEPARATOR)===0&&is_file($path))@unlink($path);
         $this->db->where('id',$id)->where('store_id',$this->storeId())->delete('db_ai_ads_media_assets');
         $this->ads->audit($this->storeId(),null,$this->actorId(),'media_deleted','Merchant deleted campaign media to free storage.');
         $this->session->set_flashdata('success','Campaign media deleted. The space is available again.');
-        redirect('marketing/ai_ads'.($this->isMobile()?'?screen=mobile':''));
+        redirect($this->workspaceUrl('creative'));
     }
 
     public function generate_copy() {

@@ -2428,6 +2428,47 @@ class Online_store extends MY_Controller {
         }catch(Throwable $e){$this->db->trans_rollback();$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save. Please try again.');}
         redirect('online_store/content_settings'.($this->input->post('editor_mobile')?'?screen=mobile':''));
     }
+
+	/** Store-scoped customer ordering guide for the public storefront. */
+	public function how_to_order(){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		$storeId=(int)get_current_store_id();
+		$settings=$this->storefront_model->getSettings($storeId);
+		$all=json_decode((string)($settings->theme_content_json??''),true);
+		$guide=is_array($all)&&is_array($all['how_to_order']??null)?$all['how_to_order']:[];
+		$this->_editor_render('How to order','online_store/how_to_order',['settings'=>$settings,'how_to_order'=>$guide]);
+	}
+
+	public function save_how_to_order(){
+		if(!$this->_can_edit()){show_error('Access denied',403);return;}
+		if($this->input->method()!=='post'){show_404();return;}
+		$storeId=(int)get_current_store_id();$settings=$this->storefront_model->getSettings($storeId);
+		$all=json_decode((string)($settings->theme_content_json??''),true);if(!is_array($all))$all=[];
+		$guide=is_array($all['how_to_order']??null)?$all['how_to_order']:[];$uploaded=null;
+		try{
+			$title=trim((string)$this->input->post('title'));
+			$steps=trim((string)$this->input->post('steps'));
+			$video=trim((string)$this->input->post('video_url'));
+			if($title===''||mb_strlen($title)>120)throw new InvalidArgumentException('Enter a page title of up to 120 characters.');
+			if(mb_strlen($steps)>12000)throw new InvalidArgumentException('Ordering instructions must be 12,000 characters or fewer.');
+			if(mb_strlen($video)>1500||($video!==''&&(!filter_var($video,FILTER_VALIDATE_URL)||!in_array(strtolower((string)parse_url($video,PHP_URL_SCHEME)),['https','http'],true))))throw new InvalidArgumentException('Enter a valid http or https video link.');
+			$guide['enabled']=$this->input->post('enabled')==='1'?1:0;
+			$guide['title']=$title;$guide['steps']=$steps;$guide['video_url']=$video;
+			if($this->input->post('remove_image')==='1')$guide['image_url']='';
+			if(!empty($_FILES['guide_image']['name'])){
+				$quota=check_media_storage_limit();if($quota!==true)throw new InvalidArgumentException($quota);
+				$dir='uploads/storefront/'.(int)$storeId.'/how-to-order/';if(!is_dir(FCPATH.$dir)&&!mkdir(FCPATH.$dir,0755,true)&&!is_dir(FCPATH.$dir))throw new RuntimeException('Could not create the image folder.');
+				$this->load->library('upload');$this->upload->initialize(['upload_path'=>FCPATH.$dir,'allowed_types'=>'jpg|jpeg|png|webp|avif','max_size'=>3072,'file_name'=>'guide_'.bin2hex(random_bytes(8))]);
+				if(!$this->upload->do_upload('guide_image'))throw new InvalidArgumentException(strip_tags($this->upload->display_errors('','')));
+				$file=$this->upload->data();$uploaded=$dir.$file['file_name'];$guide['image_url']=base_url($uploaded);
+			}
+			$all['how_to_order']=$guide;$encoded=json_encode($all,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+			if($encoded===false||!$this->storefront_model->saveSettings($storeId,['theme_content_json'=>$encoded]))throw new RuntimeException('Could not save the ordering guide.');
+			$this->session->set_flashdata('content_success','How to order page saved.');
+		}catch(Throwable $e){if($uploaded)@unlink(FCPATH.$uploaded);$this->session->set_flashdata('content_error',$e instanceof InvalidArgumentException?$e->getMessage():'Could not save. Please try again.');}
+		redirect('online_store/how_to_order'.($this->input->post('editor_mobile')?'?screen=mobile':''));
+	}
+
     public function journal($id=0){
         if(!$this->_can_edit()){show_error('Access denied',403);return;}$this->load->model('storefront_content_model');$sid=get_current_store_id();$post=$id?$this->storefront_content_model->post($sid,(int)$id):null;if($id&&!$post){show_404();return;}
         $this->load->library('theme_engine');$this->theme_engine->init($sid);
@@ -2735,7 +2776,10 @@ class Online_store extends MY_Controller {
 		$storeId = (int)get_current_store_id();
 		try{
 			$installed = $this->html_theme_manager->install($_FILES['theme_zip']['tmp_name'], $storeId, get_current_user_id());
-			$this->themeJson(['status'=>'success','message'=>'Theme validated and uploaded. Review it in Preview before activation.', 'theme_id'=>(int)$installed['theme_id'], 'warnings'=>$installed['warnings']]);
+			$message = !empty($installed['is_update'])
+				? 'Update staged. Your saved content was carried forward and the previous version is retained. Preview the update before activating it.'
+				: 'Theme validated and uploaded. Review it in Preview before activation.';
+			$this->themeJson(['status'=>'success','message'=>$message, 'theme_id'=>(int)$installed['theme_id'], 'is_update'=>!empty($installed['is_update']), 'warnings'=>$installed['warnings']]);
 		}catch(Throwable $e){
 			log_message('error', 'HTML theme upload: ' . $e->getMessage());
 			$this->themeJson(['status'=>'error','message'=>$e->getMessage()], 422);

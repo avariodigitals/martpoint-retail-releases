@@ -2632,8 +2632,32 @@ class Storefront_model extends CI_Model {
 			$this->db->where('status', 1)->where('theme_source', 'html_zip')->where('owner_store_id', $storeId);
 			$uploaded = $this->db->order_by('created_at', 'desc')->get('db_storefront_themes')->result();
 			$targetIndustry = $this->_normalizeThemeIndustry($themeIndustry);
+            $activeSettings = $this->getSettings($storeId);
+            $activeUploadedId = (int)($activeSettings->theme_id ?? 0);
+            $activePackageKey = '';
+            foreach($uploaded as $theme){
+                if((int)$theme->id !== $activeUploadedId) continue;
+                $activeManifest = json_decode((string)($theme->manifest_json ?? ''), true);
+                $activePackageKey = is_array($activeManifest) && !empty($activeManifest['theme_key'])
+                    ? (string)$activeManifest['theme_key'] : (string)($theme->theme_key ?? $theme->id);
+                break;
+            }
+            $selectedByPackage = [];
 			foreach($uploaded as $theme){
-				if($this->_normalizeThemeIndustry($theme->industry ?? '') === $targetIndustry) $themes[] = $theme;
+                $manifest = json_decode((string)($theme->manifest_json ?? ''), true);
+                $packageKey = is_array($manifest) && !empty($manifest['theme_key'])
+                    ? (string)$manifest['theme_key'] : (string)($theme->theme_key ?? $theme->id);
+                // Show one selectable entry per package. Keep the active
+                // version selected until its replacement is explicitly
+                // activated; otherwise show the newest uploaded version.
+                if($packageKey === $activePackageKey && (int)$theme->id === $activeUploadedId){
+                    $selectedByPackage[$packageKey] = $theme;
+                } elseif(!isset($selectedByPackage[$packageKey])){
+                    $selectedByPackage[$packageKey] = $theme;
+                }
+            }
+            foreach($selectedByPackage as $theme){
+                if($this->_normalizeThemeIndustry($theme->industry ?? '') === $targetIndustry) $themes[] = $theme;
 			}
 		}
 

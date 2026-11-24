@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.301';
+    return '4.0.9.303';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -966,6 +966,21 @@
     $role_id = (int)$CI->session->userdata('role_id');
     $store_id = (int)$CI->session->userdata('store_id');
     return $role_id > 0 && in_array($role_id, store_owner_role_ids($store_id), true);
+  }
+  /** True for the actual account that owns this store, even if its role was customized. */
+  if (!function_exists('is_store_owner_account')) {
+    function is_store_owner_account($store_id = null){
+      static $cache = array();
+      $CI =& get_instance();
+      if($store_id === null || $store_id === '') $store_id = $CI->session->userdata('store_id');
+      $store_id = (int)$store_id;
+      $user_id = (int)($CI->session->userdata('inv_userid') ?: $CI->session->userdata('user_id'));
+      if($store_id <= 0 || $user_id <= 0) return false;
+      $key = $store_id.':'.$user_id;
+      if(array_key_exists($key,$cache)) return $cache[$key];
+      $cache[$key] = in_array($user_id, store_owner_user_ids($store_id), true);
+      return $cache[$key];
+    }
   }
   function is_admin(){
     if(strtoupper(get_role_name())==strtoupper('admin')){
