@@ -723,4 +723,6 @@ return [
 	'4.0.9.307v' => '4.0.9.307_storefront_whatsapp_product_links.sql',
 	// Included order notices have a Central-enforced monthly per-store allowance.
 	'4.0.9.308v' => '4.0.9.308_order_email_allowance.sql',
+	// Apply the included monthly email allowance consistently to business transactional mail.
+	'4.0.9.309v' => '4.0.9.309_transactional_email_allowance.sql',
 ];

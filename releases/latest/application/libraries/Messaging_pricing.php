@@ -49,8 +49,9 @@ class Messaging_pricing {
     }
 
     public static function category(array $options) {
-        // Storefront order mail has a small, centrally capped included allowance.
-        // It is only set by the order lifecycle, never by campaigns.
+        // Keep a distinct reporting category for storefront order/appointment
+        // mail; Central applies the shared transactional allowance to this and
+        // every other transactional email, never to campaigns.
         if (($options['message_category'] ?? '') === 'order_notification'
             && ($options['related_module'] ?? '') === 'storefront'
             && in_array(($options['template_key'] ?? ''), array('online_order_owner','online_order_customer','appointment_request_owner','appointment_request_customer'), true)) return 'order_notification';
