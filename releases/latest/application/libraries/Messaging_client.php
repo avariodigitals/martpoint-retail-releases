@@ -183,6 +183,7 @@ class Messaging_client {
         foreach ($recipients as $recipient) {
             $payload = array('channel'=>'email','category'=>Messaging_pricing::category($options),
                 'recipient'=>$recipient,'subject'=>$subject,'html'=>$html,'text'=>$text,
+                'template_key'=>(string)($options['template_key'] ?? ''),
                 'request_key'=>hash('sha256',$rootKey.'|'.strtolower($recipient)),
                 'campaign_id'=>(string)(($options['related_module'] ?? '') === 'campaign' ? ($options['related_record_id'] ?? '') : ''),
                 'retry_failed'=>!empty($options['retry_failed']),'requires_automation'=>!empty($options['requires_automation']),'automation_workflow_key'=>$options['automation_workflow_key']??'','automation_template_key'=>$options['automation_template_key']??'');

@@ -265,7 +265,7 @@ class Paystack_model extends CI_Model {
 		if(!$split['status']){ return $split; }
 		$email = filter_var((string)($order->customer_email ?? ''), FILTER_VALIDATE_EMAIL)
 			? $order->customer_email
-			: 'customer@' . preg_replace('/[^a-z0-9-]/', '', strtolower((string)($order->order_code ?: 'store'))) . '.martpoint.app';
+			: 'no-email+' . preg_replace('/[^a-z0-9.-]/i', '', (string)($order->order_code ?: ('order-' . (int)$order->id))) . '@payments.martpoint.app';
 		$post_data = array(
 			'email' => $email,
 			'amount' => (int)round($amount * 100),
@@ -309,7 +309,9 @@ class Paystack_model extends CI_Model {
 		if($account && !empty($account->provider_subaccount_code) && (int)$account->enabled === 1){
 			$config['subaccount'] = $account->provider_subaccount_code;
 			if($platform_fee > 0){ $config['transaction_charge'] = (int)round($platform_fee * 100); }
-			if(($settings->fee_bearer ?? 'platform') === 'merchant'){ $config['bearer'] = 'subaccount'; }
+			// Make the split fee bearer explicit. Customer fee pass-through is
+			// separately controlled by a Paystack Dashboard preference.
+			$config['bearer'] = (($settings->fee_bearer ?? 'platform') === 'merchant') ? 'subaccount' : 'account';
 		}
 		return array('status'=>true, 'config'=>$config, 'platform_fee'=>$platform_fee, 'payout_account'=>$account);
 	}

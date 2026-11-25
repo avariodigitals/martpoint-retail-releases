@@ -435,6 +435,23 @@ class MY_Controller extends CI_Controller{
             return true;
           }
 
+          // Cashier roles are routed directly to the till at login. Older and
+          // workspace-specific cashier roles may carry `sales_add` without
+          // the separate legacy `pos` grant, which made the POS route reject
+          // them (and left them falling back to the dashboard). Treat the
+          // existing cashier sale grant as POS access so routing, navigation,
+          // and the POS controller use the same cashier capability.
+          if($permissions === 'pos'
+            && function_exists('is_cashier')
+            && is_cashier()
+            && $this->session->userdata('role_id')){
+            $cashier_role_id = (int)$this->session->userdata('role_id');
+            $can_sell = $this->db->query('SELECT count(*) as tot FROM db_permissions where permissions="sales_add" and role_id='.$cashier_role_id)->row()->tot;
+            if((int)$can_sell > 0){
+              return true;
+            }
+          }
+
           $role_id = $this->session->userdata('role_id');
           if(empty($role_id)){
             return false;

@@ -719,4 +719,8 @@ return [
 	'4.0.9.305v' => '4.0.9.305_storefront_share_and_ai_ads_checkout.sql',
 	// Return cancelled or failed Meta OAuth broker flows to the Fleet workspace instead of a raw error page.
 	'4.0.9.306v' => '4.0.9.306_ai_ads_meta_oauth_friendly_return.sql',
+	// Include canonical product links in WhatsApp orders across storefront themes and custom domains.
+	'4.0.9.307v' => '4.0.9.307_storefront_whatsapp_product_links.sql',
+	// Included order notices have a Central-enforced monthly per-store allowance.
+	'4.0.9.308v' => '4.0.9.308_order_email_allowance.sql',
 ];

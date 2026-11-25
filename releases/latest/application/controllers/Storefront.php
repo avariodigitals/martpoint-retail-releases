@@ -603,7 +603,7 @@ class Storefront extends CI_Controller {
 			'seo_title' => $product->item_name,
 			'seo_description' => substr(strip_tags($product->description ?? ''), 0, 160) ?: ('Buy ' . $product->item_name . ' at ' . ($store->store_name ?? 'our store')),
 			'seo_image' => $productImage,
-			'seo_canonical' => base_url('store/' . $settings->store_slug . '/product/' . $productId),
+			'seo_canonical' => mp_storefront_url($settings->store_slug, 'product/' . (int)$productId),
 			'seo_type' => 'product',
 			'seo_jsonld' => [
 				'@context' => 'https://schema.org',
@@ -616,7 +616,7 @@ class Storefront extends CI_Controller {
 					'priceCurrency' => $seoCurrency,
 					'price' => number_format($this->storefront_currency->convertBaseToTransaction($product->effective_price,$seoRate), 2, '.', ''),
 					'availability' => ((int)$product->stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-					'url' => base_url('store/' . $settings->store_slug . '/product/' . $productId)
+					'url' => mp_storefront_url($settings->store_slug, 'product/' . (int)$productId)
 				]
 			]
 		];
@@ -923,13 +923,15 @@ class Storefront extends CI_Controller {
 		$gateway = $this->paystack->get_settings((int)$order->store_id);
 		$split = $this->paystack->get_split_config((float)$order->grand_total, (int)$order->store_id);
 		if (empty($split['status'])) return ['status'=>false, 'message'=>$split['message'] ?? 'MartPoint Pay could not prepare this payment.', 'csrf_hash'=>$csrf];
-		$settings = $this->storefront_model->getSettings((int)$order->store_id);
+		$orderEmail = filter_var((string)($order->customer_email ?? ''), FILTER_VALIDATE_EMAIL)
+			? $order->customer_email
+			: 'no-email+' . preg_replace('/[^a-z0-9.-]/i', '', (string)($order->order_code ?: ('order-' . (int)$order->id))) . '@payments.martpoint.app';
 		return [
 			'status'=>true, 'payment_required'=>true, 'gateway'=>'paystack',
 			'order_id'=>(int)$order->id, 'order_code'=>$order->order_code,
 			'amount_kobo'=>(int)round((float)$order->grand_total * 100),
 			'public_key'=>$gateway->public_key,
-			'email'=>$order->customer_email ?: 'customer@' . ($settings->store_slug ?: 'store') . '.com',
+			'email'=>$orderEmail,
 			'reference'=>$order->order_code, 'paystack_split'=>$split['config'],
 			'currency'=>'NGN', 'csrf_hash'=>$csrf,
 		];
@@ -3375,21 +3377,13 @@ class Storefront extends CI_Controller {
 		if($this->_verifyAndFulfilPaystackOrder($order, $reference)){
 			$data = ['success' => true, 'message' => 'Payment successful!', 'reference' => $reference];
 		} else {
-			// Failed verification releases the stock reservation (once).
-			if($order->payment_status === 'unpaid'){
-				$this->db->trans_begin();
-				if($this->storefront_model->claimFailedOrder($order->id)){
-					if(!$this->storefront_model->restoreStock($order->id) || $this->db->trans_status() === FALSE){
-						$this->db->trans_rollback();
-						log_message('error', 'Paystack failed callback could not atomically release order ' . (int)$order->id);
-					} else {
-						$this->db->trans_commit();
-					}
-				} else {
-					$this->db->trans_rollback();
-				}
-			}
-			$data = ['success' => false, 'message' => 'Payment was not successful. Please try again.', 'reference' => $reference];
+			// A return-page verification can be pending or temporarily unavailable
+			// while Paystack's signed charge.success webhook is still on its way.
+			// Do not cancel the order or release its stock here: doing so makes the
+			// later, authoritative webhook unable to claim a real successful charge.
+			log_message('error', 'Paystack callback could not yet verify order ' . (int)$order->id
+				. ' (reference ' . $reference . '); leaving the order open for webhook/retry.');
+			$data = ['success' => false, 'message' => 'Payment is not confirmed yet. You can retry safely after checking with your bank if you were charged.', 'reference' => $reference];
 		}
 		$this->load->view('storefront/paystack_callback', $data);
 	}
@@ -4363,13 +4357,19 @@ class Storefront extends CI_Controller {
 			}
 			$ownerRecipients = array_values(array_unique($ownerRecipients));
 			if(!empty($ownerRecipients)){
-				$result = $this->email_service->sendTemplate($ownerTemplate, count($ownerRecipients) === 1 ? $ownerRecipients[0] : $ownerRecipients, $tplData, $logContext);
+				$result = $this->email_service->sendTemplate($ownerTemplate, count($ownerRecipients) === 1 ? $ownerRecipients[0] : $ownerRecipients, $tplData, array_merge($logContext, [
+					'message_category' => 'order_notification',
+					'messaging_key' => 'order-mail:' . (int)$order->store_id . ':' . (int)$order->id . ':owner',
+				]));
 				log_message('debug', 'Storefront: Owner email result: ' . json_encode($result));
 			}
 
 			// ---- 2. Confirmation email to customer ----
 			if(!empty($order->customer_email) && filter_var($order->customer_email, FILTER_VALIDATE_EMAIL)){
-				$result2 = $this->email_service->sendTemplate($customerTemplate, $order->customer_email, $tplData, $logContext);
+				$result2 = $this->email_service->sendTemplate($customerTemplate, $order->customer_email, $tplData, array_merge($logContext, [
+					'message_category' => 'order_notification',
+					'messaging_key' => 'order-mail:' . (int)$order->store_id . ':' . (int)$order->id . ':customer',
+				]));
 				log_message('debug', 'Storefront: Customer email result: ' . json_encode($result2));
 			}
 		} catch (Exception $e) {

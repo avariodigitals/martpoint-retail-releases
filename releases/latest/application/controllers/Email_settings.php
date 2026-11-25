@@ -247,6 +247,8 @@ class Email_settings extends MY_Controller {
 
 		$this->load->model('email_log_model');
 		$data['logs'] = $this->email_log_model->getLogs(NULL, [], 100, 0);
+		$this->load->model('storefront_order_email_model');
+		$data['recoverable_order_email_failures']=$this->storefront_order_email_model->recoverableFailureCount((int)get_current_store_id());
 
 		$data['content'] = $this->load->view('email-logs', $data, TRUE);
 		$this->load->view('mp_layout', $data);
@@ -280,6 +282,32 @@ class Email_settings extends MY_Controller {
 		$result = $this->email_log_model->retry($logId);
 
 		echo json_encode($result);
+	}
+
+	/** Resend up to 25 past storefront order notifications with confirmed credit failures. */
+	public function resend_failed_order_emails(){
+		$this->permission_check_with_msg('smtp_settings');
+		if($this->input->method()!=='post') show_error('POST is required.',405);
+		$this->load->model('storefront_order_email_model');
+		$storeId=(int)get_current_store_id();
+		$logs=$this->storefront_order_email_model->recoverableFailures($storeId,25);
+		$results=array('attempted'=>0,'sent'=>0,'skipped'=>0,'failed'=>0,'details'=>array());
+		foreach(array_slice($logs,0,25) as $log){
+			$results['attempted']++;
+			$r=$this->storefront_order_email_model->retryFailedLog((int)$log->id,$storeId);
+			if(!empty($r['success'])){
+				if(strpos((string)($r['message']??''),'Skipped')===0)$results['skipped']++;
+				else $results['sent']++;
+			}else $results['failed']++;
+			$results['details'][]=array('email_log_id'=>(int)$log->id,'success'=>!empty($r['success']),'message'=>$r['message']??'No result.');
+		}
+		$remaining=$this->storefront_order_email_model->recoverableFailureCount($storeId);
+		$results['remaining']=$remaining;
+		$results['success']=$results['failed']===0;
+		$results['message']=$results['attempted']
+			? 'Processed '.$results['attempted'].' order email log(s): '.$results['sent'].' sent, '.$results['skipped'].' skipped, '.$results['failed'].' failed. '.$remaining.' eligible log(s) remain.'
+			: 'No eligible failed order emails remain.';
+		$this->output->set_content_type('application/json')->set_header('Cache-Control','no-store')->set_output(json_encode($results));
 	}
 
 	/* ---------- Scheduled Reports ---------- */

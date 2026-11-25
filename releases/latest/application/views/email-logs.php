@@ -12,6 +12,10 @@
     </div>
   </div>
   <div class="box-body">
+    <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+      <div><strong>Order email recovery</strong><br><span>Eligible failed order owner/customer emails: <b><?= number_format((int)($recoverable_order_email_failures??0)); ?></b>. Only confirmed credit-related failures are included; successful, appointment, campaign, and ambiguous partial sends are excluded. Resends use the saved order and current template. Maximum 25 per click.</span></div>
+      <button type="button" class="btn btn-warning" id="btn-resend-order-emails" <?= empty($recoverable_order_email_failures)?'disabled':''; ?>><i class="fa fa-refresh"></i> Resend failed order emails</button>
+    </div>
     <div class="row" style="margin-bottom:15px;">
       <div class="col-md-2">
         <select class="form-control" id="filter-status" style="height:36px;">
@@ -108,8 +112,11 @@ function loadLogs(page) {
             ? '<span class="label label-success">Sent</span>'
             : '<span class="label label-danger" title="' + (row.error_message || '').replace(/"/g,'&quot;') + '">Failed</span>';
 
-          var retryBtn = row.status === 'failed'
-            ? '<button class="btn btn-xs btn-warning btn-retry" data-id="' + row.id + '"><i class="fa fa-refresh"></i> Retry</button>'
+          var orderEmailType = row.email_type === 'online_order_owner' || row.email_type === 'online_order_customer';
+          var creditFailure = /balance.{0,30}(too low|low|empty)|insufficient.{0,30}credit|credit.{0,30}(low|empty|paused)/i.test(row.error_message || '')
+            && !/accepted before this pause/i.test(row.error_message || '');
+          var retryBtn = row.status === 'failed' && row.related_module === 'storefront' && orderEmailType && creditFailure
+            ? '<button class="btn btn-xs btn-warning btn-retry" data-id="' + row.id + '"><i class="fa fa-refresh"></i> Resend order email</button>'
             : '';
 
           html += '<tr>';
@@ -139,6 +146,21 @@ function loadLogs(page) {
     }
   });
 }
+
+$('#btn-resend-order-emails').on('click', function(){
+  if(!window.confirm('Resend up to 25 eligible failed storefront order emails? Recipients with a successful send record and ambiguous partial sends are skipped.')) return;
+  var btn=$(this); btn.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i> Sending…');
+  $.ajax({
+    type:'POST', url:'<?=base_url("email_settings/resend_failed_order_emails");?>',
+    data:csrfData(), dataType:'json',
+    success:function(res){
+      toastr[res.success?'success':'warning'](res.message || 'Order email recovery finished.');
+      loadLogs(1);
+      window.setTimeout(function(){window.location.reload();},800);
+    },
+    error:function(){btn.prop('disabled',false).html('<i class="fa fa-refresh"></i> Resend failed order emails');toastr['error']('Order email recovery request failed.');}
+  });
+});
 
 $('#btn-refresh-logs').on('click', function(){ loadLogs(1); });
 $('#btn-prev').on('click', function(){ if(currentPage > 1) loadLogs(currentPage - 1); });

@@ -49,6 +49,11 @@ class Messaging_pricing {
     }
 
     public static function category(array $options) {
+        // Storefront order mail has a small, centrally capped included allowance.
+        // It is only set by the order lifecycle, never by campaigns.
+        if (($options['message_category'] ?? '') === 'order_notification'
+            && ($options['related_module'] ?? '') === 'storefront'
+            && in_array(($options['template_key'] ?? ''), array('online_order_owner','online_order_customer','appointment_request_owner','appointment_request_customer'), true)) return 'order_notification';
         $template = (string)($options['template_key'] ?? '');
         if (in_array($template, array('campaign', 'cart_recovery', 'back_in_stock', 'legacy_email', 'legacy_send_email'), true)
             || ($options['related_module'] ?? '') === 'campaign') return 'promotional';

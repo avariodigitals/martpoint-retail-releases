@@ -34,8 +34,8 @@
       <input type="hidden" name="<?=htmlspecialchars($this->security->get_csrf_token_name(), ENT_QUOTES, 'UTF-8');?>" value="<?=htmlspecialchars($this->security->get_csrf_hash(), ENT_QUOTES, 'UTF-8');?>">
 <?php if(empty($central_managed)): ?>
       <div class="alert alert-info mp-settings-note">
-        <i class="fa fa-info-circle"></i> <strong>Webhook URL:</strong> <code><?=base_url('paystack/webhook');?></code><br>
-        <small>Add this URL to the payment provider’s webhook settings.</small>
+        <i class="fa fa-info-circle"></i> <strong>Shared Paystack webhook for fleet payments:</strong> <code><?=htmlspecialchars($paystack_shared_webhook_url ?? 'https://martpoint.com.ng/api/payments/webhooks/paystack', ENT_QUOTES, 'UTF-8');?></code><br>
+        <small>Register this shared URL in Paystack. Central verifies successful events and relays mapped subaccount payments to each fleet’s <code>/paystack/webhook</code> receiver. Do not register the fleet receiver URL as the shared Paystack webhook.</small>
       </div>
 <?php endif; ?>
 
@@ -114,10 +114,6 @@
 <?php if(empty($central_managed)): ?>
       <section class="mp-settings-section">
       <h4 class="mp-settings-section-title"><i class="fa fa-key"></i> Payment gateway connection</h4>
-      <div class="alert alert-info mp-settings-note">
-        <strong>Shared Paystack webhook:</strong> <code><?=htmlspecialchars($paystack_shared_webhook_url ?? 'https://martpoint.com.ng/api/payments/webhooks/paystack', ENT_QUOTES, 'UTF-8');?></code><br>
-        <small>Use this one URL in the Paystack dashboard. It routes successful subaccount payments to the correct fleet. Checkout callbacks are supplied by each payment flow, so you do not need a separate global callback URL.</small>
-      </div>
       <div class="alert alert-warning mp-settings-note">
         Save and confirm the API keys here first. Bank lookup runs afterward with the saved key; a bank-list failure does not prevent saving these credentials.
       </div>

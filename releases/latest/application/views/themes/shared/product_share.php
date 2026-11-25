@@ -44,6 +44,22 @@ $mpShareEncoded = rawurlencode($mpShareText . ' ' . $mpShareUrl);
   if(!box||box.dataset.shareReady)return;
   box.dataset.shareReady='1';
   var status=box.querySelector('[data-share-status]'), shareButton=box.querySelector('[data-share-native]');
+  var nativeOpen=window.open, productUrl=box.dataset.shareUrl;
+  function withProductUrl(raw){
+    try{
+      var target=new URL(raw,window.location.href);
+      if(['wa.me','api.whatsapp.com','web.whatsapp.com'].indexOf(target.hostname.toLowerCase())<0)return raw;
+      var message=target.searchParams.get('text');
+      if(message===null||message.indexOf(productUrl)!==-1)return target.toString();
+      target.searchParams.set('text',(message.trim()?message.trim()+'\n':'')+'Product link: '+productUrl);
+      return target.toString();
+    }catch(e){return raw;}
+  }
+  window.open=function(url,target,features){return nativeOpen.call(window,withProductUrl(url),target,features);};
+  document.addEventListener('click',function(event){
+    var anchor=event.target&&event.target.closest?event.target.closest('a[href]'):null;
+    if(anchor)anchor.href=withProductUrl(anchor.href);
+  },true);
   if(!navigator.share&&shareButton)shareButton.hidden=true;
   shareButton&&shareButton.addEventListener('click',function(){
     if(!navigator.share)return;

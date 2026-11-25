@@ -95,23 +95,14 @@ class Email_log_model extends CI_Model {
 		if(!$log || $log->status !== 'failed'){
 			return ['success' => FALSE, 'message' => 'Log not found or not failed.'];
 		}
-
-		$CI =& get_instance();
-		$CI->load->model('email_service');
-		$result = $CI->email_service->sendRaw(
-			$log->recipient,
-			$log->subject,
-			$log->subject, // We don't store full HTML, so retry may be limited for raw sends
-			'',
-			['template_key' => $log->email_type, 'related_module' => $log->related_module, 'related_record_id' => $log->related_record_id]
-		);
-
-		if($result['success']){
-			$this->updateStatus($logId, 'sent');
-			return ['success' => TRUE, 'message' => 'Email resent successfully.'];
-		} else {
-			return ['success' => FALSE, 'message' => $result['message']];
+		if (($log->related_module ?? '') === 'storefront'
+			&& in_array(($log->email_type ?? ''), array('online_order_owner','online_order_customer'), true)) {
+			$storeId=(int)get_current_store_id();
+			if ((int)$log->store_id!==$storeId) return array('success'=>false,'message'=>'This order email belongs to a different store.');
+			$this->load->model('storefront_order_email_model');
+			return $this->storefront_order_email_model->retryFailedLog((int)$logId,$storeId);
 		}
+		return array('success'=>false,'message'=>'Only order notifications can be retried from this screen.');
 	}
 
 	public function deleteOld($days = 90, $storeId = NULL){

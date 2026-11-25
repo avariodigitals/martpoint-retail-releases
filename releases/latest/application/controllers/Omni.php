@@ -10,6 +10,7 @@ class Omni extends CI_Controller {
 
 	public function __construct(){
 		parent::__construct();
+		$this->load->helper('storefront_url');
 		$this->load->model('storefront_model');
 	}
 
@@ -90,9 +91,11 @@ class Omni extends CI_Controller {
 
 		$store = get_store_details($storeId);
 		$confirmUrl = base_url('omni/wa_confirm/' . $token);
+		$productUrl = mp_storefront_url($settings->store_slug ?? '', 'product/' . (int)$productId);
 		$msg  = "Hello " . ($store->store_name ?? 'Store') . ",\n\n";
 		$msg .= "I want to order:\n";
-		$msg .= (int)$qty . " x " . $product->item_name . " — " . store_number_format($subtotal) . "\n\n";
+		$msg .= (int)$qty . " x " . $product->item_name . " — " . store_number_format($subtotal) . "\n";
+		$msg .= "Product link: " . $productUrl . "\n\n";
 		$msg .= "Order code: " . $token . "\n";
 		$msg .= "Confirm: " . $confirmUrl . "\n\n";
 		$msg .= "Thank you.";
