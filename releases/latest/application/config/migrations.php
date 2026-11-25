@@ -727,4 +727,6 @@ return [
 	'4.0.9.309v' => '4.0.9.309_transactional_email_allowance.sql',
 	// Safer storefront pricing/customer handling and recovery for definite order-email failures.
 	'4.0.9.310v' => '4.0.9.310_storefront_and_email_safety.sql',
+	// Repair historical storefront payment overposts, duplicate customer codes and source labels.
+	'4.0.9.311v' => '4.0.9.311_storefront_ledger_repair.sql',
 ];

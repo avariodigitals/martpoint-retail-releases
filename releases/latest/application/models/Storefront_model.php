@@ -1090,7 +1090,7 @@ class Storefront_model extends CI_Model {
 			'shipping_fee' => (float)($locked->delivery_fee ?? 0),
 			'shipping_label' => $this->_deliveryLabel($locked),
 			'paid_amount' => 0, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
-			'created_by' => 'RestaurantOS', 'status' => 1, 'table_id' => 0,
+			'created_by' => 'OnlineStore', 'status' => 1, 'table_id' => 0,
 		];
 		$this->db->insert('db_sales', $sale);
 		$salesId = (int)$this->db->insert_id();
@@ -1164,7 +1164,7 @@ class Storefront_model extends CI_Model {
 					'payment_type' => $locked->payment_method ?: 'Online', 'payment' => (float)$locked->grand_total,
 					'payment_reference' => $locked->paystack_reference ?: $locked->order_code,
 					'confirmation_status' => 1, 'created_date' => date('Y-m-d'), 'created_time' => date('H:i:s'),
-					'created_by' => 'RestaurantOS', 'status' => 1, 'customer_id' => $customerId > 0 ? $customerId : null,
+					'created_by' => 'OnlineStore', 'status' => 1, 'customer_id' => $customerId > 0 ? $customerId : null,
 				]);
 			}
 		}

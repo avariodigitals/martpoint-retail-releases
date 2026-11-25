@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.310",
-    "previous_version": "4.0.9.307",
+    "version": "4.0.9.311",
+    "previous_version": "4.0.9.309",
     "release_date": "2026-11-25",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -7201,8 +7201,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "7eb775f3195bb72c6a44d1ac0382f2d5641532d0d582eb50b5dc4007a04c3f9b",
-            "size": 48695
+            "hash": "c4ad0be4ac1454ec5e9bfff16c9e4d1fbf0434bb669e9405bafbf0576bfbd790",
+            "size": 48850
         },
         {
             "path": "application/config/routes.php",
@@ -8241,8 +8241,8 @@
         },
         {
             "path": "application/models/Storefront_model.php",
-            "hash": "168e9425f5b03665b48221b6cb6760c48270daa078408ab1ebb023a38f61e9ff",
-            "size": 200647
+            "hash": "1b54612ada71a9e86c85fc47ee3d510671027c9c4d327798c5468804ffff496e",
+            "size": 200645
         },
         {
             "path": "application/models/Pharmacy_batch_report_model.php",
@@ -13736,7 +13736,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "ad7fe3e02233284ba9389505c1977cfb03e22efa03080238cd9707baa5302d9b",
+            "hash": "ed82cbef011cbd2e407d138bda96df23abfb5c9595f466ccd09e3b9d0a147d61",
             "size": 137993
         },
         {
@@ -20851,7 +20851,8 @@
         "4.0.9.307_storefront_whatsapp_product_links.sql",
         "4.0.9.308_order_email_allowance.sql",
         "4.0.9.309_transactional_email_allowance.sql",
-        "4.0.9.310_storefront_and_email_safety.sql"
+        "4.0.9.310_storefront_and_email_safety.sql",
+        "4.0.9.311_storefront_ledger_repair.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20860,6 +20861,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "8b6effff562558b28d21b7a7c39ee0da12944680d2db1fea9c88fbefbafa477878fcdf4d12cd1474c5bb64dfd90d109cb0ce48b7c2fa4125dac417d3fc8a7e00",
-    "changelog": "Release 4.0.9.310"
+    "signature": "c959146e3db490b2df72ad076d0d2d3d5d8248a08d54535eb4eaf1cec6d3ae2a3bb313ba5dc959443a666f602ce221782b377afb7d17ac9a6e2ff9e3b7119b0e",
+    "changelog": "Release 4.0.9.311"
 }
