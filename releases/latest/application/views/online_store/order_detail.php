@@ -171,7 +171,7 @@
           <p class="os-money-empty">Nothing has been recorded against this order yet.</p>
         <?php endif; ?>
 
-        <?php if(!empty($can_record_money)): ?>
+        <?php if(!empty($can_record_money) && empty($money['covered'])): ?>
         <div class="os-money-form">
           <div class="mp-form-group">
             <label for="money_amount">Amount that came in</label>
@@ -202,6 +202,8 @@
           </div>
           <button type="button" class="btn btn-sm btn-primary" onclick="recordMoney()">Record this money</button>
         </div>
+        <?php elseif(!empty($money['covered'])): ?>
+          <p class="os-money-empty">Payment is confirmed in full. No further money entry is needed for this order.</p>
         <?php endif; ?>
       </div>
     </div>

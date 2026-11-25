@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.311",
-    "previous_version": "4.0.9.309",
+    "version": "4.0.9.313",
+    "previous_version": "4.0.9.310",
     "release_date": "2026-11-25",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -4186,8 +4186,8 @@
         },
         {
             "path": "application/views/online_store/order_detail.php",
-            "hash": "d984206d055542077791130fcadf1cbfec4f0a8310e556a04560e979711ecdc3",
-            "size": 36409
+            "hash": "1ef11e86c398a12d5c3f111752ab9b7ef2c33e21826723d4379733a7f80f4a3d",
+            "size": 36608
         },
         {
             "path": "application/views/online_store/banners.php",
@@ -7201,8 +7201,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "c4ad0be4ac1454ec5e9bfff16c9e4d1fbf0434bb669e9405bafbf0576bfbd790",
-            "size": 48850
+            "hash": "879e8d54cc428f5da4331791b2e32202576f1bda1f8e30b85a663d07391464f9",
+            "size": 49156
         },
         {
             "path": "application/config/routes.php",
@@ -8721,8 +8721,8 @@
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "6e303fbb23b36c232dfcc39e9653d6afac6abb1481f9c524f540c7e58a88eb57",
-            "size": 225058
+            "hash": "2389758f29d61b55d1b13cef7e096b58300a1d1461c0087801be38f3e519bb31",
+            "size": 225480
         },
         {
             "path": "application/controllers/Intake_slots.php",
@@ -9071,8 +9071,8 @@
         },
         {
             "path": "application/controllers/Storefront.php",
-            "hash": "a97c77befd361590bdf80bb224d369d5d8dd67212cbe68b0bf2c8eeeb5c77763",
-            "size": 225059
+            "hash": "a1cda02cb1c3ceb7f9863c0df5321c469f81b432d7e4371529bc3b835ee4133a",
+            "size": 225244
         },
         {
             "path": "application/controllers/Sh4_import.php",
@@ -13736,7 +13736,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "ed82cbef011cbd2e407d138bda96df23abfb5c9595f466ccd09e3b9d0a147d61",
+            "hash": "4e59d00ccf54704fcda6cf81365bbdc3708c73e64f98c71c5deef736b7b05007",
             "size": 137993
         },
         {
@@ -20852,7 +20852,9 @@
         "4.0.9.308_order_email_allowance.sql",
         "4.0.9.309_transactional_email_allowance.sql",
         "4.0.9.310_storefront_and_email_safety.sql",
-        "4.0.9.311_storefront_ledger_repair.sql"
+        "4.0.9.311_storefront_ledger_repair.sql",
+        "4.0.9.312_meta_storefront_crawler_allow.sql",
+        "4.0.9.313_online_store_admin_updates.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20861,6 +20863,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "c959146e3db490b2df72ad076d0d2d3d5d8248a08d54535eb4eaf1cec6d3ae2a3bb313ba5dc959443a666f602ce221782b377afb7d17ac9a6e2ff9e3b7119b0e",
-    "changelog": "Release 4.0.9.311"
+    "signature": "9e4bd007c0ba3ca4eaf4a9d92e82073ec3c6e0daf0019e600f314f2c0d632638651b38e2c5bb8362ba7627f9444bfa51197e72ec946386d80f3b305b58373409",
+    "changelog": "Release 4.0.9.313"
 }

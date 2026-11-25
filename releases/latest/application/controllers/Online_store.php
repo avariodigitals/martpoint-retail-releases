@@ -1331,6 +1331,14 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error', 'message' => 'Money tracking is not set up on this server yet. Ask your administrator to run the current update.']);
 			return;
 		}
+		// The UI hides the form once verified payments cover the invoice. Keep
+		// the same guard here so a stale page or direct POST cannot record the
+		// same online payment a second time.
+		$money = $this->onlinepay->summaryFor($order);
+		if(!empty($money['covered'])){
+			echo json_encode(['status' => 'error', 'message' => 'This order is already paid in full. No further payment needs to be recorded.']);
+			return;
+		}
 		$channel = trim((string)$this->input->post('channel', TRUE));
 		$allowedChannels = ['transfer', 'cash', 'card', 'pay_at_collection', 'pay_on_delivery'];
 		if(!in_array($channel, $allowedChannels, true)){

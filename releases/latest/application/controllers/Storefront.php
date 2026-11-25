@@ -1576,7 +1576,9 @@ class Storefront extends CI_Controller {
 				echo "Disallow: /purchase/\n";
 				echo "Disallow: /reports/\n";
 			}else{
-				echo "Disallow: /\n";
+				// Do not pair a site-wide Disallow with a narrower Allow. Some
+				// social preview crawlers handle that combination inconsistently.
+				// These paths are the public storefront and its public media only.
 				echo "Allow: /store/\n";
 				echo "Allow: /uploads/store/\n";
 				echo "Allow: /uploads/storefront/\n";

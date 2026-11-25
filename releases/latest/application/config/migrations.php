@@ -729,4 +729,8 @@ return [
 	'4.0.9.310v' => '4.0.9.310_storefront_and_email_safety.sql',
 	// Repair historical storefront payment overposts, duplicate customer codes and source labels.
 	'4.0.9.311v' => '4.0.9.311_storefront_ledger_repair.sql',
+	// Avoid ambiguous root-disallow rules for Meta link-preview crawlers on Fleet subdomains.
+	'4.0.9.312v' => '4.0.9.312_meta_storefront_crawler_allow.sql',
+	// Ship the current online-store settings, shipping-zone and review moderation updates.
+	'4.0.9.313v' => '4.0.9.313_online_store_admin_updates.sql',
 ];
