@@ -725,4 +725,6 @@ return [
 	'4.0.9.308v' => '4.0.9.308_order_email_allowance.sql',
 	// Apply the included monthly email allowance consistently to business transactional mail.
 	'4.0.9.309v' => '4.0.9.309_transactional_email_allowance.sql',
+	// Safer storefront pricing/customer handling and recovery for definite order-email failures.
+	'4.0.9.310v' => '4.0.9.310_storefront_and_email_safety.sql',
 ];

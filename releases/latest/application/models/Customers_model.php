@@ -1747,6 +1747,9 @@ class Customers_model extends CI_Model {
 		} else {
 			return 0;
 		}
+		$this->db->trans_begin();
+		// Serialize storefront customer-code allocation for this store.
+		$this->db->query('SELECT id FROM db_store WHERE id = ? FOR UPDATE', [(int)$storeId]);
 		if (!$allowExistingMatch) $this->db->where('1=0',null,false);
 		$existing = $this->db->get('db_customers')->row();
 
@@ -1756,12 +1759,22 @@ class Customers_model extends CI_Model {
 			if(!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) $update['email'] = $email;
 			if(!empty($phone)) $update['mobile'] = $phone;
 			if(!empty($update)) $this->db->where('id', $existing->id)->update('db_customers', $update);
+			if(!$this->db->trans_complete()) return 0;
 			return $existing->id;
 		}
 
+		$countId = (int)get_count_id('db_customers', $storeId);
 		$code = get_init_code('customer', $storeId);
+		$prefix = (string)mp_get_store_inventory_setting($storeId, 'customer_init', '');
+		// Older storefront-created customers may have no count_id. Skip any
+		// customer codes already in use before saving the next sequence value.
+		while($this->db->where('store_id', $storeId)->where('customer_code', $code)->count_all_results('db_customers') > 0){
+			$countId++;
+			$code = $prefix.str_pad($countId, 4, '0', STR_PAD_LEFT);
+		}
 		$this->db->insert('db_customers', [
 			'store_id' => $storeId,
+			'count_id' => $countId,
 			'customer_code' => $code,
 			'customer_name' => $name,
 			'mobile' => $phone ?: NULL,
@@ -1771,6 +1784,8 @@ class Customers_model extends CI_Model {
 			'created_time' => date('H:i:s'),
 			'created_by' => 'STOREFRONT'
 		]);
-		return $this->db->insert_id();
+		$customerId = $this->db->insert_id();
+		if(!$this->db->trans_complete()) return 0;
+		return $customerId;
 	}
 }

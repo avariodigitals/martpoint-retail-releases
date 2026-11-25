@@ -13,8 +13,8 @@
   </div>
   <div class="box-body">
     <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-      <div><strong>Order email recovery</strong><br><span>Eligible failed order owner/customer emails: <b><?= number_format((int)($recoverable_order_email_failures??0)); ?></b>. Only confirmed credit-related failures are included; successful, appointment, campaign, and ambiguous partial sends are excluded. Resends use the saved order and current template. Maximum 25 per click.</span></div>
-      <button type="button" class="btn btn-warning" id="btn-resend-order-emails" <?= empty($recoverable_order_email_failures)?'disabled':''; ?>><i class="fa fa-refresh"></i> Resend failed order emails</button>
+      <div><strong>Order email recovery</strong><br><span>The included 1,000 monthly transactional emails need no activation or purchased credits. Eligible failed order owner/customer emails: <b><?= number_format((int)($recoverable_order_email_failures??0)); ?></b>. Check the failure reason, fix the cause, then retry. Emails with uncertain or partial send results and orders that already have a successful send are protected from duplicates. Retries use the saved order and current template. Maximum 25 per click.</span></div>
+      <button type="button" class="btn btn-warning" id="btn-resend-order-emails" <?= empty($recoverable_order_email_failures)?'disabled':''; ?>><i class="fa fa-refresh"></i> Retry failed order emails</button>
     </div>
     <div class="row" style="margin-bottom:15px;">
       <div class="col-md-2">
@@ -54,13 +54,14 @@
           <th>Recipient</th>
           <th>Subject</th>
           <th>Status</th>
+          <th>Failure reason</th>
           <th>Triggered By</th>
           <th>Date</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="logs-body">
-        <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
+        <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
       </tbody>
     </table>
 
@@ -80,9 +81,15 @@ function csrfData() {
   return { '<?=$this->security->get_csrf_token_name();?>': '<?=$this->security->get_csrf_hash();?>' };
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(char){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+  });
+}
+
 function loadLogs(page) {
   var tbody = $('#logs-body');
-  tbody.html('<tr><td colspan="9" class="text-center text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>');
+  tbody.html('<tr><td colspan="10" class="text-center text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>');
 
   $.ajax({
     type: 'GET',
@@ -99,35 +106,37 @@ function loadLogs(page) {
     dataType: 'json',
     success: function(res){
       if(res.status !== 'success'){
-        tbody.html('<tr><td colspan="9" class="text-center text-danger">Failed to load logs.</td></tr>');
+        tbody.html('<tr><td colspan="10" class="text-center text-danger">Failed to load logs.</td></tr>');
         return;
       }
 
       var html = '';
       if(!res.data || res.data.length === 0){
-        html = '<tr><td colspan="9" class="text-center text-muted">No logs found.</td></tr>';
+        html = '<tr><td colspan="10" class="text-center text-muted">No logs found.</td></tr>';
       } else {
         $.each(res.data, function(i, row){
+          var reason = row.error_message || '';
           var statusBadge = row.status === 'sent'
             ? '<span class="label label-success">Sent</span>'
-            : '<span class="label label-danger" title="' + (row.error_message || '').replace(/"/g,'&quot;') + '">Failed</span>';
+            : '<span class="label label-danger">' + escapeHtml(row.status || 'Failed') + '</span>';
 
           var orderEmailType = row.email_type === 'online_order_owner' || row.email_type === 'online_order_customer';
-          var creditFailure = /balance.{0,30}(too low|low|empty)|insufficient.{0,30}credit|credit.{0,30}(low|empty|paused)/i.test(row.error_message || '')
-            && !/accepted before this pause/i.test(row.error_message || '');
-          var retryBtn = row.status === 'failed' && row.related_module === 'storefront' && orderEmailType && creditFailure
-            ? '<button class="btn btn-xs btn-warning btn-retry" data-id="' + row.id + '"><i class="fa fa-refresh"></i> Resend order email</button>'
+          var uncertain = /accepted before this pause|awaiting confirmation|acceptance is unknown|unknown acceptance|partial send|partially accepted|accepted by provider/i.test(reason);
+          var hasOrder = /^\d+$/.test(String(row.related_record_id || ''));
+          var retryBtn = row.status === 'failed' && row.related_module === 'storefront' && orderEmailType && hasOrder && !uncertain
+            ? '<button class="btn btn-xs btn-warning btn-retry" data-id="' + escapeHtml(row.id) + '"><i class="fa fa-refresh"></i> Retry order email</button>'
             : '';
 
           html += '<tr>';
-          html += '<td>' + row.id + '</td>';
-          html += '<td><code>' + (row.email_type || '-') + '</code></td>';
-          html += '<td>' + (row.provider_used || '-') + '</td>';
-          html += '<td>' + (row.recipient || '-') + '</td>';
-          html += '<td>' + (row.subject || '-') + '</td>';
+          html += '<td>' + escapeHtml(row.id || '-') + '</td>';
+          html += '<td><code>' + escapeHtml(row.email_type || '-') + '</code></td>';
+          html += '<td>' + escapeHtml(row.provider_used || '-') + '</td>';
+          html += '<td>' + escapeHtml(row.recipient || '-') + '</td>';
+          html += '<td>' + escapeHtml(row.subject || '-') + '</td>';
           html += '<td>' + statusBadge + '</td>';
-          html += '<td>' + (row.triggered_by || '-') + '</td>';
-          html += '<td>' + (row.created_at || '-') + '</td>';
+          html += '<td style="max-width:340px;white-space:normal;overflow-wrap:anywhere">' + (reason ? escapeHtml(reason) : '<span class="text-muted">—</span>') + '</td>';
+          html += '<td>' + escapeHtml(row.triggered_by || '-') + '</td>';
+          html += '<td>' + escapeHtml(row.created_at || '-') + '</td>';
           html += '<td>' + retryBtn + '</td>';
           html += '</tr>';
         });
@@ -142,13 +151,13 @@ function loadLogs(page) {
       $('#btn-next').prop('disabled', currentPage >= totalPages);
     },
     error: function(){
-      tbody.html('<tr><td colspan="9" class="text-center text-danger">Request failed.</td></tr>');
+      tbody.html('<tr><td colspan="10" class="text-center text-danger">Request failed.</td></tr>');
     }
   });
 }
 
 $('#btn-resend-order-emails').on('click', function(){
-  if(!window.confirm('Resend up to 25 eligible failed storefront order emails? Recipients with a successful send record and ambiguous partial sends are skipped.')) return;
+  if(!window.confirm('Retry up to 25 eligible failed storefront order emails? Emails with uncertain or partial send results and orders that already have a successful send are skipped.')) return;
   var btn=$(this); btn.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i> Sending…');
   $.ajax({
     type:'POST', url:'<?=base_url("email_settings/resend_failed_order_emails");?>',
@@ -174,7 +183,7 @@ $(document).on('click', '.btn-retry', function(){
     data: $.extend(csrfData(), { log_id: btn.data('id') }),
     dataType: 'json',
     success: function(res){
-      btn.attr('disabled', false).html('<i class="fa fa-refresh"></i> Retry');
+      btn.attr('disabled', false).html('<i class="fa fa-refresh"></i> Retry order email');
       if(res.success){
         toastr['success'](res.message);
         loadLogs(currentPage);
@@ -183,7 +192,7 @@ $(document).on('click', '.btn-retry', function(){
       }
     },
     error: function(){
-      btn.attr('disabled', false).html('<i class="fa fa-refresh"></i> Retry');
+      btn.attr('disabled', false).html('<i class="fa fa-refresh"></i> Retry order email');
       toastr['error']('Retry request failed.');
     }
   });

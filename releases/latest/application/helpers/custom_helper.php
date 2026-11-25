@@ -3,7 +3,7 @@
     return false;
   }
   function app_version(){
-    return '4.0.9.309';
+    return '4.0.9.310';
   }
 
   /** Read settings without consuming a query another screen is building. */
@@ -744,7 +744,7 @@
       return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='customer'){
-      $maxid=get_count_id('db_customers');
+      $maxid=get_count_id('db_customers',$store_id);
       return $init.str_pad($maxid, 4, '0', STR_PAD_LEFT);
     }
     if($value=='sales'){

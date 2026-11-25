@@ -1158,7 +1158,7 @@ class Storefront_model extends CI_Model {
 			if($this->onlinepay->available()){
 				$posted = $this->onlinepay->postVerifiedLines((int)$locked->store_id, (int)$orderId, $salesId);
 			}
-			if(!$posted){
+			if(!$posted && !$this->onlinepay->hasVerifiedLines((int)$locked->store_id, (int)$orderId)){
 				$this->db->insert('db_salespayments', [
 					'store_id' => (int)$locked->store_id, 'sales_id' => $salesId, 'payment_date' => date('Y-m-d'),
 					'payment_type' => $locked->payment_method ?: 'Online', 'payment' => (float)$locked->grand_total,

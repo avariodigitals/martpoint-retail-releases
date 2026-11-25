@@ -1,17 +1,20 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/** Order-only recovery for failed storefront owner/customer notifications. */
+/** Safe recovery for definite failures of storefront owner/customer order emails. */
 class Storefront_order_email_model extends CI_Model {
 	private $orderTemplates = array('online_order_owner','online_order_customer');
 
-	private function isCreditFailure($row) {
+	private function isRetryableFailure($row) {
 		$error = strtolower((string)($row->error_message ?? ''));
-		if (strpos($error, 'accepted before this pause') !== false) return false;
-		return (strpos($error, 'balance is too low') !== false)
-			|| (strpos($error, 'balance') !== false && (strpos($error, 'low') !== false || strpos($error, 'empty') !== false))
-			|| (strpos($error, 'insufficient') !== false && strpos($error, 'credit') !== false)
-			|| (strpos($error, 'credit') !== false && (strpos($error, 'low') !== false || strpos($error, 'empty') !== false || strpos($error, 'paused') !== false));
+		if (strpos($error, 'accepted before this pause') !== false
+			|| strpos($error, 'awaiting confirmation') !== false
+			|| strpos($error, 'acceptance is unknown') !== false
+			|| strpos($error, 'unknown acceptance') !== false
+			|| strpos($error, 'partial send') !== false
+			|| strpos($error, 'partially accepted') !== false
+			|| strpos($error, 'accepted by provider') !== false) return false;
+		return ctype_digit((string)($row->related_record_id ?? ''));
 	}
 
 	public function recoverableFailures($storeId, $limit = 25) {
@@ -19,7 +22,7 @@ class Storefront_order_email_model extends CI_Model {
 		$rows = $this->db->where('store_id',(int)$storeId)->where('status','failed')
 			->where('related_module','storefront')->where_in('email_type',$this->orderTemplates)
 			->order_by('id','ASC')->limit(max(1,min(500,(int)$limit*20)))->get('db_email_logs')->result();
-		return array_values(array_filter($rows,function($row){return $this->isCreditFailure($row);}));
+		return array_values(array_filter($rows,function($row){return $this->isRetryableFailure($row);}));
 	}
 
 	public function recoverableFailureCount($storeId) {
@@ -27,7 +30,7 @@ class Storefront_order_email_model extends CI_Model {
 		$rows=$this->db->where('store_id',(int)$storeId)->where('status','failed')
 			->where('related_module','storefront')->where_in('email_type',$this->orderTemplates)
 			->get('db_email_logs')->result();
-		$total=0; foreach($rows as $row) if($this->isCreditFailure($row))$total++;
+		$total=0; foreach($rows as $row) if($this->isRetryableFailure($row))$total++;
 		return $total;
 	}
 
@@ -35,7 +38,7 @@ class Storefront_order_email_model extends CI_Model {
 		if (!$this->db->table_exists('db_email_logs')) return array('success'=>false,'message'=>'Email history is unavailable.');
 		$log=$this->db->where('id',(int)$logId)->where('store_id',(int)$storeId)->where('status','failed')
 			->where('related_module','storefront')->where_in('email_type',$this->orderTemplates)->get('db_email_logs')->row();
-		if (!$log || !$this->isCreditFailure($log)) return array('success'=>false,'message'=>'Only order emails that failed because email credit was unavailable can be resent here.');
+		if (!$log || !$this->isRetryableFailure($log)) return array('success'=>false,'message'=>'This order email cannot be safely retried because its send result may be uncertain or it is not linked to a valid order.');
 		if (!ctype_digit((string)$log->related_record_id)) return array('success'=>false,'message'=>'This email is not linked to a valid order.');
 
 		$already=$this->db->where('store_id',(int)$storeId)->where('related_module','storefront')
@@ -57,8 +60,8 @@ class Storefront_order_email_model extends CI_Model {
 			$items=$this->storefront_model->getOrderItems((int)$order->id);
 			$result=$this->sendOrderNotification($order,$items,$log->email_type);
 			if (empty($result['success']) || stripos((string)($result['message']??''),'skipped')!==false) throw new RuntimeException($result['message']??'Order email could not be sent.');
-			$this->db->where('id',(int)$log->id)->update('db_email_logs',array('status'=>'sent','error_message'=>'Resent from the saved order after the original credit-related failure.'));
-			return array('success'=>true,'message'=>'Order email resent to the current saved recipient.');
+			$this->db->where('id',(int)$log->id)->update('db_email_logs',array('status'=>'sent','error_message'=>'Resent from the saved order after the original send failed.'));
+		return array('success'=>true,'message'=>'Order email resent to the current saved recipient.');
 		} catch (Throwable $e) {
 			$this->db->where('id',(int)$log->id)->update('db_email_logs',array('status'=>'failed','error_message'=>mb_substr($e->getMessage(),0,1000)));
 			return array('success'=>false,'message'=>$e->getMessage());
@@ -115,7 +118,8 @@ class Storefront_order_email_model extends CI_Model {
 			'prescription_link'=>!empty($order->prescription_file)?base_url($order->prescription_file):'Not attached'
 		));
 		$options=array('related_module'=>'storefront','related_record_id'=>$order->id,'message_category'=>'order_notification',
-			'messaging_key'=>'order-mail:'.$storeId.':'.(int)$order->id.':'.($templateKey==='online_order_owner'?'owner':'customer'));
+			'messaging_key'=>'order-mail:'.$storeId.':'.(int)$order->id.':'.($templateKey==='online_order_owner'?'owner':'customer'),
+			'retry_failed'=>true);
 
 		if($templateKey==='online_order_customer'){
 			$to=trim((string)($order->customer_email??''));

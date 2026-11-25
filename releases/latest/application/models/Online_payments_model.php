@@ -372,30 +372,41 @@ class Online_payments_model extends CI_Model {
 	}
 
 	/**
-	 * Turn confirmed money into the counter's own payment lines, once each. The
-	 * ledger row this lands on is the one the order already owns, so a store's
-	 * sales report shows online money and till money the same way.
+	 * Turn confirmed money into the counter's own payment lines, once each. Never
+	 * post more than the sale's outstanding total: the gateway ledger retains the
+	 * full amount and settleOrder queues any excess for reconciliation, while the
+	 * customer ledger stays tied to the actual sale value.
 	 */
 	public function postVerifiedLines($storeId, $orderId, $salesId){
 		if(!$this->available() || (int)$salesId <= 0) return 0;
-		$lines = $this->db->where('store_id', (int)$storeId)->where('online_order_id', (int)$orderId)
-			->where('status', self::VERIFIED)->where('salespayment_id IS NULL')->get('db_online_order_payments')->result();
-		if(!$lines) return 0;
-		$order = $this->db->where('id', (int)$orderId)->where('store_id', (int)$storeId)
-			->get('db_online_orders')->row();
-		if(!$order) return 0;
+		$this->db->trans_begin();
+		$sale = $this->db->query('SELECT grand_total FROM db_sales WHERE id=? AND store_id=? FOR UPDATE',
+			[(int)$salesId, (int)$storeId])->row();
+		$order = $this->db->query('SELECT id,store_id,order_code,customer_id FROM db_online_orders WHERE id=? AND store_id=?',
+			[(int)$orderId, (int)$storeId])->row();
+		if(!$sale || !$order){ $this->db->trans_rollback(); return 0; }
+		$lines = $this->db->query('SELECT * FROM db_online_order_payments WHERE store_id=? AND online_order_id=? AND status=? AND salespayment_id IS NULL ORDER BY id ASC FOR UPDATE',
+			[(int)$storeId, (int)$orderId, self::VERIFIED])->result();
+		if(!$lines){ $this->db->trans_commit(); return 0; }
 		$customerId = (int)($order->customer_id ?? 0);
+		$paid = $this->db->query('SELECT COALESCE(SUM(payment),0) AS amount FROM db_salespayments WHERE store_id=? AND sales_id=? AND status=1 AND COALESCE(confirmation_status,1)=1',
+			[(int)$storeId, (int)$salesId])->row();
+		$remaining = max(0, round((float)$sale->grand_total - (float)($paid->amount ?? 0), 2));
 		$posted = 0;
 		foreach($lines as $line){
+			$gatewayAmount = max(0, round((float)$line->amount, 2));
+			$appliedAmount = min($gatewayAmount, $remaining);
+			if($appliedAmount <= 0) continue;
 			$when = $line->verified_at ?: $line->recorded_at;
 			$this->db->insert('db_salespayments', [
 				'store_id'            => (int)$storeId,
 				'sales_id'            => (int)$salesId,
 				'payment_date'        => date('Y-m-d', strtotime((string)$when)),
 				'payment_type'        => $this->channelLabel($line->provider),
-				'payment'             => (float)$line->amount,
+				'payment'             => $appliedAmount,
 				'payment_reference'   => $line->reference,
-				'payment_note'        => 'Online order ' . $order->order_code,
+				'payment_note'        => 'Online order ' . $order->order_code
+					. ($gatewayAmount > $appliedAmount ? ' (excess held for reconciliation)' : ''),
 				'confirmation_status' => 1,
 				'created_date'        => date('Y-m-d'),
 				'created_time'        => date('H:i:s'),
@@ -404,18 +415,23 @@ class Online_payments_model extends CI_Model {
 				'customer_id'         => $customerId > 0 ? $customerId : null,
 			]);
 			$paymentId = (int)$this->db->insert_id();
-			if($paymentId){
-				$this->db->where('id', (int)$line->id)->update('db_online_order_payments',
-					['salespayment_id' => $paymentId, 'updated_at' => date('Y-m-d H:i:s')]);
-				$posted++;
-			}
+			if(!$paymentId){ $this->db->trans_rollback(); return 0; }
+			$this->db->where('id', (int)$line->id)->where('salespayment_id IS NULL')
+				->update('db_online_order_payments', ['salespayment_id' => $paymentId, 'updated_at' => date('Y-m-d H:i:s')]);
+			if($this->db->affected_rows() !== 1){ $this->db->trans_rollback(); return 0; }
+			$remaining = max(0, round($remaining - $appliedAmount, 2));
+			$posted++;
 		}
 		if($posted){
 			$this->load->model('sales_model');
 			if(method_exists($this->sales_model, 'update_sales_payment_status_by_sales_id')){
-				$this->sales_model->update_sales_payment_status_by_sales_id((int)$salesId, $customerId);
+				if(!$this->sales_model->update_sales_payment_status_by_sales_id((int)$salesId, $customerId)){
+					$this->db->trans_rollback(); return 0;
+				}
 			}
 		}
+		if($this->db->trans_status() === false){ $this->db->trans_rollback(); return 0; }
+		$this->db->trans_commit();
 		return $posted;
 	}
 
