@@ -7383,7 +7383,9 @@ class Mobile extends MY_Controller {
 				$data['devices'] = $this->storefront_model->getDeviceBreakdown($store_id, $startDate, $endDate);
 				$data['search_terms'] = $this->storefront_model->getSearchTerms($store_id, $startDate, $endDate);
 				$data['customers'] = $this->storefront_model->getCustomerVisits($store_id, $startDate, $endDate);
-				$data['recent_visits'] = $this->storefront_model->getRecentVisits($store_id, 50);
+				$data['recent_visits'] = $this->storefront_model->getRecentVisits($store_id, 50, $startDate, $endDate);
+				$data['event_funnel'] = $this->storefront_model->getEventFunnel($store_id, $startDate, $endDate);
+				$data['recent_events'] = $this->storefront_model->getRecentEvents($store_id, 25, $startDate, $endDate);
 				$data['filter'] = $filter;
 				$data['range_label'] = $rangeLabel;
 				$data['start_date'] = date('Y-m-d', strtotime($startDate));

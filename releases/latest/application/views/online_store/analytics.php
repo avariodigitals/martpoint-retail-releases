@@ -30,7 +30,7 @@
 <div class="mp-page-head">
   <div>
     <h2><?= htmlspecialchars($page_title); ?></h2>
-    <div class="mp-page-sub">Track visits, devices, sources and activity for your storefront</div>
+    <div class="mp-page-sub">See how people find and use your storefront during the selected period.</div>
   </div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
     <div class="os-filter-tabs">
@@ -59,10 +59,8 @@
 <?php endif; ?>
 
 <div class="mp-kpi-grid">
-  <div class="os-analytics-card"><div class="os-analytics-number"><?= number_format($summary['total']); ?></div><div class="os-analytics-label">Total Visits</div></div>
+  <div class="os-analytics-card"><div class="os-analytics-number"><?= number_format($summary['total']); ?></div><div class="os-analytics-label">Page Views</div></div>
   <div class="os-analytics-card"><div class="os-analytics-number"><?= number_format($summary['unique']); ?></div><div class="os-analytics-label">Unique Sessions</div></div>
-  <div class="os-analytics-card"><div class="os-analytics-number"><?= number_format($summary['today']); ?></div><div class="os-analytics-label">Today</div></div>
-  <div class="os-analytics-card"><div class="os-analytics-number"><?= number_format($summary['yesterday']); ?></div><div class="os-analytics-label">Yesterday</div></div>
   <div class="os-analytics-card"><div class="os-analytics-number" style="color:var(--mp-success)!important;"><?= number_format($summary['new_users']); ?></div><div class="os-analytics-label">New Users</div></div>
   <div class="os-analytics-card"><div class="os-analytics-number" style="color:var(--mp-warning)!important;"><?= number_format($summary['returning_users']); ?></div><div class="os-analytics-label">Returning Users</div></div>
 </div>
@@ -91,7 +89,7 @@
 </div>
 
 <div class="mp-card-form" style="margin-top:20px!important;">
-  <div class="mp-card-head"><h3>Activity Heatmap</h3></div>
+  <div class="mp-card-head"><h3>Activity Heatmap</h3><small class="text-muted">Page views by day and hour</small></div>
   <div class="mp-card-body mp-dt-scroll">
     <?php
       $dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -127,7 +125,7 @@
     <div class="mp-card-head"><h3>Device Breakdown</h3></div>
     <div class="mp-card-body" style="text-align:center;">
       <?php
-        $deviceColors = ['Desktop'=>'#3B82F6','Mobile'=>'#10B981','Tablet'=>'#F59E0B','Bot/Other'=>'#94A3B8'];
+        $deviceColors = ['Desktop'=>'#3B82F6','Mobile'=>'#10B981','Tablet'=>'#F59E0B','Unknown'=>'#94A3B8'];
         $totalDevices = array_sum($devices);
         $deviceSegments = [];
         $runningDeg = 0;
@@ -153,10 +151,10 @@
   </div>
 
   <div class="mp-card-form">
-    <div class="mp-card-head"><h3>Top Sources</h3></div>
+    <div class="mp-card-head"><h3>Top Sources</h3><small class="text-muted">Where visitors came from; visits without a referrer appear as Direct.</small></div>
     <div class="mp-card-body" style="padding:0!important;">
       <table class="os-analytics-table" width="100%">
-        <thead><tr><th>Source</th><th class="text-right">Visits</th></tr></thead>
+        <thead><tr><th>Source</th><th class="text-right">Visitors</th></tr></thead>
         <tbody>
           <?php foreach($top_sources as $s): ?>
           <tr><td><?= htmlspecialchars($s->source ?: 'Direct'); ?></td><td class="text-right"><?= number_format($s->visits); ?></td></tr>
@@ -175,8 +173,8 @@
       <table class="os-analytics-table" width="100%">
         <thead><tr><th>Page</th><th class="text-right">Visits</th></tr></thead>
         <tbody>
-          <?php foreach($top_pages as $p): ?>
-          <tr><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($p->page_url); ?></td><td class="text-right"><?= number_format($p->visits); ?></td></tr>
+          <?php foreach($top_pages as $p): $pagePath = parse_url($p->page_url, PHP_URL_PATH); $pagePath = is_string($pagePath) && $pagePath !== '' ? $pagePath : '/'; ?>
+          <tr><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($pagePath); ?></td><td class="text-right"><?= number_format($p->visits); ?></td></tr>
           <?php endforeach; ?>
           <?php if(empty($top_pages)): ?><tr><td colspan="2" class="mp-empty-state">No data yet.</td></tr><?php endif; ?>
         </tbody>
@@ -185,10 +183,10 @@
   </div>
 
   <div class="mp-card-form">
-    <div class="mp-card-head"><h3>Search Terms</h3></div>
+    <div class="mp-card-head"><h3>Search Terms</h3><small class="text-muted">Words visitors searched for in your store.</small></div>
     <div class="mp-card-body" style="padding:0!important;">
       <table class="os-analytics-table" width="100%">
-        <thead><tr><th>Search Term</th><th class="text-right">Visits</th></tr></thead>
+        <thead><tr><th>Search Term</th><th class="text-right">Searches</th></tr></thead>
         <tbody>
           <?php foreach($search_terms as $st): ?>
           <tr><td><?= htmlspecialchars($st->search_term); ?></td><td class="text-right"><?= number_format($st->visits); ?></td></tr>
@@ -205,18 +203,17 @@
   <div class="mp-card-body" style="padding:0!important;">
     <div class="mp-dt-scroll">
       <table class="os-analytics-table" width="100%">
-        <thead><tr><th>Time</th><th>Page</th><th>Source</th><th>Referrer</th><th>IP</th></tr></thead>
+        <thead><tr><th>Time</th><th>Page</th><th>Source</th></tr></thead>
         <tbody>
           <?php foreach($recent_visits as $v): ?>
           <tr>
             <td><?= date('M j, g:i a', strtotime($v->created_at)); ?></td>
-            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($v->page_url); ?></td>
+            <?php $visitPath = parse_url($v->page_url, PHP_URL_PATH); $visitPath = is_string($visitPath) && $visitPath !== '' ? $visitPath : '/'; ?>
+            <td style="max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($visitPath); ?></td>
             <td><span class="label label-<?= $v->source == 'Direct' ? 'default' : 'info'; ?>"><?= htmlspecialchars($v->source ?: 'Direct'); ?></span></td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($v->referrer ?: '-'); ?></td>
-            <td><?= htmlspecialchars($v->ip_address); ?></td>
           </tr>
           <?php endforeach; ?>
-          <?php if(empty($recent_visits)): ?><tr><td colspan="5" class="mp-empty-state">No visits recorded yet.</td></tr><?php endif; ?>
+          <?php if(empty($recent_visits)): ?><tr><td colspan="3" class="mp-empty-state">No visits recorded in this period.</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
@@ -224,21 +221,20 @@
 </div>
 
 <?php
-  // Shopping funnel — first-party events recorded with consent state.
+  // Product activity follows the visitor's tracking preference; checkout orders are counted directly.
   $funnelOrder = ['view_item'=>'Product views','add_to_cart'=>'Added to cart','begin_checkout'=>'Started checkout','order_placed'=>'Orders placed'];
   $funnelHits = [];
   $maxHits = 1;
   foreach($funnelOrder as $ev=>$lbl){
     $hits = (int)($event_funnel[$ev]->hits ?? 0);
-    $consented = (int)($event_funnel[$ev]->consented_hits ?? 0);
-    $funnelHits[$ev] = ['label'=>$lbl,'hits'=>$hits,'consented'=>$consented];
+    $funnelHits[$ev] = ['label'=>$lbl,'hits'=>$hits];
     if($hits > $maxHits) $maxHits = $hits;
   }
   $funnelTotal = array_sum(array_column($funnelHits,'hits'));
 ?>
 <div class="os-content-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
   <div class="mp-card-form">
-    <div class="mp-card-head"><h3>Shopping Funnel <small style="font-weight:400;color:var(--mp-muted);">last 30 days</small></h3></div>
+    <div class="mp-card-head"><h3>Shopping Funnel <small style="font-weight:400;color:var(--mp-muted);"> <?= htmlspecialchars($range_label); ?></small></h3></div>
     <div class="mp-card-body">
       <?php if($funnelTotal === 0): ?>
         <div class="mp-empty-state">No funnel events yet — events appear as shoppers view items, add to cart and check out.</div>
@@ -246,14 +242,14 @@
         <div style="margin-bottom:12px;">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
             <span><?= $f['label']; ?></span>
-            <span><strong><?= number_format($f['hits']); ?></strong><?= $f['consented'] < $f['hits'] ? ' <small class="text-muted">('.number_format($f['hits']-$f['consented']).' consent-free)</small>' : ''; ?></span>
+            <span><strong><?= number_format($f['hits']); ?></strong></span>
           </div>
           <div style="height:8px;background:var(--mp-light-gray,#F1F5F9);border-radius:4px;overflow:hidden;">
             <div style="height:100%;width:<?= $pct; ?>%;background:var(--mp-primary,#2563EB);border-radius:4px;"></div>
           </div>
         </div>
       <?php endforeach; endif; ?>
-      <div style="font-size:12px;color:var(--mp-muted);margin-top:8px;">Events respect your tracking-consent setting — order_placed is recorded server-side at checkout.</div>
+      <div style="font-size:12px;color:var(--mp-muted);margin-top:8px;">Product views, cart adds and checkout activity appear only when a visitor allows analytics. Orders are counted either way, so the totals may differ.</div>
     </div>
   </div>
 
@@ -261,17 +257,17 @@
     <div class="mp-card-head"><h3>Recent Shopping Events</h3></div>
     <div class="mp-card-body" style="padding:0!important;">
       <table class="os-analytics-table" width="100%">
-        <thead><tr><th>Time</th><th>Event</th><th>Value</th><th>Consented</th></tr></thead>
+        <thead><tr><th>Time</th><th>Activity</th><th>Value</th></tr></thead>
         <tbody>
           <?php foreach($recent_events as $e): ?>
           <tr>
             <td><?= date('M j, g:i a', strtotime($e->created_at)); ?></td>
-            <td><span class="label label-info"><?= htmlspecialchars(str_replace('_',' ',$e->event_type)); ?></span></td>
+            <?php $eventLabels = ['view_item'=>'Product viewed','add_to_cart'=>'Added to cart','begin_checkout'=>'Checkout started','order_placed'=>'Order placed','purchase'=>'Payment completed']; ?>
+            <td><span class="label label-info"><?= htmlspecialchars($eventLabels[$e->event_type] ?? 'Store activity'); ?></span></td>
             <td><?= $e->value !== null ? number_format((float)$e->value, 2) : '—'; ?></td>
-            <td><?= $e->consented ? '<span class="label label-success">yes</span>' : '<span class="label label-default">no</span>'; ?></td>
           </tr>
           <?php endforeach; ?>
-          <?php if(empty($recent_events)): ?><tr><td colspan="4" class="mp-empty-state">No events recorded yet.</td></tr><?php endif; ?>
+          <?php if(empty($recent_events)): ?><tr><td colspan="3" class="mp-empty-state">No shopping activity recorded in this period.</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>

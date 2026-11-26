@@ -1,7 +1,7 @@
 {
-    "version": "4.0.9.313",
-    "previous_version": "4.0.9.310",
-    "release_date": "2026-11-25",
+    "version": "4.0.9.315",
+    "previous_version": "4.0.9.313",
+    "release_date": "2026-11-26",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
         {
@@ -1411,8 +1411,8 @@
         },
         {
             "path": "application/views/themes/printing/scripts.php",
-            "hash": "e70e63901d1f1d634198882f687c82c35b71417e85ad43e9cda7a6b86587a9b1",
-            "size": 2302
+            "hash": "d3aa11238572e5db80efa662297959bf575a13bfaec9265c25222e6528be8ad0",
+            "size": 1932
         },
         {
             "path": "application/views/themes/pharma_wellness/store.php",
@@ -2101,8 +2101,8 @@
         },
         {
             "path": "application/views/themes/shared/scripts.php",
-            "hash": "202d25cfebd454d36a446b50de512e6677638a19071fe4f5eb6bfc9cd22ddef6",
-            "size": 26792
+            "hash": "b9b270e8e9cfb33231db67d7df5eb4faa38e3a96f0121bee062a93271c913019",
+            "size": 26719
         },
         {
             "path": "application/views/themes/shared/legacy_site_links.php",
@@ -2951,8 +2951,8 @@
         },
         {
             "path": "application/views/mobile/online_store/analytics.php",
-            "hash": "be412e130f718f8defb69fbef375694114b47aaf772c752faaa054da307ea523",
-            "size": 13053
+            "hash": "4512d6476ccf7819153def342756bf1832d4f3b0cd94e1806f500639b2270092",
+            "size": 15614
         },
         {
             "path": "application/views/mobile/online_store/appearance.php",
@@ -4091,8 +4091,8 @@
         },
         {
             "path": "application/views/online_store/analytics_pdf.php",
-            "hash": "992b60fa4cd7dc81dda07c376647c9b0a9f441e710ff76fc01fdbdc402e7c0bd",
-            "size": 4903
+            "hash": "404e686d66253baa37ab89096fad6adf3668ab9fee02cc77426500e71d802700",
+            "size": 4103
         },
         {
             "path": "application/views/online_store/_shipping_zone_row.php",
@@ -4166,8 +4166,8 @@
         },
         {
             "path": "application/views/online_store/analytics.php",
-            "hash": "15de1a931546ac0756e89a237a7509451485aff8705fbca91ec89f1a416eae7d",
-            "size": 18307
+            "hash": "a99fbfb1e6e3ddfcc90221461dc86edd74a6044dc26f274a6326a0922552bad8",
+            "size": 18217
         },
         {
             "path": "application/views/online_store/how_to_order.php",
@@ -7201,8 +7201,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "879e8d54cc428f5da4331791b2e32202576f1bda1f8e30b85a663d07391464f9",
-            "size": 49156
+            "hash": "a6fb5dd9a6b3ffb991fe068e69ecd9efc78f6093b890ecdc3d73a34de04f896c",
+            "size": 49490
         },
         {
             "path": "application/config/routes.php",
@@ -8241,8 +8241,8 @@
         },
         {
             "path": "application/models/Storefront_model.php",
-            "hash": "1b54612ada71a9e86c85fc47ee3d510671027c9c4d327798c5468804ffff496e",
-            "size": 200645
+            "hash": "4b86a93467794d3420aba75ad7239968f74db66d3b58a5c8cf8ed772a9c62dcf",
+            "size": 203829
         },
         {
             "path": "application/models/Pharmacy_batch_report_model.php",
@@ -8721,8 +8721,8 @@
         },
         {
             "path": "application/controllers/Online_store.php",
-            "hash": "2389758f29d61b55d1b13cef7e096b58300a1d1461c0087801be38f3e519bb31",
-            "size": 225480
+            "hash": "21c02c11f996759e565d66a3e75e489880a4c22065a14603951b41ad4bb094b1",
+            "size": 226327
         },
         {
             "path": "application/controllers/Intake_slots.php",
@@ -9046,8 +9046,8 @@
         },
         {
             "path": "application/controllers/Import.php",
-            "hash": "64a1531928d74e9a4f25bf98d633a281cdc763969d6299a20fdaa242b2ddb3b4",
-            "size": 120157
+            "hash": "dac57948c248a01e1952a0c83f374f69dbeab47af21dc3fa4dd5c34ea624bca2",
+            "size": 120578
         },
         {
             "path": "application/controllers/Session_lock.php",
@@ -9086,8 +9086,8 @@
         },
         {
             "path": "application/controllers/Mobile.php",
-            "hash": "625f4f835132a9ff0f130df7aad92a8130a3d12cf109e36167a6ee39f9fc5102",
-            "size": 449080
+            "hash": "967b3901a9992b26f380425a8c38b4237a501b332d47d291cfabc47ee194c12f",
+            "size": 449312
         },
         {
             "path": "application/controllers/Migrate.php",
@@ -10996,8 +10996,8 @@
         },
         {
             "path": "application/libraries/Html_theme_renderer.php",
-            "hash": "67558f2d0f71228b9e7c2e70f8f17e9401166763ecb6c19843e0a170bda8bb0f",
-            "size": 44408
+            "hash": "3cf63a3cf77e7b3289f50ca0eaa1fdbdbc29e99f6a8759d45c8b4db8a0e3e60f",
+            "size": 47690
         },
         {
             "path": "application/libraries/Support_chat_transport.php",
@@ -13736,7 +13736,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "4e59d00ccf54704fcda6cf81365bbdc3708c73e64f98c71c5deef736b7b05007",
+            "hash": "8560719ac17c4850a2272c2b948efdc0c1534318f533a76e594cbc005020a72e",
             "size": 137993
         },
         {
@@ -20854,7 +20854,9 @@
         "4.0.9.310_storefront_and_email_safety.sql",
         "4.0.9.311_storefront_ledger_repair.sql",
         "4.0.9.312_meta_storefront_crawler_allow.sql",
-        "4.0.9.313_online_store_admin_updates.sql"
+        "4.0.9.313_online_store_admin_updates.sql",
+        "4.0.9.314_storefront_analytics_reporting.sql",
+        "4.0.9.315_html_theme_runtime_refinements.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20863,6 +20865,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "9e4bd007c0ba3ca4eaf4a9d92e82073ec3c6e0daf0019e600f314f2c0d632638651b38e2c5bb8362ba7627f9444bfa51197e72ec946386d80f3b305b58373409",
-    "changelog": "Release 4.0.9.313"
+    "signature": "6744f79b477df1cd22bc068bd62dfe54592e1277b8d02c79ecf02a62998f5144b167bd4453b7ffab5fd3cfbc8be7e13d6606968d36100a8ec8c9c616bdb9b80c",
+    "changelog": "Release 4.0.9.315"
 }

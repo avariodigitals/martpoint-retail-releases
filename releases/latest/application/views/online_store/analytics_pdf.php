@@ -29,19 +29,11 @@ th { background:#f1f5f9; font-weight:700; }
 <div class="kpi-grid">
   <div class="kpi-cell">
     <div class="kpi-number"><?= number_format($summary['total']); ?></div>
-    <div class="kpi-label">Total Visits</div>
+    <div class="kpi-label">Page Views</div>
   </div>
   <div class="kpi-cell">
     <div class="kpi-number"><?= number_format($summary['unique']); ?></div>
     <div class="kpi-label">Unique Sessions</div>
-  </div>
-  <div class="kpi-cell">
-    <div class="kpi-number"><?= number_format($summary['today']); ?></div>
-    <div class="kpi-label">Today</div>
-  </div>
-  <div class="kpi-cell">
-    <div class="kpi-number"><?= number_format($summary['yesterday']); ?></div>
-    <div class="kpi-label">Yesterday</div>
   </div>
   <div class="kpi-cell">
     <div class="kpi-number"><?= number_format($summary['new_users']); ?></div>
@@ -66,9 +58,9 @@ th { background:#f1f5f9; font-weight:700; }
   </tbody>
 </table>
 
-<h2>Top Sources</h2>
+<h2>Top Sources (unique sessions)</h2>
 <table>
-  <thead><tr><th>Source</th><th class="text-right">Visits</th></tr></thead>
+  <thead><tr><th>Source</th><th class="text-right">Visitors</th></tr></thead>
   <tbody>
     <?php foreach($top_sources as $s): ?>
     <tr><td><?= htmlspecialchars($s->source ?: 'Direct'); ?></td><td class="text-right"><?= number_format($s->visits); ?></td></tr>
@@ -81,8 +73,8 @@ th { background:#f1f5f9; font-weight:700; }
 <table>
   <thead><tr><th>Page</th><th class="text-right">Visits</th></tr></thead>
   <tbody>
-    <?php foreach($top_pages as $p): ?>
-    <tr><td><?= htmlspecialchars($p->page_url); ?></td><td class="text-right"><?= number_format($p->visits); ?></td></tr>
+    <?php foreach($top_pages as $p): $pagePath = parse_url($p->page_url, PHP_URL_PATH); $pagePath = is_string($pagePath) && $pagePath !== '' ? $pagePath : '/'; ?>
+    <tr><td><?= htmlspecialchars($pagePath); ?></td><td class="text-right"><?= number_format($p->visits); ?></td></tr>
     <?php endforeach; ?>
     <?php if(empty($top_pages)): ?><tr><td colspan="2" class="text-center">No data.</td></tr><?php endif; ?>
   </tbody>
@@ -90,23 +82,12 @@ th { background:#f1f5f9; font-weight:700; }
 
 <h2>Search Terms</h2>
 <table>
-  <thead><tr><th>Search Term</th><th class="text-right">Visits</th></tr></thead>
+  <thead><tr><th>Search Term</th><th class="text-right">Searches</th></tr></thead>
   <tbody>
     <?php foreach($search_terms as $st): ?>
     <tr><td><?= htmlspecialchars($st->search_term); ?></td><td class="text-right"><?= number_format($st->visits); ?></td></tr>
     <?php endforeach; ?>
     <?php if(empty($search_terms)): ?><tr><td colspan="2" class="text-center">No search data.</td></tr><?php endif; ?>
-  </tbody>
-</table>
-
-<h2>Top Customer Sessions</h2>
-<table>
-  <thead><tr><th>Session ID</th><th class="text-right">Visits</th><th>First Visit</th><th>Last Visit</th></tr></thead>
-  <tbody>
-    <?php foreach($customers as $c): ?>
-    <tr><td><?= substr(htmlspecialchars($c->session_id), 0, 24); ?></td><td class="text-right"><?= number_format($c->visits); ?></td><td><?= date('M j, g:i a', strtotime($c->first_visit)); ?></td><td><?= date('M j, g:i a', strtotime($c->last_visit)); ?></td></tr>
-    <?php endforeach; ?>
-    <?php if(empty($customers)): ?><tr><td colspan="4" class="text-center">No customer data.</td></tr><?php endif; ?>
   </tbody>
 </table>
 

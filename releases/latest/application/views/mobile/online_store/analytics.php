@@ -85,10 +85,8 @@
       <div class="range"><?= htmlspecialchars($range_label); ?></div>
 
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Total Visits</div><div class="kpi-value"><?= number_format($summary['total'] ?? 0); ?></div></div>
+        <div class="kpi-card"><div class="kpi-label">Page Views</div><div class="kpi-value"><?= number_format($summary['total'] ?? 0); ?></div></div>
         <div class="kpi-card"><div class="kpi-label">Unique Sessions</div><div class="kpi-value"><?= number_format($summary['unique'] ?? 0); ?></div></div>
-        <div class="kpi-card"><div class="kpi-label">Today</div><div class="kpi-value"><?= number_format($summary['today'] ?? 0); ?></div></div>
-        <div class="kpi-card"><div class="kpi-label">Yesterday</div><div class="kpi-value"><?= number_format($summary['yesterday'] ?? 0); ?></div></div>
         <div class="kpi-card"><div class="kpi-label">New Users</div><div class="kpi-value"><?= number_format($summary['new_users'] ?? 0); ?></div></div>
         <div class="kpi-card"><div class="kpi-label">Returning</div><div class="kpi-value"><?= number_format($summary['returning_users'] ?? 0); ?></div></div>
       </div>
@@ -121,7 +119,7 @@
       <div class="card">
         <div class="card-title">Device Breakdown</div>
         <?php
-          $deviceColors = ['Desktop' => '#3B82F6', 'Mobile' => '#10B981', 'Tablet' => '#F59E0B', 'Bot/Other' => '#94A3B8'];
+          $deviceColors = ['Desktop' => '#3B82F6', 'Mobile' => '#10B981', 'Tablet' => '#F59E0B', 'Unknown' => '#94A3B8'];
           $totalDevices = array_sum($devices);
           $segments = []; $deg = 0;
           foreach($devices as $name => $count){
@@ -140,11 +138,11 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Top Sources</div>
+        <div class="card-title">Top Sources <small style="font-weight:400;color:var(--mp-muted);">How visitors found your store</small></div>
         <div class="list">
           <?php if(!empty($top_sources)): ?>
             <?php foreach($top_sources as $s): ?>
-              <div class="list-row"><span class="list-name"><?= htmlspecialchars($s->source ?: 'Direct'); ?></span><span class="list-val"><?= number_format($s->visits); ?></span></div>
+              <div class="list-row"><span class="list-name"><?= htmlspecialchars($s->source ?: 'Direct'); ?></span><span class="list-val"><?= number_format($s->visits); ?> visitors</span></div>
             <?php endforeach; ?>
           <?php else: ?><div class="empty">No data.</div><?php endif; ?>
         </div>
@@ -155,31 +153,59 @@
         <div class="list">
           <?php if(!empty($top_pages)): ?>
             <?php foreach($top_pages as $p): ?>
-              <div class="list-row"><span class="list-name"><?= htmlspecialchars($p->page_url); ?></span><span class="list-val"><?= number_format($p->visits); ?></span></div>
+              <?php $pagePath = parse_url($p->page_url, PHP_URL_PATH); $pagePath = is_string($pagePath) && $pagePath !== '' ? $pagePath : '/'; ?>
+              <div class="list-row"><span class="list-name"><?= htmlspecialchars($pagePath); ?></span><span class="list-val"><?= number_format($p->visits); ?></span></div>
             <?php endforeach; ?>
           <?php else: ?><div class="empty">No data.</div><?php endif; ?>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Search Terms</div>
+        <div class="card-title">Search Terms <small style="font-weight:400;color:var(--mp-muted);">Words searched in your store</small></div>
         <div class="list">
           <?php if(!empty($search_terms)): ?>
             <?php foreach($search_terms as $st): ?>
-              <div class="list-row"><span class="list-name"><?= htmlspecialchars($st->search_term); ?></span><span class="list-val"><?= number_format($st->visits); ?></span></div>
+              <div class="list-row"><span class="list-name"><?= htmlspecialchars($st->search_term); ?></span><span class="list-val"><?= number_format($st->visits); ?> searches</span></div>
             <?php endforeach; ?>
           <?php else: ?><div class="empty">No search data.</div><?php endif; ?>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Top Customers</div>
+        <div class="card-title">Activity Heatmap <small style="font-weight:400;color:var(--mp-muted);">Busiest day and hour</small></div>
         <div class="list">
-          <?php if(!empty($customers)): ?>
-            <?php foreach($customers as $c): ?>
-              <div class="list-row"><span class="list-name"><?= htmlspecialchars($c->customer_name ?: $c->customer_phone ?: 'Guest'); ?></span><span class="list-val"><?= number_format($c->visits); ?></span></div>
+          <?php if(!empty($heatmap)): ?>
+            <?php $mobileHeatmap = $heatmap; usort($mobileHeatmap, function($a,$b){ return (int)$b->visits <=> (int)$a->visits; }); foreach(array_slice($mobileHeatmap,0,8) as $h): ?>
+              <div class="list-row"><span class="list-name"><?= ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][(int)$h->dow - 1] ?? 'Day'; ?> · <?= sprintf('%02d:00', (int)$h->hour); ?></span><span class="list-val"><?= number_format((int)$h->visits); ?></span></div>
             <?php endforeach; ?>
-          <?php else: ?><div class="empty">No customer data.</div><?php endif; ?>
+          <?php else: ?><div class="empty">No visits in this period.</div><?php endif; ?>
+        </div>
+      </div>
+
+      <?php
+        $mobileFunnel = ['view_item'=>'Product views','add_to_cart'=>'Added to cart','begin_checkout'=>'Checkout started','order_placed'=>'Orders placed'];
+        $mobileFunnelTotal = 0;
+        foreach($mobileFunnel as $eventKey=>$eventLabel) $mobileFunnelTotal += (int)($event_funnel[$eventKey]->hits ?? 0);
+      ?>
+      <div class="card">
+        <div class="card-title">Shopping Funnel · <?= htmlspecialchars($range_label); ?></div>
+        <?php if($mobileFunnelTotal): ?><div class="list">
+          <?php foreach($mobileFunnel as $eventKey=>$eventLabel): ?>
+            <div class="list-row"><span class="list-name"><?= $eventLabel; ?></span><span class="list-val"><?= number_format((int)($event_funnel[$eventKey]->hits ?? 0)); ?></span></div>
+          <?php endforeach; ?>
+        </div><?php else: ?><div class="empty">No shopping activity in this period.</div><?php endif; ?>
+        <div style="padding:0 16px 14px;color:var(--mp-muted);font-size:12px;">Product views, cart adds and checkout activity appear only when a visitor allows analytics. Orders are counted either way, so totals may differ.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent Shopping Activity</div>
+        <div class="list">
+          <?php $mobileEventLabels = ['view_item'=>'Product viewed','add_to_cart'=>'Added to cart','begin_checkout'=>'Checkout started','order_placed'=>'Order placed','purchase'=>'Payment completed']; ?>
+          <?php if(!empty($recent_events)): ?>
+            <?php foreach($recent_events as $event): ?>
+              <div class="list-row"><span class="list-name"><?= date('M j, g:i a', strtotime($event->created_at)); ?> · <?= htmlspecialchars($mobileEventLabels[$event->event_type] ?? 'Store activity'); ?></span><span class="list-val"><?= $event->value !== null ? number_format((float)$event->value, 2) : '—'; ?></span></div>
+            <?php endforeach; ?>
+          <?php else: ?><div class="empty">No shopping activity in this period.</div><?php endif; ?>
         </div>
       </div>
 
@@ -190,7 +216,8 @@
             <?php foreach($recent_visits as $v): ?>
               <div class="list-row" style="display:block;">
                 <div class="list-name" style="white-space:nowrap;"><?= date('M j, g:i a', strtotime($v->created_at)); ?> · <?= htmlspecialchars($v->source ?: 'Direct'); ?></div>
-                <div style="font-size:12px;color:var(--mp-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($v->page_url); ?></div>
+                <?php $visitPath = parse_url($v->page_url, PHP_URL_PATH); $visitPath = is_string($visitPath) && $visitPath !== '' ? $visitPath : '/'; ?>
+                <div style="font-size:12px;color:var(--mp-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($visitPath); ?></div>
               </div>
             <?php endforeach; ?>
           <?php else: ?><div class="empty">No visits recorded.</div><?php endif; ?>

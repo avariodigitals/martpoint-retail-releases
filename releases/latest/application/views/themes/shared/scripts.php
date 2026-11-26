@@ -380,8 +380,7 @@
   // Analytics tracking
   (function(){
     if(!STORE_ID) return;
-    const tracked = sessionStorage.getItem('sf_tracked_' + STORE_ID);
-    if(tracked) return;
+    if(window.MP_NEED_CONSENT && !(window.mpTrackConsent && window.mpTrackConsent.granted())) return;
     const fd = new FormData();
     fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
     fd.append('store_id', STORE_ID);
@@ -391,9 +390,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const searchTerm = urlParams.get('search') || '';
     if(searchTerm) fd.append('search_term', searchTerm);
-    fetch('<?= base_url('online_store/track_visit'); ?>', {method:'POST', body:fd, keepalive:true})
-    .then(() => { sessionStorage.setItem('sf_tracked_' + STORE_ID, '1'); })
-    .catch(() => {});
+    fetch('<?= base_url('online_store/track_visit'); ?>', {method:'POST', body:fd, keepalive:true}).catch(() => {});
   })();
 
   // Newsletter signup — posts email to the server so it can be exported later

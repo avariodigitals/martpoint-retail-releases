@@ -1024,7 +1024,10 @@ class Import extends MY_Controller {
                         }
 
                         //If any record failed to save flag will be set false,then all records rolled back
-                        if(!$this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
+                        // An explicit MRP from the CSV is the merchant's chosen retail price.
+                        // Use the store auto-markup only when the CSV leaves MRP blank/zero.
+                        $priced_row = ($mrp > 0) ? $row : $this->retail_priced_row($row, $store_id);
+                        if(!$this->db->insert('db_items', $priced_row)){
                             $flag=false;
                         }
                         
@@ -1943,7 +1946,9 @@ public function services(){
                     }
                 }
 
-                if( ! $this->db->insert('db_items', $this->retail_priced_row($row, $store_id))){
+                // Preserve a supplied MRP; derive it from the store rule only when omitted.
+                $priced_row = ($mrp > 0) ? $row : $this->retail_priced_row($row, $store_id);
+                if( ! $this->db->insert('db_items', $priced_row)){
                     $flag = false;
                 }
                 $item_id = $this->db->insert_id();

@@ -733,4 +733,8 @@ return [
 	'4.0.9.312v' => '4.0.9.312_meta_storefront_crawler_allow.sql',
 	// Ship the current online-store settings, shipping-zone and review moderation updates.
 	'4.0.9.313v' => '4.0.9.313_online_store_admin_updates.sql',
+	// Correct storefront analytics attribution, reporting periods, and customer-facing dashboard copy.
+	'4.0.9.314v' => '4.0.9.314_storefront_analytics_reporting.sql',
+	// Keep existing uploaded HTML themes aligned with shared storefront pages, branding, and navigation.
+	'4.0.9.315v' => '4.0.9.315_html_theme_runtime_refinements.sql',
 ];

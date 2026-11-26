@@ -24,14 +24,9 @@
 <?php if (!empty($mp_track_view)): ?>
 <script>
 (function () {
-  // One view per page per session — a reload must not inflate the merchant's
-  // numbers, and a consent refusal must stop it entirely. Same endpoint and
-  // payload as the retail shell so the storefront report counts print pages
-  // the same way it counts retail ones.
+  // Record each actual page load, consistent with the retail storefront.
   try {
     if (!window.MP_STORE_ID) { return; }
-    var key = 'sf_tracked_' + window.MP_STORE_ID;
-    if (sessionStorage.getItem(key)) { return; }
     if (window.MP_NEED_CONSENT && !(window.mpTrackConsent && window.mpTrackConsent.granted())) { return; }
     var fd = new FormData();
     fd.append('<?= $this->security->get_csrf_token_name(); ?>', '<?= $this->security->get_csrf_hash(); ?>');
@@ -40,9 +35,7 @@
     fd.append('referrer', document.referrer);
     var st = new URLSearchParams(window.location.search).get('search') || '';
     if (st) { fd.append('search_term', st); }
-    fetch('<?= base_url('online_store/track_visit'); ?>', { method: 'POST', body: fd, keepalive: true })
-      .then(function () { sessionStorage.setItem(key, '1'); })
-      .catch(function () {});
+    fetch('<?= base_url('online_store/track_visit'); ?>', { method: 'POST', body: fd, keepalive: true }).catch(function () {});
   } catch (e) {}
 })();
 </script>

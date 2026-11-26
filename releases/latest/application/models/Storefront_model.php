@@ -3187,23 +3187,37 @@ class Storefront_model extends CI_Model {
 	// ============== ANALYTICS ==============
 
 	public function trackVisit($storeId, $data){
+		$userAgent = strtolower((string)($data['user_agent'] ?? ''));
+		if($userAgent !== '' && preg_match('/bot|crawler|spider|facebookexternalhit|facebot|meta-external/i', $userAgent)){
+			return false;
+		}
 		$data['store_id'] = $storeId;
 		// Check if this session_id has visited before
 		if(!empty($data['session_id'])){
-			$existing = $this->db->where('store_id', $storeId)->where('session_id', $data['session_id'])->count_all_results('db_storefront_analytics');
-			$data['is_new_user'] = ($existing == 0) ? 1 : 0;
+			$firstVisit = $this->db->select('source')->where('store_id', $storeId)->where('session_id', $data['session_id'])->order_by('id', 'asc')->limit(1)->get('db_storefront_analytics')->row();
+			$data['is_new_user'] = $firstVisit ? 0 : 1;
+			// Keep a session's original referral source as it moves through pages.
+			if($firstVisit && !empty($firstVisit->source)) $data['source'] = $firstVisit->source;
 		}
 		return $this->db->insert('db_storefront_analytics', $data);
+	}
+
+	/** Keep known crawler and social-preview requests out of shopper analytics. */
+	private function _applyHumanVisitFilter(){
+		$this->db->where("LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", null, false);
 	}
 
 	public function getAnalyticsSummary($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
+		$this->_applyHumanVisitFilter();
 		$total = $this->db->where('store_id', $storeId)->where('created_at >=', $startDate)->where('created_at <=', $endDate)->count_all_results('db_storefront_analytics');
-		$unique = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ?", [$storeId, $startDate, $endDate])->row()->cnt;
-		$today = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=?", [$storeId, date('Y-m-d')])->row()->cnt;
-		$yesterday = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=?", [$storeId, date('Y-m-d', strtotime('-1 day'))])->row()->cnt;
-		$newUsers = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND is_new_user = 1", [$storeId, $startDate, $endDate])->row()->cnt;
+		$uniqueQuery = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", [$storeId, $startDate, $endDate]);
+		$unique = $uniqueQuery ? (int)$uniqueQuery->row()->cnt : 0;
+		$today = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", [$storeId, date('Y-m-d')])->row()->cnt;
+		$yesterday = (int)$this->db->query("SELECT COUNT(*) as cnt FROM db_storefront_analytics WHERE store_id=? AND DATE(created_at)=? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", [$storeId, date('Y-m-d', strtotime('-1 day'))])->row()->cnt;
+		$newQuery = $this->db->query("SELECT COUNT(DISTINCT session_id) as cnt FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND is_new_user = 1 AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", [$storeId, $startDate, $endDate]);
+		$newUsers = $newQuery ? (int)$newQuery->row()->cnt : 0;
 		$returningUsers = $unique - $newUsers;
 		return ['total' => $total, 'unique' => $unique, 'today' => $today, 'yesterday' => $yesterday, 'new_users' => $newUsers, 'returning_users' => max(0, $returningUsers)];
 	}
@@ -3211,54 +3225,58 @@ class Storefront_model extends CI_Model {
 	public function getTopSources($storeId, $startDate = null, $endDate = null, $limit = 10){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT source, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY source ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
+		return $this->db->query("SELECT source, COUNT(DISTINCT session_id) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND source <> 'Internal' AND NOT (source='Other' AND referrer IS NOT NULL AND page_url LIKE 'http%' AND SUBSTRING_INDEX(SUBSTRING_INDEX(referrer,'/',3),'/',-1)=SUBSTRING_INDEX(SUBSTRING_INDEX(page_url,'/',3),'/',-1)) AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY source ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
 	}
 
 	public function getTopPages($storeId, $startDate = null, $endDate = null, $limit = 10){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT page_url, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY page_url ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
+		return $this->db->query("SELECT page_url, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY page_url ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
 	}
 
 	public function getDailyVisits($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT DATE(created_at) as `date`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE(created_at) ORDER BY `date` ASC", [$storeId, $startDate, $endDate])->result();
+		return $this->db->query("SELECT DATE(created_at) as `date`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY DATE(created_at) ORDER BY `date` ASC", [$storeId, $startDate, $endDate])->result();
 	}
 
 	public function getVisitsByHour($storeId, $date){
 		$start = $date . ' 00:00:00';
 		$end = $date . ' 23:59:59';
-		return $this->db->query("SELECT HOUR(created_at) as `hour`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY HOUR(created_at) ORDER BY `hour` ASC", [$storeId, $start, $end])->result();
+		return $this->db->query("SELECT HOUR(created_at) as `hour`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY HOUR(created_at) ORDER BY `hour` ASC", [$storeId, $start, $end])->result();
 	}
 
 	public function getVisitsByMonth($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-365 days'));
-		return $this->db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as `month`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY `month` ASC", [$storeId, $startDate, $endDate])->result();
+		return $this->db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as `month`, COUNT(*) as visits, COUNT(DISTINCT session_id) as unique_visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY `month` ASC", [$storeId, $startDate, $endDate])->result();
 	}
 
 	public function getHeatmapData($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT DAYOFWEEK(created_at) as dow, HOUR(created_at) as hour, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY DAYOFWEEK(created_at), HOUR(created_at)", [$storeId, $startDate, $endDate])->result();
+		return $this->db->query("SELECT DAYOFWEEK(created_at) as dow, HOUR(created_at) as hour, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY DAYOFWEEK(created_at), HOUR(created_at)", [$storeId, $startDate, $endDate])->result();
 	}
 
 	public function getDeviceBreakdown($storeId, $startDate = null, $endDate = null){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		$rows = $this->db->query("SELECT user_agent FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND user_agent IS NOT NULL", [$storeId, $startDate, $endDate])->result();
-		$devices = ['Desktop' => 0, 'Mobile' => 0, 'Tablet' => 0, 'Bot/Other' => 0];
-		foreach($rows as $r){
+		$rows = $this->db->query("SELECT session_id, user_agent FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external'", [$storeId, $startDate, $endDate])->result();
+		$devices = ['Desktop' => 0, 'Mobile' => 0, 'Tablet' => 0, 'Unknown' => 0];
+		$seenSessions = array();
+		foreach($rows as $index => $r){
+			$sessionKey = !empty($r->session_id) ? (string)$r->session_id : 'row_' . $index;
+			if(isset($seenSessions[$sessionKey])) continue;
+			$seenSessions[$sessionKey] = true;
 			$ua = strtolower($r->user_agent);
-			if(strpos($ua, 'bot') !== false || strpos($ua, 'crawl') !== false || strpos($ua, 'spider') !== false){
-				$devices['Bot/Other']++;
-			}elseif(strpos($ua, 'tablet') !== false || strpos($ua, 'ipad') !== false){
+			if(strpos($ua, 'tablet') !== false || strpos($ua, 'ipad') !== false){
 				$devices['Tablet']++;
 			}elseif(strpos($ua, 'mobile') !== false || strpos($ua, 'android') !== false || strpos($ua, 'iphone') !== false){
 				$devices['Mobile']++;
-			}else{
+			}elseif($ua !== ''){
 				$devices['Desktop']++;
+			}else{
+				$devices['Unknown']++;
 			}
 		}
 		return $devices;
@@ -3267,17 +3285,20 @@ class Storefront_model extends CI_Model {
 	public function getSearchTerms($storeId, $startDate = null, $endDate = null, $limit = 20){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT search_term, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND search_term IS NOT NULL AND search_term != '' GROUP BY search_term ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
+		return $this->db->query("SELECT search_term, COUNT(*) as visits FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND search_term IS NOT NULL AND search_term != '' AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY search_term ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
 	}
 
 	public function getCustomerVisits($storeId, $startDate = null, $endDate = null, $limit = 20){
 		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
-		return $this->db->query("SELECT session_id, COUNT(*) as visits, MIN(created_at) as first_visit, MAX(created_at) as last_visit FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? GROUP BY session_id ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
+		return $this->db->query("SELECT session_id, COUNT(*) as visits, MIN(created_at) as first_visit, MAX(created_at) as last_visit FROM db_storefront_analytics WHERE store_id=? AND created_at >= ? AND created_at <= ? AND LOWER(COALESCE(user_agent,'')) NOT REGEXP 'bot|crawler|spider|facebookexternalhit|facebot|meta-external' GROUP BY session_id ORDER BY visits DESC LIMIT ?", [$storeId, $startDate, $endDate, $limit])->result();
 	}
 
-	public function getRecentVisits($storeId, $limit = 50){
-		return $this->db->where('store_id', $storeId)->order_by('id', 'desc')->limit($limit)->get('db_storefront_analytics')->result();
+	public function getRecentVisits($storeId, $limit = 50, $startDate = null, $endDate = null){
+		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
+		$endDate = $endDate ?: date('Y-m-d 23:59:59');
+		$this->_applyHumanVisitFilter();
+		return $this->db->where('store_id', $storeId)->where('created_at >=', $startDate)->where('created_at <=', $endDate)->order_by('id', 'desc')->limit($limit)->get('db_storefront_analytics')->result();
 	}
 
 	// ============== STOREFRONT BRANDS ==============
@@ -3704,20 +3725,23 @@ class Storefront_model extends CI_Model {
 	 * Funnel counts per event type over a window — powers the diagnostics
 	 * panel on the analytics page.
 	 */
-	public function getEventFunnel($storeId, $days = 30){
+	public function getEventFunnel($storeId, $startDate = null, $endDate = null){
 		if(!$this->db->table_exists('db_storefront_events')) return array();
-		$start = date('Y-m-d 00:00:00', strtotime('-'.(int)$days.' days'));
+		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
+		$endDate = $endDate ?: date('Y-m-d 23:59:59');
 		$rows = $this->db->select('event_type, COUNT(*) AS hits, SUM(consented) AS consented_hits')
-			->where('store_id', (int)$storeId)->where('created_at >=', $start)
+			->where('store_id', (int)$storeId)->where('created_at >=', $startDate)->where('created_at <=', $endDate)
 			->group_by('event_type')->get('db_storefront_events')->result();
 		$out = array();
 		foreach($rows as $r){ $out[$r->event_type] = $r; }
 		return $out;
 	}
 
-	public function getRecentEvents($storeId, $limit = 25){
+	public function getRecentEvents($storeId, $limit = 25, $startDate = null, $endDate = null){
 		if(!$this->db->table_exists('db_storefront_events')) return array();
-		return $this->db->where('store_id', (int)$storeId)
+		$startDate = $startDate ?: date('Y-m-d 00:00:00', strtotime('-30 days'));
+		$endDate = $endDate ?: date('Y-m-d 23:59:59');
+		return $this->db->where('store_id', (int)$storeId)->where('created_at >=', $startDate)->where('created_at <=', $endDate)
 			->order_by('id', 'desc')->limit((int)$limit)
 			->get('db_storefront_events')->result();
 	}

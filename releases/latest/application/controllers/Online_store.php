@@ -3515,9 +3515,9 @@ class Online_store extends MY_Controller {
 			'devices' => $this->storefront_model->getDeviceBreakdown($storeId, $startDate, $endDate),
 			'search_terms' => $this->storefront_model->getSearchTerms($storeId, $startDate, $endDate),
 			'customers' => $this->storefront_model->getCustomerVisits($storeId, $startDate, $endDate),
-			'recent_visits' => $this->storefront_model->getRecentVisits($storeId, 50),
-			'event_funnel' => $this->storefront_model->getEventFunnel($storeId, 30),
-			'recent_events' => $this->storefront_model->getRecentEvents($storeId, 25),
+			'recent_visits' => $this->storefront_model->getRecentVisits($storeId, 50, $startDate, $endDate),
+			'event_funnel' => $this->storefront_model->getEventFunnel($storeId, $startDate, $endDate),
+			'recent_events' => $this->storefront_model->getRecentEvents($storeId, 25, $startDate, $endDate),
 			'filter' => $filter,
 			'range_label' => $rangeLabel,
 			'start_date' => date('Y-m-d', strtotime($startDate)),
@@ -3579,31 +3579,44 @@ class Online_store extends MY_Controller {
 			echo json_encode(['status' => 'error']);
 			return;
 		}
-		$pageUrl = trim($this->input->post('page_url'));
-		$referrer = trim($this->input->post('referrer'));
+		$pageUrlRaw = trim((string)$this->input->post('page_url'));
+		$referrerRaw = trim((string)$this->input->post('referrer'));
+		$pageParts = parse_url($pageUrlRaw) ?: [];
+		$pageUrl = (string)($pageParts['path'] ?? '/');
+		$referrerParts = $referrerRaw !== '' ? parse_url($referrerRaw) : false;
+		$referrerHost = is_array($referrerParts) ? strtolower((string)($referrerParts['host'] ?? '')) : '';
+		// Keep the referral source useful without retaining full URLs or query strings.
+		$referrer = $referrerHost;
 		$source = '';
-		if(stripos($referrer, 'facebook.com') !== false || stripos($referrer, 'fb.com') !== false) $source = 'Facebook';
-		elseif(stripos($referrer, 'instagram.com') !== false) $source = 'Instagram';
-		elseif(stripos($referrer, 'twitter.com') !== false || stripos($referrer, 'x.com') !== false) $source = 'X/Twitter';
-		elseif(stripos($referrer, 'google.') !== false) $source = 'Google';
-		elseif(stripos($referrer, 'tiktok.com') !== false) $source = 'TikTok';
-		elseif(stripos($referrer, 'youtube.com') !== false) $source = 'YouTube';
-		elseif(stripos($referrer, 'whatsapp.com') !== false) $source = 'WhatsApp';
-		elseif(!empty($referrer)) $source = 'Other';
+		$pageHost = strtolower((string)($pageParts['host'] ?? ''));
+		if($referrerHost !== '' && $referrerHost === $pageHost) $source = 'Internal';
+		elseif(stripos($referrerHost, 'facebook.com') !== false || stripos($referrerHost, 'fb.com') !== false) $source = 'Facebook';
+		elseif(stripos($referrerHost, 'instagram.com') !== false) $source = 'Instagram';
+		elseif(stripos($referrerHost, 'twitter.com') !== false || stripos($referrerHost, 'x.com') !== false) $source = 'X/Twitter';
+		elseif(stripos($referrerHost, 'google.') !== false) $source = 'Google';
+		elseif(stripos($referrerHost, 'tiktok.com') !== false) $source = 'TikTok';
+		elseif(stripos($referrerHost, 'youtube.com') !== false) $source = 'YouTube';
+		elseif(stripos($referrerHost, 'whatsapp.com') !== false || stripos($referrerHost, 'wa.me') !== false) $source = 'WhatsApp';
+		elseif(!empty($referrerHost)) $source = 'Other';
 		else $source = 'Direct';
 
 		// Extract search term from page URL or direct POST
 		$searchTerm = trim($this->input->post('search_term'));
-		if(empty($searchTerm) && $pageUrl && strpos($pageUrl, 'search=') !== false){
-			preg_match('/search=([^&]+)/', $pageUrl, $m);
-			if(!empty($m[1])) $searchTerm = urldecode($m[1]);
+		if(empty($searchTerm) && !empty($pageParts['query'])){
+			parse_str($pageParts['query'], $queryParts);
+			$searchTerm = trim((string)($queryParts['search'] ?? ''));
+		}
+		$userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+		if(preg_match('/bot|crawler|spider|facebookexternalhit|facebot|meta-external/i', $userAgent)){
+			echo json_encode(['status' => 'ignored']);
+			return;
 		}
 
 		$this->storefront_model->trackVisit($storeId, [
 			'page_url' => substr($pageUrl, 0, 500),
 			'referrer' => substr($referrer, 0, 500),
-			'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-			'ip_address' => $this->input->ip_address(),
+			'user_agent' => $userAgent,
+			'ip_address' => null,
 			'session_id' => session_id() ?: uniqid('sess_', true),
 			'source' => $source,
 			'search_term' => substr($searchTerm, 0, 255)

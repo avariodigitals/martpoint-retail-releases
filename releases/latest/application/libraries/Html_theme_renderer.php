@@ -233,6 +233,7 @@ HTML;
                 'catalogue_url' => $base . '/catalogue',
                 'cart_url' => $base . '/cart',
                 'checkout_url' => $base . '/checkout',
+                'wishlist_url' => $base . '/wishlist',
                 'contact_url' => $base . '/contact',
             ],
             'actions' => [
@@ -279,6 +280,20 @@ HTML;
     /** Only public display fields cross the template boundary. */
     private function extendContext(array $out, array $data, array $settings, $base){
         foreach(['cart_enabled','sells_products','sells_services','show_prices','is_service_store'] as $key) $out['commerce'][$key] = !empty($data[$key]);
+        // Electronics stores that selected online or hybrid ordering must get
+        // the purchase path even if an older saved allow_products_online flag
+        // is stale. Keep catalogue mode quote-only.
+        $themeManifest = json_decode((string)($this->currentTheme->manifest_json ?? ''), true);
+        $themeKey = (string)(is_array($themeManifest) ? ($themeManifest['theme_key'] ?? $this->currentTheme->theme_key ?? '') : ($this->currentTheme->theme_key ?? ''));
+        $sellingMode = (string)($data['selling_mode'] ?? 'catalogue');
+        if($themeKey === 'martpoint_gadgets' && !empty($data['sells_products']) && in_array($sellingMode, ['ecommerce','hybrid'], true)){
+            $out['commerce']['cart_enabled'] = true;
+        }
+        $out['commerce']['wishlist_enabled'] = !empty($data['wishlist_enabled']);
+        $whatsappNumber = preg_replace('/[^0-9]/', '', (string)($settings['whatsapp_number'] ?? ''));
+        $allowWhatsapp = !array_key_exists('allow_whatsapp', $settings) || !empty($settings['allow_whatsapp']);
+        $out['commerce']['whatsapp_enabled'] = $allowWhatsapp && $whatsappNumber !== '';
+        $out['store']['whatsapp'] = $whatsappNumber;
         if(empty($data['show_prices'])){
             $hide = function(&$product){if(is_array($product) && $product){$product['price']='';$product['original_price']='';$product['price_raw']=0;}};
             foreach(['products','all_products','featured_products','best_sellers','new_arrivals','related_products','product_variants','featured_services','services'] as $key){foreach($out[$key] as &$product)$hide($product);unset($product);}
@@ -356,6 +371,23 @@ HTML;
             $section = array_intersect_key($row, array_flip(['section_key','section_label','title','subtitle','display_order','config_json']));
             $section['config'] = json_decode((string)($row['config_json'] ?? ''), true) ?: [];
             $out['homepage_sections'][] = $section;
+        }
+        // Expose the homepage builder toggles as simple template booleans.
+        // Uploaded themes can then show the exact product collections the
+        // merchant enabled, instead of rendering the full catalogue on home.
+        $out['homepage'] = [
+            'show_featured_products' => false,
+            'show_new_arrivals' => false,
+            'featured_products' => ['title' => 'Featured Products'],
+            'new_arrivals' => ['title' => 'New Arrivals'],
+        ];
+        foreach($out['homepage_sections'] as $section){
+            $key = preg_replace('/_\\d+$/', '', (string)($section['section_key'] ?? ''));
+            if(!in_array($key, ['featured_products','new_arrivals'], true)) continue;
+            $out['homepage']['show_' . $key] = true;
+            $title = trim((string)($section['title'] ?? ''));
+            if($title === '') $title = trim((string)($section['section_label'] ?? ''));
+            if($title !== '') $out['homepage'][$key]['title'] = $title;
         }
         $out['social_links'] = $this->plain($data['social_links'] ?? []);
         $out['business_hours'] = $this->plain($data['business_hours'] ?? []);
@@ -506,10 +538,16 @@ HTML;
         $settings = (array)($data['settings'] ?? []);
         $storeId = (int)($settings['store_id'] ?? 0);
         $currency = (array)($data['store_currency'] ?? []);
+        $manifest = json_decode((string)($theme->manifest_json ?? ''), true);
+        $themeKey = (string)(is_array($manifest) ? ($manifest['theme_key'] ?? $theme->theme_key ?? '') : ($theme->theme_key ?? ''));
+        $cartEnabled = !empty($data['cart_enabled']);
+        if($themeKey === 'martpoint_gadgets' && !empty($data['sells_products']) && in_array((string)($data['selling_mode'] ?? 'catalogue'), ['ecommerce','hybrid'], true)){
+            $cartEnabled = true;
+        }
         $config = [
             'version'=>1, 'storeId'=>$storeId, 'preview'=>(bool)$preview,
             'cartKey'=>'sf_cart_' . $storeId,
-            'cartEnabled'=>!empty($data['cart_enabled']), 'allowBackorder'=>!empty($settings['allow_backorder']),
+            'cartEnabled'=>$cartEnabled, 'allowBackorder'=>!empty($settings['allow_backorder']),
             'placeOrderUrl'=>base_url('storefront/place_order'), 'quoteUrl'=>base_url('storefront/cart_quote'),
             'verifyUrl'=>base_url('storefront/verify_payment'), 'callbackUrl'=>base_url('storefront/paystack_callback'),
             'homeUrl'=>base_url('store/' . rawurlencode((string)($settings['store_slug'] ?? ''))),
@@ -534,6 +572,7 @@ HTML;
             $version = is_file($file) ? (string)filemtime($file) : '1';
             $html .= '<script src="' . htmlspecialchars(base_url('theme/js/' . $asset).'?v='.$version, ENT_QUOTES, 'UTF-8') . '"></script>';
         }
+        $html .= '<script>(function(){document.addEventListener("click",function(event){var button=event.target.closest("[data-mp-whatsapp-order]");if(!button)return;event.preventDefault();var phone=button.getAttribute("data-mp-whatsapp-number")||"";if(!phone)return;var name=button.getAttribute("data-product-name")||"this product";var price=button.getAttribute("data-product-price")||"";var text="Hello, I would like to order "+name+(price?" ("+price+")":"")+".";window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(text),"_blank","noopener");});})();</script>';
         return $html;
     }
 }
