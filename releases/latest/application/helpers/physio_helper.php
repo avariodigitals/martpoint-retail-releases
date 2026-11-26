@@ -216,10 +216,13 @@ if (!function_exists('physio_notification_process')) {
                 $CI->load->model('debt_reminder_v2_model', 'drv2_delivery');
                 $amount = 0;
                 $chk = $CI->drv2_delivery->deliveryCheck($row, $amount);
+                $debtPayload = json_decode($row->payload_json, true) ?: array();
+                $debtPatientId = !empty($debtPayload['patient_id']) ? (int)$debtPayload['patient_id'] : null;
+                $debtInvoiceId = !empty($debtPayload['invoice_id']) ? (int)$debtPayload['invoice_id'] : null;
                 if ($chk['suppress']) {
                     $CI->db->where('id', $row->id)->update('db_notification_queue', [
                         'status' => 'suppressed', 'last_error' => 'debt reminder: ' . $chk['reason']]);
-                    $CI->drv2_delivery->audit($row->store_id, 'suppressed', null, null, $chk['reason'], $row->event_key);
+                    $CI->drv2_delivery->audit($row->store_id, 'suppressed', $debtPatientId, $debtInvoiceId, $chk['reason'], $row->event_key);
                     $suppressed++;
                     continue;
                 }
@@ -229,7 +232,7 @@ if (!function_exists('physio_notification_process')) {
                     $payload['amount_due'] = $amount;
                     $CI->db->where('id', $row->id)->update('db_notification_queue', array('payload_json' => json_encode($payload)));
                 }
-                $CI->drv2_delivery->audit($row->store_id, 'sent', null, null, null, $row->event_key, $amount);
+                $CI->drv2_delivery->audit($row->store_id, 'sent', $debtPatientId, $debtInvoiceId, null, $row->event_key, $amount);
             }
             $result = physio_deliver($row);
             if ($result === true) {

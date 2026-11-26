@@ -132,34 +132,62 @@ class Debt_reminder_model extends CI_Model {
 		return $this->db->insert($this->table, $data);
 	}
 
+	/** Save overrides for one invoice; null values inherit existing defaults. */
+	public function updateInvoiceSettings($invoiceId, $storeId, array $data){
+		$invoice = $this->db->select('id')->where('id',(int)$invoiceId)->where('store_id',(int)$storeId)->get('db_sales')->row();
+		if(!$invoice) return false;
+		$allowed = array('enabled','frequency','max_reminders','send_email','send_sms');
+		$values = array('updated_at'=>date('Y-m-d H:i:s'));
+		foreach($allowed as $key){
+			if(array_key_exists($key,$data)) $values[$key] = $data[$key];
+		}
+		$exists = $this->db->where('store_id',(int)$storeId)->where('invoice_id',(int)$invoiceId)->count_all_results('db_debt_reminder_invoice_state');
+		if($exists){
+			return $this->db->where('store_id',(int)$storeId)->where('invoice_id',(int)$invoiceId)->update('db_debt_reminder_invoice_state',$values);
+		}
+		$values['store_id'] = (int)$storeId;
+		$values['invoice_id'] = (int)$invoiceId;
+		$values['reminder_count'] = 0;
+		$values['created_at'] = date('Y-m-d H:i:s');
+		return $this->db->insert('db_debt_reminder_invoice_state',$values);
+	}
+
 	/**
-	 * Get all customers with debt and their reminder settings
+	 * Get unpaid invoices with invoice-specific reminder state. Existing
+	 * customer-level settings remain fallback defaults for older installs.
 	 */
-	public function getCustomersWithDebt($storeId = NULL){
+	public function getInvoicesWithDebt($storeId = NULL){
 		if(empty($storeId)){ $storeId = get_current_store_id(); }
-
-		$sql = "SELECT 
-			c.id as customer_id,
-			c.customer_name,
-			c.mobile,
-			c.email,
-			COALESCE(SUM(s.grand_total - s.paid_amount), 0) as amount_due,
-			rs.enabled,
-			rs.frequency,
-			rs.max_reminders,
-			rs.reminder_count,
-			rs.last_reminder_sent,
-			rs.send_email,
-			rs.send_sms
-		FROM db_customers c
-		LEFT JOIN db_sales s ON s.customer_id = c.id AND s.sales_status = 'Final' AND (s.grand_total - s.paid_amount) > 0 AND s.store_id = ?
-		LEFT JOIN {$this->table} rs ON rs.customer_id = c.id AND rs.store_id = ?
-		WHERE c.store_id = ? AND c.status = 1
-		GROUP BY c.id
-		HAVING amount_due > 0
-		ORDER BY amount_due DESC";
-
-		return $this->db->query($sql, [$storeId, $storeId, $storeId])->result();
+		$store = $this->getStoreSettings($storeId);
+		$sql = "SELECT s.id AS invoice_id, s.sales_code, s.sales_date, s.due_date,
+			c.id AS customer_id, c.customer_name, c.mobile, c.email,
+			GREATEST(COALESCE(s.grand_total,0)-COALESCE(s.paid_amount,0),0) AS amount_due,
+			st.enabled AS invoice_enabled, st.frequency AS invoice_frequency,
+			st.max_reminders AS invoice_max_reminders, st.reminder_count AS invoice_reminder_count,
+			st.last_reminder_sent AS invoice_last_reminder_sent,
+			st.send_email AS invoice_send_email, st.send_sms AS invoice_send_sms,
+			rs.enabled AS customer_enabled, rs.frequency AS customer_frequency,
+			rs.max_reminders AS customer_max_reminders, rs.reminder_count AS customer_reminder_count,
+			rs.last_reminder_sent AS customer_last_reminder_sent,
+			rs.send_email AS customer_send_email, rs.send_sms AS customer_send_sms
+			FROM db_sales s
+			JOIN db_customers c ON c.id=s.customer_id AND c.store_id=s.store_id
+			LEFT JOIN {$this->table} rs ON rs.customer_id=c.id AND rs.store_id=s.store_id
+			LEFT JOIN db_debt_reminder_invoice_state st ON st.invoice_id=s.id AND st.store_id=s.store_id
+			WHERE s.store_id=? AND c.status=1 AND s.sales_status='Final'
+			AND (COALESCE(s.grand_total,0)-COALESCE(s.paid_amount,0))>0
+			ORDER BY COALESCE(s.due_date,s.sales_date) ASC, s.id ASC";
+		$rows = $this->db->query($sql, array($storeId))->result();
+		foreach($rows as $row){
+			$row->reminder_count = (int)($row->invoice_reminder_count ?? 0);
+			$row->last_reminder_sent = $row->invoice_last_reminder_sent;
+			$row->enabled = $row->invoice_enabled !== null ? (int)$row->invoice_enabled : ($row->customer_enabled !== null ? (int)$row->customer_enabled : (int)$store->enabled);
+			$row->frequency = $row->invoice_frequency ?: ($row->customer_frequency ?: $store->frequency);
+			$row->max_reminders = $row->invoice_max_reminders !== null ? (int)$row->invoice_max_reminders : ($row->customer_max_reminders !== null ? (int)$row->customer_max_reminders : (int)$store->max_reminders);
+			$row->send_email = $row->invoice_send_email !== null ? (int)$row->invoice_send_email : ($row->customer_send_email !== null ? (int)$row->customer_send_email : (int)$store->send_email);
+			$row->send_sms = $row->invoice_send_sms !== null ? (int)$row->invoice_send_sms : ($row->customer_send_sms !== null ? (int)$row->customer_send_sms : (int)$store->send_sms);
+		}
+		return $rows;
 	}
 
 	/**
@@ -167,35 +195,12 @@ class Debt_reminder_model extends CI_Model {
 	 */
 	public function getCustomersDueForReminder($storeId = NULL){
 		if(empty($storeId)){ $storeId = get_current_store_id(); }
-		$storeDefaults = $this->getStoreSettings($storeId);
-		$customers = $this->getCustomersWithDebt($storeId);
+		$invoices = $this->getInvoicesWithDebt($storeId);
 		$due = [];
-		foreach($customers as $c){
-			// Determine effective enabled: customer override takes precedence, then store default
-			$customerEnabled = $c->enabled;
-			if($customerEnabled === NULL){
-				$effectiveEnabled = (int)$storeDefaults->enabled;
-			} else {
-				$effectiveEnabled = (int)$customerEnabled;
-			}
-			if(!$effectiveEnabled) continue;
-
-			// Determine effective max reminders
-			$max = (int)($c->max_reminders !== NULL ? $c->max_reminders : $storeDefaults->max_reminders);
-			if($max > 0 && (int)$c->reminder_count >= $max) continue;
-
-			// Determine effective frequency and channels
-			$freq = $c->frequency !== NULL ? $c->frequency : $storeDefaults->frequency;
-			$c->frequency = $freq;
-			$c->max_reminders = $max;
-			$c->send_email = $c->send_email !== NULL ? $c->send_email : $storeDefaults->send_email;
-			$c->send_sms = $c->send_sms !== NULL ? $c->send_sms : $storeDefaults->send_sms;
-
-			// Check frequency
-			$lastSent = $c->last_reminder_sent;
-			if($this->isDue($lastSent, $freq)){
-				$due[] = $c;
-			}
+		foreach($invoices as $invoice){
+			if(!(int)$invoice->enabled) continue;
+			if((int)$invoice->max_reminders > 0 && (int)$invoice->reminder_count >= (int)$invoice->max_reminders) continue;
+			if($this->isDue($invoice->last_reminder_sent, $invoice->frequency)) $due[] = $invoice;
 		}
 		return $due;
 	}
@@ -218,43 +223,23 @@ class Debt_reminder_model extends CI_Model {
 	}
 
 	/**
-	 * Mark reminder as sent for a customer
+	 * Mark reminder as sent for a specific invoice.
 	 */
-	public function markSent($customerId, $storeId, $amountDue){
-		$data = [
-			'last_reminder_sent' => date('Y-m-d H:i:s'),
-			'updated_at' => date('Y-m-d H:i:s')
-		];
-		$this->db->set('reminder_count', 'reminder_count + 1', FALSE);
-		$exists = $this->db->where('store_id', $storeId)->where('customer_id', $customerId)->count_all_results($this->table);
-		if($exists){
-			$this->db->where('store_id', $storeId)->where('customer_id', $customerId);
-			$this->db->update($this->table, $data);
-		} else {
-			$defaults = $this->getStoreSettings($storeId);
-			$this->db->insert($this->table, [
-				'store_id' => $storeId,
-				'customer_id' => $customerId,
-				'enabled' => $defaults->enabled,
-				'frequency' => $defaults->frequency,
-				'max_reminders' => $defaults->max_reminders,
-				'send_email' => $defaults->send_email,
-				'send_sms' => $defaults->send_sms,
-				'last_reminder_sent' => date('Y-m-d H:i:s'),
-				'reminder_count' => 1,
-				'created_at' => date('Y-m-d H:i:s'),
-				'updated_at' => date('Y-m-d H:i:s')
-			]);
-		}
+	public function markSent($invoiceId, $storeId, $amountDue = null){
+		$now = date('Y-m-d H:i:s');
+		$this->db->query("INSERT INTO db_debt_reminder_invoice_state (store_id,invoice_id,reminder_count,last_reminder_sent,created_at,updated_at)
+			VALUES (?,?,1,?,?,?) ON DUPLICATE KEY UPDATE reminder_count=reminder_count+1,last_reminder_sent=VALUES(last_reminder_sent),updated_at=VALUES(updated_at)",
+			array((int)$storeId,(int)$invoiceId,$now,$now,$now));
 	}
 
 	/**
 	 * Log a reminder in history
 	 */
-	public function logHistory($storeId, $customerId, $customerName, $amountDue, $channel, $status, $error = ''){
+	public function logHistory($storeId, $customerId, $customerName, $amountDue, $channel, $status, $error = '', $invoiceId = null){
 		return $this->db->insert($this->historyTable, [
 			'store_id' => $storeId,
 			'customer_id' => $customerId,
+			'invoice_id' => $invoiceId ? (int)$invoiceId : null,
 			'customer_name' => $customerName,
 			'amount_due' => $amountDue,
 			'channel' => $channel,
@@ -269,11 +254,11 @@ class Debt_reminder_model extends CI_Model {
 	 */
 	public function getHistory($storeId = NULL, $limit = 50, $offset = 0){
 		if(empty($storeId)){ $storeId = get_current_store_id(); }
-		return $this->db->where('store_id', $storeId)
-			->order_by('sent_at', 'DESC')
-			->limit($limit, $offset)
-			->get($this->historyTable)
-			->result();
+		return $this->db->select('h.*,s.sales_code')
+			->from($this->historyTable.' h')
+			->join('db_sales s','s.id=h.invoice_id AND s.store_id=h.store_id','left')
+			->where('h.store_id', $storeId)
+			->order_by('h.sent_at', 'DESC')->limit($limit, $offset)->get()->result();
 	}
 
 	/**

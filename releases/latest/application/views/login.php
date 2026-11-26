@@ -857,7 +857,7 @@ $ld_sectors = $ld_clinical
           </div>
 
           <div class="mp-login-footer">
-            Need help? <a href="<?=base_url('login/forgot_password')?>">Contact support</a>
+            Need help? <a href="https://www.martpoint.com.ng/support" target="_blank" rel="noopener">Open a support ticket</a>
           </div>
         </form>
 

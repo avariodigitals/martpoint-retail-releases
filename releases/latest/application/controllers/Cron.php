@@ -481,14 +481,17 @@ class Cron extends CI_Controller {
 
 		$results = [
 			'status' => 'completed',
-			'customers_checked' => 0,
+			'invoices_checked' => 0,
 			'emails_sent' => 0,
 			'sms_sent' => 0,
 			'errors' => []
 		];
 
-		// Get all stores that have debt reminders enabled at store level OR any per-customer override enabled
-		$storeIds = $this->db->query("SELECT DISTINCT store_id FROM db_debt_reminder_settings WHERE (customer_id = 0 AND enabled = 1) OR (customer_id > 0 AND enabled = 1)")->result_array();
+		// Stores enabled at store, customer, or individual-invoice level.
+		$storeSql = "SELECT store_id FROM db_debt_reminder_settings WHERE enabled=1";
+		if($this->db->table_exists('db_debt_reminder_invoice_state')) $storeSql .= " UNION SELECT store_id FROM db_debt_reminder_invoice_state WHERE enabled=1";
+		if($this->db->table_exists('db_debt_reminder_config')) $storeSql .= " UNION SELECT store_id FROM db_debt_reminder_config WHERE enabled=1";
+		$storeIds = $this->db->query($storeSql)->result_array();
 		foreach($storeIds as $storeRow){
 			$storeId = $storeRow['store_id'];
             $this->email_service->setStoreId($storeId);
@@ -496,8 +499,7 @@ class Cron extends CI_Controller {
 			// Single delivery path — one of the two schedulers drives a store;
 			// never both. The switch is per-store on db_debt_reminder_config:
 			//   enabled=1  → outbox scheduler (debt_reminder_v2_model::schedule)
-			//                queues through db_notification_queue and inherits
-			//                legacy store/customer settings via legacyGate().
+			//                queues one event for each unpaid invoice.
 			//   enabled=0  → legacy direct-send path below, which itself only
 			//                runs when db_debt_reminder_settings.enabled=1.
 			// Disabling the outbox toggle therefore does NOT restart legacy for
@@ -508,45 +510,33 @@ class Cron extends CI_Controller {
 				if($cfg && (int)$cfg->enabled === 1){
 					$this->load->model('debt_reminder_v2_model', 'drv2');
 					$sched = $this->drv2->schedule($storeId);
-					$results['customers_checked'] += ($sched['queued'] + $sched['skipped'] + $sched['paused'] + $sched['suppressed']);
+					$results['invoices_checked'] += ($sched['queued'] + $sched['skipped'] + $sched['paused'] + $sched['suppressed']);
 					$results['errors'][] = "store {$storeId}: deferred to outbox scheduler (queued {$sched['queued']})";
 					continue;
 				}
 			}
 
-			$customers = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
-			$results['customers_checked'] += count($customers);
+			$invoices = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
+			$results['invoices_checked'] += count($invoices);
 
-			foreach($customers as $customer){
+			foreach($invoices as $customer){
 				$amountDue = $customer->amount_due;
 				$sendEmail = $customer->send_email;
 				$sendSms = $customer->send_sms;
 
-				// Get customer contact details
-				$customerRec = $this->db->where('id', $customer->customer_id)->get('db_customers')->row();
-				if(!$customerRec) continue;
-
-				$email = $customerRec->email;
-				$mobile = $customerRec->mobile;
-				$customerName = $customerRec->customer_name;
+				$email = $customer->email;
+				$mobile = $customer->mobile;
+				$customerName = $customer->customer_name;
 
 				$emailOk = false;
 				$smsOk = false;
 
 				// Send Email
 				if($sendEmail && !empty($email)){
-					// Build placeholder data
-					$invoiceRec = $this->db->select('id, sales_code, sales_date')
-						->where('customer_id', $customer->customer_id)
-						->where('sales_status', 'Final')
-						->where('(grand_total - paid_amount) >', 0)
-						->order_by('sales_date', 'DESC')
-						->limit(1)
-						->get('db_sales')
-						->row();
-
-					$invoiceNumber = $invoiceRec ? $invoiceRec->sales_code : 'N/A';
-					$dueDate = $invoiceRec ? show_date($invoiceRec->sales_date) : 'N/A';
+					$invoiceNumber = $customer->sales_code;
+					$dueDate = !empty($customer->due_date) ? show_date($customer->due_date) : 'N/A';
+					$this->load->library('invoice_payment_link');
+					$paymentLink = $this->invoice_payment_link->forSales((int)$customer->invoice_id,(int)$storeId);
 
 					$res = $this->email_service->sendTemplate(
 						'debt_reminder',
@@ -557,9 +547,9 @@ class Cron extends CI_Controller {
 							'invoice_number' => $invoiceNumber,
 							'amount_due' => $this->_currency($amountDue),
 							'due_date' => $dueDate,
-							'payment_link' => base_url('customers')
+							'payment_link' => $paymentLink
 						],
-						['messaging_key'=>'debt:'.$customer->customer_id.':'.date('Y-m-d'),'related_module' => 'debt_reminder', 'related_record_id' => $customer->customer_id]
+						['messaging_key'=>'debt:'.$customer->invoice_id.':'.date('Y-m-d'),'related_module' => 'debt_reminder', 'related_record_id' => $customer->invoice_id]
 					);
 
 					if($res['success']){
@@ -571,14 +561,14 @@ class Cron extends CI_Controller {
 					$this->debt_reminder_model->logHistory(
 						$storeId, $customer->customer_id, $customerName, $amountDue, 'email',
 						$res['success'] ? 'sent' : 'failed',
-						$res['success'] ? '' : $res['message']
+						$res['success'] ? '' : $res['message'], $customer->invoice_id
 					);
 				}
 
 				// Send SMS
 				if($sendSms && !empty($mobile)){
-					$msg = "Hi {$customerName}, this is a reminder that you have an outstanding balance of {$this->_currency($amountDue)}. Please settle at your earliest convenience. Thank you, " . get_store_name($storeId);
-					$res = $this->sms_model->send_sms($mobile, $msg,array('store_id'=>$storeId,'message_category'=>'transactional','messaging_key'=>'debt:'.$customer->customer_id.':'.date('Y-m-d')));
+					$msg = "Hi {$customerName}, invoice {$customer->sales_code} has an outstanding balance of {$this->_currency($amountDue)}" . (!empty($customer->due_date) ? ' and was due on ' . show_date($customer->due_date) : '') . '. Please settle at your earliest convenience. Thank you, ' . get_store_name($storeId);
+					$res = $this->sms_model->send_sms($mobile, $msg,array('store_id'=>$storeId,'message_category'=>'transactional','messaging_key'=>'debt:'.$customer->invoice_id.':'.date('Y-m-d')));
 					if($res === 'success'){
 						$smsOk = true;
 						$results['sms_sent']++;
@@ -588,20 +578,20 @@ class Cron extends CI_Controller {
 					$this->debt_reminder_model->logHistory(
 						$storeId, $customer->customer_id, $customerName, $amountDue, 'sms',
 						$smsOk ? 'sent' : 'failed',
-						$smsOk ? '' : $res
+						$smsOk ? '' : $res, $customer->invoice_id
 					);
 				}
 
 				// Mark as sent if at least one channel succeeded
 				if($emailOk || $smsOk){
-					$this->debt_reminder_model->markSent($customer->customer_id, $storeId, $amountDue);
+					$this->debt_reminder_model->markSent($customer->invoice_id, $storeId, $amountDue);
 				}
 			}
 		}
 
 		if($isCli){
 			echo "Debt Reminder Cron completed.\n";
-			echo "Customers checked: {$results['customers_checked']}\n";
+			echo "Invoices checked: {$results['invoices_checked']}\n";
 			echo "Emails sent: {$results['emails_sent']}\n";
 			echo "SMS sent: {$results['sms_sent']}\n";
 			if(!empty($results['errors'])){

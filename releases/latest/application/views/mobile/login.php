@@ -112,6 +112,8 @@
       max-width: 460px;
       margin: 0 auto;
     }
+    .login-support-link { margin: 18px 0 0; text-align: center; color: var(--mp-muted); font-size: 12px; }
+    .login-support-link a { color: var(--mp-primary); font-weight: 600; text-decoration: none; }
     .login-card h2 {
       font-size: 22px;
       font-weight: 700;
@@ -511,6 +513,7 @@
 
 
         </form>
+        <p class="login-support-link">Need help? <a href="https://www.martpoint.com.ng/support" target="_blank" rel="noopener">Open a support ticket</a></p>
       </div>
 
     </section>

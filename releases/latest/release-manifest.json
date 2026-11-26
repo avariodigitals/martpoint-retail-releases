@@ -1,6 +1,6 @@
 {
-    "version": "4.0.9.315",
-    "previous_version": "4.0.9.313",
+    "version": "4.0.9.316",
+    "previous_version": "4.0.9.308",
     "release_date": "2026-11-26",
     "fleet_url": "https://central.martpoint.com.ng/",
     "files": [
@@ -406,8 +406,8 @@
         },
         {
             "path": "application/views/debt_reminder_settings.php",
-            "hash": "4f27dd6e2687f6badd1dbbbe933888f3de94023634c517f6a67d4a11cffcdc6d",
-            "size": 13356
+            "hash": "9e97e1d4338da7a978d967719ac378b429899529d3ca49887f48a45177adce8f",
+            "size": 13490
         },
         {
             "path": "application/views/suppliers-list.php",
@@ -2846,8 +2846,8 @@
         },
         {
             "path": "application/views/mobile/login.php",
-            "hash": "3cafb4b2d3f395ac442882f4b820c551db4e7e9428a20d7efd36a7f85c2daea6",
-            "size": 19096
+            "hash": "40c21ed6a66ff7c1d5364d84d10a77c9a39b19534ef154acc442ceaf91f84e7f",
+            "size": 19457
         },
         {
             "path": "application/views/mobile/access_denied.php",
@@ -3971,8 +3971,8 @@
         },
         {
             "path": "application/views/login.php",
-            "hash": "c449990a5c9496fc1a8dcc3dfb5fdb4611811a3668be1b80dfe19c6b0bbfb3ef",
-            "size": 30932
+            "hash": "e4aee911497f6668a7c374bd9dcf0b6fba3413fecb60981338358a30c468f369",
+            "size": 30967
         },
         {
             "path": "application/views/automobile/dashboard.php",
@@ -5581,8 +5581,8 @@
         },
         {
             "path": "application/views/paystack_settings.php",
-            "hash": "c17616d44b9bf2e3fb7c98b3d9e84dabc26b4fe27f4051aab03b666f5f369ea9",
-            "size": 19568
+            "hash": "2c30e30521b4e712276acd2980d6baa9f2c3acc6ed3f0872fc03436e6fe170d6",
+            "size": 20414
         },
         {
             "path": "application/views/print-sales-invoice-2.php",
@@ -6151,8 +6151,8 @@
         },
         {
             "path": "application/views/forgot-password.php",
-            "hash": "d393bf55d8a775256639b1e517b7c82d9bf55e676f66a7cf2b6a62dbb7f0f131",
-            "size": 4249
+            "hash": "c161c8195240e18003e87b96028170ce290f1bd8152c4adeec0a8b21ad2d51fd",
+            "size": 4539
         },
         {
             "path": "application/views/city_form.php",
@@ -6711,8 +6711,8 @@
         },
         {
             "path": "application/views/debt_reminder_customers.php",
-            "hash": "215e26129be7cd8bfefc0e16159a3458336ca381099186cd6db825660220a0d4",
-            "size": 7429
+            "hash": "acd1bd3e7c0c66547eede8ea08b791801ff75bfa66db0aaf54f45cff696a6b3b",
+            "size": 5052
         },
         {
             "path": "application/views/building_materials/attendance.php",
@@ -7201,8 +7201,8 @@
         },
         {
             "path": "application/config/migrations.php",
-            "hash": "a6fb5dd9a6b3ffb991fe068e69ecd9efc78f6093b890ecdc3d73a34de04f896c",
-            "size": 49490
+            "hash": "6a91cfacf70487af6532ee941f27b8032fe52c2ef62ff37c80e913f8578bec0e",
+            "size": 49648
         },
         {
             "path": "application/config/routes.php",
@@ -7521,8 +7521,8 @@
         },
         {
             "path": "application/models/Debt_reminder_model.php",
-            "hash": "ae10d0db3021500d82fafcf48b6f29c94a79a0bc26299afe3c06461fac8fccc7",
-            "size": 9730
+            "hash": "af2ece1ecf33e3a0c27602498524ebc7bf1858cf0aa5021a0b518a170aeb2db4",
+            "size": 11404
         },
         {
             "path": "application/models/Quotation_model.php",
@@ -7926,8 +7926,8 @@
         },
         {
             "path": "application/models/Debt_reminder_v2_model.php",
-            "hash": "a534359e6e32da95a03e45b278b68f41fc4c71792f81301f6d4b973141d7e46f",
-            "size": 18091
+            "hash": "d24c72bc608832b7b80e49706426d321dd34e6cf8a9ebcc6cb40ea85293e9804",
+            "size": 19994
         },
         {
             "path": "application/models/Monnify_model.php",
@@ -8121,8 +8121,8 @@
         },
         {
             "path": "application/models/Login_model.php",
-            "hash": "2aefaa36a2f64979cacaafa9eec4df325cf04320788e1f53f608138cf23f2568",
-            "size": 12406
+            "hash": "290265b80d2436c70d6166679ec9bbaf67c6604a852459e6fc73ab88d91a67e9",
+            "size": 12905
         },
         {
             "path": "application/models/Expense_category_model.php",
@@ -8561,8 +8561,8 @@
         },
         {
             "path": "application/controllers/Login.php",
-            "hash": "66d9e284250f5ced079151ee3e1eb38eb1249510ce22ae1eb2152beb225d6a18",
-            "size": 7527
+            "hash": "38a2e0524257d8403179b0df891852c4440761939dc481f8430e29ef3116ba66",
+            "size": 7596
         },
         {
             "path": "application/controllers/Sessions.php",
@@ -8631,8 +8631,8 @@
         },
         {
             "path": "application/controllers/Debt_reminder.php",
-            "hash": "cdce482669b28ba578b665baf7e4e67e8e217d5af74ebd34a80b65707d97b523",
-            "size": 8280
+            "hash": "70559fa5d68959b7a82a0dd52eec4efdb2472fe37716797a3d01db5d284a3b7f",
+            "size": 8159
         },
         {
             "path": "application/controllers/Perfume.php",
@@ -8801,8 +8801,8 @@
         },
         {
             "path": "application/controllers/Cron.php",
-            "hash": "c8ba2409658dd100f4fa3d05a8091aa7ef444670d719666941d5118278b1da91",
-            "size": 49722
+            "hash": "7c3435ea95a122cf4489471bb8b08ab3ab6b5639a496a3673648db1837e0a09c",
+            "size": 49614
         },
         {
             "path": "application/controllers/Marketing.php",
@@ -9186,8 +9186,8 @@
         },
         {
             "path": "application/controllers/Paystack.php",
-            "hash": "2df96dccebf72c3dae3d41272e99d6cf1cf65472cfe2fa19a8e6cb53dadddf3d",
-            "size": 37913
+            "hash": "c461a0e9e0232dd28b4f1fca8c9d4f56926657899114b3986ef2f9aa0da36f26",
+            "size": 38100
         },
         {
             "path": "application/controllers/Debt_reminders.php",
@@ -13736,7 +13736,7 @@
         },
         {
             "path": "application/helpers/custom_helper.php",
-            "hash": "8560719ac17c4850a2272c2b948efdc0c1534318f533a76e594cbc005020a72e",
+            "hash": "bdbb209f7b000daa34713522736d2bb903b9858f1b3d77909ba1e2814e241e07",
             "size": 137993
         },
         {
@@ -13856,8 +13856,8 @@
         },
         {
             "path": "application/helpers/physio_helper.php",
-            "hash": "7a68a0d603345a991b8b9bdbeca3da01cf2ea60dcfe8e4b945aa124476324cc8",
-            "size": 42458
+            "hash": "2fb6564db970aee0bf00bb406bf1da3152d7f95d6351ab85f660e00a307b60f9",
+            "size": 42799
         },
         {
             "path": "application/helpers/customer_pricing_helper.php",
@@ -20856,7 +20856,8 @@
         "4.0.9.312_meta_storefront_crawler_allow.sql",
         "4.0.9.313_online_store_admin_updates.sql",
         "4.0.9.314_storefront_analytics_reporting.sql",
-        "4.0.9.315_html_theme_runtime_refinements.sql"
+        "4.0.9.315_html_theme_runtime_refinements.sql",
+        "4.0.9.316_invoice_level_debt_reminders.sql"
     ],
     "protected_paths": [
         "application/config/database.php",
@@ -20865,6 +20866,6 @@
         "uploads/",
         "backups/"
     ],
-    "signature": "6744f79b477df1cd22bc068bd62dfe54592e1277b8d02c79ecf02a62998f5144b167bd4453b7ffab5fd3cfbc8be7e13d6606968d36100a8ec8c9c616bdb9b80c",
-    "changelog": "Release 4.0.9.315"
+    "signature": "d64891e25b8066048c1b76bb2551c8819996038ed8534814dda0a535bd9f0ad1bdbcc08b15b43842bd28d461520b7eb6a72e8da6c1ee74619407e2afdea3c507",
+    "changelog": "Release 4.0.9.316"
 }

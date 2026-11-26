@@ -201,7 +201,11 @@ class Paystack extends MY_Controller {
 		$this->update_db();
 		$secret_key = $this->input->post('secret_key', TRUE);
 		$public_key = $this->input->post('public_key', TRUE);
-		$enabled = $this->input->post('enabled', TRUE);
+		$enabledPost = $this->input->post('enabled', TRUE);
+		$currentSettings = $this->paystack->get_settings();
+		$enabled = $enabledPost === NULL
+			? (!empty($currentSettings->enabled) ? 1 : 0)
+			: ((string)$enabledPost === '1' ? 1 : 0);
 		$test_mode = $this->input->post('test_mode', TRUE);
 		$webhook_secret = $this->input->post('webhook_secret', TRUE);
 		$test_mode = (string)($test_mode ?? '1') === '1' ? 1 : 0;

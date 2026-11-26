@@ -1,143 +1,68 @@
-<?php
-/* Debt Reminder Customers — content-only view for mp_layout */
-?>
+<?php /* Invoice-level debt reminder controls. */ ?>
 <?php $this->load->view('admin/desktop/_styles'); ?>
 <style>
-.mp-toggle-small input[type="checkbox"] { width:36px; height:20px; -webkit-appearance:none; appearance:none; background:#CBD5E1; border-radius:10px; position:relative; cursor:pointer; outline:none; transition:background .2s; }
-.mp-toggle-small input[type="checkbox"]:checked { background:#10B981; }
-.mp-toggle-small input[type="checkbox"]::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.mp-toggle-small input[type="checkbox"]:checked::after { left:18px; }
-/* Protect from iCheck + mobile min-height overrides */
-.mp-toggle-small input[type="checkbox"] { min-height:0 !important; }
-.mp-channel-input { -webkit-appearance:none !important; appearance:none !important; min-height:0 !important; }
-.mp-select { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; color:#0F172A; background:#fff; }
-.mp-select:focus { border-color:#3B82F6; outline:none; }
-.mp-input-sm { padding:6px 10px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; width:70px; }
-.mp-btn-save { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; border:none; cursor:pointer; background:#10B981; color:#fff; }
-.mp-btn-save:hover { background:#059669; }
-.mp-badge { display:inline-block; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600; }
-.mp-badge-green { background:#D1FAE5; color:#065F46; }
-.mp-badge-red { background:#FEE2E2; color:#991B1B; }
-.mp-empty { text-align:center; padding:40px; color:#94A3B8; }
+.dr-table td{vertical-align:middle!important}.dr-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.dr-controls select,.dr-controls input{min-height:34px;padding:5px 8px;border:1px solid #dbe2ea;border-radius:6px}.dr-controls .dr-max{width:78px}.dr-meta{color:#64748b;font-size:12px}.dr-invoice{font-weight:700;color:#1d4ed8}
 </style>
-
-<div class="mp-page-head">
-  <h1 class="mp-page-title"><?= $page_title ?></h1>
-</div>
-
+<div class="mp-page-head"><h1 class="mp-page-title"><?= htmlspecialchars($page_title); ?></h1></div>
 <div class="mp-card">
   <div class="mp-card-header">
-    <div class="mp-card-title"><i class="fa fa-users text-blue"></i> Customers with Outstanding Debt</div>
-    <div>
-      <small class="text-muted">Store default: <?= ucfirst($store_defaults->frequency); ?> &middot; 
-      <?= $store_defaults->enabled ? '<span style="color:#10B981;">Enabled</span>' : '<span style="color:#EF4444;">Disabled</span>'; ?></small>
-    </div>
+    <div class="mp-card-title"><i class="fa fa-file-text-o text-blue"></i> Unpaid invoices</div>
+    <small class="text-muted">Store default: <?= htmlspecialchars(ucfirst($store_defaults->frequency)); ?> · <?= $store_defaults->enabled ? '<span style="color:#10B981">Enabled</span>' : '<span style="color:#EF4444">Disabled</span>'; ?></small>
   </div>
   <div class="mp-card-body">
-    <?php if(!empty($customers)): ?>
+    <p class="dr-meta">Each row is an individual invoice. Its reminder frequency, limit, channels and send history are tracked separately.</p>
+    <?php if(!empty($invoices)): ?>
     <div class="table-responsive">
-      <table class="mp-table" id="tbl_customers">
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Mobile</th>
-            <th>Amount Due</th>
-            <th>Reminders Sent</th>
-            <th>Last Sent</th>
-            <th>Override</th>
-            <th>Freq</th>
-            <th>Max</th>
-            <th>Email</th>
-            <th>SMS</th>
-            <th></th>
-          </tr>
-        </thead>
+      <table class="mp-table dr-table" id="tbl_invoices">
+        <thead><tr><th>Invoice</th><th>Customer</th><th>Due date</th><th>Balance due</th><th>Sent</th><th>Last reminder</th><th>Reminder settings</th><th></th></tr></thead>
         <tbody>
-          <?php foreach($customers as $c): ?>
-          <tr data-cid="<?= $c->customer_id; ?>">
-            <td><strong><?= htmlspecialchars($c->customer_name); ?></strong></td>
-            <td><?= htmlspecialchars($c->mobile); ?></td>
-            <td><?= store_number_format($c->amount_due); ?></td>
-            <td><?= (int)$c->reminder_count; ?></td>
-            <td><?= !empty($c->last_reminder_sent) ? date('M d, Y H:i', strtotime($c->last_reminder_sent)) : '<span class="text-muted">Never</span>'; ?></td>
+        <?php foreach($invoices as $inv): ?>
+          <tr data-invoice-id="<?= (int)$inv->invoice_id; ?>">
+            <td><span class="dr-invoice"><?= htmlspecialchars($inv->sales_code); ?></span></td>
+            <td><?= htmlspecialchars($inv->customer_name); ?><br><span class="dr-meta"><?= htmlspecialchars($inv->email ?: $inv->mobile); ?></span></td>
+            <td><?= !empty($inv->due_date) ? show_date($inv->due_date) : '—'; ?></td>
+            <td><?= store_number_format($inv->amount_due); ?></td>
+            <td><?= (int)$inv->reminder_count; ?></td>
+            <td><?= !empty($inv->last_reminder_sent) ? date('M d, Y H:i',strtotime($inv->last_reminder_sent)) : '<span class="text-muted">Never</span>'; ?></td>
             <td>
-              <select class="mp-select override-enabled" data-cid="<?= $c->customer_id; ?>">
-                <option value="" <?= $c->enabled === NULL ? 'selected' : ''; ?>>Use Store Default (<?= $store_defaults->enabled ? 'On' : 'Off'; ?>)</option>
-                <option value="1" <?= $c->enabled === '1' ? 'selected' : ''; ?>>Enabled</option>
-                <option value="0" <?= $c->enabled === '0' ? 'selected' : ''; ?>>Disabled</option>
-              </select>
+              <div class="dr-controls">
+                <label title="Enable reminders for this invoice"><input class="dr-enabled" type="checkbox" <?= $inv->enabled ? 'checked' : ''; ?>> On</label>
+                <select class="dr-frequency" aria-label="Reminder frequency">
+                  <?php foreach(['daily'=>'Daily','3days'=>'Every 3 days','weekly'=>'Weekly','biweekly'=>'Bi-weekly','monthly'=>'Monthly'] as $key=>$label): ?>
+                    <option value="<?= $key; ?>" <?= $inv->frequency===$key ? 'selected' : ''; ?>><?= $label; ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <input class="dr-max" type="number" min="0" value="<?= (int)$inv->max_reminders; ?>" title="Maximum reminders for this invoice; 0 means unlimited" aria-label="Maximum reminders">
+                <label title="Send email"><input class="dr-email" type="checkbox" <?= $inv->send_email ? 'checked' : ''; ?>> Email</label>
+                <label title="Send SMS"><input class="dr-sms" type="checkbox" <?= $inv->send_sms ? 'checked' : ''; ?>> SMS</label>
+              </div>
             </td>
-            <td>
-              <select class="mp-select override-freq" data-cid="<?= $c->customer_id; ?>">
-                <option value="">Default</option>
-                <option value="daily" <?= $c->frequency == 'daily' ? 'selected' : ''; ?>>Daily</option>
-                <option value="3days" <?= $c->frequency == '3days' ? 'selected' : ''; ?>>3 Days</option>
-                <option value="weekly" <?= $c->frequency == 'weekly' ? 'selected' : ''; ?>>Weekly</option>
-                <option value="biweekly" <?= $c->frequency == 'biweekly' ? 'selected' : ''; ?>>Bi-Weekly</option>
-                <option value="monthly" <?= $c->frequency == 'monthly' ? 'selected' : ''; ?>>Monthly</option>
-              </select>
-            </td>
-            <td><input type="number" class="mp-input-sm override-max" value="<?= $c->max_reminders !== NULL ? $c->max_reminders : ''; ?>" placeholder="Default" data-cid="<?= $c->customer_id; ?>"></td>
-            <td><label class="mp-toggle-small"><input type="checkbox" class="override-email mp-channel-input no-icheck" <?= $c->send_email == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
-            <td><label class="mp-toggle-small"><input type="checkbox" class="override-sms mp-channel-input no-icheck" <?= $c->send_sms == 1 ? 'checked' : ''; ?> data-cid="<?= $c->customer_id; ?>"></label></td>
-            <td><button class="mp-btn-save btn-save-customer" data-cid="<?= $c->customer_id; ?>"><i class="fa fa-save"></i></button></td>
+            <td><button type="button" class="mp-btn-save btn-save-invoice"><i class="fa fa-save"></i> Save</button></td>
           </tr>
-          <?php endforeach; ?>
+        <?php endforeach; ?>
         </tbody>
       </table>
     </div>
     <?php else: ?>
-      <div class="mp-empty">
-        <i class="fa fa-check-circle" style="font-size:32px; color:#10B981; margin-bottom:10px;"></i>
-        <p>No customers currently have outstanding debt. Great job!</p>
-      </div>
+      <div class="mp-empty"><i class="fa fa-check-circle" style="font-size:32px;color:#10B981;margin-bottom:10px"></i><p>No unpaid invoices found.</p></div>
     <?php endif; ?>
   </div>
 </div>
-
 <script>
 $(function(){
-  if(typeof toastr !== 'undefined'){
-    toastr.options = { positionClass: 'toast-top-right', closeButton: true, progressBar: true };
-  }
-
-  $('.btn-save-customer').click(function(){
-    var btn = $(this);
-    var cid = btn.data('cid');
-    var row = $('tr[data-cid="'+cid+'"]');
-    btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
-
-    $.ajax({
-      url: '<?=base_url("debt_reminder/update_customer");?>',
-      type: 'POST',
-      dataType: 'json',
-      data: {
-        customer_id: cid,
-        enabled: row.find('.override-enabled').val(),
-        frequency: row.find('.override-freq').val(),
-        max_reminders: row.find('.override-max').val(),
-        send_email: row.find('.override-email').is(':checked') ? 1 : 0,
-        send_sms: row.find('.override-sms').is(':checked') ? 1 : 0,
-        <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
-      },
-      success: function(res){
-        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
-        if(res && res.status === 'success'){
-          if(typeof toastr !== 'undefined'){ toastr.success(res.message); }
-          else { alert(res.message); }
-        } else {
-          var msg = res && res.message ? res.message : 'Failed to update';
-          if(typeof toastr !== 'undefined'){ toastr.error(msg); }
-          else { alert('Error: ' + msg); }
-        }
-      },
-      error: function(xhr, status, error){
-        btn.prop('disabled', false).html('<i class="fa fa-save"></i>');
-        var msg = 'Server error: ' + (error || status || 'Unknown error');
-        if(typeof toastr !== 'undefined'){ toastr.error(msg); }
-        else { alert(msg); }
-      }
-    });
+  var csrfName='<?= $this->security->get_csrf_token_name(); ?>';
+  var csrfHash='<?= $this->security->get_csrf_hash(); ?>';
+  $('.btn-save-invoice').on('click',function(){
+    var btn=$(this), row=btn.closest('tr');
+    var data={invoice_id:row.data('invoice-id'),enabled:row.find('.dr-enabled').is(':checked')?1:0,
+      frequency:row.find('.dr-frequency').val(),max_reminders:row.find('.dr-max').val(),
+      send_email:row.find('.dr-email').is(':checked')?1:0,send_sms:row.find('.dr-sms').is(':checked')?1:0};
+    data[csrfName]=csrfHash;
+    btn.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i>');
+    $.ajax({url:'<?= base_url('debt_reminder/update_customer'); ?>',type:'POST',dataType:'json',data:data})
+      .done(function(res){if(res&&res.status==='success'){if(typeof toastr!=='undefined')toastr.success(res.message);else alert(res.message);}else{var m=res&&res.message?res.message:'Unable to save invoice settings';if(typeof toastr!=='undefined')toastr.error(m);else alert(m);}})
+      .fail(function(){if(typeof toastr!=='undefined')toastr.error('Unable to save invoice settings.');else alert('Unable to save invoice settings.');})
+      .always(function(){btn.prop('disabled',false).html('<i class="fa fa-save"></i> Save');});
   });
 });
 </script>

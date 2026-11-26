@@ -737,4 +737,6 @@ return [
 	'4.0.9.314v' => '4.0.9.314_storefront_analytics_reporting.sql',
 	// Keep existing uploaded HTML themes aligned with shared storefront pages, branding, and navigation.
 	'4.0.9.315v' => '4.0.9.315_html_theme_runtime_refinements.sql',
+	// Track reminder schedules and delivery history independently for each unpaid sales invoice.
+	'4.0.9.316v' => '4.0.9.316_invoice_level_debt_reminders.sql',
 ];

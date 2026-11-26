@@ -34,17 +34,21 @@
       <input type="hidden" name="<?=htmlspecialchars($this->security->get_csrf_token_name(), ENT_QUOTES, 'UTF-8');?>" value="<?=htmlspecialchars($this->security->get_csrf_hash(), ENT_QUOTES, 'UTF-8');?>">
 <?php if(empty($central_managed)): ?>
       <div class="alert alert-info mp-settings-note">
-        <i class="fa fa-info-circle"></i> <strong>Shared Paystack webhook for fleet payments:</strong> <code><?=htmlspecialchars($paystack_shared_webhook_url ?? 'https://martpoint.com.ng/api/payments/webhooks/paystack', ENT_QUOTES, 'UTF-8');?></code><br>
-        <small>Register this shared URL in Paystack. Central verifies successful events and relays mapped subaccount payments to each fleet’s <code>/paystack/webhook</code> receiver. Do not register the fleet receiver URL as the shared Paystack webhook.</small>
+        <i class="fa fa-info-circle"></i> <strong>Single Paystack webhook managed by Next:</strong> <code><?=htmlspecialchars($paystack_shared_webhook_url ?? 'https://martpoint.com.ng/api/payments/webhooks/paystack', ENT_QUOTES, 'UTF-8');?></code><br>
+        <small>Configure the Next Admin → Integrations → Paystack webhook URL in Paystack once. Next verifies events and forwards mapped subaccount payments internally to the owning fleet. Fleets do not need separate Paystack webhook registrations.</small>
       </div>
 <?php endif; ?>
 
 <?php if(!empty($central_managed)): ?>
       <div class="alert <?= !empty($enabled) ? 'alert-success' : 'alert-warning'; ?> mp-settings-status">
         <i class="fa <?= !empty($enabled) ? 'fa-check-circle' : 'fa-clock-o'; ?>" aria-hidden="true"></i>
-        <div><strong><?= !empty($enabled) ? 'MartPoint Pay is active' : 'MartPoint Pay activation is pending'; ?></strong><br><?= !empty($enabled) ? 'Manage this store’s settlement account below.' : 'Ask your Central administrator to activate MartPoint Pay before saving this payout account.'; ?></div>
+        <div><strong><?= !empty($enabled) ? 'Central MartPoint Pay is active' : 'Central MartPoint Pay is off'; ?></strong><br><?= !empty($enabled) ? 'This fleet can activate payments by verifying and saving its payout account below.' : 'A Central administrator must configure the provider keys and enable MartPoint Pay before fleets can activate.'; ?></div>
       </div>
 <?php else: ?>
+      <div class="alert <?= !empty($enabled) ? 'alert-success' : 'alert-warning'; ?> mp-settings-status">
+        <i class="fa <?= !empty($enabled) ? 'fa-check-circle' : 'fa-clock-o'; ?>" aria-hidden="true"></i>
+        <div><strong><?= !empty($enabled) ? 'MartPoint Pay is active' : 'MartPoint Pay is currently off'; ?></strong><br><?= !empty($enabled) ? 'Customers can pay eligible outstanding invoices after each fleet activates its payout account.' : 'Save valid Live Paystack credentials, then enable MartPoint Pay here.'; ?></div>
+      </div>
       <div class="form-group">
         <label class="col-sm-3 control-label">Enable MartPoint Pay</label>
         <div class="col-sm-6">
@@ -106,7 +110,7 @@
       <div class="mp-payout-actions"><button type="button" id="save_payout_account" class="mp-btn-primary" <?=(!empty($central_managed) && empty($enabled)) ? 'disabled title="Available after MartPoint Pay is activated"' : '';?>><?php if(!empty($central_managed) && empty($enabled)): ?>Available after activation<?php elseif(!$has_current_fee_acceptance): ?>Review fees &amp; activate MartPoint Pay<?php elseif(empty($payout->enabled)): ?>Verify account &amp; activate<?php else: ?>Verify account and save<?php endif; ?></button></div>
       </section>
 <?php elseif(empty($payout_edit_policy_available)): ?>
-      <div class="alert alert-warning mp-settings-note"><strong>Payout account details are hidden.</strong> Central’s edit policy could not be confirmed, so account viewing and changes are paused. Reload after the Central connection is available.</div>
+      <div class="alert alert-warning mp-settings-note"><strong>Payout account details are hidden.</strong> Central could not confirm this fleet’s policy in Next. Check the fleet’s active installation mapping under Next Admin → Businesses → this business, including the fleet URL and store ID. Enable “Allow fleet to view and edit payout account details” if the fleet needs to enter its settlement account, then reload. If the mapping is correct, check the Central-to-Next connection.</div>
 <?php else: ?>
       <div class="alert alert-info mp-settings-note"><strong>Payout account details are managed by Central.</strong> The bank account and account number are hidden on this fleet. Ask your Central administrator to enable editing if these details need correction.</div>
 <?php endif; ?>

@@ -221,22 +221,30 @@ class Login_model extends CI_Model
 			redirect('login');
 		}		
 	}
-	public function verify_email_send_otp($email)
+	public function verify_email_send_otp($identifier)
 	{
-		
-		//Filtering XSS and html escape from user inputs 
-		$to=$this->security->xss_clean(html_escape($email));
-				
-		$this->db->where('email', $email);
-		$this->db->where('status', 1);
-		$query = $this->db->get('db_users');
-
-		if($query->num_rows() == 0){
-			$this->session->set_flashdata('failed', 'This Email ID not Exist in Our Records!');
+		// Resolve either login identifier to the account's registered email.
+		$identifier = trim((string)$this->security->xss_clean($identifier));
+		if($identifier === ''){
+			$this->session->set_flashdata('failed', 'Enter the username or email address on your account.');
 			return false;
 		}
 
-			$store_id = $query->row()->store_id;
+		$this->db->group_start();
+		$this->db->where('email', $identifier);
+		$this->db->or_where('username', $identifier);
+		$this->db->group_end();
+		$this->db->where('status', 1);
+		$query = $this->db->get('db_users');
+
+		if($query->num_rows() != 1 || trim((string)$query->row()->email) === ''){
+			$this->session->set_flashdata('failed', 'We could not find an active account with that username or email. Please check it and try again.');
+			return false;
+		}
+
+			$user = $query->row();
+			$to = trim((string)$user->email);
+			$store_id = $user->store_id;
 
 			$q1 = $this->db->where('id', $store_id)->get('db_store');
 			
@@ -250,7 +258,7 @@ class Login_model extends CI_Model
 				'password_reset_otp',
 				$to,
 				[
-					'user_name' => $to,
+					'user_name' => trim((string)($user->first_name ?? '')) ?: $user->username,
 					'otp_code' => $otp,
 					'otp_expiry_minutes' => '15',
 					'store_name' => $store_name,

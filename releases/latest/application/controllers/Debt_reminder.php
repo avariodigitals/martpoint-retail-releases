@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * Debt Reminder Controller
- * Manage automated debt reminder settings per store and per customer.
+ * Manage automated debt reminder settings per store and per invoice.
  */
 class Debt_reminder extends MY_Controller {
 
@@ -81,12 +81,12 @@ class Debt_reminder extends MY_Controller {
 	}
 
 	/**
-	 * Customers list with debt and reminder overrides
+	 * Unpaid invoices with invoice-specific reminder controls
 	 */
 	public function customers(){
 		$data = array_merge($this->data, [
-			'page_title' => 'Debt Reminder — Customers',
-			'customers' => $this->debt_reminder_model->getCustomersWithDebt(),
+			'page_title' => 'Debt Reminder — Unpaid Invoices',
+			'invoices' => $this->debt_reminder_model->getInvoicesWithDebt(),
 			'store_defaults' => $this->debt_reminder_model->getStoreSettings()
 		]);
 		$data['content'] = $this->load->view('debt_reminder_customers', $data, TRUE);
@@ -94,7 +94,7 @@ class Debt_reminder extends MY_Controller {
 	}
 
 	/**
-	 * Update a single customer's reminder settings
+	 * Update one invoice's reminder settings
 	 */
 	public function update_customer(){
 		if(!$this->permissions('debt_reminder_edit') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
@@ -102,26 +102,23 @@ class Debt_reminder extends MY_Controller {
 			return;
 		}
 
-		$customerId = (int)$this->input->post('customer_id');
+		$invoiceId = (int)$this->input->post('invoice_id');
 		$storeId = get_current_store_id();
 
 		$data = [
 			'enabled' => $this->input->post('enabled') !== NULL ? ($this->input->post('enabled') ? 1 : 0) : NULL,
-			'frequency' => $this->input->post('frequency') ?: NULL,
-			'max_reminders' => $this->input->post('max_reminders') !== '' ? (int)$this->input->post('max_reminders') : NULL,
+			'frequency' => $this->input->post('frequency') ?: 'weekly',
+			'max_reminders' => $this->input->post('max_reminders') !== '' ? max(0,(int)$this->input->post('max_reminders')) : NULL,
 			'send_email' => $this->input->post('send_email') !== NULL ? ($this->input->post('send_email') ? 1 : 0) : NULL,
 			'send_sms' => $this->input->post('send_sms') !== NULL ? ($this->input->post('send_sms') ? 1 : 0) : NULL
 		];
-
-		// Remove NULL values so they don't overwrite with empty strings
-		$data = array_filter($data, function($v){ return $v !== NULL; });
-
-		$this->debt_reminder_model->updateCustomerSettings($customerId, $storeId, $data);
-		echo json_encode(['status' => 'success', 'message' => 'Customer reminder settings updated']);
+		if(!in_array($data['frequency'], ['daily','3days','weekly','biweekly','monthly'], true)) $data['frequency'] = 'weekly';
+		$ok = $this->debt_reminder_model->updateInvoiceSettings($invoiceId, $storeId, $data);
+		echo json_encode(['status' => $ok ? 'success' : 'error', 'message' => $ok ? 'Invoice reminder settings updated' : 'Invoice not found']);
 	}
 
 	/**
-	 * Manual trigger to send reminders now (for testing)
+	 * Manually process invoices whose reminder schedule is due
 	 */
 	public function trigger_now(){
 		if(!$this->permissions('debt_reminder_edit') && !is_admin() && !is_store_admin() && $this->session->userdata('role_id') != 1){
@@ -134,7 +131,7 @@ class Debt_reminder extends MY_Controller {
 		$this->load->model('sms_model');
 
 		$results = [
-			'customers_checked' => 0,
+			'invoices_checked' => 0,
 			'emails_sent' => 0,
 			'sms_sent' => 0,
 			'errors' => []
@@ -144,40 +141,31 @@ class Debt_reminder extends MY_Controller {
         $this->email_service->setStoreId($storeId);
 		$storeDefaults = $this->debt_reminder_model->getStoreSettings($storeId);
 
-		$customers = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
-		$results['customers_checked'] = count($customers);
+		$invoices = $this->debt_reminder_model->getCustomersDueForReminder($storeId);
+		$results['invoices_checked'] = count($invoices);
 
-		if(empty($customers)){
+		if(empty($invoices)){
 			echo json_encode([
 				'status' => 'success',
-				'message' => 'No customers are due for a reminder at this time.',
+				'message' => 'No invoices are due for a reminder at this time.',
 				'details' => $results
 			]);
 			return;
 		}
 
-		foreach($customers as $customer){
+		foreach($invoices as $customer){
 			$amountDue = $customer->amount_due;
-			$customerRec = $this->db->where('id', $customer->customer_id)->get('db_customers')->row();
-			if(!$customerRec) continue;
-
-			$email = $customerRec->email;
-			$mobile = $customerRec->mobile;
-			$customerName = $customerRec->customer_name;
+			$email = $customer->email;
+			$mobile = $customer->mobile;
+			$customerName = $customer->customer_name;
 			$emailOk = false;
 			$smsOk = false;
 
 			if($customer->send_email && !empty($email)){
-				$invoiceRec = $this->db->select('id, sales_code, sales_date')
-					->where('customer_id', $customer->customer_id)
-					->where('sales_status', 'Final')
-					->where('(grand_total - paid_amount) >', 0)
-					->order_by('sales_date', 'DESC')
-					->limit(1)
-					->get('db_sales')
-					->row();
-				$invoiceNumber = $invoiceRec ? $invoiceRec->sales_code : 'N/A';
-				$dueDate = $invoiceRec ? show_date($invoiceRec->sales_date) : 'N/A';
+				$invoiceNumber = $customer->sales_code;
+				$dueDate = !empty($customer->due_date) ? show_date($customer->due_date) : 'N/A';
+				$this->load->library('invoice_payment_link');
+				$paymentLink = $this->invoice_payment_link->forSales((int)$customer->invoice_id,(int)$storeId);
 
 				$res = $this->email_service->sendTemplate(
 					'debt_reminder',
@@ -188,9 +176,9 @@ class Debt_reminder extends MY_Controller {
 						'invoice_number' => $invoiceNumber,
 						'amount_due' => store_number_format($amountDue),
 						'due_date' => $dueDate,
-						'payment_link' => base_url('customers')
+						'payment_link' => $paymentLink
 					],
-					['related_module' => 'debt_reminder', 'related_record_id' => $customer->customer_id]
+					['related_module' => 'debt_reminder', 'related_record_id' => $customer->invoice_id]
 				);
 				if($res['success']){
 					$emailOk = true;
@@ -201,12 +189,12 @@ class Debt_reminder extends MY_Controller {
 				$this->debt_reminder_model->logHistory(
 					$storeId, $customer->customer_id, $customerName, $amountDue, 'email',
 					$res['success'] ? 'sent' : 'failed',
-					$res['success'] ? '' : $res['message']
+					$res['success'] ? '' : $res['message'], $customer->invoice_id
 				);
 			}
 
 			if($customer->send_sms && !empty($mobile)){
-				$msg = "Hi {$customerName}, this is a reminder that you have an outstanding balance of " . store_number_format($amountDue) . ". Please settle at your earliest convenience. Thank you, " . get_store_name($storeId);
+				$msg = "Hi {$customerName}, invoice {$customer->sales_code} has an outstanding balance of " . store_number_format($amountDue) . (!empty($customer->due_date) ? " and was due on " . show_date($customer->due_date) : '') . ". Please settle at your earliest convenience. Thank you, " . get_store_name($storeId);
 				$res = $this->sms_model->send_sms($mobile, $msg,array('store_id'=>$storeId,'message_category'=>'transactional'));
 				if($res === 'success'){
 					$smsOk = true;
@@ -217,18 +205,18 @@ class Debt_reminder extends MY_Controller {
 				$this->debt_reminder_model->logHistory(
 					$storeId, $customer->customer_id, $customerName, $amountDue, 'sms',
 					$smsOk ? 'sent' : 'failed',
-					$smsOk ? '' : $res
+					$smsOk ? '' : $res, $customer->invoice_id
 				);
 			}
 
 			if($emailOk || $smsOk){
-				$this->debt_reminder_model->markSent($customer->customer_id, $storeId, $amountDue);
+				$this->debt_reminder_model->markSent($customer->invoice_id, $storeId, $amountDue);
 			}
 		}
 
 		echo json_encode([
 			'status' => 'success',
-			'message' => "Processed {$results['customers_checked']} customers. Emails: {$results['emails_sent']}, SMS: {$results['sms_sent']}.",
+			'message' => "Processed {$results['invoices_checked']} invoices. Emails: {$results['emails_sent']}, SMS: {$results['sms_sent']}.",
 			'details' => $results
 		]);
 	}

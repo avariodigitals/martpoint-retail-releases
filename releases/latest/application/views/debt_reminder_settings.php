@@ -65,7 +65,7 @@
           <input type="checkbox" id="reminder_enabled" class="mp-toggle-input no-icheck" <?= $settings->enabled == 1 ? 'checked' : ''; ?>>
           <span class="mp-label">Enable Automatic Debt Reminders</span>
         </label>
-        <p class="mp-help-text">When enabled, the system will automatically send reminders to customers with outstanding balances based on the frequency below.</p>
+        <p class="mp-help-text">When enabled, the system sends a separate reminder for each unpaid invoice. Each invoice has its own send frequency and reminder count.</p>
       </div>
       <div class="col-md-6">
         <div class="mp-form-group">
@@ -77,7 +77,7 @@
             <option value="biweekly" <?= $settings->frequency == 'biweekly' ? 'selected' : ''; ?>>Bi-Weekly</option>
             <option value="monthly" <?= $settings->frequency == 'monthly' ? 'selected' : ''; ?>>Monthly</option>
           </select>
-          <p class="mp-help-text">How often reminders are sent to the same customer.</p>
+          <p class="mp-help-text">Default frequency for each invoice. You can override it per invoice.</p>
         </div>
       </div>
     </div>
@@ -85,9 +85,9 @@
     <div class="row">
       <div class="col-md-6">
         <div class="mp-form-group">
-          <label>Max Reminders Per Customer</label>
+          <label>Default Max Reminders Per Invoice</label>
           <input type="number" id="max_reminders" value="<?= $settings->max_reminders; ?>" min="0" placeholder="0 = unlimited">
-          <p class="mp-help-text">Set to 0 for unlimited reminders. Otherwise, the system will stop after this many reminders.</p>
+          <p class="mp-help-text">Default maximum for each invoice. Set to 0 for unlimited reminders.</p>
         </div>
       </div>
       <div class="col-md-6">
@@ -127,6 +127,7 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Invoice</th>
             <th>Customer</th>
             <th>Amount Due</th>
             <th>Channel</th>
@@ -137,6 +138,7 @@
           <?php foreach($history as $h): ?>
           <tr>
             <td><?= show_date($h->sent_at); ?> <?= date('H:i', strtotime($h->sent_at)); ?></td>
+            <td><?= htmlspecialchars($h->sales_code ?: 'Invoice #'.(int)$h->invoice_id); ?></td>
             <td><?= htmlspecialchars($h->customer_name); ?></td>
             <td><?= store_number_format($h->amount_due); ?></td>
             <td>

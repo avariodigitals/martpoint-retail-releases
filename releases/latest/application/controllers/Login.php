@@ -125,16 +125,16 @@ class Login extends MY_Controller {
 		$this->load->view('forgot-password',$data);
 	}
 	public function send_otp(){		
-		$this->form_validation->set_rules('email', 'Email', 'required|valid_email');
+		$this->form_validation->set_rules('identifier', 'Username or email', 'required|trim');
 		
 		if($this->form_validation->run()==FALSE){
-			$this->session->set_flashdata('failed', 'Invalid Email!');
+			$this->session->set_flashdata('failed', 'Enter the username or email address on your account.');
 			redirect(base_url().'login/forgot_password');
 		}
 		else{
-			$email=$this->input->post('email');
+			$identifier=$this->input->post('identifier', TRUE);
 			$this->load->model('login_model');//Model
-			$response = $this->login_model->verify_email_send_otp($email);
+			$response = $this->login_model->verify_email_send_otp($identifier);
 
 			if($response==true){//Model->Method
 				redirect(base_url().'login/otp');

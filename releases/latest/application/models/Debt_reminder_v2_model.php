@@ -197,26 +197,40 @@ class Debt_reminder_v2_model extends CI_Model {
 	 *   - frequency not yet due (last_reminder_sent) → not due
 	 *   - max_reminders reached → suppressed
 	 */
-	public function legacyGate($storeId, $patientId, $customerId){
+	public function legacyGate($storeId, $patientId, $customerId, $invoiceId = null){
 		$leg = $this->legacyEffective($storeId, $customerId);
-		if($leg['store_enabled'] !== 1) return array('suppress' => true, 'reason' => 'legacy store reminders disabled');
 		$c = $leg['customer'];
-		if($c){
-			if((int)$c->enabled === 0) return array('suppress' => true, 'reason' => 'legacy customer paused');
-			if((int)$c->send_email === 0) return array('suppress' => true, 'reason' => 'legacy email channel disabled');
-			$freq = $c->frequency ?: $leg['store_freq'];
-			$max  = (int)$c->max_reminders;
-			$cnt  = (int)$c->reminder_count;
-			$last = $c->last_reminder_sent;
-		} else {
-			$freq = $leg['store_freq'];
-			$max  = $leg['store_max'];
-			$cnt  = 0;
-			$last = null;
+		$st = null;
+		if($invoiceId && $this->db->table_exists('db_debt_reminder_invoice_state')){
+			$st = $this->db->where('store_id',(int)$storeId)->where('invoice_id',(int)$invoiceId)->get('db_debt_reminder_invoice_state')->row();
 		}
+		$enabled = $st && $st->enabled !== null ? (int)$st->enabled : ($c ? (int)$c->enabled : $leg['store_enabled']);
+		if(!$enabled) return array('suppress' => true, 'reason' => 'invoice reminders disabled');
+		$freq = $st && $st->frequency ? $st->frequency : ($c && $c->frequency ? $c->frequency : $leg['store_freq']);
+		$max = $st && $st->max_reminders !== null ? (int)$st->max_reminders : ($c && $c->max_reminders !== null ? (int)$c->max_reminders : $leg['store_max']);
+		$cnt = $st ? (int)$st->reminder_count : 0;
+		$last = $st ? $st->last_reminder_sent : null;
 		if($max > 0 && $cnt >= $max) return array('suppress' => true, 'reason' => 'legacy max reminders reached');
 		if(!$this->legacyIsDue($last, $freq)) return array('suppress' => true, 'reason' => 'legacy frequency not due');
-		return array('suppress' => false, 'reason' => null);
+		$sendEmail = $st && $st->send_email !== null ? (int)$st->send_email : ($c ? (int)$c->send_email : 1);
+		return array('suppress' => !$sendEmail, 'reason' => $sendEmail ? null : 'invoice email channel disabled');
+	}
+
+	/** Individual outstanding invoices for the outbox scheduler. */
+	private function invoiceDebtors($storeId, $includeOpening){
+		$statuses = $includeOpening ? "('Final','Opening')" : "('Final')";
+		$patientJoin = $this->db->table_exists('db_patients')
+			? "LEFT JOIN (SELECT store_id,customer_id,MIN(id) AS patient_id FROM db_patients WHERE deceased=0 GROUP BY store_id,customer_id) p ON p.store_id=s.store_id AND p.customer_id=s.customer_id"
+			: "";
+		$patientSelect = $this->db->table_exists('db_patients') ? 'COALESCE(p.patient_id,0)' : '0';
+		return $this->db->query("SELECT s.id AS invoice_id,s.sales_code,s.due_date,s.sales_date,s.customer_id,
+			c.customer_name,c.email,c.status AS customer_status,{$patientSelect} AS patient_id,
+			GREATEST(COALESCE(s.grand_total,0)-COALESCE(s.paid_amount,0),0) AS amount_due
+			FROM db_sales s JOIN db_customers c ON c.id=s.customer_id AND c.store_id=s.store_id
+			{$patientJoin}
+			WHERE s.store_id=? AND c.status=1 AND s.sales_status IN {$statuses}
+			AND (COALESCE(s.grand_total,0)-COALESCE(s.paid_amount,0))>0
+			ORDER BY COALESCE(s.due_date,s.sales_date),s.id", array((int)$storeId))->result();
 	}
 
 	/** Customers with outstanding debt (patient-wide, Final [+ Opening]). */
@@ -269,22 +283,22 @@ class Debt_reminder_v2_model extends CI_Model {
 
 		if(!function_exists('physio_notify')) $this->load->helper('physio');
 
-		foreach($this->debtors($storeId) as $d){
+		foreach($this->invoiceDebtors($storeId, (int)$cfg->include_opening_debt === 1) as $d){
 			// Suppress ineligible recipients: customer inactive, deceased.
-			if((int)$d->customer_status !== 1 || (int)$d->deceased === 1){
+			if((int)$d->customer_status !== 1){
 				$result['suppressed']++;
-				$this->audit($storeId, 'suppressed', (int)$d->patient_id, null, 'ineligible recipient');
+				$this->audit($storeId, 'suppressed', (int)$d->patient_id ?: null, (int)$d->invoice_id, 'ineligible recipient');
 				continue;
 			}
-			if($this->isPaused($storeId, (int)$d->patient_id, null)){
+			if($this->isPaused($storeId, (int)$d->patient_id ?: null, (int)$d->invoice_id)){
 				$result['paused']++;
 				continue;
 			}
 			// Legacy store/customer settings still govern the outbox path.
-			$leg = $this->legacyGate($storeId, (int)$d->patient_id, (int)$d->customer_id);
+			$leg = $this->legacyGate($storeId, (int)$d->patient_id, (int)$d->customer_id, (int)$d->invoice_id);
 			if(!empty($leg['suppress'])){
 				$result['suppressed']++;
-				$this->audit($storeId, 'suppressed', (int)$d->patient_id, null, $leg['reason']);
+				$this->audit($storeId, 'suppressed', (int)$d->patient_id ?: null, (int)$d->invoice_id, $leg['reason']);
 				continue;
 			}
 			if(empty($d->email)){
@@ -292,7 +306,7 @@ class Debt_reminder_v2_model extends CI_Model {
 				$this->audit($storeId, 'suppressed', (int)$d->patient_id, null, 'no email');
 				continue;
 			}
-			$eventKey = 'debt.reminder.' . $storeId . '.' . (int)$d->patient_id . '.' . date('Y-m-d');
+			$eventKey = 'debt.reminder.' . $storeId . '.' . (int)$d->invoice_id . '.' . date('Y-m-d');
 			$ok = physio_notify($eventKey, array(
 				'store_id' => $storeId,
 				'channel' => 'email',
@@ -301,14 +315,18 @@ class Debt_reminder_v2_model extends CI_Model {
 				'scheduled_at' => date('Y-m-d H:i:s'),
 				'payload' => array(
 					'patient_id' => (int)$d->patient_id,
+					'customer_id' => (int)$d->customer_id,
+					'invoice_id' => (int)$d->invoice_id,
+					'invoice_number' => $d->sales_code,
+					'due_date' => $d->due_date,
 					'amount_due' => round((float)$d->amount_due, 2),
 					'customer_name' => $d->customer_name,
 				),
 			));
 			$result[ $ok ? 'queued' : 'skipped' ]++;
 			if($ok){
-				$this->audit($storeId, 'queued', (int)$d->patient_id, null, null, $eventKey, (float)$d->amount_due);
-				$this->legacyMarkSent($storeId, (int)$d->customer_id);
+				$this->audit($storeId, 'queued', (int)$d->patient_id ?: null, (int)$d->invoice_id, null, $eventKey, (float)$d->amount_due);
+				$this->legacyMarkSent($storeId, (int)$d->invoice_id);
 			}
 		}
 		return $result;
@@ -316,14 +334,11 @@ class Debt_reminder_v2_model extends CI_Model {
 
 	/** Advance the legacy last_reminder_sent/reminder_count so frequency + cap
 	 *  stay authoritative across the outbox path (no double-send drift). */
-	private function legacyMarkSent($storeId, $customerId){
-		$exists = $this->db->where('store_id', $storeId)->where('customer_id', (int)$customerId)
-			->count_all_results('db_debt_reminder_settings');
-		if($exists){
-			$this->db->where('store_id', $storeId)->where('customer_id', (int)$customerId);
-			$this->db->set('reminder_count', 'reminder_count + 1', FALSE);
-			$this->db->update('db_debt_reminder_settings', array('last_reminder_sent' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')));
-		}
+	private function legacyMarkSent($storeId, $invoiceId){
+		$now = date('Y-m-d H:i:s');
+		$this->db->query("INSERT INTO db_debt_reminder_invoice_state (store_id,invoice_id,reminder_count,last_reminder_sent,created_at,updated_at)
+			VALUES (?,?,1,?,?,?) ON DUPLICATE KEY UPDATE reminder_count=reminder_count+1,last_reminder_sent=VALUES(last_reminder_sent),updated_at=VALUES(updated_at)",
+			array((int)$storeId,(int)$invoiceId,$now,$now,$now));
 	}
 
 	// ------------------------------------------------------------------
@@ -359,40 +374,39 @@ class Debt_reminder_v2_model extends CI_Model {
 		$storeId = (int)$row->store_id;
 		$payload = json_decode($row->payload_json, true) ?: array();
 		$patientId = !empty($payload['patient_id']) ? (int)$payload['patient_id'] : 0;
-		if(!$patientId) return array('suppress' => true, 'reason' => 'no patient context');
+		$invoiceId = !empty($payload['invoice_id']) ? (int)$payload['invoice_id'] : 0;
+		$customerId = !empty($payload['customer_id']) ? (int)$payload['customer_id'] : 0;
+		if(!$invoiceId) return array('suppress' => true, 'reason' => 'no invoice context');
 
 		// 1. Clinic config still enabled?
 		$cfg = $this->config($storeId);
 		if((int)$cfg->enabled !== 1) return array('suppress' => true, 'reason' => 'reminders disabled');
 
 		// 2. Any active pause (clinic/patient/invoice)?
-		if($this->isPaused($storeId, $patientId, !empty($payload['invoice_id']) ? (int)$payload['invoice_id'] : null)){
+		if($this->isPaused($storeId, $patientId ?: null, $invoiceId)){
 			return array('suppress' => true, 'reason' => 'paused');
 		}
-
-		// 2b. Legacy customer/store settings still govern at delivery time (a
-		//     customer-level pause or frequency change after queuing must win).
-		$p0 = $this->db->where('id', $patientId)->where('store_id', $storeId)->get('db_patients')->row();
-		if($p0 && $p0->customer_id && $this->db->table_exists('db_debt_reminder_settings')){
-			$lg = $this->legacyGate($storeId, $patientId, (int)$p0->customer_id);
-			if(!empty($lg['suppress'])) return array('suppress' => true, 'reason' => 'legacy: ' . $lg['reason']);
+		// Respect a clinic/patient pause and deceased-patient suppression where
+		// this invoice is linked to a patient, but always refresh only this sale.
+		if($patientId){
+			$p = $this->db->where('id',$patientId)->where('store_id',$storeId)->get('db_patients')->row();
+			if(!$p || (int)$p->deceased===1) return array('suppress'=>true,'reason'=>'ineligible recipient');
 		}
-
-		// 3. Recipient eligibility (customer active, not deceased).
-		$p = $this->db->where('id', $patientId)->where('store_id', $storeId)->get('db_patients')->row();
-		if(!$p || (int)$p->deceased === 1) return array('suppress' => true, 'reason' => 'ineligible recipient');
-		$c = $this->db->where('id', (int)$p->customer_id)->get('db_customers')->row();
+		$invoice = $this->db->select('id,customer_id,sales_status,grand_total,paid_amount')
+			->where('id',$invoiceId)->where('store_id',$storeId)->get('db_sales')->row();
+		if(!$invoice || !in_array($invoice->sales_status,array('Final','Opening'),true)) return array('suppress'=>true,'reason'=>'invoice unavailable');
+		$customerId = (int)$invoice->customer_id;
+		// A pause or channel/enable change made after queuing takes effect now.
+		$leg = $this->legacyGate($storeId,$patientId,$customerId,$invoiceId);
+		if(!empty($leg['suppress']) && $leg['reason']!=='legacy frequency not due' && $leg['reason']!=='legacy max reminders reached')
+			return array('suppress'=>true,'reason'=>'legacy: '.$leg['reason']);
+		$c = $this->db->where('id',$customerId)->where('store_id',$storeId)->get('db_customers')->row();
 		if(!$c || (int)$c->status !== 1) return array('suppress' => true, 'reason' => 'customer inactive');
 		if(empty($c->email)) return array('suppress' => true, 'reason' => 'no email');
 
 		// 4. Re-read CURRENT outstanding debt. Full payment (or zero/negative)
 		//    suppresses; partial payment refreshes the amount for the email.
-		$statuses = array('Final');
-		if((int)$cfg->include_opening_debt === 1) $statuses[] = 'Opening';
-		$due = (float)$this->db->select('COALESCE(SUM(grand_total - paid_amount),0) AS d', false)
-			->where('store_id', $storeId)->where('customer_id', (int)$p->customer_id)
-			->where_in('sales_status', $statuses)
-			->get('db_sales')->row()->d;
+		$due = max(0,(float)$invoice->grand_total-(float)$invoice->paid_amount);
 		$amount = round($due, 2);
 		if($amount <= 0.001) return array('suppress' => true, 'reason' => 'fully paid');
 
